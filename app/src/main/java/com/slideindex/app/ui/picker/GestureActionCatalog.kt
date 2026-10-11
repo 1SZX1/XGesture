@@ -173,6 +173,7 @@ object GestureActionCatalog {
         GestureActionType.OPEN_STASH_PANEL,
         GestureActionType.WIDGET_POPUP_OVERLAY,
         GestureActionType.QUICK_TOOLS_OVERLAY,
+        GestureActionType.QUICK_MENU,
         -> GestureActionCategory.Panel
 
         // 5. 指针与高级 (Pointer & Advanced)
@@ -313,6 +314,7 @@ object GestureActionCatalog {
         GestureAction.StashPanel,
         GestureAction.WidgetPopupOverlay,
         GestureAction.QuickToolsOverlay,
+        GestureAction.QuickMenu,
 
         // 5. 指针与高级工具 (Pointer & Advanced)
         GestureAction.FloatingPointer,

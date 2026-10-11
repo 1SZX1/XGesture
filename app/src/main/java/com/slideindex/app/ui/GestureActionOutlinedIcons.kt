@@ -1,6 +1,7 @@
 package com.slideindex.app.ui
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.slideindex.app.gesture.GestureActionType
@@ -37,6 +38,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.SHELL_COMMAND_PANEL -> ThinActionIcons.Code
     GestureActionType.EXECUTE_SHELL_COMMAND -> ThinActionIcons.PlayCircle
     GestureActionType.QUICK_TOOLS_OVERLAY -> ThinActionIcons.QuickTools
+    GestureActionType.QUICK_MENU -> Icons.Outlined.Calculate
     GestureActionType.WIDGET_POPUP_OVERLAY -> ThinActionIcons.Widgets
     GestureActionType.OPEN_STASH_PANEL -> ThinActionIcons.Inventory
     GestureActionType.OPEN_CLIPBOARD_PANEL -> ThinActionIcons.ContentPaste
@@ -131,6 +133,7 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.SHELL_COMMAND_PANEL -> ThinActionIcons.Code
     GestureActionType.EXECUTE_SHELL_COMMAND -> ThinActionIcons.Code
     GestureActionType.QUICK_TOOLS_OVERLAY -> ThinActionIcons.QuickTools
+    GestureActionType.QUICK_MENU -> Icons.Outlined.Calculate
     GestureActionType.WIDGET_POPUP_OVERLAY -> ThinActionIcons.Widgets
     GestureActionType.OPEN_STASH_PANEL -> ThinActionIcons.Inventory
     GestureActionType.OPEN_CLIPBOARD_PANEL -> ThinActionIcons.ContentPaste

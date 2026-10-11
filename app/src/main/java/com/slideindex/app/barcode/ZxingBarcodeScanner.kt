@@ -138,6 +138,61 @@ object ZxingBarcodeScanner {
         )
     }
 
+    /**
+     * 直接对**亮度平面**解码（相机 `YUV_420_888` 的 `plane[0]`）。
+     *
+     * 与 [scanBitmap] 复用同一套策略（多种亮度变体 × 两种二值化 × 多码制），但省掉 JPEG 编码与
+     * RGB 转换，因此可以跑在预览帧流上。用实时相机替代新引 CameraX 的原因见
+     * `QuickMenuScanActivity` 的注释。
+     *
+     * @param qrOnly 只试二维码类码制（QR / DataMatrix）。实时预览里绝大多数目标是二维码，
+     *   限定码制能显著降低单帧开销；调用方可以每隔若干帧传 `false` 兼顾一维条码。
+     */
+    fun scanLuminance(
+        luminance: ByteArray,
+        width: Int,
+        height: Int,
+        qrOnly: Boolean = false,
+    ): List<BarcodeScanResult> {
+        if (width <= 0 || height <= 0 || luminance.size < width * height) return emptyList()
+        val hints = if (qrOnly) qrHints else allFormatHints
+        for (variant in luminanceVariantsOf(luminance)) {
+            val source = ByteArrayLuminanceSource(width, height, variant)
+            for (binarizer in BinarizerStrategy.entries) {
+                tryDecode(source, hints, binarizer).takeIf { it.isNotEmpty() }?.let { return it }
+            }
+        }
+        return emptyList()
+    }
+
+    /** [luminanceVariants] 的亮度输入版本（相机路径没有 RGB 像素数组）。 */
+    private fun luminanceVariantsOf(luminance: ByteArray): List<ByteArray> {
+        val contrast = contrastStretchedLuminance(luminance)
+        return listOf(
+            luminance,
+            invertLuminance(luminance),
+            contrast,
+            invertLuminance(contrast),
+        )
+    }
+
+    /** 对比度拉伸的字节亮度版本；位图路径仍走上面的 IntArray 版本。 */
+    private fun contrastStretchedLuminance(luminance: ByteArray): ByteArray {
+        var min = 255
+        var max = 0
+        for (byte in luminance) {
+            val value = byte.toInt() and 0xFF
+            min = min(min, value)
+            max = max(max, value)
+        }
+        if (max <= min) return luminance
+        val range = (max - min).toFloat()
+        return ByteArray(luminance.size) { index ->
+            val value = (luminance[index].toInt() and 0xFF) - min
+            ((value * 255f) / range).roundToInt().coerceIn(0, 255).toByte()
+        }
+    }
+
     private fun rgbLuminance(pixels: IntArray): ByteArray {
         val output = ByteArray(pixels.size)
         for (index in pixels.indices) {

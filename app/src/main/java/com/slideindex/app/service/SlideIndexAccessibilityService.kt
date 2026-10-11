@@ -52,6 +52,28 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
+/**
+ * 一次性整屏截图（无障碍截图）的结果。
+ *
+ * 之所以把失败原因带出来：无障碍截图在 Android 14+ 有**最小调用间隔**，太频繁会被系统拒绝。
+ * 调用方必须能把这种情况讲给用户听，而不是静默什么都不做。
+ *
+ * 放在文件顶层而不是伴生对象里：Kotlin 只允许通过 `外层类.成员` 访问伴生对象里的**函数/属性**，
+ * 伴生对象里的**类型**必须写成 `外层类.Companion.类型`，很别扭。
+ */
+sealed interface ScreenshotCaptureOutcome {
+    data class Success(val bitmap: android.graphics.Bitmap) : ScreenshotCaptureOutcome
+
+    /** 无障碍服务未连接，或系统低于 API 30。 */
+    data object ServiceUnavailable : ScreenshotCaptureOutcome
+
+    /** 系统限流：距上一次截图太近。 */
+    data object Throttled : ScreenshotCaptureOutcome
+
+    /** 其它失败，[errorCode] 为系统返回码。 */
+    data class Failed(val errorCode: Int) : ScreenshotCaptureOutcome
+}
+
 @dagger.hilt.android.AndroidEntryPoint
 class SlideIndexAccessibilityService : AccessibilityService() {
 
@@ -368,6 +390,63 @@ class SlideIndexAccessibilityService : AccessibilityService() {
             } else {
                 mainHandler.post(run)
             }
+            return true
+        }
+
+        /**
+         * 一次性整屏截图（**无障碍截图**，不弹 MediaProjection 授权）。
+         *
+         * 与 [performSmartScreenshot] 的分工：那条路会把截图交给 `SmartScreenshotOverlay` 做标注/分享；
+         * 这里只把像素交回调用方（快捷菜单「截屏识别」要的是 Bitmap，不是标注面板）。
+         *
+         * ⚠️ 调用方**必须自行收起浮层**再调本方法，否则浮层会被一起截进去。
+         *
+         * @return false 表示压根没能发起（服务未连接 / 系统版本不够），此时**不会**回调。
+         */
+        fun captureDisplayBitmap(onResult: (ScreenshotCaptureOutcome) -> Unit): Boolean {
+            val service = instance ?: return false
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
+            service.takeScreenshot(
+                android.view.Display.DEFAULT_DISPLAY,
+                service.mainExecutor,
+                object : AccessibilityService.TakeScreenshotCallback {
+                    override fun onSuccess(screenshotResult: AccessibilityService.ScreenshotResult) {
+                        val bitmap = try {
+                            // 系统给的是硬件缓冲，必须拷成软件位图后再 close，照 performSmartScreenshot 的写法。
+                            val wrapped = android.graphics.Bitmap.wrapHardwareBuffer(
+                                screenshotResult.hardwareBuffer,
+                                screenshotResult.colorSpace,
+                            )
+                            val software = wrapped?.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                            wrapped?.recycle()
+                            software
+                        } catch (error: Throwable) {
+                            Log.w(TAG, "captureDisplayBitmap decode failed", error)
+                            null
+                        } finally {
+                            runCatching { screenshotResult.hardwareBuffer.close() }
+                        }
+                        onResult(
+                            if (bitmap != null) {
+                                ScreenshotCaptureOutcome.Success(bitmap)
+                            } else {
+                                ScreenshotCaptureOutcome.Failed(0)
+                            },
+                        )
+                    }
+
+                    override fun onFailure(errorCode: Int) {
+                        Log.w(TAG, "captureDisplayBitmap takeScreenshot failed: $errorCode")
+                        onResult(
+                            if (errorCode == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) {
+                                ScreenshotCaptureOutcome.Throttled
+                            } else {
+                                ScreenshotCaptureOutcome.Failed(errorCode)
+                            },
+                        )
+                    }
+                },
+            )
             return true
         }
 

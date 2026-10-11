@@ -123,6 +123,15 @@ enum class GestureActionType(val id: Int) {
     FORCE_STOP_CURRENT_APP(93),
     /** 快速启动轮盘：在触发点原地展开自定义同心环快捷轮盘。 */
     QUICK_WHEEL(94),
+
+    /**
+     * 「快捷菜单」：出厂即满的常用小工具聚合面板（聚合、零配置）。
+     *
+     * 与 [QUICK_TOOLS_OVERLAY]（「快速工具（悬浮窗）」，12 个系统开关磁贴）的分工：
+     * 本动作打开的是**效率小工具**面板（单位换算 / 汇率 / 二维码 / 识码解析 / 密码 / 秒表），
+     * 打开即有全部工具，用户不需要预先挑选、绑定或配置任何一项。
+     */
+    QUICK_MENU(95),
     ;
 
     companion object {
@@ -524,6 +533,12 @@ sealed class GestureAction {
     /** Samsung OHO+ style quick-tools popup, rendered top-level via [com.slideindex.app.overlay.OhoQuickToolsOverlayWindow]. */
     data object QuickToolsOverlay : GestureAction() {
         override val type = GestureActionType.QUICK_TOOLS_OVERLAY
+        override val payload = ""
+    }
+
+    /** 「快捷菜单」面板，由 `com.slideindex.app.overlay.quickmenu.QuickMenuOverlayWindow` 顶层渲染。 */
+    data object QuickMenu : GestureAction() {
+        override val type = GestureActionType.QUICK_MENU
         override val payload = ""
     }
 
@@ -986,6 +1001,7 @@ sealed class GestureAction {
                 GestureActionType.EXECUTE_SHELL_COMMAND -> ExecuteShellCommand(payload)
                 GestureActionType.OPEN_LINK -> OpenLink.fromPayload(payload)
                 GestureActionType.QUICK_TOOLS_OVERLAY -> QuickToolsOverlay
+                GestureActionType.QUICK_MENU -> QuickMenu
                 GestureActionType.WIDGET_POPUP_OVERLAY -> WidgetPopupOverlay
                 GestureActionType.OPEN_STASH_PANEL -> StashPanel
                 GestureActionType.OPEN_CLIPBOARD_PANEL -> ClipboardPanel

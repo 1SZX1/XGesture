@@ -58,6 +58,18 @@ fun filterGestureActions(
 }
 
 fun gestureActionSearchAliases(context: Context, action: GestureAction): List<String> = when (action.type) {
+    GestureActionType.QUICK_MENU -> listOf(
+        context.getString(R.string.gesture_search_quick_menu_1),
+        "quick menu",
+        "toolbox",
+        "utilities",
+        context.getString(R.string.gesture_search_quick_menu_2),
+        "calculator",
+        "converter",
+        "qr code",
+        "password",
+        "stopwatch",
+    )
     GestureActionType.APP_CAROUSEL_SWITCHER -> listOf(
         context.getString(R.string.gesture_search_carousel_1),
         "app switcher",
@@ -154,6 +166,7 @@ fun gestureActionSearchAliases(context: Context, action: GestureAction): List<St
 fun gestureActionDescriptionText(context: Context, action: GestureAction): String? =
     when (action.type) {
         GestureActionType.APP_CAROUSEL_SWITCHER -> context.getString(R.string.gesture_action_app_carousel_switcher_desc)
+    GestureActionType.QUICK_MENU -> context.getString(R.string.gesture_action_quick_menu_desc)
         GestureActionType.FINGERTIP_RING -> context.getString(R.string.gesture_action_fingertip_ring_desc)
         GestureActionType.SCREEN_OFF_KEEP_AWAKE -> context.getString(R.string.gesture_action_screen_off_keep_awake_desc)
         GestureActionType.PIN_TO_SCREEN -> context.getString(R.string.gesture_action_pin_to_screen_desc)
@@ -301,6 +314,7 @@ fun gestureActionLabelText(context: Context, action: GestureAction): String = wh
         GestureActionType.SHELL_COMMAND_PANEL -> context.getString(R.string.gesture_action_shell_command_panel)
         GestureActionType.EXECUTE_SHELL_COMMAND -> context.getString(R.string.gesture_action_execute_shell_command)
         GestureActionType.QUICK_TOOLS_OVERLAY -> context.getString(R.string.gesture_action_quick_tools_overlay)
+    GestureActionType.QUICK_MENU -> context.getString(R.string.gesture_action_quick_menu)
         GestureActionType.WIDGET_POPUP_OVERLAY -> context.getString(R.string.gesture_action_widget_popup_overlay)
         GestureActionType.OPEN_STASH_PANEL -> context.getString(R.string.gesture_action_stash_panel)
         GestureActionType.OPEN_CLIPBOARD_PANEL -> context.getString(R.string.gesture_action_clipboard_panel)
@@ -452,6 +466,7 @@ fun gestureActionLabel(action: GestureAction, settings: AppSettings? = null): St
         GestureActionType.SHELL_COMMAND_PANEL -> stringResource(R.string.gesture_action_shell_command_panel)
         GestureActionType.EXECUTE_SHELL_COMMAND -> stringResource(R.string.gesture_action_execute_shell_command)
         GestureActionType.QUICK_TOOLS_OVERLAY -> stringResource(R.string.gesture_action_quick_tools_overlay)
+    GestureActionType.QUICK_MENU -> stringResource(R.string.gesture_action_quick_menu)
         GestureActionType.WIDGET_POPUP_OVERLAY -> stringResource(R.string.gesture_action_widget_popup_overlay)
         GestureActionType.OPEN_STASH_PANEL -> stringResource(R.string.gesture_action_stash_panel)
         GestureActionType.OPEN_CLIPBOARD_PANEL -> stringResource(R.string.gesture_action_clipboard_panel)
@@ -645,6 +660,10 @@ fun gestureActionPermissionHintText(context: Context, action: GestureAction): St
             if (PermissionHelper.isAccessibilityServiceEnabledForOverlays(context)) return null
             context.getString(R.string.gesture_action_quick_tools_overlay_permission)
         }
+        GestureActionType.QUICK_MENU -> {
+            if (PermissionHelper.isAccessibilityServiceEnabledForOverlays(context)) return null
+            context.getString(R.string.gesture_action_quick_menu_permission)
+        }
         GestureActionType.HOLOGRAPHIC_LAUNCHER -> {
             if (PermissionHelper.isAccessibilityServiceEnabledForOverlays(context)) return null
             context.getString(R.string.gesture_action_quick_tools_overlay_permission)
@@ -724,6 +743,11 @@ fun requestPermissionForAdjustAction(context: Context, action: GestureAction) {
             com.slideindex.app.overlay.searchpanel.CameraPermissionTrampolineActivity.ensureGranted(context)
         }
         GestureAction.QuickToolsOverlay -> {
+            if (!PermissionHelper.isAccessibilityServiceEnabledForOverlays(context)) {
+                context.startActivity(PermissionHelper.accessibilitySettingsIntent())
+            }
+        }
+        GestureAction.QuickMenu -> {
             if (!PermissionHelper.isAccessibilityServiceEnabledForOverlays(context)) {
                 context.startActivity(PermissionHelper.accessibilitySettingsIntent())
             }

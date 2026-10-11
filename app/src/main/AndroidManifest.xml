@@ -399,6 +399,26 @@
             android:taskAffinity=""
             android:theme="@style/Theme.SlideIndex.Transparent" />
 
+        <!--
+          「快捷菜单 → 识码解析 → 相机扫码」。
+          不透明主题（要显示相机预览），并在旋转时自行处理而不重建：重建会打断相机会话。
+        -->
+        <activity
+            android:name=".overlay.quickmenu.QuickMenuScanActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="" />
+
+        <!--
+          「快捷菜单 → 倒计时」的到点闹钟接收器：负责响铃通知 + 写计时历史。
+          专属 request code（7301）与提醒（4000 起）互不干扰，所以暂停/复位能精确撤销。
+        -->
+        <receiver
+            android:name=".overlay.quickmenu.QuickMenuTimerAlarmReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".overlay.searchpanel.ContactPermissionTrampolineActivity"
             android:excludeFromRecents="true"

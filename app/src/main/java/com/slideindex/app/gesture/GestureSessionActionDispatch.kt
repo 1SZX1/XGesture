@@ -434,6 +434,7 @@ internal fun GestureSession.handleClassifiedGesture(
         GestureAction.ScrollToTop,
         GestureAction.ScrollToBottom,
         GestureAction.QuickToolsOverlay,
+        GestureAction.QuickMenu,
         GestureAction.HolographicLauncher,
         GestureAction.WidgetPopupOverlay,
         GestureAction.StashPanel,

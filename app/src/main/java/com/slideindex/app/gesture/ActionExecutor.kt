@@ -29,6 +29,7 @@ import com.slideindex.app.overlay.ringlauncher.RingLauncherOverlayWindow
 import com.slideindex.app.overlay.holographic.HolographicLauncherOverlayWindow
 import com.slideindex.app.overlay.quickwheel.QuickWheelOverlayWindow
 import com.slideindex.app.overlay.OhoQuickToolsOverlayWindow
+import com.slideindex.app.overlay.quickmenu.QuickMenuOverlayWindow
 import com.slideindex.app.overlay.PanelSide
 import com.slideindex.app.overlay.WidgetPopupOverlayWindow
 import com.slideindex.app.service.ClipboardFloatLifecycle
@@ -184,6 +185,10 @@ class ActionExecutor(
             GestureAction.QuickToolsOverlay ->
                 overlayPanels.showStandaloneOverlay(anchorRawY) { y ->
                     OhoQuickToolsOverlayWindow.show(context, settings, resolvedSide, y)
+                }
+            GestureAction.QuickMenu ->
+                overlayPanels.showStandaloneOverlay(anchorRawY) { y ->
+                    QuickMenuOverlayWindow.show(context, settings, resolvedSide, y)
                 }
             GestureAction.HoneycombLauncher ->
                 overlayPanels.showStandaloneOverlay(anchorRawY) { y ->
