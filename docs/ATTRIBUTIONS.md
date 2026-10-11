@@ -76,6 +76,9 @@
 | `app/.../search/websuggestions/WebSuggestionsUtils.kt` | 同上 | 移植 | MIT |
 | `app/.../search/contacts/ContactSearchLauncher.kt` | 同上 | 行为对齐（`Intent.ACTION_VIEW`） | MIT |
 | `app/.../search/contacts/ContactSearchIndex.kt` | 同上 | 思路参考（联系人索引） | MIT |
+| `app/.../overlay/searchpanel/SearchPanelAlias.kt` | 同上 | 行为规格参考（前缀别名匹配：first token + 空格） | MIT |
+| `app/.../overlay/SystemWallpaperBlurHelper.kt` | 同上 | 行为规格参考（壁纸取图顺序 drawable→fastDrawable→file） | MIT |
+| `app/.../ui/settings/components/SettingsRows.kt`（`subtitleContent`） | 同上 | 交互参考（别名 pill 的放置） | MIT |
 | Gradle `top.yukonga.miuix.kmp:*` | [Miuix](https://github.com/compose-miuix-ui/miuix) | Maven 依赖 | Apache-2.0 |
 | `app/.../ui/miuix/bottombar/liquid/Lens.kt` | 同上（官方示例） | vendoring | Apache-2.0 |
 | `app/.../ui/miuix/GroupedCardItems.kt` | [Mishka](https://github.com/YuKongA/Mishka) | 移植+修改 | GPL-3.0 |

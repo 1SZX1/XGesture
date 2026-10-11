@@ -47,6 +47,17 @@ XGesture（`com.slideindex.app`）在 [GNU Affero General Public License v3.0](L
 
 ---
 
+## QuickDash
+
+- **Copyright:** balajitechlabs and contributors
+- **License:** 仓库自述 [GPL-3.0](app/src/main/assets/licenses/GPL-3.0.txt)（上游许可链存疑，见 Note）
+- **Source:** https://github.com/balajitechlabs/quickdash
+- **Used in:** 「快捷菜单」各工具的行为规格参考（二维码解析与生成、密码生成、单位/汇率换算、秒表与倒计时、文本工具）
+- **Modifications:** 全部以 Kotlin 独立重写，**无直接代码移植**；重写过程中另修正了参考实现的多处缺陷（二维码尺寸参数被忽略、SSID 含分隔符时的解析、一处从未生效的渐变着色器）
+- **Note:** QuickDash 自称 GPL-3.0，但其上游 PocketOps 标注的是自定义开源许可，与 GPL-3.0 存在冲突（README 末尾另有 All Rights Reserved）。因许可链不清晰，本项目**只参考行为规格、不使用其代码**；若今后需移植其代码，须先厘清该许可链。
+
+---
+
 ## XposedSmsCode
 
 - **Copyright:** Tianma (tianma8023) and contributors
@@ -102,8 +113,8 @@ XGesture（`com.slideindex.app`）在 [GNU Affero General Public License v3.0](L
 - **Copyright:** Teja Karlapudi
 - **License:** [MIT License](app/src/main/assets/licenses/MIT.txt)
 - **Source:** https://github.com/teja2495/quick-search
-- **Used in:** 聚合搜索中的文件搜索（MediaStore 文件名检索与过滤）、计算器表达式求值、Google 搜索建议 API、联系人打开方式、文件类型分类与路径模式匹配等
-- **Modifications:** 以 Kotlin 重写并集成至 XGesture 聚合搜索管线；去除 Quick Search 独立 App 的 ViewModel / 偏好层；文件搜索改为 `FileSearchIndex` 等独立模块
+- **Used in:** 聚合搜索中的文件搜索（MediaStore 文件名检索与过滤）、计算器表达式求值、Google 搜索建议 API、联系人打开方式、文件类型分类与路径模式匹配等；搜索面板的前缀别名匹配（`SearchPanelAliasResolver`，first token + 空格取别名）与系统壁纸取图顺序（`SystemWallpaperBlurHelper`，drawable → fastDrawable → wallpaper file）
+- **Modifications:** 以 Kotlin 重写并集成至 XGesture 聚合搜索管线；去除 Quick Search 独立 App 的 ViewModel / 偏好层；文件搜索改为 `FileSearchIndex` 等独立模块；搜索面板侧只对齐式样与取图顺序，未移植其代码
 
 ---
 
