@@ -92,6 +92,13 @@ fun FreezerGridUi(
     selectionMode: Boolean = false,
     selectedPackages: Set<String> = emptySet(),
     onToggleSelection: (String) -> Unit = {},
+    /**
+     * 网格自身滚动区底部要额外留出的空间（悬浮按钮压在内容之上时会盖住最后一行）。
+     *
+     * ⚠️ 必须加在**网格自己的 `contentPadding`** 上，不能靠外层列表尾部加 spacer：网格是嵌套滚动，
+     * 它的最后一行在它自己的滚动区里，外层留白再多也顶不上来（实测就是这么失败的）。
+     */
+    bottomInset: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -164,7 +171,12 @@ fun FreezerGridUi(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columnCount),
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(
+                        start = 4.dp,
+                        top = 8.dp,
+                        end = 4.dp,
+                        bottom = 8.dp + bottomInset,
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {

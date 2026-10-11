@@ -42,6 +42,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 
 import com.slideindex.app.ui.miuix.MiuixSettingsFab
+import com.slideindex.app.ui.miuix.MiuixSettingsFabInset
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
 
@@ -252,6 +253,11 @@ fun ShellCommandPanelScreen(
                 contentDescription = stringResource(R.string.shell_panel_add),
             )
         },
+        // 内容区底部要让开悬浮按钮的高度（见 [MiuixSettingsFabInset]）。
+        // ⚠️ 只能加在**网格自己的 contentPadding** 上：网格是 `weight(1f)` 的滚动子项，
+        // 给外层 Column 加 padding 等于把滚动区硬压矮一截，会把最后一行**裁断**、露出底下一层
+        // （用户截图报的那个 bug）。加在网格的内边距上，滚到底时最后一行才会正好落在按钮之上。
+        fabInset = MiuixSettingsFabInset,
     ) {
         LazySettingsItem(key = "shell-panel-body", fillParentMaxSize = true) {
         Column(
@@ -388,7 +394,7 @@ fun ShellCommandPanelScreen(
                             contentPadding = PaddingValues(
                                 start = 12.dp,
                                 end = 12.dp,
-                                bottom = 16.dp,
+                                bottom = 16.dp + MiuixSettingsFabInset,
                             ),
 
                             horizontalArrangement = Arrangement.spacedBy(10.dp),

@@ -48,6 +48,8 @@ fun SettingsScreenScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
     embeddedContentPadding: PaddingValues = PaddingValues(start = 12.dp, top = 4.dp, end = 12.dp, bottom = 12.dp),
+    /** 悬浮按钮需要预留的底部空间，见 [com.slideindex.app.ui.miuix.MiuixSettingsFabInset]。 */
+    fabInset: androidx.compose.ui.unit.Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) = SettingsScreenScaffoldImpl(
     title = title,
@@ -61,6 +63,7 @@ fun SettingsScreenScaffold(
     floatingActionButton = floatingActionButton,
     bottomBar = bottomBar,
     embeddedContentPadding = embeddedContentPadding,
+    fabInset = fabInset,
     content = content,
 )
 
@@ -75,6 +78,8 @@ fun SettingsLazyScreenScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     bottomContent: @Composable () -> Unit = {},
     userScrollEnabled: Boolean = true,
+    /** 悬浮按钮需要预留的底部空间，见 [com.slideindex.app.ui.miuix.MiuixSettingsFabInset]。 */
+    fabInset: androidx.compose.ui.unit.Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) = SettingsLazyScreenScaffoldImpl(
     title = title,
@@ -86,6 +91,7 @@ fun SettingsLazyScreenScaffold(
     floatingActionButton = floatingActionButton,
     bottomContent = bottomContent,
     userScrollEnabled = userScrollEnabled,
+    fabInset = fabInset,
     content = content,
 )
 

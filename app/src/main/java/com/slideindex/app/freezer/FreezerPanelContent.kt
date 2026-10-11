@@ -57,6 +57,7 @@ import com.slideindex.app.ui.miuix.MiuixExpandableSearchBottomContent
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixNavigationBackHandler
 import com.slideindex.app.ui.miuix.MiuixSettingsFab
+import com.slideindex.app.ui.miuix.MiuixSettingsFabInset
 import com.slideindex.app.ui.miuix.consumeExpandableSearchBack
 import com.slideindex.app.ui.settings.components.LazySettingsItem
 import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffold
@@ -550,7 +551,9 @@ fun FreezerPanelContent(
                         contentDescription = stringResource(R.string.freezer_restore_intents)
                     )
                 }
-            }
+            },
+            // 网格占满视口，最底一行会被悬浮按钮压掉一截：给列表尾部预留按钮的高度。
+            fabInset = MiuixSettingsFabInset,
         ) {
             if (isLoading) {
                 item(key = "freezer-loading") {
@@ -572,6 +575,8 @@ fun FreezerPanelContent(
                         freezeStateRevision = freezeStateRevision,
                         onFreezeStateRevisionBump = { freezeStateRevision++ },
                         modifier = Modifier.fillMaxSize(),
+                        // 网格是嵌套滚动，外层留白顶不上来：inset 必须加在网格自己的滚动区上。
+                        bottomInset = MiuixSettingsFabInset,
                         onAppLaunched = onAppLaunched,
                         onManageApps = onManageApps,
                         overlayMode = overlayMode,

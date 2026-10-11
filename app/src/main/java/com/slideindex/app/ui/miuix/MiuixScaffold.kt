@@ -104,6 +104,8 @@ fun MiuixListScaffold(
     userScrollEnabled: Boolean = true,
     listState: LazyListState? = null,
     bottomContentPadding: Dp = 0.dp,
+    /** 悬浮按钮需要预留的底部空间，见 [MiuixSettingsFabInset]；默认 0 = 不做任何预留。 */
+    fabInset: Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) {
     val resolvedListState = listState ?: rememberLazyListState()
@@ -162,6 +164,13 @@ fun MiuixListScaffold(
                         Spacer(Modifier.height(bottomContentPadding))
                     }
                 }
+                // 悬浮按钮压在内容之上（Scaffold 的 FAB 不参与布局），占满视口的列表项会被它切掉
+                // 一截。这里在列表尾部预留出按钮的高度，滚动到底时最后一行/最后一卡就落在它上面。
+                if (fabInset > 0.dp) {
+                    item(key = "list-fab-inset") {
+                        Spacer(Modifier.height(fabInset))
+                    }
+                }
             }
         }
     }
@@ -182,6 +191,8 @@ fun MiuixSettingsScreenScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
     bottomContentPadding: Dp = 0.dp,
+    /** 悬浮按钮需要预留的底部空间，见 [MiuixSettingsFabInset]；默认 0 = 不做任何预留。 */
+    fabInset: Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior()
@@ -241,7 +252,7 @@ fun MiuixSettingsScreenScaffold(
                 settingsPageHeaderItems(pageHint = pageHint, subtitle = subtitle)
                 content()
                 item(key = "settings-bottom-inset") {
-                    Spacer(Modifier.height(8.dp + bottomContentPadding))
+                    Spacer(Modifier.height(8.dp + bottomContentPadding + fabInset))
                 }
             }
             if (overlayMode) {
