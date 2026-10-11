@@ -60,9 +60,12 @@ object ForegroundNotificationChannels {
     /**
      * 建渠道并确认它此刻可用。**必须在 [android.app.Service.startForeground] 之前调用。**
      *
-     * [NotificationManager.IMPORTANCE_NONE]（用户关掉了这个渠道）也会返回 [exists]
-     * 为 true——渠道记录还在，只是被静音。那种情况下 startForeground 不一定会崩，
-     * 但通知对用户不可见，调用方通常应该据此静默降级。
+     * 三种结果要分清（判据见 [Result.isUsable]）：
+     * - [Result.exists] == false：渠道真的不存在，这条路不能 `startForeground()`，
+     *   调用方应放弃前台化并尽早返回；
+     * - `exists && blocked`：用户在系统设置里关掉了这个渠道。**这不是放弃前台化的理由**——
+     *   该调还得调，否则会被 `ForegroundServiceDidNotStartInTimeException` 杀进程；
+     *   调用方只需知道"这条通知用户看不到"，据此换文案或降级提示。
      */
     fun ensureUsable(
         context: Context,
@@ -96,7 +99,7 @@ object ForegroundNotificationChannels {
             importance = channel.importance,
             reason = if (blocked) {
                 "channel($id) 当前可见性为 IMPORTANCE_NONE（用户在系统设置里关掉了这个通知渠道）：" +
-                    "startForeground 后用户看不到通知，且部分 ROM 会直接判为非法通知"
+                    "通知不会显示给用户，但 startForeground() 仍应照常调用（不调会超时杀进程）"
             } else {
                 null
             },
@@ -111,7 +114,26 @@ object ForegroundNotificationChannels {
         val importance: Int,
         val reason: String?,
     ) {
-        /** 存在且未被关闭，可以安全地 startForeground。 */
+        /**
+         * 此刻调 [android.app.Service.startForeground] 是否安全。
+         *
+         * **只看渠道存不存在**：AMS 的 `ServiceRecord.postNotification()` 仅在
+         * `getNotificationChannel() == null` 时判「非法通知」并 `killMisbehavingService()`；
+         * 渠道存在但 importance 为 NONE 时，通知只是不显示，`startForeground()` 照常成功。
+         *
+         * 这是**唯一**可以用来"跳过前台化"的判据：反过来会因为 AMS 的
+         * `ForegroundServiceDidNotStartInTimeException` 把进程杀掉（见 [canPromote] 注释）。
+         */
+        val isUsable: Boolean get() = exists
+
+        /**
+         * 渠道存在且未被用户关闭——只代表**通知用户看得见**。
+         *
+         * 不能拿它决定要不要 `startForeground()`：被 `startForegroundService()` 拉起的服务若不调
+         * `startForeground()`，AMS 的 30 秒倒计时到点会抛
+         * `RemoteServiceException$ForegroundServiceDidNotStartInTimeException` 并杀掉进程；
+         * 而且那本该由 `startForeground()` 清掉的计时器只有它自己能清。判据请用 [isUsable]。
+         */
         val canPromote: Boolean get() = exists && !blocked
     }
 

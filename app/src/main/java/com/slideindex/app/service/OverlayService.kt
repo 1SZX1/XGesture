@@ -106,9 +106,20 @@ class OverlayService : LifecycleService() {
         // 渠道取不到时 AMS 会在 ServiceRecord.postNotification() 里判为非法通知并
         // killMisbehavingService()，进程被系统强杀（日志：Bad notification for startForeground）。
         // 那个判定在 AMS 的 handler 线程异步执行，所以外面套 try/catch 是无效的。
-        if (!ensureNotificationChannel().canPromote) {
+        //
+        // 但判据只能是「渠道存不存在」（Result.isUsable）：渠道存在、只是被用户关掉通知时，
+        // startForeground() 依然会成功（通知不显示而已）。**不能**因为 blocked 就跳过——
+        // 本服务是被 startForegroundService() 拉起的（OverlayServiceLifecycle.warmStartEarly /
+        // wakeOverlayService / OtpAutoFillDispatch），跳过 startForeground() 就没清掉 AMS 的
+        // 倒计时，到点抛 ForegroundServiceDidNotStartInTimeException 把整个进程杀掉，
+        // 表现成悬浮球/边缘手势整体消失、要重新打开 App 才恢复。
+        val channel = ensureNotificationChannel()
+        if (!channel.isUsable) {
             Log.e(TAG, "通知渠道不可用，跳过前台化，避免被系统判定为非法前台服务通知")
             return false
+        }
+        if (channel.blocked) {
+            Log.w(TAG, "渠道存在但被用户关闭：通知不可见，仍照常前台化以免前台服务超时杀进程")
         }
         val notification = buildNotification()
         return runCatching {

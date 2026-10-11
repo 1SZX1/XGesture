@@ -92,11 +92,21 @@ class ClipboardMonitorForegroundService : Service() {
         // 否则 AMS 在 ServiceRecord.postNotification() 里查不到渠道，会走
         // killMisbehavingService()，进程被系统以「Bad notification for startForeground」
         // 强杀——注意那个 catch 抓不住，因为判定发生在 AMS 的 handler 线程。
-        val channelReady = ensureChannel().canPromote
-        if (!channelReady) {
+        //
+        // 判据只能是「渠道存不存在」（Result.isUsable），**不能**用「用户有没有关掉通知」
+        // （Result.canPromote）：渠道被用户关闭时通知只是不显示，startForeground() 照样成功；
+        // 而一旦因为 canPromote=false 跳过 startForeground()，AMS 那条
+        // startForegroundService() 的倒计时就只有 startForeground() 能清，
+        // 到点必抛 ForegroundServiceDidNotStartInTimeException 把整个进程杀掉
+        // （真机表现：每次冷启动必崩，清数据/删渠道记录后消失）。
+        val channel = ensureChannel()
+        if (!channel.isUsable) {
             Log.e(tag, "通知渠道不可用，放弃常驻，避免被系统判定为非法前台服务通知")
             stopSelf()
             return
+        }
+        if (channel.blocked) {
+            Log.w(tag, "渠道存在但被用户关闭：通知不可见，仍照常前台化以免前台服务超时杀进程")
         }
         try {
             val bootstrap = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -498,11 +508,17 @@ class ClipboardMonitorForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun promoteToForeground(title: String, text: String) {
-        // 同一份硬前提：渠道不可用时不要 startForeground。
+        // 同一份硬前提：渠道不存在时不要 startForeground（会撞「非法通知」被杀）。
         // [onCreate] 里已经挡过一次，但 [onStartCommand] 与设置页重试路径会再次进来。
-        if (!ensureChannel().canPromote) {
+        // 注意这里只拦「渠道不存在」；渠道被用户关闭（blocked）必须照常前台化 ——
+        // 跳过 startForeground() 会被 AMS 以前台服务超时为由直接杀掉进程。
+        val channel = ensureChannel()
+        if (!channel.isUsable) {
             Log.e(tag, "通知渠道不可用，跳过前台化；常驻监听降级为普通进程状态")
             return
+        }
+        if (channel.blocked) {
+            Log.w(tag, "渠道存在但被用户关闭：通知不可见，仍照常前台化以免前台服务超时杀进程")
         }
         val notification = runCatching {
             buildNotification(title, text)
