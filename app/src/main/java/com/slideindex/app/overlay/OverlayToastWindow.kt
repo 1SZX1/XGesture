@@ -10,39 +10,34 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.slideindex.app.overlay.history.HistoryDurations
-import com.slideindex.app.overlay.history.HistoryEasing
-import com.slideindex.app.overlay.history.HistoryFontSizes
-import com.slideindex.app.overlay.history.HistoryRadii
-import com.slideindex.app.overlay.history.HistorySpacing
-import com.slideindex.app.overlay.history.historyTheme
 import com.slideindex.app.service.SlideIndexAccessibilityService
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
-import top.yukonga.miuix.kmp.basic.Text
 
 /**
  * 覆盖层提示条：用独立悬浮窗显示一句提示。
@@ -61,8 +56,8 @@ import top.yukonga.miuix.kmp.basic.Text
 object OverlayToastWindow {
     private const val TAG = "OverlayToastWindow"
 
-    /** 自动消失时长：比系统 Toast 的 SHORT 稍长，够读完一句话。 */
-    private const val AUTO_HIDE_MS = 3_200L
+    /** 自动消失时长：对齐取词面板当年那条（`FloatBallPickResultContent` 的 2000ms）。 */
+    private const val AUTO_HIDE_MS = 2_000L
     private const val BOTTOM_MARGIN_DP = 96
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -104,7 +99,7 @@ object OverlayToastWindow {
         mainHandler.postDelayed({
             if (visibleState.value) return@postDelayed
             detach()
-        }, 240)
+        }, 260)
     }
 
     private fun attach(context: Context): Boolean {
@@ -195,42 +190,56 @@ private fun OverlayToastContent(
     visibleState: MutableState<Boolean>,
     messageState: MutableState<String?>,
 ) {
-    // 视觉规格对齐项目自己的提示条（`overlay/history/HistoryToast` + `HistoryPanelTokens`）：
-    // 磨砂纵向渐变填充 + 1dp 玻璃描边 + 14dp 圆角 + 18dp 投影、字号取 body（13.5sp）。
-    // 这里刻意写成本地常量而不是引用那几个 internal token：本组件是全局提示，不该依赖
-    // 历史面板的内部 token（它们会随那个功能的改版一起动）。
-    val theme = historyTheme()
-    val enter = fadeIn(tween(HistoryDurations.d2)) +
-        slideInVertically(tween(HistoryDurations.d3, easing = HistoryEasing.out)) { it / 3 }
-    val exit = fadeOut(tween(HistoryDurations.d2)) +
-        slideOutVertically(tween(HistoryDurations.d3)) { it / 3 }
+    // 样式取自取词面板当年那套「面板内提示」（`git show 3f114f6d^` 的
+    // `FloatBallPickResultContent.kt`）：Material3 `inverseSurface` 深底 + Check 图标 +
+    // 24dp 圆角 + 6dp tonal / 8dp 阴影，底部居中、24dp 下边距，
+    // `fadeIn() + slideInVertically { it / 2 }` 进出。
+    //
+    // 为什么改成它：冰箱面板那条玻璃底提示（照闪念面板 toast 抄的 glassFill）对比度太弱，
+    // 反馈偏淡；当年取词那条深底 + 勾的观感更醒目，是用户点名要的样式。
+    //
+    // ⚠️ 刻意**不引用** `overlay/history` 那几个 internal token：本组件是全局提示，
+    // 不该绑死闪念面板的内部设计（那边改版会连累这里）。
+    val enter = fadeIn()
+    val exit = fadeOut()
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = HistorySpacing.s6),
+            .padding(horizontal = 24.dp),
         contentAlignment = Alignment.Center,
     ) {
         AnimatedVisibility(
             visible = visibleState.value,
-            enter = enter,
-            exit = exit,
+            enter = enter + slideInVertically { it / 2 },
+            exit = exit + slideOutVertically { it / 2 },
         ) {
-            Text(
-                text = messageState.value.orEmpty(),
-                color = theme.text,
-                fontSize = HistoryFontSizes.body,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .widthIn(max = 340.dp)
-                    .shadow(18.dp, RoundedCornerShape(HistoryRadii.md))
-                    .clip(RoundedCornerShape(HistoryRadii.md))
-                    .background(theme.glassFill)
-                    .border(1.dp, theme.glassBorder, RoundedCornerShape(HistoryRadii.md))
-                    .padding(horizontal = HistorySpacing.s5, vertical = HistorySpacing.s3),
-            )
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                tonalElevation = 6.dp,
+                shadowElevation = 8.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = messageState.value.orEmpty(),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 280.dp),
+                    )
+                }
+            }
         }
     }
 }
