@@ -58,12 +58,26 @@ internal data class ThirdPartyNoticeEntry(
 
 internal data class MarkdownLink(val label: String, val url: String)
 
+/**
+ * 附录区块（如「许可证全文」）：**解析成"标题 + 列表项"**而不是保留 markdown。
+ *
+ * 原因是一个真机现象：整页滑到底后 fling 会停在半路、要再滑一次。机制是最后那张卡用
+ * markdown 组件渲染，而该组件**异步解析**（先 loading 再出内容）→ 滑完才"长高" →
+ * 可滚动范围变大 → 已经停下的 fling 就落不到底。改成同步渲染后高度一开始就定死。
+ */
+internal data class ThirdPartyNoticesSection(
+    val title: String,
+    val items: List<Item>,
+) {
+    internal data class Item(val label: String, val url: String?)
+}
+
 internal data class ThirdPartyNoticesDocument(
-    /** 第一个 `## ` 之前的引言（保留 markdown，含维护提示与仓库链接）。 */
+    /** 第一个 `## ` 之前的引言（保留 markdown，含仓库链接）。 */
     val introMarkdown: String,
     val entries: List<ThirdPartyNoticeEntry>,
-    /** 不以条目结构出现的尾部区块（例如「许可证全文」），保留 markdown。 */
-    val appendixMarkdown: String,
+    /** 不以条目结构出现的尾部区块（例如「许可证全文」）。 */
+    val appendices: List<ThirdPartyNoticesSection>,
 )
 
 private val SECTION_HEADING = Regex("""^## (.+)$""", RegexOption.MULTILINE)
@@ -78,13 +92,13 @@ internal fun parseThirdPartyNotices(markdown: String): ThirdPartyNoticesDocument
         return ThirdPartyNoticesDocument(
             introMarkdown = cleanIntro(markdown),
             entries = emptyList(),
-            appendixMarkdown = "",
+            appendices = emptyList(),
         )
     }
 
     val intro = cleanIntro(markdown.substring(0, headings.first().range.first))
     val entries = mutableListOf<ThirdPartyNoticeEntry>()
-    val appendix = StringBuilder()
+    val appendices = mutableListOf<ThirdPartyNoticesSection>()
 
     headings.forEachIndexed { index, heading ->
         val title = heading.groupValues[1].trim()
@@ -102,9 +116,20 @@ internal fun parseThirdPartyNotices(markdown: String): ThirdPartyNoticesDocument
             .toList()
 
         if (fields.isEmpty()) {
-            // 不是条目结构（如「许可证全文」）：整段留到附录，按 markdown 渲染
-            if (appendix.isNotEmpty()) appendix.append("\n\n")
-            appendix.append("## ").append(title).append("\n\n").append(body)
+            // 不是条目结构（如「许可证全文」）：解析成列表项，供**同步**渲染
+            val items = body.lineSequence()
+                .filter { it.trimStart().startsWith("- ") }
+                .map { line ->
+                    val text = line.trimStart().removePrefix("- ").trim()
+                    val link = parseSingleMarkdownLink(text)
+                    ThirdPartyNoticesSection.Item(
+                        // 纯文本项也去掉 `**` / 反引号标记（复用行内渲染的解析结果）
+                        label = link?.label ?: markdownInlineAnnotatedString(text).text,
+                        url = link?.url,
+                    )
+                }
+                .toList()
+            appendices += ThirdPartyNoticesSection(title = title, items = items)
         } else {
             entries += ThirdPartyNoticeEntry(title = title, fields = fields)
         }
@@ -113,7 +138,7 @@ internal fun parseThirdPartyNotices(markdown: String): ThirdPartyNoticesDocument
     return ThirdPartyNoticesDocument(
         introMarkdown = intro,
         entries = entries,
-        appendixMarkdown = appendix.toString().trim(),
+        appendices = appendices,
     )
 }
 

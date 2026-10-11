@@ -16,6 +16,29 @@ import com.mikepenz.markdown.model.rememberMarkdownState
 
 private const val ASSET_LICENSE_PREFIX = "app/src/main/assets/licenses/"
 
+/**
+ * 把文档里的链接按仓库约定分流：
+ * http(s) → 浏览器；`app/src/main/assets/licenses/` 下的 txt（或裸 txt 文件名）→
+ * **应用内许可全文页**；其它相对路径 → GitHub 上对应文件。
+ *
+ * 抽成独立函数，是为了让**同步渲染**的区块（如「许可证全文」那三条）与应用内 markdown
+ * 渲染共用同一套规则，避免两处各写一份分流逻辑而走偏。
+ */
+internal fun openDocumentLink(
+    uri: String,
+    projectBaseUrl: String,
+    uriHandler: UriHandler,
+    onOpenAssetLicense: (fileName: String) -> Unit,
+) {
+    when {
+        uri.startsWith("http://") || uri.startsWith("https://") -> uriHandler.openUri(uri)
+        uri.startsWith(ASSET_LICENSE_PREFIX) && uri.endsWith(".txt") ->
+            onOpenAssetLicense(uri.removePrefix(ASSET_LICENSE_PREFIX))
+        uri.endsWith(".txt") && !uri.contains("/") -> onOpenAssetLicense(uri)
+        else -> uriHandler.openUri("$projectBaseUrl/blob/HEAD/${uri.trimStart('/')}")
+    }
+}
+
 @Composable
 private fun appMarkdownTypography(compact: Boolean): MarkdownTypography {
     val typography = MaterialTheme.typography
@@ -56,22 +79,12 @@ fun MarkdownDocumentContent(
     val uriHandler = remember(projectBaseUrl, defaultUriHandler, onOpenAssetLicense) {
         object : UriHandler {
             override fun openUri(uri: String) {
-                when {
-                    uri.startsWith("http://") || uri.startsWith("https://") -> {
-                        defaultUriHandler.openUri(uri)
-                    }
-                    uri.startsWith(ASSET_LICENSE_PREFIX) && uri.endsWith(".txt") -> {
-                        onOpenAssetLicense(uri.removePrefix(ASSET_LICENSE_PREFIX))
-                    }
-                    uri.endsWith(".txt") && !uri.contains("/") -> {
-                        onOpenAssetLicense(uri)
-                    }
-                    else -> {
-                        val path = uri.trimStart('/')
-                        val githubUrl = "$projectBaseUrl/blob/HEAD/$path"
-                        defaultUriHandler.openUri(githubUrl)
-                    }
-                }
+                openDocumentLink(
+                    uri = uri,
+                    projectBaseUrl = projectBaseUrl,
+                    uriHandler = defaultUriHandler,
+                    onOpenAssetLicense = onOpenAssetLicense,
+                )
             }
         }
     }

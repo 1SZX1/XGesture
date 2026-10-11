@@ -63,6 +63,7 @@ fun ThirdPartyNoticesScreen(
 ) {
     val context = LocalContext.current
     val projectBaseUrl = stringResource(R.string.about_project_url_desc)
+    val uriHandler = LocalUriHandler.current
     val body = remember {
         runCatching {
             context.assets.open("licenses/third_party_notices.md")
@@ -104,20 +105,52 @@ fun ThirdPartyNoticesScreen(
             }
         }
 
-        if (document.appendixMarkdown.isNotBlank()) {
-            LazySettingsItem(key = "third-party-appendix") {
+        // 附录（如「许可证全文」）**同步渲染**：它原先走异步 markdown 组件，滑完才"长高"，
+        // 于是整页 fling 到不了底、要再滑一次（真机反馈）。这里高度一开始就定死。
+        document.appendices.forEach { section ->
+            LazySettingsItem(key = "third-party-appendix-${section.title}") {
                 CardSegment(
                     isFirst = true,
                     isLast = true,
                     outerBottomPadding = CARD_SPACING,
                     insidePadding = CARD_INSIDE_PADDING,
                 ) {
-                    MarkdownDocumentContent(
-                        markdown = document.appendixMarkdown,
-                        projectBaseUrl = projectBaseUrl,
-                        onOpenAssetLicense = onOpenLicenseText,
-                        compact = true,
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                     )
+                    section.items.forEach { item ->
+                        val url = item.url
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (url != null) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .then(
+                                    if (url == null) {
+                                        Modifier
+                                    } else {
+                                        Modifier.clickable {
+                                            runCatching {
+                                                openDocumentLink(
+                                                    uri = url,
+                                                    projectBaseUrl = projectBaseUrl,
+                                                    uriHandler = uriHandler,
+                                                    onOpenAssetLicense = onOpenLicenseText,
+                                                )
+                                            }
+                                        }
+                                    },
+                                ),
+                        )
+                    }
                 }
             }
         }

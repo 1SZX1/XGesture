@@ -36,9 +36,12 @@ class ThirdPartyNoticesParserTest {
         assertFalse(document.introMarkdown.contains("Third-Party Notices"))
         assertTrue(document.introMarkdown.contains("Intro paragraph."))
         assertEquals(listOf("SideGesture"), document.entries.map { it.title })
-        // 「许可证全文」没有 `- **字段:**` 结构 → 归入附录而不是条目
-        assertTrue(document.appendixMarkdown.contains("许可证全文"))
-        assertTrue(document.appendixMarkdown.contains("MIT.txt"))
+        // 「许可证全文」没有 `- **字段:**` 结构 → 归入附录，并解析成「标题 + 列表项」（同步渲染）
+        assertEquals(listOf("许可证全文"), document.appendices.map { it.title })
+        assertEquals(
+            listOf("app/src/main/assets/licenses/MIT.txt"),
+            document.appendices.single().items.map { it.label },
+        )
     }
 
     @Test
@@ -107,7 +110,29 @@ class ThirdPartyNoticesParserTest {
             """.trimIndent(),
         )
         assertTrue(onlyAppendix.entries.isEmpty())
-        assertTrue(onlyAppendix.appendixMarkdown.contains("普通文字"))
+        assertEquals(listOf("没有字段的小节"), onlyAppendix.appendices.map { it.title })
+        // 没有 `- ` 列表项时，条目列表为空（该区块只当标题用）
+        assertTrue(onlyAppendix.appendices.single().items.isEmpty())
+    }
+
+    @Test
+    fun `appendix items parse markdown links into label and url`() {
+        val doc = parseThirdPartyNotices(
+            """
+            # Title
+
+            ## 许可证全文
+
+            - [Apache License 2.0](app/src/main/assets/licenses/Apache-2.0.txt)
+            - 纯文本一行
+            """.trimIndent(),
+        )
+        val section = doc.appendices.single()
+        assertEquals("许可证全文", section.title)
+        assertEquals("Apache License 2.0", section.items[0].label)
+        assertEquals("app/src/main/assets/licenses/Apache-2.0.txt", section.items[0].url)
+        assertEquals("纯文本一行", section.items[1].label)
+        assertNull(section.items[1].url)
     }
 
     @Test
@@ -115,7 +140,7 @@ class ThirdPartyNoticesParserTest {
         val noHeading = parseThirdPartyNotices("只有一段没有标题的文字。")
         assertEquals("只有一段没有标题的文字。", noHeading.introMarkdown)
         assertTrue(noHeading.entries.isEmpty())
-        assertTrue(noHeading.appendixMarkdown.isEmpty())
+        assertTrue(noHeading.appendices.isEmpty())
     }
 
     @Test
