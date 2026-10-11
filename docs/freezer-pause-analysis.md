@@ -30,7 +30,7 @@
 - **解读③ 暂停 = 强制停止（force-stop）**：只能杀掉进程，图标不会变灰（`TaskManagerUtil.kt:530` 已有能力）。不满足需求描述。
 - **解读④ 暂停冰箱自身**（暂停自动重冻/后台轮询）：与「应用暂停后」的措辞不符。
 
-> 解读①还有一个佐证：本项目的冰箱明确对齐「雹 / Hail」（`README_zh.md:425`、`THIRD_PARTY_NOTICES.md:156`），而 Hail 的能力描述是「Disable / Hide / Suspend / Uninstall Android apps without root」——**Suspend 是与 Disable 并列的独立能力**，本仓库目前只移植了 Disable 一侧（全仓 grep `setPackagesSuspended|FLAG_SUSPENDED|pm suspend` **0 命中**）。Hail 里 Suspend 的完整实现（含跨版本反射级联与桌面灰化表现）已核实并整理在 §3.1，可直接当移植蓝本。
+> 解读①还有一个佐证：本项目的冰箱明确对齐「雹 / Hail」（见 `THIRD_PARTY_NOTICES.md` 的 Hail 条目与 `docs/ATTRIBUTIONS.md` 的 `FreezerPrivilegedOps.kt` 行），而 Hail 的能力描述是「Disable / Hide / Suspend / Uninstall Android apps without root」——**Suspend 是与 Disable 并列的独立能力**。本文写作时本仓库只移植了 Disable 一侧（全仓 grep `setPackagesSuspended|FLAG_SUSPENDED|pm suspend` 0 命中）；**该结论已过期**：挂起一侧现已实现（`FreezerPrivilegedOps.setAppSuspended`，7/9 参数反射级联 + shell 兜底 + 回读 `FLAG_SUSPENDED`），其实现路径即按本文 §3.1 整理自 Hail 的蓝本。
 
 ---
 

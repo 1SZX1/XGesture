@@ -94,6 +94,7 @@
 | `app/.../translate/overlay/ScreenTranslationOverlayManager.kt` | 同上 | 改编 | GPL-3.0 |
 | `app/.../backtap/BackTap*`（背面敲击手势） | 同上 | 移植+重构 | GPL-3.0 |
 | `app/.../freezer/*`（应用冻结室） | [EdgeX](https://github.com/oxohang/EdgeX) | 移植+重构 | GPL-3.0 |
+| `app/.../freezer/FreezerPrivilegedOps.kt` | [Hail](https://github.com/aistra0528/Hail) | 行为对齐（PM API/shell 兜底、挂起 7/9 参反射级联 + `FLAG_SUSPENDED` 回读） | GPL-3.0 |
 | `feature/apps/.../FreezerAppsScreen.kt` | 同上 | 界面重写 | GPL-3.0 |
 | `app/.../search/settings/SystemSettingsSearch*.kt` | — | 本项目自有（Android `indexables/raw`） | AGPL-3.0 |
 

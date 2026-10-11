@@ -169,6 +169,16 @@ XGesture（`com.slideindex.app`）在 [GNU Affero General Public License v3.0](L
 
 ---
 
+## Hail（雹）
+
+- **Copyright:** aistra0528 and contributors
+- **License:** [GNU General Public License v3.0](app/src/main/assets/licenses/GPL-3.0.txt)
+- **Source:** https://github.com/aistra0528/Hail
+- **Used in:** 应用冻结室的冻结/解冻特权路径（`FreezerPrivilegedOps`：优先 PM API、其次 shell 兜底）与应用挂起（Suspend / 暂停）的实现路径（`setAppSuspended`：按 SDK 的 7/9 参数反射级联、`FLAG_SUSPENDED` 回读判定、`SuspendDialogInfo`、`FreezerBootstrap` 扫描 `FLAG_SUSPENDED`），对齐 Hail 的 `HShell.setAppDisabled` / `HShizuku.setAppDisabled` / `HShizuku.setAppSuspended`
+- **Modifications:** 集成至 XGesture 冰箱管线（冰箱主体移植自 EdgeX）；冻结与挂起两条路径均按 Hail 的行为与特权 API 选择实现，未整体引入其模块结构
+
+---
+
 ## 许可证全文
 
 - Apache License 2.0：`app/src/main/assets/licenses/Apache-2.0.txt`
