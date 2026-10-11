@@ -3205,8 +3205,6 @@ Questions: open a GitHub Issue on the project repository.</string>
     <string name="about_open_source_license_desc">GNU Affero GPL v3.0 (AGPLv3)</string>
     <string name="about_third_party_notices_title">Third-party open source</string>
     <string name="about_third_party_notices_subtitle">Acknowledgments and license notices</string>
-    <string name="about_third_party_search_hint">Search projects, fields or keywords</string>
-    <string name="about_third_party_no_match">No matching entries</string>
     <string name="about_third_party_expand">Show more</string>
     <string name="about_third_party_collapse">Show less</string>
     <string name="search_panel_default_engine_title">Default search engine</string>

@@ -1,22 +1,13 @@
 package com.slideindex.app.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,20 +26,31 @@ import com.slideindex.app.R
 import com.slideindex.app.ui.miuix.CardSegment
 import com.slideindex.app.ui.settings.components.LazySettingsItem
 
-/** 收起时只显示第一个正文字段（`Used in`）的前几行。 */
+/** 收起时正文只露前几行。 */
 private const val COLLAPSED_BODY_LINES = 3
+
+/** 卡内边距：引言、条目、附录三处统一，避免同一页出现两套缩进。 */
+private val CARD_INSIDE_PADDING = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+
+/**
+ * 卡片之间的垂直间距。
+ *
+ * ⚠️ `CardSegment` 的 `outerTopPadding` / `outerBottomPadding` **默认都是 0dp**：每张卡都用
+ * `isFirst = isLast = true` 却不给间距，卡片就会**贴死在一起**（真机反馈）。12dp 与仓库既有
+ * 约定一致（`GroupedCardItems` / `MiuixSettingsCards` 的 `outerBottomPadding` 默认值）。
+ */
+private val CARD_SPACING = 12.dp
 
 /**
  * 「第三方开源组件」页。
  *
- * 排版思路（改版原因：原来把 markdown 原样铺开，整页是一面文字墙，而"拿了谁什么、什么许可"
- * 这两个最该一眼看到的信息埋在长句里）：
+ * 排版：**引言、每个项目、附录都各自是一张卡**（同样的左右内缩与卡内边距）。
  *
- * - 每个项目一张卡：**项目名** → **许可（可点，进应用内许可全文）** + **来源（可点，去 GitHub）**
- *   → 版权小字 → 正文（`Used in` / `Modifications` / `Note`），正文默认只露前几行、可展开；
- * - 顶部**搜索框**：按项目名、字段名、正文关键字过滤（这比目录更好用，所以没做目录）；
- * - 引言与附录（如「许可证全文」）仍走 markdown 渲染，其中的链接照旧分流
- *   （http → 浏览器、`licenses/` 下的 txt → 应用内许可页、其它相对路径 → GitHub）。
+ * 走过的弯路（真机截图反馈）：
+ * 1. 引言原先直接铺在列表项里、只给了底部 padding → 文字**顶到屏幕边缘**，与卡片的
+ *    12dp 内缩不齐，看起来像"把文档原样倒在页面上"。现在也放进卡片；
+ * 2. 曾加过搜索框，用户判定页面更丑、且 17 个条目用不上 → 已删除；
+ * 3. 来源字段带 "(formerly …)" 时被整串塞进芯片撑成六行 → 改成单行文本链接（见下）。
  *
  * 数据源仍是 `assets/licenses/third_party_notices.md`（与仓库根那份必须逐行一致，
  * 由 `scripts/check-notices-sync.py` 校验）。
@@ -69,65 +71,31 @@ fun ThirdPartyNoticesScreen(
         }.getOrElse { "" }
     }
     val document = remember(body) { parseThirdPartyNotices(body) }
-    var query by remember { mutableStateOf("") }
-    val entries = remember(document, query) {
-        document.entries.filter { it.matches(query) }
-    }
-    val searching = query.isNotBlank()
 
     SettingsScreenScaffold(
         title = stringResource(R.string.about_third_party_notices_title),
         subtitle = stringResource(R.string.about_third_party_notices_subtitle),
         onBack = onBack,
     ) {
-        LazySettingsItem(key = "third-party-search") {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.about_third_party_search_hint)) },
-                leadingIcon = { Icon(imageVector = Icons.Filled.Search, contentDescription = null) },
-                trailingIcon = if (searching) {
-                    {
-                        IconButton(onClick = { query = "" }) {
-                            Icon(imageVector = Icons.Filled.Close, contentDescription = null)
-                        }
-                    }
-                } else {
-                    null
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(16.dp),
-            )
-        }
-
-        // 搜索时收起引言与附录，让结果尽量靠上。
-        if (!searching && document.introMarkdown.isNotBlank()) {
+        if (document.introMarkdown.isNotBlank()) {
             LazySettingsItem(key = "third-party-intro") {
-                MarkdownDocumentContent(
-                    markdown = document.introMarkdown,
-                    projectBaseUrl = projectBaseUrl,
-                    onOpenAssetLicense = onOpenLicenseText,
-                    compact = true,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
+                CardSegment(
+                    isFirst = true,
+                    isLast = true,
+                    outerBottomPadding = CARD_SPACING,
+                    insidePadding = CARD_INSIDE_PADDING,
+                ) {
+                    MarkdownDocumentContent(
+                        markdown = document.introMarkdown,
+                        projectBaseUrl = projectBaseUrl,
+                        onOpenAssetLicense = onOpenLicenseText,
+                        compact = true,
+                    )
+                }
             }
         }
 
-        if (entries.isEmpty()) {
-            LazySettingsItem(key = "third-party-empty") {
-                Text(
-                    text = stringResource(R.string.about_third_party_no_match),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-            }
-        }
-
-        entries.forEach { entry ->
+        document.entries.forEach { entry ->
             LazySettingsItem(key = "third-party-entry-${entry.title}") {
                 ThirdPartyEntryCard(
                     entry = entry,
@@ -136,12 +104,13 @@ fun ThirdPartyNoticesScreen(
             }
         }
 
-        if (!searching && document.appendixMarkdown.isNotBlank()) {
+        if (document.appendixMarkdown.isNotBlank()) {
             LazySettingsItem(key = "third-party-appendix") {
                 CardSegment(
                     isFirst = true,
                     isLast = true,
-                    insidePadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                    outerBottomPadding = CARD_SPACING,
+                    insidePadding = CARD_INSIDE_PADDING,
                 ) {
                     MarkdownDocumentContent(
                         markdown = document.appendixMarkdown,
@@ -169,7 +138,8 @@ private fun ThirdPartyEntryCard(
     CardSegment(
         isFirst = true,
         isLast = true,
-        insidePadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        outerBottomPadding = CARD_SPACING,
+        insidePadding = CARD_INSIDE_PADDING,
     ) {
         Text(
             text = entry.title,
@@ -187,7 +157,7 @@ private fun ThirdPartyEntryCard(
 
         entry.sourceUrl?.let { url ->
             // 来源用**单行文本链接**而不是芯片：`Source` 字段可能带 "(formerly …)" 这类补充
-            // 说明，早先整串塞进芯片会被撑成六行（真机截图里最难看的一处）。
+            // 说明，整串塞进芯片会被撑成六行（真机截图里最难看的一处）。
             Text(
                 text = entry.sourceLabel.orEmpty(),
                 style = MaterialTheme.typography.bodyMedium,

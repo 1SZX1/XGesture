@@ -149,14 +149,3 @@ internal fun parseSingleMarkdownLink(markdown: String): MarkdownLink? {
         url = match.groupValues[2].trim(),
     )
 }
-
-/** 搜索匹配：项目名、字段名、字段正文任一命中即算（大小写不敏感）。 */
-internal fun ThirdPartyNoticeEntry.matches(query: String): Boolean {
-    val needle = query.trim()
-    if (needle.isEmpty()) return true
-    if (title.contains(needle, ignoreCase = true)) return true
-    return fields.any { field ->
-        field.label.contains(needle, ignoreCase = true) ||
-            field.markdown.contains(needle, ignoreCase = true)
-    }
-}

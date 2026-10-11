@@ -119,16 +119,6 @@ class ThirdPartyNoticesParserTest {
     }
 
     @Test
-    fun `matches searches title label and body`() {
-        val entry = document.entries.single()
-        assertTrue(entry.matches(""))
-        assertTrue(entry.matches("sidegesture"))
-        assertTrue(entry.matches("Modified".replace("Modified", "modifications")))
-        assertTrue(entry.matches("快捷方式"))
-        assertFalse(entry.matches("quickdash"))
-    }
-
-    @Test
     fun `parseSingleMarkdownLink rejects plain text and keeps nested brackets`() {
         assertNull(parseSingleMarkdownLink("GPL-3.0"))
         assertNull(parseSingleMarkdownLink("[只有文案]"))
