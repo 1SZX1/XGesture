@@ -1,25 +1,134 @@
 package com.slideindex.app.ui
 
-internal data class ThirdPartyNoticeSection(
+/**
+ * 第三方声明文档的结构化模型。
+ *
+ * 为什么不再直接把 markdown 丢给渲染器：
+ * - 一个条目有 4~6 个字段（Copyright / License / Source / Used in / Modifications / Note），
+ *   其中 `Used in`、`Modifications` 经常上百字 → 整页就是一面文字墙，"拿了谁什么、什么许可"
+ *   这两个最该一眼看到的信息埋在散文里；
+ * - 旧解析用 `.trimStart('-', '\n', '\r')` 剥分隔线，它按**字符集**裁剪，会把每个区块
+ *   **第一个列表项的 `-` 一起吃掉**（Copyright 那行于是被当成普通段落，缩进与其余 bullet
+ *   不一致），区块尾部的 `---` 还会留在正文里渲染成卡片内多余横线。见 [cleanSectionBody]。
+ *
+ * 于是先把文档拆成"引言 + 条目 + 附录"，条目再拆成字段；页面据此排版，notices.md
+ * 仍然是**唯一数据源**（仓库文档 → assets 副本的流程不变）。
+ */
+internal data class ThirdPartyNoticeEntry(
     val title: String,
-    val bodyMarkdown: String,
+    val fields: List<Field>,
+) {
+    internal data class Field(val label: String, val markdown: String)
+
+    fun field(label: String): Field? =
+        fields.firstOrNull { it.label.equals(label, ignoreCase = true) }
+
+    /** `License` 字段形如 `[文案](链接)`；取出后渲染成可点的许可行。 */
+    val license: MarkdownLink? get() = field("License")?.markdown?.let(::parseSingleMarkdownLink)
+
+    /** `Source` 字段是裸 URL。 */
+    val sourceUrl: String?
+        get() = field("Source")?.markdown?.trim()?.takeIf { it.startsWith("http") }
+
+    val copyright: String?
+        get() = field("Copyright")?.markdown?.trim()?.takeIf { it.isNotEmpty() }
+
+    /** 正文：`Used in` / `Modifications` / `Note` 等（版权、许可、来源已单独成行）。 */
+    val bodyFields: List<Field>
+        get() = fields.filterNot { field ->
+            field.label.equals("Copyright", true) ||
+                field.label.equals("License", true) ||
+                field.label.equals("Source", true)
+        }
+}
+
+internal data class MarkdownLink(val label: String, val url: String)
+
+internal data class ThirdPartyNoticesDocument(
+    /** 第一个 `## ` 之前的引言（保留 markdown，含维护提示与仓库链接）。 */
+    val introMarkdown: String,
+    val entries: List<ThirdPartyNoticeEntry>,
+    /** 不以条目结构出现的尾部区块（例如「许可证全文」），保留 markdown。 */
+    val appendixMarkdown: String,
 )
 
-internal fun parseThirdPartyNoticeSections(markdown: String): Pair<String, List<ThirdPartyNoticeSection>> {
-    val headingPattern = Regex("""^## (.+)$""", RegexOption.MULTILINE)
-    val matches = headingPattern.findAll(markdown).toList()
-    if (matches.isEmpty()) {
-        return markdown.trim() to emptyList()
+private val SECTION_HEADING = Regex("""^## (.+)$""", RegexOption.MULTILINE)
+private val FIELD_LINE = Regex("""^-\s+\*\*(.+?):\*\*\s*(.*)$""")
+private val SINGLE_LINK = Regex("""^\[(.+?)]\((.+?)\)$""")
+
+internal fun parseThirdPartyNotices(markdown: String): ThirdPartyNoticesDocument {
+    val headings = SECTION_HEADING.findAll(markdown).toList()
+    if (headings.isEmpty()) {
+        return ThirdPartyNoticesDocument(
+            introMarkdown = markdown.trim(),
+            entries = emptyList(),
+            appendixMarkdown = "",
+        )
     }
-    val intro = markdown.substring(0, matches.first().range.first).trim()
-    val sections = matches.mapIndexed { index, match ->
-        val title = match.groupValues[1].trim()
-        val bodyStart = match.range.last + 1
-        val bodyEnd = matches.getOrNull(index + 1)?.range?.first ?: markdown.length
-        val body = markdown.substring(bodyStart, bodyEnd)
-            .trim()
-            .trimStart('-', '\n', '\r')
-        ThirdPartyNoticeSection(title = title, bodyMarkdown = body)
+
+    val intro = markdown.substring(0, headings.first().range.first).trim()
+    val entries = mutableListOf<ThirdPartyNoticeEntry>()
+    val appendix = StringBuilder()
+
+    headings.forEachIndexed { index, heading ->
+        val title = heading.groupValues[1].trim()
+        val bodyStart = heading.range.last + 1
+        val bodyEnd = headings.getOrNull(index + 1)?.range?.first ?: markdown.length
+        val body = cleanSectionBody(markdown.substring(bodyStart, bodyEnd))
+        val fields = body.lineSequence()
+            .mapNotNull { line ->
+                val match = FIELD_LINE.matchEntire(line.trim()) ?: return@mapNotNull null
+                ThirdPartyNoticeEntry.Field(
+                    label = match.groupValues[1].trim(),
+                    markdown = match.groupValues[2].trim(),
+                )
+            }
+            .toList()
+
+        if (fields.isEmpty()) {
+            // 不是条目结构（如「许可证全文」）：整段留到附录，按 markdown 渲染
+            if (appendix.isNotEmpty()) appendix.append("\n\n")
+            appendix.append("## ").append(title).append("\n\n").append(body)
+        } else {
+            entries += ThirdPartyNoticeEntry(title = title, fields = fields)
+        }
     }
-    return intro to sections
+
+    return ThirdPartyNoticesDocument(
+        introMarkdown = intro,
+        entries = entries,
+        appendixMarkdown = appendix.toString().trim(),
+    )
+}
+
+/**
+ * 去掉区块之间那行 `---` 分隔线。
+ *
+ * ⚠️ 只删**整行**等于 `---` 的行。旧实现用 `.trimStart('-', '\n', '\r')`，那是按字符集裁剪，
+ * 会把紧接着的第一个列表项的 `-` 一起吃掉（真机上表现为每个条目第一行缩进错位），
+ * 而且尾部分隔线仍留在正文里。
+ */
+private fun cleanSectionBody(raw: String): String =
+    raw.lineSequence()
+        .filterNot { it.trim() == "---" }
+        .joinToString("\n")
+        .trim()
+
+internal fun parseSingleMarkdownLink(markdown: String): MarkdownLink? {
+    val match = SINGLE_LINK.matchEntire(markdown.trim()) ?: return null
+    return MarkdownLink(
+        label = match.groupValues[1].trim(),
+        url = match.groupValues[2].trim(),
+    )
+}
+
+/** 搜索匹配：项目名、字段名、字段正文任一命中即算（大小写不敏感）。 */
+internal fun ThirdPartyNoticeEntry.matches(query: String): Boolean {
+    val needle = query.trim()
+    if (needle.isEmpty()) return true
+    if (title.contains(needle, ignoreCase = true)) return true
+    return fields.any { field ->
+        field.label.contains(needle, ignoreCase = true) ||
+            field.markdown.contains(needle, ignoreCase = true)
+    }
 }

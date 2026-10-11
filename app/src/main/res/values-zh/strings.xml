@@ -3233,6 +3233,10 @@
     <string name="about_open_source_license_desc">GNU Affero GPL v3.0（AGPLv3）</string>
     <string name="about_third_party_notices_title">第三方开源组件</string>
     <string name="about_third_party_notices_subtitle">致谢与许可证说明</string>
+    <string name="about_third_party_search_hint">搜索项目、字段或关键字</string>
+    <string name="about_third_party_no_match">没有匹配的条目</string>
+    <string name="about_third_party_expand">展开</string>
+    <string name="about_third_party_collapse">收起</string>
     <string name="search_panel_default_engine_title">默认搜索引擎</string>
     <string name="search_panel_default_engine_none">无（不执行搜索）</string>
     <string name="search_panel_default_engine_desc">回车键动作选择「搜索引擎」时生效</string>

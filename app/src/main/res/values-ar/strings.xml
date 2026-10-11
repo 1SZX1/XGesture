@@ -3141,6 +3141,10 @@
     <string name="about_open_source_license_desc">GNU Affero GPL v3.0 (AGPLv3)</string>
     <string name="about_third_party_notices_title">مكونات مفتوحة المصدر تابعة لجهات خارجية</string>
     <string name="about_third_party_notices_subtitle">شكر وتقدير وتراخيص</string>
+    <string name="about_third_party_search_hint">ابحث في المشاريع أو الحقول أو الكلمات المفتاحية</string>
+    <string name="about_third_party_no_match">لا توجد إدخالات مطابقة</string>
+    <string name="about_third_party_expand">عرض المزيد</string>
+    <string name="about_third_party_collapse">عرض أقل</string>
     <string name="search_panel_default_engine_title">محرك البحث الافتراضي</string>
     <string name="search_panel_default_engine_none">لا شيء (لا يتم تنفيذ بحث)</string>
     <string name="search_panel_default_engine_desc">يُستخدم عندما يكون إجراء مفتاح Enter هو «محرك البحث»</string>

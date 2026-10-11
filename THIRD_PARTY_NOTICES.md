@@ -185,6 +185,6 @@ XGesture（`com.slideindex.app`）在 [GNU Affero General Public License v3.0](L
 
 ## 许可证全文
 
-- Apache License 2.0：`app/src/main/assets/licenses/Apache-2.0.txt`
-- MIT License：`app/src/main/assets/licenses/MIT.txt`
-- GNU General Public License v3.0：`app/src/main/assets/licenses/GPL-3.0.txt`
+- [Apache License 2.0](app/src/main/assets/licenses/Apache-2.0.txt)
+- [MIT License](app/src/main/assets/licenses/MIT.txt)
+- [GNU General Public License v3.0](app/src/main/assets/licenses/GPL-3.0.txt)
