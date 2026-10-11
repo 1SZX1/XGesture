@@ -79,7 +79,7 @@ internal fun HistoryTagChips(
         )
         tags.forEach { tag ->
             HistoryChip(
-                label = tag.name,
+                label = stashTagLabel(tag.name),
                 dotColor = Color(tag.colorArgb),
                 selected = tag.name in selectedTags,
                 onClick = { onTagToggled(tag.name) },

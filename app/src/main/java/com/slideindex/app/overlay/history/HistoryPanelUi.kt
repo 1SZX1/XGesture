@@ -260,3 +260,29 @@ internal fun stashSourceLabelRes(sourceKey: String?): Int? = when (sourceKey) {
     StashMetaRepository.SOURCE_IMAGE -> R.string.stash_source_image
     else -> null
 }
+
+/**
+ * 五枚**默认标签**的显示名资源（返回 null = 不是默认标签，按原名显示）。
+ *
+ * ⚠️ 内部名仍然是中文（[StashMetaRepository.DEFAULT_TAGS] / [StashMetaRepository.TODO_TAG_NAME]）：
+ * 标签名是**存储键**（`assignments` 是 `{条目 → [标签名]}`），跟着语言变会让绑定与"这条是不是
+ * 待办"的判定分叉。所以只把**显示**这一层本地化 —— 用户自己改过名的标签名字不再匹配，
+ * 会自然回落到原名，不会误伤。
+ *
+ * ⚠️ 以后新增/改默认标签名，**必须**在这里挂上资源，否则那枚标签会在英文/日文/阿文界面显示
+ * 中文。这条约束有单测守着（`DefaultTagLabelTest`）。
+ */
+@StringRes
+internal fun defaultTagLabelRes(name: String): Int? = when (name) {
+    StashMetaRepository.WORK_TAG_NAME -> R.string.stash_tag_default_work
+    StashMetaRepository.IDEA_TAG_NAME -> R.string.stash_tag_default_idea
+    StashMetaRepository.TODO_TAG_NAME -> R.string.stash_tag_default_todo
+    StashMetaRepository.INSPIRATION_TAG_NAME -> R.string.stash_tag_default_inspiration
+    StashMetaRepository.DESIGN_TAG_NAME -> R.string.stash_tag_default_design
+    else -> null
+}
+
+/** 标签的**显示名**：默认标签走资源（当前语言），其余原样。 */
+@Composable
+internal fun stashTagLabel(name: String): String =
+    defaultTagLabelRes(name)?.let { stringResource(it) } ?: name

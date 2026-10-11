@@ -749,7 +749,7 @@ internal fun HistoryCardFootRow(
             HistoryCardMiniChip(label = sourceLabel, dotColor = null, labelColor = theme.sub)
         }
         tags.forEach { (name, color) ->
-            HistoryCardMiniChip(label = name, dotColor = color, labelColor = theme.text)
+            HistoryCardMiniChip(label = stashTagLabel(name), dotColor = color, labelColor = theme.text)
         }
     }
 }

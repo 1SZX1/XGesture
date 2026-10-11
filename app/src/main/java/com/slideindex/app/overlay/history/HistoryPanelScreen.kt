@@ -715,6 +715,20 @@ internal fun HistoryPanelScreen(
         }
     }
     /**
+     * 与 [showPanelMessage] 同一件事，但吃**已经格式化好的**字符串。
+     *
+     * 给带参数的文案用：`stash_tag_protected_hint` 现在是 `%1$s`（里面是标签的**当前语言**
+     * 显示名），走吃资源 id 的那个重载会把 `%1$s` 原样显示出来。
+     */
+    val showPanelText: (String) -> Unit = { message ->
+        toastJob.value?.cancel()
+        toast = HistoryToastState(message, onUndo = null)
+        toastJob.value = scope.launch {
+            delay(HistoryToastPlainDurationMs)
+            toast = null
+        }
+    }
+    /**
      * 提示 + 撤销。
      *
      * 撤销只有**一个槽**（跟设计稿的 `undoFn` 一致：那里的「撤销」永远指"上一步"）——
@@ -777,10 +791,16 @@ internal fun HistoryPanelScreen(
      * 还要把"原来哪些条目挂着它"原样补回去（快照在删除前取）。
      * 「待办」是硬编码关键字（完成态 / `isTodo` / 把手 `pendingTodoCount` 全靠它），这里兜底拒绝。
      */
+    // 「关键字标签不能改名/删除」那条提示带参数（%1$s = 这枚标签**当前语言**的显示名），
+    // 所以得在这里先算好：`stashTagLabel` 是 @Composable，不能在下面那个普通 lambda 里调。
+    val protectedTagHint = resources.getString(
+        R.string.stash_tag_protected_hint,
+        stashTagLabel(com.slideindex.app.stash.StashTagEdits.PROTECTED_TAG_NAME),
+    )
     val deleteTag: (String) -> Unit = { name ->
         val tag = availableTags.firstOrNull { it.name == name }
         if (tag == null || com.slideindex.app.stash.StashTagEdits.isProtected(name)) {
-            showPanelMessage(R.string.stash_tag_protected_hint)
+            showPanelText(protectedTagHint)
         } else {
             val affected = stashMeta.assignments.filterValues { name in it }.keys.toList()
             haptics.confirm()

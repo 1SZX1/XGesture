@@ -306,7 +306,10 @@ internal fun HistoryTagManagerModal(
             // 「待办」是关键字标签：只读规则写成列表下方的一行脚注（不再塞在行内，免得行高不齐）。
             if (ordered.any { StashTagEdits.isProtected(it.name) }) {
                 Text(
-                    text = stringResource(R.string.stash_tag_protected_hint),
+                    text = stringResource(
+                        R.string.stash_tag_protected_hint,
+                        stashTagLabel(StashTagEdits.PROTECTED_TAG_NAME),
+                    ),
                     style = TextStyle(fontSize = HistoryFontSizes.tiny),
                     color = theme.sub,
                     modifier = Modifier.padding(top = 6.dp),
@@ -316,7 +319,7 @@ internal fun HistoryTagManagerModal(
             // 改色色板（列表下方，标题写明改的是哪一枚）
             colorPicking?.let { name ->
                 Text(
-                    text = stringResource(R.string.stash_tag_color_picking, name),
+                    text = stringResource(R.string.stash_tag_color_picking, stashTagLabel(name)),
                     style = TextStyle(fontSize = HistoryFontSizes.meta),
                     color = theme.sub,
                     modifier = Modifier.padding(top = 10.dp),
@@ -423,7 +426,7 @@ private fun TagRow(
             )
         } else {
             Text(
-                text = tag.name,
+                text = stashTagLabel(tag.name),
                 style = TextStyle(fontSize = HistoryFontSizes.body),
                 color = theme.text,
                 maxLines = 1,

@@ -578,15 +578,37 @@ class StashMetaRepository @Inject constructor(
 
         /** 与设计稿一致的五枚默认标签。 */
         val DEFAULT_TAGS: List<StashTag> = listOf(
-            StashTag("工作", 0xFF5B8DF6, 0),
-            StashTag("想法", 0xFFF0A93B, 1),
-            StashTag("待办", 0xFF57B87A, 2),
-            StashTag("灵感", 0xFFC77DF0, 3),
-            StashTag("设计", 0xFFE86E8C, 4),
+            StashTag(WORK_TAG_NAME, 0xFF5B8DF6, 0),
+            StashTag(IDEA_TAG_NAME, 0xFFF0A93B, 1),
+            StashTag(TODO_TAG_NAME, 0xFF57B87A, 2),
+            StashTag(INSPIRATION_TAG_NAME, 0xFFC77DF0, 3),
+            StashTag(DESIGN_TAG_NAME, 0xFFE86E8C, 4),
         )
+
+        /*
+         * ⚠️ 下面这五个名字是**内部关键字**：既是 `stash_meta.json` 里 `assignments` 的**存储键**
+         * （`{条目 → [标签名]}`），又是语义判定（`TODO_TAG_NAME` = "这条是不是待办"）的依据。
+         * **绝不能跟着界面语言变** —— 一变，老库里的绑定就对不上、完成态与把手变色也会错。
+         *
+         * 界面上的显示名由 `HistoryPanelUi.stashTagLabel()` 在**渲染时**按当前语言给出
+         * （各语言的 `stash_tag_default_*` 资源）。所以"英文界面上标签还是中文"这件事
+         * 不需要改数据，只需要改显示层。
+         */
 
         /** 「完成」动作只出现在带这枚标签的条目上。 */
         const val TODO_TAG_NAME = "待办"
+
+        /** 默认标签「工作」的内部名（显示名走资源，见上方说明）。 */
+        const val WORK_TAG_NAME = "工作"
+
+        /** 默认标签「想法」的内部名。 */
+        const val IDEA_TAG_NAME = "想法"
+
+        /** 默认标签「灵感」的内部名。 */
+        const val INSPIRATION_TAG_NAME = "灵感"
+
+        /** 默认标签「设计」的内部名。 */
+        const val DESIGN_TAG_NAME = "设计"
 
         /** 来源：从剪贴板「暂存到闪念」。 */
         const val SOURCE_CLIPBOARD = "clipboard"

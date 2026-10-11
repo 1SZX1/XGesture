@@ -3189,9 +3189,16 @@ Questions: open a GitHub Issue on the project repository.</string>
     <string name="stash_tag_color">Color</string>
     <string name="stash_tag_color_picking">Color · %1$s</string>
     <string name="stash_tag_delete">Delete</string>
-    <!-- 「待办」= IdeasMetaRepository.TODO_TAG_NAME，是硬编码的中文关键字（四种语言下标签名都显示成「待办」），
-         所以这条提示里的标签名**不能翻译**，否则用户对不上号。 -->
-    <string name="stash_tag_protected_hint">“待办” is a keyword tag: it can’t be renamed or deleted</string>
+    <!-- 五枚**默认标签**的显示名（见 HistoryPanelUi.stashTagLabel）：内部仍按中文名当关键字存
+         （StashMetaRepository.DEFAULT_TAGS / TODO_TAG_NAME），只在渲染时换成当前语言；
+         用户自己改过名的标签名字不再匹配，会自然回落到原名。 -->
+    <string name="stash_tag_default_work">Work</string>
+    <string name="stash_tag_default_idea">Idea</string>
+    <string name="stash_tag_default_todo">To-do</string>
+    <string name="stash_tag_default_inspiration">Inspiration</string>
+    <string name="stash_tag_default_design">Design</string>
+    <!-- 标签名由 %1$s 传入（= 那枚标签**当前语言**的显示名），别再写死中文。 -->
+    <string name="stash_tag_protected_hint">“%1$s” is a keyword tag: it can’t be renamed or deleted</string>
     <string name="stash_tag_exists">A tag with that name already exists</string>
     <string name="stash_tag_deleted">Tag deleted</string>
     <string name="clipboard_filter_image">Images</string>

@@ -275,7 +275,7 @@ internal fun HistoryPanelEditBar(
             availableTags.forEach { tag ->
                 val selected = tag.name in tags
                 HistoryEditChip(
-                    label = tag.name,
+                    label = stashTagLabel(tag.name),
                     dotColor = Color(tag.colorArgb),
                     selected = selected,
                     onClick = {

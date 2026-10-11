@@ -3124,8 +3124,14 @@
     <string name="stash_tag_color">色を変更</string>
     <string name="stash_tag_color_picking">色を変更：%1$s</string>
     <string name="stash_tag_delete">削除</string>
-    <!-- 标签名「待办」是硬编码关键字（TODO_TAG_NAME），此处不翻译。 -->
-    <string name="stash_tag_protected_hint">「待办」はキーワードタグです：名前の変更と削除はできません</string>
+    <!-- デフォルト 5 タグの**表示名**（HistoryPanelUi.stashTagLabel）。内部は今も中国語名を
+         キーワードとして保存し、描画時だけ現在の言語に差し替える。 -->
+    <string name="stash_tag_default_work">仕事</string>
+    <string name="stash_tag_default_idea">アイデア</string>
+    <string name="stash_tag_default_todo">タスク</string>
+    <string name="stash_tag_default_inspiration">インスピレーション</string>
+    <string name="stash_tag_default_design">デザイン</string>
+    <string name="stash_tag_protected_hint">「%1$s」はキーワードタグです：名前の変更と削除はできません</string>
     <string name="stash_tag_exists">同じ名前のタグがすでにあります</string>
     <string name="stash_tag_deleted">タグを削除しました</string>
     <string name="clipboard_filter_image">画像</string>

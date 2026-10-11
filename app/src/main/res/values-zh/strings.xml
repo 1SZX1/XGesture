@@ -3213,7 +3213,14 @@
     <string name="stash_tag_color">改色</string>
     <string name="stash_tag_color_picking">改色：%1$s</string>
     <string name="stash_tag_delete">删除</string>
-    <string name="stash_tag_protected_hint">「待办」是关键字标签：不能改名或删除</string>
+    <!-- 五枚默认标签的**显示名**（见 HistoryPanelUi.stashTagLabel）：内部仍按中文名当关键字存，
+         只在渲染时换成当前语言；用户自己改过名的标签会自然回落到原名。 -->
+    <string name="stash_tag_default_work">工作</string>
+    <string name="stash_tag_default_idea">想法</string>
+    <string name="stash_tag_default_todo">待办</string>
+    <string name="stash_tag_default_inspiration">灵感</string>
+    <string name="stash_tag_default_design">设计</string>
+    <string name="stash_tag_protected_hint">「%1$s」是关键字标签：不能改名或删除</string>
     <string name="stash_tag_exists">已有同名标签</string>
     <string name="stash_tag_deleted">已删除标签</string>
     <string name="clipboard_filter_image">图片</string>

@@ -3104,8 +3104,14 @@
     <string name="stash_tag_color">تغيير اللون</string>
     <string name="stash_tag_color_picking">تغيير اللون: %1$s</string>
     <string name="stash_tag_delete">حذف</string>
-    <!-- اسم الوسم «待办» كلمة مفتاحية ثابتة في الكود، ولا يُترجم. -->
-    <string name="stash_tag_protected_hint">وسم «待办» كلمة مفتاحية: لا يمكن إعادة تسميته أو حذفه</string>
+    <!-- أسماء العرض للوسوم الخمسة الافتراضية (HistoryPanelUi.stashTagLabel)؛ الاسم الداخلي يبقى
+         بالصينية لأنه مفتاح التخزين، ويُستبدل عند الرسم بلغة الواجهة الحالية. -->
+    <string name="stash_tag_default_work">عمل</string>
+    <string name="stash_tag_default_idea">فكرة</string>
+    <string name="stash_tag_default_todo">مهام</string>
+    <string name="stash_tag_default_inspiration">إلهام</string>
+    <string name="stash_tag_default_design">تصميم</string>
+    <string name="stash_tag_protected_hint">وسم «%1$s» كلمة مفتاحية: لا يمكن إعادة تسميته أو حذفه</string>
     <string name="stash_tag_exists">يوجد وسم بالاسم نفسه</string>
     <string name="stash_tag_deleted">تم حذف الوسم</string>
     <string name="clipboard_filter_image">الصور</string>

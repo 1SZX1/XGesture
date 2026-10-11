@@ -242,7 +242,7 @@ internal fun HistoryComposerModal(
             ) {
                 availableTags.forEach { tag ->
                     HistoryChip(
-                        label = tag.name,
+                        label = stashTagLabel(tag.name),
                         dotColor = Color(tag.colorArgb),
                         selected = tag.name in selectedTags,
                         onClick = { onToggleTag(tag.name) },
@@ -1436,7 +1436,7 @@ private fun HistoryComposerBar(
             ) {
                 availableTags.forEach { tag ->
                     HistoryChip(
-                        label = tag.name,
+                        label = stashTagLabel(tag.name),
                         dotColor = Color(tag.colorArgb),
                         selected = tag.name in selectedTags,
                         onClick = { onToggleTag(tag.name) },
