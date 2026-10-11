@@ -26,9 +26,23 @@ internal data class ThirdPartyNoticeEntry(
     /** `License` 字段形如 `[文案](链接)`；取出后渲染成可点的许可行。 */
     val license: MarkdownLink? get() = field("License")?.markdown?.let(::parseSingleMarkdownLink)
 
-    /** `Source` 字段是裸 URL。 */
+    /**
+     * `Source` 字段里的**第一个 URL**。
+     *
+     * 该字段可能带补充说明，例如
+     * `https://github.com/aaronzzx/SideGesture (formerly https://github.com/aaronzzx/gulugulu)`。
+     * 早先把**整串**当标签塞进芯片 → 芯片被撑成 6 行（真机截图里最难看的一处）。
+     * 这里只取第一个 URL 作链接与显示文本；括号里的补充说明留给仓库文档（不上界面）。
+     */
     val sourceUrl: String?
-        get() = field("Source")?.markdown?.trim()?.takeIf { it.startsWith("http") }
+        get() = SOURCE_URL.find(field("Source")?.markdown.orEmpty())?.value
+
+    /** 来源的展示文本：去掉 scheme，短到能一行放下。 */
+    val sourceLabel: String?
+        get() = sourceUrl
+            ?.removePrefix("https://")
+            ?.removePrefix("http://")
+            ?.removeSuffix("/")
 
     val copyright: String?
         get() = field("Copyright")?.markdown?.trim()?.takeIf { it.isNotEmpty() }
@@ -53,6 +67,8 @@ internal data class ThirdPartyNoticesDocument(
 )
 
 private val SECTION_HEADING = Regex("""^## (.+)$""", RegexOption.MULTILINE)
+private val H1_HEADING = Regex("""^#\s+.+$""", RegexOption.MULTILINE)
+private val SOURCE_URL = Regex("""https?://\S+""")
 private val FIELD_LINE = Regex("""^-\s+\*\*(.+?):\*\*\s*(.*)$""")
 private val SINGLE_LINK = Regex("""^\[(.+?)]\((.+?)\)$""")
 
@@ -60,13 +76,13 @@ internal fun parseThirdPartyNotices(markdown: String): ThirdPartyNoticesDocument
     val headings = SECTION_HEADING.findAll(markdown).toList()
     if (headings.isEmpty()) {
         return ThirdPartyNoticesDocument(
-            introMarkdown = markdown.trim(),
+            introMarkdown = cleanIntro(markdown),
             entries = emptyList(),
             appendixMarkdown = "",
         )
     }
 
-    val intro = markdown.substring(0, headings.first().range.first).trim()
+    val intro = cleanIntro(markdown.substring(0, headings.first().range.first))
     val entries = mutableListOf<ThirdPartyNoticeEntry>()
     val appendix = StringBuilder()
 
@@ -100,6 +116,18 @@ internal fun parseThirdPartyNotices(markdown: String): ThirdPartyNoticesDocument
         appendixMarkdown = appendix.toString().trim(),
     )
 }
+
+/**
+ * 引言清理：剥掉文档自带的 H1 与分隔线。
+ *
+ * `# Third-Party Notices` 在 App 里会渲染成一个巨大的标题，而页面顶部**已经有**标题
+ * 「第三方开源组件」→ 真机上就是两个大标题叠在一起。
+ */
+private fun cleanIntro(raw: String): String =
+    raw.lineSequence()
+        .filterNot { line -> H1_HEADING.matches(line.trim()) || line.trim() == "---" }
+        .joinToString("\n")
+        .trim()
 
 /**
  * 去掉区块之间那行 `---` 分隔线。

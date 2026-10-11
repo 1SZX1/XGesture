@@ -1,5 +1,10 @@
 # 开源归属映射（开发维护用）
 
+> ⚠️ 改 `THIRD_PARTY_NOTICES.md` 时记得**同步** `app/src/main/assets/licenses/third_party_notices.md`
+> —— App 内「开源许可」页读的是**后者**（打进 APK 那份），只改仓库根那份等于没改。
+> 改完运行 `python scripts/check-notices-sync.py` 校验两份逐行一致。
+> （这条提示刻意放在这里：两份 notices 都是**用户可见**文档，不该出现开发指令。）
+
 | 本仓库路径 | 来源项目 | 关系 | 许可证 |
 |-----------|---------|------|--------|
 | `app/.../xposed/hook/ClipboardWhitelistHook.kt` | [Clipboard Whitelist](https://github.com/Tehcneko/ClipboardWhitelist) | 移植+修改 | GPL-3.0 |

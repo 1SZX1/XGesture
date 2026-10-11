@@ -32,12 +32,31 @@ class ThirdPartyNoticesParserTest {
 
     @Test
     fun `parse splits intro entries and appendix`() {
-        assertTrue(document.introMarkdown.contains("Third-Party Notices"))
+        // 文档自带的 H1 会被剥掉：否则它在 App 里渲染成一个巨大标题，与页面顶部标题重复
+        assertFalse(document.introMarkdown.contains("Third-Party Notices"))
         assertTrue(document.introMarkdown.contains("Intro paragraph."))
         assertEquals(listOf("SideGesture"), document.entries.map { it.title })
         // 「许可证全文」没有 `- **字段:**` 结构 → 归入附录而不是条目
         assertTrue(document.appendixMarkdown.contains("许可证全文"))
         assertTrue(document.appendixMarkdown.contains("MIT.txt"))
+    }
+
+    @Test
+    fun `source field with trailing prose keeps only the first url`() {
+        val doc = parseThirdPartyNotices(
+            """
+            # Title
+
+            ## SideGesture
+
+            - **License:** [Apache License 2.0](app/src/main/assets/licenses/Apache-2.0.txt)
+            - **Source:** https://github.com/aaronzzx/SideGesture (formerly https://github.com/aaronzzx/gulugulu)
+            """.trimIndent(),
+        )
+        val entry = doc.entries.single()
+        assertEquals("https://github.com/aaronzzx/SideGesture", entry.sourceUrl)
+        // 展示文本必须短到一行放得下：早先把整串塞进芯片，被撑成六行
+        assertEquals("github.com/aaronzzx/SideGesture", entry.sourceLabel)
     }
 
     /**

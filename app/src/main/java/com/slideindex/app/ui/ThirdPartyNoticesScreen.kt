@@ -2,6 +2,7 @@ package com.slideindex.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -176,24 +177,28 @@ private fun ThirdPartyEntryCard(
             fontWeight = FontWeight.SemiBold,
         )
 
-        if (entry.license != null || entry.sourceUrl != null) {
-            Row(
+        entry.license?.let { license ->
+            AssistChip(
+                onClick = { onOpenLicenseText(license.url.substringAfterLast('/')) },
+                label = { Text(license.label) },
                 modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                entry.license?.let { license ->
-                    AssistChip(
-                        onClick = { onOpenLicenseText(license.url.substringAfterLast('/')) },
-                        label = { Text(license.label) },
-                    )
-                }
-                entry.sourceUrl?.let { url ->
-                    AssistChip(
-                        onClick = { runCatching { uriHandler.openUri(url) } },
-                        label = { Text(url.removePrefix("https://").removePrefix("http://")) },
-                    )
-                }
-            }
+            )
+        }
+
+        entry.sourceUrl?.let { url ->
+            // 来源用**单行文本链接**而不是芯片：`Source` 字段可能带 "(formerly …)" 这类补充
+            // 说明，早先整串塞进芯片会被撑成六行（真机截图里最难看的一处）。
+            Text(
+                text = entry.sourceLabel.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .clickable { runCatching { uriHandler.openUri(url) } },
+            )
         }
 
         entry.copyright?.let { copyright ->
