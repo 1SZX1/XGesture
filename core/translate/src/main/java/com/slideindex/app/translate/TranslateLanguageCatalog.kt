@@ -16,6 +16,9 @@ object TranslateLanguageCatalog {
         TranslateLanguageOption("ko", "Korean", "ko"),
         TranslateLanguageOption("fr", "French", "fr"),
         TranslateLanguageOption("de", "German", "de"),
+        TranslateLanguageOption("id", "Indonesian", "id"),
+        TranslateLanguageOption("pt-BR", "Portuguese (Brazil)", "pt"),
+        TranslateLanguageOption("pt-PT", "Portuguese (Portugal)", "pt"),
         TranslateLanguageOption("es", "Spanish", "es"),
         TranslateLanguageOption("ru", "Russian", "ru"),
     )

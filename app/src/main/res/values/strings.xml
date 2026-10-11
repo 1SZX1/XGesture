@@ -3892,6 +3892,9 @@ or revoke permanent Root for Shell in APatch.</string>
     <string name="translate_target_label_ko">한국어</string>
     <string name="translate_target_label_fr">Français</string>
     <string name="translate_target_label_de">Deutsch</string>
+    <string name="translate_target_label_id">Bahasa Indonesia</string>
+    <string name="translate_target_label_pt_br">Português (Brasil)</string>
+    <string name="translate_target_label_pt_pt">Português (Portugal)</string>
     <string name="translate_target_label_es">Español</string>
     <string name="translate_target_label_ru">Русский</string>
     <string name="widget_panel_add_page">Add panel</string>

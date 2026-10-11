@@ -206,18 +206,10 @@ class MlKitTranslateModelInstaller @Inject constructor(
 
     fun toMlKitLanguage(languageCode: String): String? {
         val option = TranslateLanguageCatalog.find(languageCode) ?: return null
-        return when (option.mlKitLanguage) {
-            "zh" -> TranslateLanguage.CHINESE
-            "en" -> TranslateLanguage.ENGLISH
-            "ja" -> TranslateLanguage.JAPANESE
-            "ar" -> TranslateLanguage.ARABIC
-            "ko" -> TranslateLanguage.KOREAN
-            "fr" -> TranslateLanguage.FRENCH
-            "de" -> TranslateLanguage.GERMAN
-            "es" -> TranslateLanguage.SPANISH
-            "ru" -> TranslateLanguage.RUSSIAN
-            else -> null
-        }
+        // 交给 ML Kit 自己判定：认得的原样返回，不认的返回 null。
+        // 不再手工维护 mlKitLanguage -> TranslateLanguage.* 的对照表，
+        // 避免 catalog 加了语言却漏改对照表（编译不报错、运行时才失败）。
+        return TranslateLanguage.fromLanguageTag(option.mlKitLanguage)
     }
 
     private fun isOnWifi(): Boolean {
