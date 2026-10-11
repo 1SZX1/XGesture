@@ -12,6 +12,13 @@ Release pages are published with the English notes first, then the Chinese ones.
 notes follow the system language: `notesEn` is shown to non-Chinese locales and `notes` to
 Chinese ones, each falling back to the other when a version is missing.
 
+## [1.40.2] - 2026-10-11
+
+### Fixed
+- Fix the app crashing on launch after app notifications are turned off in system settings or clipboard monitoring is disabled
+- Fix the floating ball and edge gestures disappearing after app notifications are turned off in system settings, requiring the app to be reopened
+- Fix the default idea tag names not following the interface language
+
 ## [1.40.0] - 2026-10-11
 
 ### Added
