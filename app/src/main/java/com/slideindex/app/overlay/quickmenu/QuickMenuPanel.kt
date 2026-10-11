@@ -70,8 +70,11 @@ fun QuickMenuPanel(
     recents: List<QuickMenuTool>,
     /** 识码页的原文。由宿主的 Session 承载，这样外部 Activity 期间窗口被摘掉也不丢。 */
     scanContent: String,
+    /** 识码页的候选列表（同一张图/同一帧里扫到的多个码）；只有一个码时为空列表。 */
+    scanCandidates: List<String>,
     onQueryChange: (String) -> Unit,
     onScanContentChange: (String) -> Unit,
+    onScanCandidatesChange: (List<String>) -> Unit,
     onOpenTool: (QuickMenuTool) -> Unit,
     onBack: () -> Unit,
     onDismiss: () -> Unit,
@@ -143,7 +146,9 @@ fun QuickMenuPanel(
                         QuickMenuToolScreen(
                             tool = page,
                             scanContent = scanContent,
+                            scanCandidates = scanCandidates,
                             onScanContentChange = onScanContentChange,
+                            onScanCandidatesChange = onScanCandidatesChange,
                         )
                     }
                 }
@@ -368,7 +373,9 @@ private fun ToolRow(tool: QuickMenuTool, title: String, description: String, onC
 private fun QuickMenuToolScreen(
     tool: QuickMenuTool,
     scanContent: String,
+    scanCandidates: List<String>,
     onScanContentChange: (String) -> Unit,
+    onScanCandidatesChange: (List<String>) -> Unit,
 ) {
     when (tool) {
         QuickMenuTool.UNIT_CONVERTER -> QuickMenuUnitConverterScreen()
@@ -376,7 +383,9 @@ private fun QuickMenuToolScreen(
         QuickMenuTool.QR_GENERATOR -> QuickMenuQrGeneratorScreen()
         QuickMenuTool.SCAN_DECODER -> QuickMenuScanDecoderScreen(
             content = scanContent,
+            candidates = scanCandidates,
             onContentChange = onScanContentChange,
+            onCandidatesChange = onScanCandidatesChange,
         )
         QuickMenuTool.PASSWORD -> QuickMenuPasswordScreen()
         QuickMenuTool.TEXT_TOOL -> QuickMenuTextToolScreen()

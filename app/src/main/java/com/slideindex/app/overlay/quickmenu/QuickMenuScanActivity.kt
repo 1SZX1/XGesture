@@ -91,7 +91,7 @@ class QuickMenuScanActivity : ComponentActivity() {
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) openCamera() else deliver(null)
+            if (granted) openCamera() else deliver(emptyList())
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -120,10 +120,10 @@ class QuickMenuScanActivity : ComponentActivity() {
     override fun onDestroy() {
         closeCamera()
         workerThread.quitSafely()
-        // 用户直接返回（没扫到）时也要把 null 交回去，否则面板的回调会一直挂着。
+        // 用户直接返回（没扫到）时也要把空列表交回去，否则面板的回调会一直挂着。
         if (!delivered) {
             delivered = true
-            onDecoded?.invoke(null)
+            onDecoded?.invoke(emptyList())
             onDecoded = null
         }
         super.onDestroy()
@@ -161,7 +161,7 @@ class QuickMenuScanActivity : ComponentActivity() {
 
         torchButton = controlButton(getString(R.string.quick_menu_scan_torch)) { toggleTorch() }
         zoomButton = controlButton(zoomLabel()) { cycleZoom() }
-        val closeButton = controlButton(getString(R.string.quick_menu_scan_close)) { deliver(null) }
+        val closeButton = controlButton(getString(R.string.quick_menu_scan_close)) { deliver(emptyList()) }
 
         val controls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -198,8 +198,8 @@ class QuickMenuScanActivity : ComponentActivity() {
     @SuppressLint("MissingPermission")
     private fun openCamera() {
         if (isFinishing || cameraDevice != null) return
-        val manager = getSystemService(CameraManager::class.java) ?: return deliver(null)
-        val picked = pickBackCamera(manager) ?: return deliver(null)
+        val manager = getSystemService(CameraManager::class.java) ?: return deliver(emptyList())
+        val picked = pickBackCamera(manager) ?: return deliver(emptyList())
         val (cameraId, characteristics) = picked
 
         torchAvailable = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
@@ -209,12 +209,12 @@ class QuickMenuScanActivity : ComponentActivity() {
             .coerceAtLeast(1f)
 
         val configurationMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-            ?: return deliver(null)
+            ?: return deliver(emptyList())
         val size = chooseAnalysisSize(configurationMap.getOutputSizes(ImageFormat.YUV_420_888))
 
         val reader = runCatching {
             ImageReader.newInstance(size.width, size.height, ImageFormat.YUV_420_888, MAX_QUEUED_FRAMES)
-        }.getOrNull() ?: return deliver(null)
+        }.getOrNull() ?: return deliver(emptyList())
         reader.setOnImageAvailableListener({ onFrameAvailable() }, workerHandler)
         imageReader = reader
 
@@ -226,7 +226,7 @@ class QuickMenuScanActivity : ComponentActivity() {
                         cameraDevice = device
                         val previewSurface = previewView.holder.surface
                         if (!previewSurface.isValid) {
-                            deliver(null)
+                            deliver(emptyList())
                             return
                         }
                         createSession(device, previewSurface, reader.surface)
@@ -234,20 +234,20 @@ class QuickMenuScanActivity : ComponentActivity() {
 
                     override fun onDisconnected(device: CameraDevice) {
                         device.close()
-                        deliver(null)
+                        deliver(emptyList())
                     }
 
                     override fun onError(device: CameraDevice, error: Int) {
                         Log.w(TAG, "camera error: $error")
                         device.close()
-                        deliver(null)
+                        deliver(emptyList())
                     }
                 },
                 workerHandler,
             )
         }.onFailure {
             Log.w(TAG, "openCamera failed", it)
-            deliver(null)
+            deliver(emptyList())
         }
     }
 
@@ -257,7 +257,7 @@ class QuickMenuScanActivity : ComponentActivity() {
                 addTarget(previewSurface)
                 addTarget(analysisSurface)
             }
-        }.getOrNull() ?: return deliver(null)
+        }.getOrNull() ?: return deliver(emptyList())
         requestBuilder = builder
 
         runCatching {
@@ -271,14 +271,14 @@ class QuickMenuScanActivity : ComponentActivity() {
 
                     override fun onConfigureFailed(session: CameraCaptureSession) {
                         Log.w(TAG, "createCaptureSession failed")
-                        deliver(null)
+                        deliver(emptyList())
                     }
                 },
                 workerHandler,
             )
         }.onFailure {
             Log.w(TAG, "createCaptureSession threw", it)
-            deliver(null)
+            deliver(emptyList())
         }
     }
 
@@ -296,7 +296,7 @@ class QuickMenuScanActivity : ComponentActivity() {
             session.setRepeatingRequest(builder.build(), null, workerHandler)
         }.onFailure {
             Log.w(TAG, "applyRepeatingRequest failed", it)
-            deliver(null)
+            deliver(emptyList())
         }
     }
 
@@ -378,7 +378,9 @@ class QuickMenuScanActivity : ComponentActivity() {
                 height = image.height,
                 qrOnly = frameCount % ALL_FORMAT_EVERY_N_FRAMES != 0,
             )
-            results.firstOrNull()?.text?.takeIf { it.isNotBlank() }?.let { deliver(it) }
+            // 交回**整帧**的所有结果：界面在"只有一个"时照旧直接回填，"多个"时才列出来让用户选。
+            val texts = results.map { it.text }.filter { it.isNotBlank() }.distinct()
+            if (texts.isNotEmpty()) deliver(texts)
         } catch (error: Exception) {
             Log.w(TAG, "frame decode failed", error)
         } finally {
@@ -440,11 +442,11 @@ class QuickMenuScanActivity : ComponentActivity() {
         imageReader = null
     }
 
-    private fun deliver(text: String?) {
+    private fun deliver(texts: List<String>) {
         if (delivered) return
         delivered = true
         mainHandler.post {
-            onDecoded?.invoke(text)
+            onDecoded?.invoke(texts)
             onDecoded = null
             if (!isFinishing) finishWithoutTransition()
         }
@@ -520,16 +522,18 @@ class QuickMenuScanActivity : ComponentActivity() {
         private val zoomSteps = floatArrayOf(1f, 2f, 3f)
 
         /**
-         * 结果回调（扫到原文，或用户取消时为 null）。
+         * 结果回调（扫到的**所有**原文；用户取消时为空列表）。
+         *
+         * 从"只交回第一个"改成交回列表：同一帧里可能有多个码，交由界面决定是直接回填还是列出来让用户点选。
          *
          * 用静态回调而非 ActivityResult API，原因是调用方（快捷菜单面板）跑在 overlay 的
          * ComposeView 里、拿不到 `ActivityResultRegistry`；这与本仓库既有的
          * `SearchPanelImagePickerActivity` 做法一致。区别是这里在投递后**立即清空**引用，
-         * 并且 `onDestroy` 兜底交付 null，不会留下跨 Activity 的悬挂回调。
+         * 并且 `onDestroy` 兜底交付空列表，不会留下跨 Activity 的悬挂回调。
          */
-        private var onDecoded: ((String?) -> Unit)? = null
+        private var onDecoded: ((List<String>) -> Unit)? = null
 
-        fun launch(context: Context, onResult: (String?) -> Unit) {
+        fun launch(context: Context, onResult: (List<String>) -> Unit) {
             onDecoded = onResult
             val intent = Intent(context, QuickMenuScanActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

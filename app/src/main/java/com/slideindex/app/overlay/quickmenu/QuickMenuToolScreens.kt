@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Flag
@@ -78,7 +79,9 @@ import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.barcode.QrCodeGenerator
 import com.slideindex.app.barcode.QrPayloadParser
+import com.slideindex.app.barcode.ScanOutcome
 import com.slideindex.app.barcode.ZxingBarcodeScanner
+import com.slideindex.app.barcode.scanOutcome
 import com.slideindex.app.overlay.screenshot.ScreenshotStorage
 import com.slideindex.app.overlay.OverlayToastWindow
 import com.slideindex.app.overlay.searchpanel.SearchPanelImagePickerActivity
@@ -640,7 +643,9 @@ internal fun QuickMenuQrGeneratorScreen() {
 @Composable
 internal fun QuickMenuScanDecoderScreen(
     content: String,
+    candidates: List<String>,
     onContentChange: (String) -> Unit,
+    onCandidatesChange: (List<String>) -> Unit,
 ) {
     val context = LocalContext.current
     val parsed = remember(content) { if (content.isBlank()) null else QrPayloadParser.parse(content) }
@@ -651,9 +656,9 @@ internal fun QuickMenuScanDecoderScreen(
             onClick = {
                 // 浮层必须先收起：无障碍覆盖层永远在最上层，不收起来相机预览会被它整个盖住。
                 QuickMenuOverlayWindow.suspendForExternalActivity()
-                QuickMenuScanActivity.launch(context) { text ->
+                QuickMenuScanActivity.launch(context) { texts ->
                     QuickMenuOverlayWindow.resumeFromExternalActivity()
-                    if (!text.isNullOrBlank()) onContentChange(text)
+                    applyScanResults(context, texts, onContentChange, onCandidatesChange)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -682,8 +687,8 @@ internal fun QuickMenuScanDecoderScreen(
                         QuickMenuWork.launch {
                             val bitmap = withContext(Dispatchers.Default) { decodeBitmap(context, uri) }
                                 ?: return@launch
-                            withContext(Dispatchers.Default) { scanFirstBarcode(bitmap) }
-                                ?.let(onContentChange)
+                            val texts = withContext(Dispatchers.Default) { scanBarcodes(bitmap) }
+                            applyScanResults(context, texts, onContentChange, onCandidatesChange)
                         }
                     }
                 },
@@ -705,14 +710,15 @@ internal fun QuickMenuScanDecoderScreen(
                         QuickMenuOverlayWindow.resumeFromExternalActivity()
                         when (outcome) {
                             is ScreenshotCaptureOutcome.Success -> {
-                                val text = withContext(Dispatchers.Default) {
-                                    scanFirstBarcode(outcome.bitmap)
+                                val texts = withContext(Dispatchers.Default) {
+                                    scanBarcodes(outcome.bitmap)
                                 }
-                                if (text != null) {
-                                    onContentChange(text)
-                                } else {
-                                    showQuickMenuToast(context, R.string.quick_menu_scan_no_code_found)
-                                }
+                                applyScanResults(
+                                    context,
+                                    texts,
+                                    onContentChange,
+                                    onCandidatesChange,
+                                )
                             }
                             ScreenshotCaptureOutcome.Throttled ->
                                 showQuickMenuToast(context, R.string.quick_menu_scan_capture_throttled)
@@ -733,6 +739,53 @@ internal fun QuickMenuScanDecoderScreen(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.quick_menu_scan_capture))
             }
+        }
+
+        // 扫到多个码时才出现：列出候选让用户点选。只有一个码时这段完全不显示，用法与以前一致。
+        if (candidates.size > 1) {
+            Text(
+                text = stringResource(R.string.quick_menu_scan_candidates, candidates.size),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            candidates.forEach { candidate ->
+                val selected = candidate == content
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onContentChange(candidate) },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = candidate,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = FontFamily.Monospace,
+                            ),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (selected) {
+                            Icon(imageVector = Icons.Filled.Check, contentDescription = null)
+                        }
+                    }
+                }
+            }
+            Text(
+                text = stringResource(R.string.quick_menu_scan_candidates_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         if (parsed != null) {
@@ -1604,7 +1657,35 @@ private fun decodeBitmap(context: Context, uri: Uri): Bitmap? = runCatching {
     context.contentResolver.openInputStream(uri)?.use { stream -> BitmapFactory.decodeStream(stream) }
 }.getOrNull()
 
-/** 取图里第一个可识别的条码/二维码原文。 */
-private fun scanFirstBarcode(bitmap: Bitmap): String? = runCatching {
-    ZxingBarcodeScanner.scanBitmap(bitmap).firstOrNull()?.text
-}.getOrNull()?.takeIf { it.isNotBlank() }
+/** 取图里所有可识别的条码/二维码原文（引擎已按 `格式:文本` 去重，这里再按文本去一次）。 */
+private fun scanBarcodes(bitmap: Bitmap): List<String> = runCatching {
+    ZxingBarcodeScanner.scanBitmap(bitmap)
+        .map { it.text }
+        .filter { it.isNotBlank() }
+        .distinct()
+}.getOrDefault(emptyList())
+
+/**
+ * 一次扫描的结果落地。
+ *
+ * **只有一个码时与以前完全一样**：直接回填、不出现任何列表——最常见的场景一点没变复杂。
+ * 只有扫到多个码时才把候选列表交给界面，由用户点选。
+ */
+private fun applyScanResults(
+    context: Context,
+    texts: List<String>,
+    onContentChange: (String) -> Unit,
+    onCandidatesChange: (List<String>) -> Unit,
+) {
+    when (val outcome = scanOutcome(texts)) {
+        ScanOutcome.NoCode -> showQuickMenuToast(context, R.string.quick_menu_scan_no_code_found)
+        is ScanOutcome.Single -> {
+            onCandidatesChange(emptyList())
+            onContentChange(outcome.text)
+        }
+        is ScanOutcome.Multiple -> {
+            onCandidatesChange(outcome.texts)
+            onContentChange(outcome.texts.first())
+        }
+    }
+}

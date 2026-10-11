@@ -57,6 +57,9 @@ object QuickMenuOverlayWindow {
         /** 识码页的待解析原文。外部 Activity 期间必须由这里承载，否则扫码结果会丢。 */
         val scanContent: MutableState<String> = mutableStateOf("")
 
+        /** 识码页的候选列表：同一帧/同一张图里扫到的多个码。只有一个码时为空列表。 */
+        val scanCandidates: MutableState<List<String>> = mutableStateOf(emptyList())
+
         var settings: AppSettings = AppSettings()
     }
 
@@ -249,8 +252,10 @@ object QuickMenuOverlayWindow {
                     query = current.query.value,
                     recents = current.recents.value,
                     scanContent = current.scanContent.value,
+                    scanCandidates = current.scanCandidates.value,
                     onQueryChange = { current.query.value = it },
                     onScanContentChange = { current.scanContent.value = it },
+                    onScanCandidatesChange = { current.scanCandidates.value = it },
                     onOpenTool = { tool ->
                         current.page.value = tool
                         // 乐观更新：先用本地顺序刷 UI，再异步落盘（写失败也不影响本次使用）。

@@ -1236,6 +1236,8 @@
     <string name="quick_menu_scan_capture_unavailable">خدمة إمكانية الوصول غير متصلة، لذا تعذّر أخذ لقطة</string>
     <string name="quick_menu_scan_capture_failed">فشل أخذ لقطة الشاشة (رمز الخطأ %1$d)</string>
     <string name="quick_menu_scan_no_code_found">لم يُعثر على رمز QR أو باركود في هذه الصورة</string>
+    <string name="quick_menu_scan_candidates">تم العثور على %1$d رموز</string>
+    <string name="quick_menu_scan_candidates_hint">اضغط على أحدها لعرض نتيجته</string>
     <string name="quick_menu_scan_torch">المصباح</string>
     <string name="quick_menu_scan_close">إغلاق</string>
     <string name="quick_menu_scan_capture">التقاط الشاشة</string>
