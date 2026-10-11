@@ -1,6 +1,7 @@
 package com.slideindex.app.overlay
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.slideindex.app.di.OverlayDependencyAccess
 import com.slideindex.app.overlay.history.HistoryPanelReveal
 import com.slideindex.app.overlay.history.HistoryPanelScreen
+import com.slideindex.app.overlay.history.LocalStashPanelWidthFraction
 import com.slideindex.app.overlay.history.StashPanelLaunchState
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
@@ -257,25 +259,31 @@ object FloatBallStashPanel {
         // （`HistoryPanelScreen` 里的 `LocalFrostedGlassBackdrop`），窗口也不再压窄/移动。
 
         OverlayAwareModuleTheme {
-            HistoryPanelScreen(
-                gravityEnd = gravityEnd,
-                panelTargetVisible = panelTargetVisible,
-                panelBlurActive = panelBlurActive,
-                blurRadiusDp = blurRadiusDp,
-                onDismiss = onDismiss,
-                onToggleSide = onToggleSide,
-                requestedTabOrdinal = requestedTabOrdinal,
-                searchBootstrapEpoch = searchBootstrapEpoch,
-                onSearchFocusChanged = { active ->
-                    updateWindowInputActiveForClipboard(active)
-                },
-                onRegisterBackInterceptor = { interceptor ->
-                    sideHost.setPanelBackInterceptor(interceptor)
-                }
-            )
-            DisposableEffect(Unit) {
-                onDispose {
-                    sideHost.setPanelBackInterceptor(null)
+            // 面板宽度档位注入整棵面板树：`panelWidthOf`（本体宽度）、`historyPreviewWidthPx`
+            // （图片降采样宽）与 `HistoryEntryCards`（卡片缩略图宽）都读它。
+            CompositionLocalProvider(
+                LocalStashPanelWidthFraction provides settings.stashPanelWidthMode.fraction
+            ) {
+                HistoryPanelScreen(
+                    gravityEnd = gravityEnd,
+                    panelTargetVisible = panelTargetVisible,
+                    panelBlurActive = panelBlurActive,
+                    blurRadiusDp = blurRadiusDp,
+                    onDismiss = onDismiss,
+                    onToggleSide = onToggleSide,
+                    requestedTabOrdinal = requestedTabOrdinal,
+                    searchBootstrapEpoch = searchBootstrapEpoch,
+                    onSearchFocusChanged = { active ->
+                        updateWindowInputActiveForClipboard(active)
+                    },
+                    onRegisterBackInterceptor = { interceptor ->
+                        sideHost.setPanelBackInterceptor(interceptor)
+                    }
+                )
+                DisposableEffect(Unit) {
+                    onDispose {
+                        sideHost.setPanelBackInterceptor(null)
+                    }
                 }
             }
         }

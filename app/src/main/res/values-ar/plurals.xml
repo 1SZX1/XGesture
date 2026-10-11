@@ -312,6 +312,14 @@
         <item quantity="many">تم استيراد %d تطبيقات</item>
         <item quantity="other">تم استيراد %d تطبيقات</item>
     </plurals>
+    <plurals name="freezer_batch_remove_done">
+        <item quantity="zero">لم تتم إزالة أي تطبيق من القائمة</item>
+        <item quantity="one">تمت إزالة %d تطبيق من القائمة</item>
+        <item quantity="two">تمت إزالة %d تطبيقين من القائمة</item>
+        <item quantity="few">تمت إزالة %d تطبيقات من القائمة</item>
+        <item quantity="many">تمت إزالة %d تطبيقاً من القائمة</item>
+        <item quantity="other">تمت إزالة %d تطبيق من القائمة</item>
+    </plurals>
     <plurals name="holographic_launcher_entry_summary_hidden">
         <item quantity="zero">%d تطبيقات مخفية</item>
         <item quantity="one">%d تطبيق مخفي</item>

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -15,6 +16,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.slideindex.app.R
+import com.slideindex.app.settings.StashPanelWidthMode
 import com.slideindex.app.stash.StashMetaRepository
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -91,18 +93,27 @@ internal fun Modifier.historyPanelListBackdrop(backdrop: LayerBackdrop?): Modifi
 internal val HistoryListFooterPadding = 96.dp
 
 /**
- * 面板宽度 = 可用宽度 × [PANEL_WIDTH_FRACTION]，**再用 [PANEL_WIDTH_MAX] 封顶**。
+ * 当前面板宽度比例，由 `FloatBallStashPanel.PanelContent` 按设置注入（见 [StashPanelWidthMode]）。
+ *
+ * 用 CompositionLocal 而不是给 [panelWidthOf] 加参数：吃这个值的地方 —— 面板本体宽度、
+ * 图片降采样宽（[historyPreviewWidthPx]）、卡片缩略图宽（`HistoryEntryCards`）—— 散落在两个
+ * 没有 settings 的工具函数和一个卡片组件里，一路传参要动一串签名。
+ */
+internal val LocalStashPanelWidthFraction = staticCompositionLocalOf {
+    StashPanelWidthMode.STANDARD.fraction
+}
+
+/**
+ * 面板宽度 = 可用宽度 × 当前档位比例，**再用 [PANEL_WIDTH_MAX] 封顶**。
  *
  * ⚠️ 别把它当"已废弃"（老注释就是这么写的，是 §0.16.3 那次"窗口改 78% 宽"实验的残留）：
  * §0.16.3 已被用户整批回退 —— 现在**窗口是满屏的**（`OverlayPanelLayoutParams`），
  * 面板内容由 `HistoryPanelScreen` 用 `BoxWithConstraints` 的 `maxWidth` 乘出这个宽度，
  * 所以这里就是**生产路径**。
  */
+@Composable
 internal fun panelWidthOf(available: Dp): Dp =
-    minOf(available * PANEL_WIDTH_FRACTION, PANEL_WIDTH_MAX)
-
-/** 设计稿里侧栏占屏宽的比例（这是**竖屏**下的规格）。 */
-internal const val PANEL_WIDTH_FRACTION = 0.78f
+    minOf(available * LocalStashPanelWidthFraction.current, PANEL_WIDTH_MAX)
 
 /**
  * 面板宽度上限（dp）—— 治"横屏也占 78%"。

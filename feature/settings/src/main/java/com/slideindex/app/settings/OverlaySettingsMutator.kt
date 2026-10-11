@@ -1401,6 +1401,11 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.STASH_PANEL_HANDLE_OPEN_TAB] = tab.name
     }
 
+    /** 侧拉面板宽度档位，见 [StashPanelWidthMode]。 */
+    suspend fun setStashPanelWidthMode(mode: StashPanelWidthMode) = editor.edit {
+        it[SettingsPreferenceKeys.STASH_PANEL_WIDTH_MODE] = mode.name
+    }
+
     suspend fun setDefaultImageViewerPackage(packageName: String?) = editor.edit {
         if (packageName == null) {
             it.remove(SettingsPreferenceKeys.DEFAULT_IMAGE_VIEWER_PACKAGE)

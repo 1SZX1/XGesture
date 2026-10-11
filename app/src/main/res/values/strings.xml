@@ -1827,6 +1827,15 @@
     <string name="freezer_grid_search_hint">Search frozen apps</string>
     <string name="freezer_manage_apps">Manage apps</string>
     <string name="freezer_batch_menu">Batch actions</string>
+    <string name="freezer_selection_enter">Select apps</string>
+    <string name="freezer_selection_done">Done</string>
+    <string name="freezer_selection_select_all">Select all</string>
+    <string name="freezer_selection_count">%1$d selected</string>
+    <string name="freezer_selection_selected">Selected</string>
+    <string name="freezer_selection_unselected">Not selected</string>
+    <string name="freezer_batch_restore_and_remove">Restore and remove</string>
+    <string name="freezer_batch_remove_partial">%1$d removed, %2$d still frozen or paused</string>
+    <string name="freezer_batch_remove_blocked">%1$d still frozen or paused — restore them before removing</string>
     <string name="freezer_action_freeze">Freeze</string>
     <string name="freezer_action_unfreeze">Unfreeze</string>
     <string name="freezer_action_add_to_home">Add to home screen</string>
@@ -3416,6 +3425,9 @@ Questions: open a GitHub Issue on the project repository.</string>
     <string name="clipboard_history_float_handle_width_title">Handle width</string>
     <string name="stash_panel_handle_open_tab_title">Tab opened from handle</string>
     <string name="stash_panel_handle_open_tab_remember">Last used tab</string>
+    <string name="stash_panel_width_mode_title">Panel width</string>
+    <string name="stash_panel_width_mode_standard">Standard</string>
+    <string name="stash_panel_width_mode_compact">Compact</string>
     <string name="clipboard_history_float_overlay_permission_hint">Display over other apps permission is required for the edge handle.</string>
     <string name="clipboard_history_float_open_overlay_permission">Grant overlay permission</string>
     <string name="clipboard_history_float_copy">Copy</string>

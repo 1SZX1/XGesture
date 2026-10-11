@@ -156,6 +156,10 @@
         <item quantity="one">Imported %d app</item>
         <item quantity="other">Imported %d apps</item>
     </plurals>
+    <plurals name="freezer_batch_remove_done">
+        <item quantity="one">Removed %d app from the list</item>
+        <item quantity="other">Removed %d apps from the list</item>
+    </plurals>
     <plurals name="holographic_launcher_entry_summary_hidden">
         <item quantity="one">%d app hidden</item>
         <item quantity="other">%d apps hidden</item>

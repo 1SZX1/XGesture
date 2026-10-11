@@ -23,7 +23,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -81,6 +83,15 @@ fun FreezerGridUi(
     onAppLaunched: (() -> Unit)? = null,
     onManageApps: (() -> Unit)? = null,
     overlayMode: Boolean = false,
+    /**
+     * 多选态：点卡片 = 勾选/取消，**不再启动应用**；长按也走勾选（不在多选里再弹单项菜单）。
+     *
+     * 单项菜单本身没被搬走 —— 它留在普通态的长按上（见 `FreezerPanelContent` 顶栏的「选择」入口，
+     * 那才是进多选的正门）。这样「单独冻结一个应用」仍然是"长按 → 点冻结"两步，没有被多选拖累。
+     */
+    selectionMode: Boolean = false,
+    selectedPackages: Set<String> = emptySet(),
+    onToggleSelection: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -165,27 +176,39 @@ fun FreezerGridUi(
                         FreezerGridItem(
                             app = app,
                             state = state,
+                            selectionMode = selectionMode,
+                            selected = app.packageName in selectedPackages,
                             onClick = {
-                                scope.launch {
-                                    if (!FreezerOperations.launchAndRestore(
-                                            context,
-                                            appRepository,
-                                            settings,
-                                            app,
-                                        )
-                                    ) {
-                                        Toast.makeText(
-                                            context,
-                                            R.string.freezer_launch_failed,
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                        return@launch
+                                if (selectionMode) {
+                                    onToggleSelection(app.packageName)
+                                } else {
+                                    scope.launch {
+                                        if (!FreezerOperations.launchAndRestore(
+                                                context,
+                                                appRepository,
+                                                settings,
+                                                app,
+                                            )
+                                        ) {
+                                            Toast.makeText(
+                                                context,
+                                                R.string.freezer_launch_failed,
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                            return@launch
+                                        }
+                                        onFreezeStateRevisionBump()
+                                        onAppLaunched?.invoke()
                                     }
-                                    onFreezeStateRevisionBump()
-                                    onAppLaunched?.invoke()
                                 }
                             },
-                            onLongClick = { actionTarget = app },
+                            onLongClick = {
+                                if (selectionMode) {
+                                    onToggleSelection(app.packageName)
+                                } else {
+                                    actionTarget = app
+                                }
+                            },
                         )
                     }
                 }
@@ -505,6 +528,8 @@ private fun FreezerOverlayMenuRow(
 private fun FreezerGridItem(
     app: AppInfo,
     state: FreezerAppState,
+    selectionMode: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -524,6 +549,14 @@ private fun FreezerGridItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                } else {
+                    Color.Transparent
+                },
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -532,8 +565,8 @@ private fun FreezerGridItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (iconBitmap != null) {
-            Box(modifier = Modifier.size(64.dp)) {
+        Box(modifier = Modifier.size(64.dp)) {
+            if (iconBitmap != null) {
                 Image(
                     bitmap = iconBitmap!!,
                     contentDescription = app.label,
@@ -541,26 +574,45 @@ private fun FreezerGridItem(
                     contentScale = ContentScale.Fit,
                     colorFilter = grayscale,
                 )
-                // 暂停与冻结都是灰度，靠角标区分：暂停图标仍在桌面，冻结图标已从桌面消失。
-                if (state.isPaused) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(20.dp)
-                            .background(MaterialTheme.colorScheme.surface, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Pause,
-                            contentDescription = stringResource(R.string.freezer_status_paused),
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
+            }
+            // 暂停与冻结都是灰度，靠角标区分：暂停图标仍在桌面，冻结图标已从桌面消失。
+            // 多选态下它让位给勾选圈 —— 64dp 里塞两枚角标会挤到一起。
+            if (state.isPaused && !selectionMode) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(20.dp)
+                        .background(MaterialTheme.colorScheme.surface, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Pause,
+                        contentDescription = stringResource(R.string.freezer_status_paused),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
-        } else {
-            Box(modifier = Modifier.size(64.dp))
+            if (selectionMode) {
+                Icon(
+                    imageVector = if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                    contentDescription = stringResource(
+                        if (selected) {
+                            R.string.freezer_selection_selected
+                        } else {
+                            R.string.freezer_selection_unselected
+                        },
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(20.dp),
+                    tint = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                )
+            }
         }
         Text(
             text = app.label,

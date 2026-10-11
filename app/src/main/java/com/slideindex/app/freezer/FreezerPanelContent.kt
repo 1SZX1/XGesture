@@ -1,17 +1,29 @@
 package com.slideindex.app.freezer
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -50,6 +64,7 @@ import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -77,6 +92,10 @@ fun FreezerPanelContent(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
     var overflowMenuExpanded by remember { mutableStateOf(false) }
+    // 多选态刻意不进 rememberSaveable：Set<String> 没有默认 Saver，进程重建会当场崩，
+    // 而这个状态丢了也只是退出多选，不值得为它写一个 Saver。
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedPackages by remember { mutableStateOf(emptySet<String>()) }
     val searchFocusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val screenTitle = title ?: stringResource(R.string.extension_freezer_title)
@@ -92,6 +111,11 @@ fun FreezerPanelContent(
             R.string.freezer_work_mode_switch_to_pause
         }
     )
+    val selectionEnterLabel = stringResource(R.string.freezer_selection_enter)
+    val selectionDoneLabel = stringResource(R.string.freezer_selection_done)
+    val selectAllLabel = stringResource(R.string.freezer_selection_select_all)
+    val removeFromListLabel = stringResource(R.string.freezer_remove_from_list)
+    val restoreAndRemoveLabel = stringResource(R.string.freezer_batch_restore_and_remove)
     val switchWorkMode = {
         scope.launch {
             settingsRepository.setFreezerWorkMode(
@@ -142,6 +166,64 @@ fun FreezerPanelContent(
             if (count > 0) {
                 freezeStateRevision++
             }
+        }
+    }
+
+    val allPackageNames = memberApps.map { it.packageName }
+    val allSelected = allPackageNames.isNotEmpty() && selectedPackages.containsAll(allPackageNames)
+
+    fun exitSelection() {
+        selectionMode = false
+        selectedPackages = emptySet()
+    }
+
+    /**
+     * 批量移除。[restoreFirst] = true 时先解冻 / 取消暂停再移出。
+     *
+     * 冻结与暂停中的成员**不允许直接移出** —— 那会在系统里留下一个没人管的停用应用，
+     * 用户以为"从列表删掉就完事了"，其实它还冻着。所以两条路都给，文案上说清差别。
+     */
+    fun runBatchRemoval(restoreFirst: Boolean) {
+        val targets = selectedPackages.toList()
+        if (targets.isEmpty()) return
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                if (restoreFirst) {
+                    FreezerListOperations.restoreAndRemoveManyFromList(
+                        context = context,
+                        settingsRepository = settingsRepository,
+                        packageNames = targets,
+                        appRepository = appRepository,
+                    )
+                } else {
+                    FreezerListOperations.removeManyFromList(
+                        context = context,
+                        settingsRepository = settingsRepository,
+                        packageNames = targets,
+                        appRepository = appRepository,
+                    )
+                }
+            }
+            val message = when {
+                result.removed > 0 && result.skipped > 0 -> resources.getString(
+                    R.string.freezer_batch_remove_partial,
+                    result.removed,
+                    result.skipped,
+                )
+                result.removed > 0 -> resources.getQuantityString(
+                    R.plurals.freezer_batch_remove_done,
+                    result.removed,
+                    result.removed,
+                )
+                else -> resources.getString(R.string.freezer_batch_remove_blocked, result.skipped)
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            if (result.removed > 0) {
+                freezeStateRevision++
+            }
+            // 无论成败都清空选中：成功的那部分已经不在列表里了，留着它们会让「全选」
+            // 的判定失真（`containsAll` 仍然为真，按钮显示成"取消全选"却什么都取消不掉）。
+            selectedPackages = emptySet()
         }
     }
 
@@ -230,6 +312,32 @@ fun FreezerPanelContent(
             onBack = onBack?.let { handleBack },
             userScrollEnabled = false,
             actions = {
+                if (selectionMode) {
+                    IconButton(
+                        onClick = {
+                            selectedPackages = if (allSelected) {
+                                emptySet()
+                            } else {
+                                allPackageNames.toSet()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (allSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                            contentDescription = selectAllLabel,
+                            tint = MiuixTheme.colorScheme.onBackground
+                        )
+                    }
+                    IconButton(onClick = ::exitSelection) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = selectionDoneLabel,
+                            tint = MiuixTheme.colorScheme.onBackground
+                        )
+                    }
+                } else {
+                    // ⚠️ 下面这一大块刻意保持原有缩进：只为套一层 if/else 就整体重排，
+                    // 会造出上百行纯缩进 diff，把真正的改动埋在里面。
                 MiuixExpandableSearchIconAction(
                     expanded = searchExpanded,
                     query = searchQuery,
@@ -244,6 +352,22 @@ fun FreezerPanelContent(
                             tint = MiuixTheme.colorScheme.onBackground
                         )
                     }
+                }
+                IconButton(
+                    onClick = {
+                        // 进多选前先收起搜索：展开态的搜索框会占满 actions 行，把"选择/全选/完成"
+                        // 这些按钮整个盖掉 —— 那时候多选态是进得去出不来的。
+                        // 筛选关键字**保留**（不清空）：用户多半就是想"把筛出来的这批一起移出"。
+                        searchExpanded = false
+                        selectedPackages = emptySet()
+                        selectionMode = true
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Checklist,
+                        contentDescription = selectionEnterLabel,
+                        tint = MiuixTheme.colorScheme.onBackground
+                    )
                 }
                 if (overlayMode) {
                     Box {
@@ -327,6 +451,7 @@ fun FreezerPanelContent(
                         )
                     }
                 }
+                }
             },
             bottomContent = {
                 MiuixExpandableSearchBottomContent(
@@ -338,19 +463,22 @@ fun FreezerPanelContent(
                 )
             },
             floatingActionButton = {
-                MiuixSettingsFab(
-                    onClick = {
-                        scope.launch {
-                            // 与「重冻应用」手势同一套语义：按每个成员记录的档位收回，
-                            // 没记录的才落到工作模式。否则面板按钮会把用户设成暂停的成员一起冻成图标消失。
-                            if (batchRestore() > 0) {
-                                freezeStateRevision++
+                // 多选态收起 FAB：它悬在列表右下角，会和底部操作栏叠在一起，也容易误触。
+                if (!selectionMode) {
+                    MiuixSettingsFab(
+                        onClick = {
+                            scope.launch {
+                                // 与「重冻应用」手势同一套语义：按每个成员记录的档位收回，
+                                // 没记录的才落到工作模式。否则面板按钮会把用户设成暂停的成员一起冻成图标消失。
+                                if (batchRestore() > 0) {
+                                    freezeStateRevision++
+                                }
                             }
-                        }
-                    },
-                    icon = Icons.Default.AcUnit,
-                    contentDescription = stringResource(R.string.freezer_restore_intents)
-                )
+                        },
+                        icon = Icons.Default.AcUnit,
+                        contentDescription = stringResource(R.string.freezer_restore_intents)
+                    )
+                }
             }
         ) {
             if (isLoading) {
@@ -376,8 +504,80 @@ fun FreezerPanelContent(
                         onAppLaunched = onAppLaunched,
                         onManageApps = onManageApps,
                         overlayMode = overlayMode,
+                        selectionMode = selectionMode,
+                        selectedPackages = selectedPackages,
+                        onToggleSelection = { packageName ->
+                            selectedPackages = if (packageName in selectedPackages) {
+                                selectedPackages - packageName
+                            } else {
+                                selectedPackages + packageName
+                            }
+                        },
+                        // 多选态给列表尾部留出操作栏的高度，否则最后一行会被压在栏下面点不到。
+                        contentPadding = if (selectionMode) {
+                            PaddingValues(bottom = FreezerSelectionBarHeight)
+                        } else {
+                            PaddingValues(0.dp)
+                        },
                     )
                 }
+            }
+        }
+        if (selectionMode) {
+            FreezerSelectionBar(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                selectedCount = selectedPackages.size,
+                removeLabel = removeFromListLabel,
+                restoreAndRemoveLabel = restoreAndRemoveLabel,
+                onRemove = { runBatchRemoval(restoreFirst = false) },
+                onRestoreAndRemove = { runBatchRemoval(restoreFirst = true) },
+            )
+        }
+    }
+}
+
+/** 多选操作栏占的高度：列表尾部要留出这么多，否则最后一行会被压在栏下面。 */
+private val FreezerSelectionBarHeight = 88.dp
+
+/**
+ * 多选态底部的批量操作栏。
+ *
+ * 两个动作并排摊开，而不是合成一个「移出」再弹确认框：冻结 / 暂停中的成员**不能**直接移出
+ * （移出会在系统里留下一个没人管的停用应用），差别必须让用户一眼看到，而不是藏在二级弹窗里。
+ */
+@Composable
+private fun FreezerSelectionBar(
+    selectedCount: Int,
+    removeLabel: String,
+    restoreAndRemoveLabel: String,
+    onRemove: () -> Unit,
+    onRestoreAndRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.freezer_selection_count, selectedCount),
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onRemove, enabled = selectedCount > 0) {
+                Text(removeLabel)
+            }
+            TextButton(onClick = onRestoreAndRemove, enabled = selectedCount > 0) {
+                Text(restoreAndRemoveLabel)
             }
         }
     }

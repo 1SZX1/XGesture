@@ -183,6 +183,8 @@ data class OverlaySettings(
     val stashPanelBackgroundBlurRadiusDp: Int = AppSettings.STASH_PANEL_BLUR_RADIUS_DEFAULT_DP,
     /** 从贴边指示条打开收纳面板时先显示哪个页签，见 [StashPanelHandleOpenTab]。 */
     val stashPanelHandleOpenTab: StashPanelHandleOpenTab = StashPanelHandleOpenTab.CLIPBOARD,
+    /** 侧拉面板宽度档位，见 [StashPanelWidthMode]。 */
+    val stashPanelWidthMode: StashPanelWidthMode = StashPanelWidthMode.STANDARD,
     val defaultImageViewerPackage: String? = null,
     val imageEditorDelayDeleteEnabled: Boolean = false,
     val searchEngines: List<SearchEngineConfig> = emptyList(),
@@ -404,6 +406,7 @@ data class OverlaySettings(
             stashPanelBackgroundBlurEnabled = settings.stashPanelBackgroundBlurEnabled,
             stashPanelBackgroundBlurRadiusDp = settings.stashPanelBackgroundBlurRadiusDp,
             stashPanelHandleOpenTab = settings.stashPanelHandleOpenTab,
+            stashPanelWidthMode = settings.stashPanelWidthMode,
             defaultImageViewerPackage = settings.defaultImageViewerPackage,
             imageEditorDelayDeleteEnabled = settings.imageEditorDelayDeleteEnabled,
             searchEngines = settings.searchEngines,

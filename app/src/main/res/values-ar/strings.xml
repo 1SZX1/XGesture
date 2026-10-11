@@ -1064,6 +1064,15 @@
     <string name="freezer_grid_search_hint">البحث في التطبيقات المجمدة</string>
     <string name="freezer_manage_apps">إدارة التطبيقات</string>
     <string name="freezer_batch_menu">إجراءات جماعية</string>
+    <string name="freezer_selection_enter">تحديد التطبيقات</string>
+    <string name="freezer_selection_done">تم</string>
+    <string name="freezer_selection_select_all">تحديد الكل</string>
+    <string name="freezer_selection_count">تم تحديد %1$d</string>
+    <string name="freezer_selection_selected">محدد</string>
+    <string name="freezer_selection_unselected">غير محدد</string>
+    <string name="freezer_batch_restore_and_remove">استعادة وإزالة</string>
+    <string name="freezer_batch_remove_partial">تمت إزالة %1$d، و%2$d لا يزال مجمداً أو موقوفاً</string>
+    <string name="freezer_batch_remove_blocked">%1$d لا يزال مجمداً أو موقوفاً — استعده قبل الإزالة</string>
     <string name="freezer_action_freeze">تجميد</string>
     <string name="freezer_action_unfreeze">إلغاء التجميد</string>
     <string name="freezer_action_add_to_home">إضافة إلى الشاشة الرئيسية</string>
@@ -3325,6 +3334,9 @@
     <string name="clipboard_history_float_handle_width_title">عرض الشريط العمودي</string>
     <string name="stash_panel_handle_open_tab_title">التبويب عند الفتح من المقبض</string>
     <string name="stash_panel_handle_open_tab_remember">آخر تبويب مستخدم</string>
+    <string name="stash_panel_width_mode_title">عرض اللوحة</string>
+    <string name="stash_panel_width_mode_standard">قياسي</string>
+    <string name="stash_panel_width_mode_compact">مضغوط</string>
     <string name="clipboard_history_float_overlay_permission_hint">يلزم إذن «العرض فوق التطبيقات الأخرى» لاستخدام مقبض الحافة.</string>
     <string name="clipboard_history_float_open_overlay_permission">منح إذن النافذة العائمة</string>
     <string name="clipboard_history_float_copy">نسخ</string>

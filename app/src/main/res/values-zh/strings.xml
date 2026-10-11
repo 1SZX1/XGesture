@@ -1090,6 +1090,15 @@
     <string name="freezer_grid_search_hint">搜索已冻结的应用</string>
     <string name="freezer_manage_apps">管理应用</string>
     <string name="freezer_batch_menu">批量操作</string>
+    <string name="freezer_selection_enter">选择应用</string>
+    <string name="freezer_selection_done">完成</string>
+    <string name="freezer_selection_select_all">全选</string>
+    <string name="freezer_selection_count">已选 %1$d 项</string>
+    <string name="freezer_selection_selected">已选中</string>
+    <string name="freezer_selection_unselected">未选中</string>
+    <string name="freezer_batch_restore_and_remove">恢复并移出</string>
+    <string name="freezer_batch_remove_partial">已移出 %1$d 项，%2$d 项仍处于冻结或暂停</string>
+    <string name="freezer_batch_remove_blocked">%1$d 项仍处于冻结或暂停，请先恢复再移出</string>
     <string name="freezer_action_freeze">冻结</string>
     <string name="freezer_action_unfreeze">解冻</string>
     <string name="freezer_action_add_to_home">添加到主屏幕</string>
@@ -3516,6 +3525,9 @@
     <string name="clipboard_history_float_handle_width_title">竖条宽度</string>
     <string name="stash_panel_handle_open_tab_title">把手打开时显示</string>
     <string name="stash_panel_handle_open_tab_remember">上次停留的页签</string>
+    <string name="stash_panel_width_mode_title">面板宽度</string>
+    <string name="stash_panel_width_mode_standard">标准</string>
+    <string name="stash_panel_width_mode_compact">紧凑</string>
     <string name="clipboard_history_float_overlay_permission_hint">需要「显示在其他应用上层」权限才能使用贴边把手。</string>
     <string name="clipboard_history_float_open_overlay_permission">授予悬浮窗权限</string>
     <string name="clipboard_history_float_copy">复制</string>

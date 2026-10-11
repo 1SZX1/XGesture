@@ -15,6 +15,7 @@ import com.slideindex.app.settings.ClipboardOverlayScale
 import com.slideindex.app.settings.HistoryFloatHandleWidth
 import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.settings.StashPanelHandleOpenTab
+import com.slideindex.app.settings.StashPanelWidthMode
 import com.slideindex.app.stash.StashRepository
 import com.slideindex.app.ui.feedback.UserMessageBus
 import androidx.lifecycle.viewModelScope
@@ -183,6 +184,12 @@ class StashClipboardSettingsViewModel @Inject constructor(
         optimisticUpdate = { it.copy(clipboard = it.clipboard.copy(stashPanelHandleOpenTab = tab)) },
     ) {
         settingsRepository.setStashPanelHandleOpenTab(tab)
+    }
+
+    fun setStashPanelWidthMode(mode: StashPanelWidthMode) = launchOptimisticSettingsWrite(
+        optimisticUpdate = { it.copy(clipboard = it.clipboard.copy(stashPanelWidthMode = mode)) },
+    ) {
+        settingsRepository.setStashPanelWidthMode(mode)
     }
 
     fun syncHistoryFloatFromSettings() {

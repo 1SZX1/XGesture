@@ -118,6 +118,9 @@
     <plurals name="freezer_import_frozen_done">
         <item quantity="other">%d 件のアプリをインポートしました</item>
     </plurals>
+    <plurals name="freezer_batch_remove_done">
+        <item quantity="other">%d 件のアプリをリストから削除しました</item>
+    </plurals>
     <plurals name="holographic_launcher_entry_summary_hidden">
         <item quantity="other">%d 件のアプリを非表示</item>
     </plurals>

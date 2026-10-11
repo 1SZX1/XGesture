@@ -666,6 +666,9 @@ internal object SettingsPreferenceKeys {
 
     /** 从贴边指示条打开收纳面板时先显示哪个页签（[StashPanelHandleOpenTab] 的 name）。 */
     val STASH_PANEL_HANDLE_OPEN_TAB = stringPreferencesKey("stash_panel_handle_open_tab")
+
+    /** 侧拉面板宽度档位（[StashPanelWidthMode] 的 name）。 */
+    val STASH_PANEL_WIDTH_MODE = stringPreferencesKey("stash_panel_width_mode")
     val OVERLAY_BLUR_ENABLED = booleanPreferencesKey("overlay_blur_enabled")
     val DEFAULT_IMAGE_VIEWER_PACKAGE = stringPreferencesKey("default_image_viewer_package")
     val IMAGE_EDITOR_DELAY_DELETE_ENABLED = booleanPreferencesKey("image_editor_delay_delete_enabled")

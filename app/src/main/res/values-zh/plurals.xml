@@ -121,6 +121,9 @@
     <plurals name="freezer_import_frozen_done">
         <item quantity="other">已导入 %d 个应用</item>
     </plurals>
+    <plurals name="freezer_batch_remove_done">
+        <item quantity="other">已移出 %d 个应用</item>
+    </plurals>
     <plurals name="holographic_launcher_entry_summary_hidden">
         <item quantity="other">已隐藏 %d 个应用</item>
     </plurals>

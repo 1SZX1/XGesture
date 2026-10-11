@@ -50,7 +50,8 @@ object OverlayPanelLayoutParams {
     /**
      * 暂存/剪贴板侧栏：固定 [TYPE_APPLICATION_OVERLAY]，与悬浮球/触钮 z-order 一致。
      *
-     * ⚠️ **窗口满屏（MATCH_PARENT）**，面板自己只占右侧 78%（见 `HistoryPanelUi.panelWidthOf`）。
+     * ⚠️ **窗口满屏（MATCH_PARENT）**，面板自己只占右侧一条（比例见 `StashPanelWidthMode`，
+     * 由 `HistoryPanelUi.panelWidthOf` 乘出来）。
      *
      * 曾经改成"窗口 = 屏宽 × 78% + 拖动移动窗口 + 系统模糊"（§0.16.3）来治"跟手拖出时只剩白 tint（雾）"，
      * 但**用户看了实机后不满意，整批回退**：现在回到"窗口满屏 + 面板内容自己平移 + App 自绘磨砂罩"。
@@ -73,7 +74,12 @@ object OverlayPanelLayoutParams {
         // 窗口**满屏**：§0.16.3 那次改窄 + 移动窗口 + 系统模糊的改造已被用户打回，整批回退。
     }
 
-    /** 侧栏窗/面板占屏宽的比例（和 `HistoryPanelUi.PANEL_WIDTH_FRACTION` 必须保持一致）。 */
+    /**
+     * ⚠️ **已与真实面板宽度脱钩**，别再拿它算宽度：面板宽度现在按设置走
+     * （`StashPanelWidthMode` → `HistoryPanelUi.LocalStashPanelWidthFraction`）。
+     * 它唯一的潜在使用点 `OverlaySidePanelHost.applyPanelX` 自 §0.16.3 整批回退之后就没人调用了
+     * （见那里的注释），留着只为与旧代码对照。
+     */
     const val SIDE_PANEL_WIDTH_FRACTION = 0.78f
 
     fun pickResultPanel(context: Context): WindowManager.LayoutParams =

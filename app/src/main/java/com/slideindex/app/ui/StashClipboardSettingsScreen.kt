@@ -34,6 +34,7 @@ import com.slideindex.app.settings.ClipboardOverlayScale
 import com.slideindex.app.settings.ExtensionHubSettings
 import com.slideindex.app.settings.HistoryFloatHandleWidth
 import com.slideindex.app.settings.StashPanelHandleOpenTab
+import com.slideindex.app.settings.StashPanelWidthMode
 import com.slideindex.app.settings.toMinimalAppSettings
 import com.slideindex.app.util.PermissionHelper
 import com.slideindex.app.ui.miuix.MiuixConfirmDialog
@@ -413,6 +414,7 @@ fun StashPanelSettingsScreen(
     onClipboardHistoryFloatLockPositionChange: (Boolean) -> Unit,
     onClipboardHistoryFloatHandleWidthChange: (Int) -> Unit,
     onStashPanelHandleOpenTabChange: (StashPanelHandleOpenTab) -> Unit,
+    onStashPanelWidthModeChange: (StashPanelWidthMode) -> Unit,
     onOpenOverlayPermission: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -431,6 +433,14 @@ fun StashPanelSettingsScreen(
                 stringResource(R.string.stash_panel_handle_open_tab_remember)
             StashPanelHandleOpenTab.STASH -> stringResource(R.string.stash_panel_tab)
             StashPanelHandleOpenTab.CLIPBOARD -> stringResource(R.string.clipboard_panel_tab)
+        }
+    }
+    // 「面板宽度」：两档，照枚举声明顺序渲染（标准 = 设计稿规格；紧凑 = 用户反馈"太宽"之后补的）。
+    val widthModeEntries = StashPanelWidthMode.entries
+    val widthModeLabels = widthModeEntries.map { mode ->
+        when (mode) {
+            StashPanelWidthMode.STANDARD -> stringResource(R.string.stash_panel_width_mode_standard)
+            StashPanelWidthMode.COMPACT -> stringResource(R.string.stash_panel_width_mode_compact)
         }
     }
 
@@ -506,6 +516,17 @@ fun StashPanelSettingsScreen(
                                     .coerceAtLeast(0),
                                 onSelectedIndexChange = {
                                     onStashPanelHandleOpenTabChange(handleOpenTabEntries[it])
+                                },
+                            )
+                            // 面板宽度：标准档是设计稿的 78%，窄屏上会盖掉将近四分之三的屏幕。
+                            SettingDropdownRow(
+                                title = stringResource(R.string.stash_panel_width_mode_title),
+                                items = widthModeLabels,
+                                selectedIndex = widthModeEntries
+                                    .indexOf(settings.stashPanelWidthMode)
+                                    .coerceAtLeast(0),
+                                onSelectedIndexChange = {
+                                    onStashPanelWidthModeChange(widthModeEntries[it])
                                 },
                             )
                         }

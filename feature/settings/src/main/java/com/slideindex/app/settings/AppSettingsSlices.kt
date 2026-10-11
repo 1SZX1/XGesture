@@ -412,6 +412,8 @@ data class ClipboardSettings(
      * 默认 [StashPanelHandleOpenTab.CLIPBOARD] = 加这条设置之前的历史行为（点指示条一直开剪贴板）。
      */
     val stashPanelHandleOpenTab: StashPanelHandleOpenTab = StashPanelHandleOpenTab.CLIPBOARD,
+    /** 侧拉面板宽度档位，见 [StashPanelWidthMode]。默认保持设计稿规格。 */
+    val stashPanelWidthMode: StashPanelWidthMode = StashPanelWidthMode.STANDARD,
 )
 
 /** 搜索面板与搜索引擎。 */

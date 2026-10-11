@@ -665,6 +665,9 @@ internal object SettingsSnapshotReader {
             stashPanelHandleOpenTab = prefs[SettingsPreferenceKeys.STASH_PANEL_HANDLE_OPEN_TAB]
                 ?.let { name -> runCatching { StashPanelHandleOpenTab.valueOf(name) }.getOrNull() }
                 ?: StashPanelHandleOpenTab.CLIPBOARD,
+            stashPanelWidthMode = prefs[SettingsPreferenceKeys.STASH_PANEL_WIDTH_MODE]
+                ?.let { name -> runCatching { StashPanelWidthMode.valueOf(name) }.getOrNull() }
+                ?: StashPanelWidthMode.STANDARD,
             ),
             overlayBlur = OverlayBlurSettings(
                 overlayBlurEnabled = prefs[SettingsPreferenceKeys.OVERLAY_BLUR_ENABLED] ?: true,
