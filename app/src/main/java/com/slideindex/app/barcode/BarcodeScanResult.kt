@@ -1,8 +1,32 @@
 package com.slideindex.app.barcode
 
+/** 归一化坐标点（0..1，相对位图宽高）。 */
+data class BarcodePoint(val x: Float, val y: Float)
+
+/** 归一化外接矩形（0..1）。 */
+data class NormalizedRect(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+)
+
 data class BarcodeScanResult(
     val text: String,
-    val format: String
+    val format: String,
+    /**
+     * 码在图上的定位点，**归一化**到 0..1（相对"准备后"的位图宽高）。
+     *
+     * 为什么用归一化而不是像素：扫描前位图会被**等比缩放**（`scaleDownIfNeeded`），
+     * 归一化坐标在缩放前后一致，界面上直接乘显示尺寸即可，不必反算缩放比例。
+     *
+     * ⚠️ 例外：`scanBitmap(..., pickFastPath = true)` 那条路会先**留白外扩**再缩放，
+     * 中心点会整体偏移。快捷菜单的三条路都传 `false`，因此不受影响；若将来有人用那条路，
+     * 这里的坐标需要先减去外扩量再归一化。
+     *
+     * 空列表 = 引擎没给点位（此时只能走列表，不能画在图上）。
+     */
+    val points: List<BarcodePoint> = emptyList(),
 )
 
 fun List<BarcodeScanResult>.joinDisplayText(): String =
@@ -33,4 +57,45 @@ fun scanOutcome(texts: List<String>): ScanOutcome {
         1 -> ScanOutcome.Single(distinct.first())
         else -> ScanOutcome.Multiple(distinct)
     }
+}
+
+/**
+ * 把定位点收成一个外接矩形，供界面在图上画标记。
+ *
+ * @param minSize 每个方向的最小尺寸（归一化）。**必须有**：一维条码只有两个端点，外接矩形高度为 0，
+ *   不兜底就画不出可点的标记。小于该尺寸时以原中心向四周补足。
+ * @return 点数不足 2 个时返回 null（画不出有意义的框）。
+ */
+fun List<BarcodePoint>.boundingBoxOrNull(minSize: Float = 0f): NormalizedRect? {
+    if (size < 2) return null
+    var minX = Float.MAX_VALUE
+    var minY = Float.MAX_VALUE
+    var maxX = -Float.MAX_VALUE
+    var maxY = -Float.MAX_VALUE
+    for (point in this) {
+        if (point.x < minX) minX = point.x
+        if (point.y < minY) minY = point.y
+        if (point.x > maxX) maxX = point.x
+        if (point.y > maxY) maxY = point.y
+    }
+    if (maxX < minX || maxY < minY) return null
+
+    val safeMin = minSize.coerceAtLeast(0f)
+    if (maxX - minX < safeMin) {
+        val center = (minX + maxX) / 2f
+        minX = center - safeMin / 2f
+        maxX = center + safeMin / 2f
+    }
+    if (maxY - minY < safeMin) {
+        val center = (minY + maxY) / 2f
+        minY = center - safeMin / 2f
+        maxY = center + safeMin / 2f
+    }
+    // 夹回 0..1：补足尺寸可能把框推到图外，画到图外没有意义（界面也按图片边界裁剪）。
+    return NormalizedRect(
+        left = minX.coerceIn(0f, 1f),
+        top = minY.coerceIn(0f, 1f),
+        right = maxX.coerceIn(0f, 1f),
+        bottom = maxY.coerceIn(0f, 1f),
+    )
 }

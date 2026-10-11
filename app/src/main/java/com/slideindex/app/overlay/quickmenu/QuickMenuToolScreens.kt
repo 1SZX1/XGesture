@@ -5,23 +5,28 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -68,6 +73,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -79,8 +85,10 @@ import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.barcode.QrCodeGenerator
 import com.slideindex.app.barcode.QrPayloadParser
+import com.slideindex.app.barcode.BarcodeScanResult
 import com.slideindex.app.barcode.ScanOutcome
 import com.slideindex.app.barcode.ZxingBarcodeScanner
+import com.slideindex.app.barcode.boundingBoxOrNull
 import com.slideindex.app.barcode.scanOutcome
 import com.slideindex.app.overlay.screenshot.ScreenshotStorage
 import com.slideindex.app.overlay.OverlayToastWindow
@@ -114,6 +122,13 @@ private val CONTENT_PADDING = 16.dp
 
 /** 交换按钮的尺寸（对齐 IconButton 默认值），用于标签行的占位。 */
 private val SWAP_ACTION_SIZE = 48.dp
+
+/**
+ * 图上标记的最小边长（归一化）。
+ *
+ * **必须有**：一维条码只给两个端点，外接矩形高度为 0，不兜底就画不出可点的标记。
+ */
+private const val MARKER_MIN_SIZE = 0.05f
 
 /**
  * 强度进度条的"满格"参考值（bit）。
@@ -643,9 +658,11 @@ internal fun QuickMenuQrGeneratorScreen() {
 @Composable
 internal fun QuickMenuScanDecoderScreen(
     content: String,
-    candidates: List<String>,
+    results: List<BarcodeScanResult>,
+    image: Bitmap?,
     onContentChange: (String) -> Unit,
-    onCandidatesChange: (List<String>) -> Unit,
+    onResultsChange: (List<BarcodeScanResult>) -> Unit,
+    onImageChange: (Bitmap?) -> Unit,
 ) {
     val context = LocalContext.current
     val parsed = remember(content) { if (content.isBlank()) null else QrPayloadParser.parse(content) }
@@ -656,9 +673,34 @@ internal fun QuickMenuScanDecoderScreen(
             onClick = {
                 // 浮层必须先收起：无障碍覆盖层永远在最上层，不收起来相机预览会被它整个盖住。
                 QuickMenuOverlayWindow.suspendForExternalActivity()
-                QuickMenuScanActivity.launch(context) { texts ->
+                QuickMenuScanActivity.launch(context) { scanned, scannedImage ->
                     QuickMenuOverlayWindow.resumeFromExternalActivity()
-                    applyScanResults(context, texts, onContentChange, onCandidatesChange)
+                    // ① 先把"锁定那一帧"的结果与定格图立刻显示出来：标记与图**同源**，天然对齐。
+                    applyScanResults(
+                        context = context,
+                        results = scanned,
+                        image = scannedImage,
+                        onContentChange = onContentChange,
+                        onResultsChange = onResultsChange,
+                        onImageChange = onImageChange,
+                    )
+                    // ② 再在这张**同一张图**上做一次全码制 + TRY_HARDER 的重扫，把同画面里其余的码补齐。
+                    //    与选图/截屏走完全同一个函数，所以三条路的召回率一致；
+                    //    因为扫的是同一张图，补出来的标记也不会偏移。
+                    if (scannedImage == null) return@launch
+                    QuickMenuWork.launch {
+                        val rescanned = withContext(Dispatchers.Default) { scanBarcodes(scannedImage) }
+                        if (rescanned.isNotEmpty()) {
+                            applyScanResults(
+                                context = context,
+                                results = rescanned,
+                                image = scannedImage,
+                                onContentChange = onContentChange,
+                                onResultsChange = onResultsChange,
+                                onImageChange = onImageChange,
+                            )
+                        }
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -687,8 +729,15 @@ internal fun QuickMenuScanDecoderScreen(
                         QuickMenuWork.launch {
                             val bitmap = withContext(Dispatchers.Default) { decodeBitmap(context, uri) }
                                 ?: return@launch
-                            val texts = withContext(Dispatchers.Default) { scanBarcodes(bitmap) }
-                            applyScanResults(context, texts, onContentChange, onCandidatesChange)
+                            val scanned = withContext(Dispatchers.Default) { scanBarcodes(bitmap) }
+                            applyScanResults(
+                                context = context,
+                                results = scanned,
+                                image = bitmap,
+                                onContentChange = onContentChange,
+                                onResultsChange = onResultsChange,
+                                onImageChange = onImageChange,
+                            )
                         }
                     }
                 },
@@ -710,14 +759,16 @@ internal fun QuickMenuScanDecoderScreen(
                         QuickMenuOverlayWindow.resumeFromExternalActivity()
                         when (outcome) {
                             is ScreenshotCaptureOutcome.Success -> {
-                                val texts = withContext(Dispatchers.Default) {
+                                val scanned = withContext(Dispatchers.Default) {
                                     scanBarcodes(outcome.bitmap)
                                 }
                                 applyScanResults(
-                                    context,
-                                    texts,
-                                    onContentChange,
-                                    onCandidatesChange,
+                                    context = context,
+                                    results = scanned,
+                                    image = outcome.bitmap,
+                                    onContentChange = onContentChange,
+                                    onResultsChange = onResultsChange,
+                                    onImageChange = onImageChange,
                                 )
                             }
                             ScreenshotCaptureOutcome.Throttled ->
@@ -741,15 +792,25 @@ internal fun QuickMenuScanDecoderScreen(
             }
         }
 
-        // 扫到多个码时才出现：列出候选让用户点选。只有一个码时这段完全不显示，用法与以前一致。
-        if (candidates.size > 1) {
+        // 有图就显示（认出一个也显示），认出几个标几个；列表只在多个码时才出现。
+        if (results.isNotEmpty() && image != null) {
+            ScanImageWithMarkers(
+                image = image,
+                results = results,
+                selectedText = content,
+                onSelect = onContentChange,
+            )
+        }
+
+        // 多个码时才列出候选：只有一个码时下面直接就是它的解析结果，不需要再选一次。
+        if (results.size > 1) {
             Text(
-                text = stringResource(R.string.quick_menu_scan_candidates, candidates.size),
+                text = stringResource(R.string.quick_menu_scan_candidates, results.size),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
-            candidates.forEach { candidate ->
-                val selected = candidate == content
+            results.forEach { result ->
+                val selected = result.text == content
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = if (selected) {
@@ -760,14 +821,14 @@ internal fun QuickMenuScanDecoderScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { onContentChange(candidate) },
+                        .clickable { onContentChange(result.text) },
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = candidate,
+                            text = result.text,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontFamily = FontFamily.Monospace,
                             ),
@@ -1657,34 +1718,139 @@ private fun decodeBitmap(context: Context, uri: Uri): Bitmap? = runCatching {
     context.contentResolver.openInputStream(uri)?.use { stream -> BitmapFactory.decodeStream(stream) }
 }.getOrNull()
 
-/** 取图里所有可识别的条码/二维码原文（引擎已按 `格式:文本` 去重，这里再按文本去一次）。 */
-private fun scanBarcodes(bitmap: Bitmap): List<String> = runCatching {
-    ZxingBarcodeScanner.scanBitmap(bitmap)
-        .map { it.text }
-        .filter { it.isNotBlank() }
-        .distinct()
-}.getOrDefault(emptyList())
+/**
+ * 把被扫描的图和码的位置一起显示，点标记即选中（微信那种）。
+ *
+ * 用 `aspectRatio` 让容器形状**正好等于图片形状**：容器边界就是图片边界，因此不需要另算
+ * `ContentScale.Fit` 的 letterbox——手算留白是这类标记最容易画偏的地方。点位是归一化的，
+ * 直接乘容器尺寸即可。
+ */
+@Composable
+private fun ScanImageWithMarkers(
+    image: Bitmap,
+    results: List<BarcodeScanResult>,
+    selectedText: String,
+    onSelect: (String) -> Unit,
+) {
+    val imageBitmap = remember(image) { image.asImageBitmap() }
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(image.width.toFloat() / image.height.toFloat())
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black),
+    ) {
+        Image(
+            bitmap = imageBitmap,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(),
+        )
+        results.forEachIndexed { index, result ->
+            val box = result.points.boundingBoxOrNull(MARKER_MIN_SIZE) ?: return@forEachIndexed
+            val selected = result.text == selectedText
+            Box(
+                modifier = Modifier
+                    .offset(x = maxWidth * box.left, y = maxHeight * box.top)
+                    .size(
+                        width = maxWidth * (box.right - box.left),
+                        height = maxHeight * (box.bottom - box.top),
+                    )
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(
+                        width = if (selected) 3.dp else 2.dp,
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color.White
+                        },
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .clickable { onSelect(result.text) },
+            ) {
+                Text(
+                    text = if (selected) "✓${index + 1}" else "${index + 1}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    modifier = Modifier
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.6f),
+                        )
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 取图里所有可识别的条码/二维码（**带归一化定位点**，供图上标记；按文本去重）。
+ *
+ * 先按原方向扫；扫不到再按 90° 逐次旋转重试。理由（取自 quickdash 的相册路径）：**一维条码有方向性**
+ * ——照片可能是横着拍的，或 EXIF 方向没被正确处理，此时二维码仍能认出（ZXing 的二维码检测对旋转不像
+ * 一维码那么敏感），一维码却会整张扫不出来。
+ *
+ * 重试拿到的是"旋转后那张图"的坐标，所以必须按**反方向**转回原图坐标系，否则标记会整体歪掉。
+ * 旋转是逆变换：`rotatePoints(points, -degrees)`（`rotatePoint` 对负角度做了归一化）。
+ */
+private fun scanBarcodes(bitmap: Bitmap): List<BarcodeScanResult> {
+    val direct = runCatching { ZxingBarcodeScanner.scanBitmap(bitmap) }.getOrDefault(emptyList())
+    if (direct.isNotEmpty()) return direct.cleaned()
+
+    for (degrees in listOf(90, 180, 270)) {
+        val rotated = rotateBitmap(bitmap, degrees) ?: continue
+        val found = runCatching { ZxingBarcodeScanner.scanBitmap(rotated) }.getOrDefault(emptyList())
+        if (rotated !== bitmap) rotated.recycle()
+        if (found.isNotEmpty()) {
+            return found.map { result ->
+                result.copy(points = QuickMenuScanFrame.rotatePoints(result.points, -degrees))
+            }.cleaned()
+        }
+    }
+    return emptyList()
+}
+
+private fun List<BarcodeScanResult>.cleaned(): List<BarcodeScanResult> =
+    filter { it.text.isNotBlank() }.distinctBy { it.text }
+
+/** 按角度旋转位图；失败返回 null（调用方会跳过该方向）。 */
+private fun rotateBitmap(bitmap: Bitmap, degrees: Int): Bitmap? = runCatching {
+    val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+    Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+}.getOrNull()
 
 /**
  * 一次扫描的结果落地。
  *
- * **只有一个码时与以前完全一样**：直接回填、不出现任何列表——最常见的场景一点没变复杂。
- * 只有扫到多个码时才把候选列表交给界面，由用户点选。
+ * **只有一个码时与以前完全一样**：直接回填、不出现列表、也不显示图——最常见的场景一点没变复杂。
+ * 只有扫到多个码时才把候选（含定位点）与被扫描的图交给界面。
  */
 private fun applyScanResults(
     context: Context,
-    texts: List<String>,
+    results: List<BarcodeScanResult>,
+    image: Bitmap?,
     onContentChange: (String) -> Unit,
-    onCandidatesChange: (List<String>) -> Unit,
+    onResultsChange: (List<BarcodeScanResult>) -> Unit,
+    onImageChange: (Bitmap?) -> Unit,
 ) {
-    when (val outcome = scanOutcome(texts)) {
-        ScanOutcome.NoCode -> showQuickMenuToast(context, R.string.quick_menu_scan_no_code_found)
+    when (val outcome = scanOutcome(results.map { it.text })) {
+        ScanOutcome.NoCode -> {
+            onResultsChange(emptyList())
+            onImageChange(null)
+            showQuickMenuToast(context, R.string.quick_menu_scan_no_code_found)
+        }
+
         is ScanOutcome.Single -> {
-            onCandidatesChange(emptyList())
+            // 单码也把结果与图给界面：用户要能看见"它认的是哪一个"。
+            // （以前这里把两者都丢掉，相机路径因此表现为"没有定格图"——用户反馈的正是这个。）
+            onResultsChange(results.filter { it.text.isNotBlank() }.distinctBy { it.text })
+            onImageChange(image)
             onContentChange(outcome.text)
         }
+
         is ScanOutcome.Multiple -> {
-            onCandidatesChange(outcome.texts)
+            onResultsChange(results.filter { it.text.isNotBlank() }.distinctBy { it.text })
+            onImageChange(image)
             onContentChange(outcome.texts.first())
         }
     }

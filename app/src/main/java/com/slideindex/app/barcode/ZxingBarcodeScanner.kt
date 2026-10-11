@@ -13,6 +13,8 @@ import com.google.zxing.LuminanceSource
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.Binarizer
 import com.google.zxing.NotFoundException
+import com.google.zxing.ReaderException
+import com.google.zxing.Result
 import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.multi.GenericMultipleBarcodeReader
@@ -121,7 +123,7 @@ object ZxingBarcodeScanner {
         for (luminance in luminanceVariants(pixels, width, height)) {
             val source = ByteArrayLuminanceSource(width, height, luminance)
             for (binarizer in BinarizerStrategy.entries) {
-                tryDecode(source, hints, binarizer).takeIf { it.isNotEmpty() }?.let { return it }
+                tryDecode(source, hints, binarizer, width, height).takeIf { it.isNotEmpty() }?.let { return it }
             }
         }
         return null
@@ -139,60 +141,58 @@ object ZxingBarcodeScanner {
     }
 
     /**
-     * 直接对**亮度平面**解码（相机 `YUV_420_888` 的 `plane[0]`）。
+     * **触发专用**的轻量检查（相机预览帧流）：只回答"这一帧里有没有码、是哪个"。
      *
-     * 与 [scanBitmap] 复用同一套策略（多种亮度变体 × 两种二值化 × 多码制），但省掉 JPEG 编码与
-     * RGB 转换，因此可以跑在预览帧流上。用实时相机替代新引 CameraX 的原因见
-     * `QuickMenuScanActivity` 的注释。
+     * 与 [scanBitmap] 的分工，是被真机实测数据定下来的：
      *
-     * @param qrOnly 只试二维码类码制（QR / DataMatrix）。实时预览里绝大多数目标是二维码，
-     *   限定码制能显著降低单帧开销；调用方可以每隔若干帧传 `false` 兼顾一维条码。
+     * - 这里**每帧都要跑**，所以刻意用最便宜的组合——**单码读取器 + 只有主二值化 + 只试标准亮度**。
+     *   实测日志显示"多码读取器 + 两种二值化"在 1280×960 上要 **130~157ms/帧**，这个量级足以把
+     *   预览拖成"一直一顿一顿"；而 [GenericMultipleBarcodeReader] 更是"找到一个→涂掉→递归再找"，
+     *   单帧成本高得多，触发阶段根本不需要它。
+     * - 权威的"把一屏里的码都找出来"交给 [scanBitmap]，它只在**定格图上跑一次**（全码制 +
+     *   TRY_HARDER + 全部亮度变体），既准又不在预览路径上。
+     *
+     * @param qrOnly 只试二维码类码制（QR / DataMatrix）；调用方可每隔若干帧传 false 兼顾一维条码。
      */
-    fun scanLuminance(
+    fun scanLuminanceForTrigger(
         luminance: ByteArray,
         width: Int,
         height: Int,
-        qrOnly: Boolean = false,
+        qrOnly: Boolean = true,
     ): List<BarcodeScanResult> {
         if (width <= 0 || height <= 0 || luminance.size < width * height) return emptyList()
+        val source = ByteArrayLuminanceSource(width, height, luminance)
         val hints = if (qrOnly) qrHints else allFormatHints
-        for (variant in luminanceVariantsOf(luminance)) {
-            val source = ByteArrayLuminanceSource(width, height, variant)
-            for (binarizer in BinarizerStrategy.entries) {
-                tryDecode(source, hints, binarizer).takeIf { it.isNotEmpty() }?.let { return it }
-            }
+        return try {
+            val result = MultiFormatReader()
+                .apply { setHints(hints) }
+                .decode(BinaryBitmap(HybridBinarizer(source)))
+            listOfNotNull(toScanResult(result, width, height))
+        } catch (_: ReaderException) {
+            emptyList()
         }
-        return emptyList()
     }
 
-    /** [luminanceVariants] 的亮度输入版本（相机路径没有 RGB 像素数组）。 */
-    private fun luminanceVariantsOf(luminance: ByteArray): List<ByteArray> {
-        val contrast = contrastStretchedLuminance(luminance)
-        return listOf(
-            luminance,
-            invertLuminance(luminance),
-            contrast,
-            invertLuminance(contrast),
+    /** [Result] → 领域结果；文本为空返回 null。定位点归一化到 0..1。 */
+    private fun toScanResult(result: Result, width: Int, height: Int): BarcodeScanResult? {
+        val text = result.text?.trim().orEmpty()
+        if (text.isEmpty()) return null
+        return BarcodeScanResult(
+            text = text,
+            format = result.barcodeFormat.name,
+            points = result.resultPoints
+                ?.filterNotNull()
+                ?.map { point ->
+                    BarcodePoint(
+                        x = (point.x / width).coerceIn(0f, 1f),
+                        y = (point.y / height).coerceIn(0f, 1f)
+                    )
+                }
+                .orEmpty()
         )
     }
 
-    /** 对比度拉伸的字节亮度版本；位图路径仍走上面的 IntArray 版本。 */
-    private fun contrastStretchedLuminance(luminance: ByteArray): ByteArray {
-        var min = 255
-        var max = 0
-        for (byte in luminance) {
-            val value = byte.toInt() and 0xFF
-            min = min(min, value)
-            max = max(max, value)
-        }
-        if (max <= min) return luminance
-        val range = (max - min).toFloat()
-        return ByteArray(luminance.size) { index ->
-            val value = (luminance[index].toInt() and 0xFF) - min
-            ((value * 255f) / range).roundToInt().coerceIn(0, 255).toByte()
-        }
-    }
-
+    /** RGB 像素 → 亮度（ITU-R BT.601）。 */
     private fun rgbLuminance(pixels: IntArray): ByteArray {
         val output = ByteArray(pixels.size)
         for (index in pixels.indices) {
@@ -207,6 +207,7 @@ object ZxingBarcodeScanner {
         return output
     }
 
+    /** 对比度拉伸的 IntArray 版本（位图路径专用）。 */
     private fun contrastStretchedLuminance(pixels: IntArray): ByteArray {
         val gray = IntArray(pixels.size) { index ->
             val pixel = pixels[index]
@@ -249,7 +250,9 @@ object ZxingBarcodeScanner {
     private fun tryDecode(
         source: LuminanceSource,
         hints: Map<DecodeHintType, Any>,
-        binarizer: BinarizerStrategy
+        binarizer: BinarizerStrategy,
+        width: Int,
+        height: Int
     ): List<BarcodeScanResult> {
         val binaryBitmap = BinaryBitmap(binarizer.create(source))
         val reader = GenericMultipleBarcodeReader(
@@ -257,14 +260,7 @@ object ZxingBarcodeScanner {
         )
         return try {
             reader.decodeMultiple(binaryBitmap)
-                .mapNotNull { result ->
-                    val text = result.text?.trim().orEmpty()
-                    if (text.isEmpty()) return@mapNotNull null
-                    BarcodeScanResult(
-                        text = text,
-                        format = result.barcodeFormat.name
-                    )
-                }
+                .mapNotNull { toScanResult(it, width, height) }
                 .distinctBy { "${it.format}:${it.text}" }
         } catch (_: NotFoundException) {
             emptyList()

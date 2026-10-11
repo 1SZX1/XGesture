@@ -1,5 +1,6 @@
 package com.slideindex.app.overlay.quickmenu
 
+import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
+import com.slideindex.app.barcode.BarcodeScanResult
 
 /**
  * 「快捷菜单」面板内容。
@@ -70,11 +72,14 @@ fun QuickMenuPanel(
     recents: List<QuickMenuTool>,
     /** 识码页的原文。由宿主的 Session 承载，这样外部 Activity 期间窗口被摘掉也不丢。 */
     scanContent: String,
-    /** 识码页的候选列表（同一张图/同一帧里扫到的多个码）；只有一个码时为空列表。 */
-    scanCandidates: List<String>,
+    /** 识码页的候选列表（含归一化定位点，用于在图上画标记）；只有一个码时为空列表。 */
+    scanResults: List<BarcodeScanResult>,
+    /** 被扫描的那张图；为 null 时只显示候选列表（例如相机路径在定格之前）。 */
+    scanImage: Bitmap?,
     onQueryChange: (String) -> Unit,
     onScanContentChange: (String) -> Unit,
-    onScanCandidatesChange: (List<String>) -> Unit,
+    onScanResultsChange: (List<BarcodeScanResult>) -> Unit,
+    onScanImageChange: (Bitmap?) -> Unit,
     onOpenTool: (QuickMenuTool) -> Unit,
     onBack: () -> Unit,
     onDismiss: () -> Unit,
@@ -146,9 +151,11 @@ fun QuickMenuPanel(
                         QuickMenuToolScreen(
                             tool = page,
                             scanContent = scanContent,
-                            scanCandidates = scanCandidates,
+                            scanResults = scanResults,
+                            scanImage = scanImage,
                             onScanContentChange = onScanContentChange,
-                            onScanCandidatesChange = onScanCandidatesChange,
+                            onScanResultsChange = onScanResultsChange,
+                            onScanImageChange = onScanImageChange,
                         )
                     }
                 }
@@ -373,9 +380,11 @@ private fun ToolRow(tool: QuickMenuTool, title: String, description: String, onC
 private fun QuickMenuToolScreen(
     tool: QuickMenuTool,
     scanContent: String,
-    scanCandidates: List<String>,
+    scanResults: List<BarcodeScanResult>,
+    scanImage: Bitmap?,
     onScanContentChange: (String) -> Unit,
-    onScanCandidatesChange: (List<String>) -> Unit,
+    onScanResultsChange: (List<BarcodeScanResult>) -> Unit,
+    onScanImageChange: (Bitmap?) -> Unit,
 ) {
     when (tool) {
         QuickMenuTool.UNIT_CONVERTER -> QuickMenuUnitConverterScreen()
@@ -383,9 +392,11 @@ private fun QuickMenuToolScreen(
         QuickMenuTool.QR_GENERATOR -> QuickMenuQrGeneratorScreen()
         QuickMenuTool.SCAN_DECODER -> QuickMenuScanDecoderScreen(
             content = scanContent,
-            candidates = scanCandidates,
+            results = scanResults,
+            image = scanImage,
             onContentChange = onScanContentChange,
-            onCandidatesChange = onScanCandidatesChange,
+            onResultsChange = onScanResultsChange,
+            onImageChange = onScanImageChange,
         )
         QuickMenuTool.PASSWORD -> QuickMenuPasswordScreen()
         QuickMenuTool.TEXT_TOOL -> QuickMenuTextToolScreen()

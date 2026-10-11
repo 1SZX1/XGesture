@@ -1,11 +1,13 @@
 package com.slideindex.app.overlay.quickmenu
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import com.slideindex.app.barcode.BarcodeScanResult
 import com.slideindex.app.di.OverlayDependencyAccess
 import com.slideindex.app.overlay.OverlayFullScreenPanelHost
 import com.slideindex.app.overlay.OverlayPanelLayoutParams
@@ -57,8 +59,16 @@ object QuickMenuOverlayWindow {
         /** 识码页的待解析原文。外部 Activity 期间必须由这里承载，否则扫码结果会丢。 */
         val scanContent: MutableState<String> = mutableStateOf("")
 
-        /** 识码页的候选列表：同一帧/同一张图里扫到的多个码。只有一个码时为空列表。 */
-        val scanCandidates: MutableState<List<String>> = mutableStateOf(emptyList())
+        /** 识码页的候选列表（含归一化定位点）。只有一个码时为空列表。 */
+        val scanResults: MutableState<List<BarcodeScanResult>> = mutableStateOf(emptyList())
+
+        /**
+         * 被扫描的那张图（用来在图上画标记）。
+         *
+         * **刻意不调 `Bitmap.recycle()`**：API 26+ 起位图像素由 GC 托管，丢引用就会释放；
+         * 显式回收则有"界面还在画它"的时序风险，会抛 using a recycled bitmap。
+         */
+        val scanImage: MutableState<Bitmap?> = mutableStateOf(null)
 
         var settings: AppSettings = AppSettings()
     }
@@ -252,10 +262,12 @@ object QuickMenuOverlayWindow {
                     query = current.query.value,
                     recents = current.recents.value,
                     scanContent = current.scanContent.value,
-                    scanCandidates = current.scanCandidates.value,
+                    scanResults = current.scanResults.value,
+                    scanImage = current.scanImage.value,
                     onQueryChange = { current.query.value = it },
                     onScanContentChange = { current.scanContent.value = it },
-                    onScanCandidatesChange = { current.scanCandidates.value = it },
+                    onScanResultsChange = { current.scanResults.value = it },
+                    onScanImageChange = { current.scanImage.value = it },
                     onOpenTool = { tool ->
                         current.page.value = tool
                         // 乐观更新：先用本地顺序刷 UI，再异步落盘（写失败也不影响本次使用）。
