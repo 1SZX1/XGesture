@@ -84,6 +84,16 @@ object FreezerOverlayWindow {
         }
     private var dismissToken = 0
 
+    /**
+     * 面板注册进来的返回拦截器：返回 `true` = 面板自己消费了这次返回（多选 / 展开的搜索）。
+     *
+     * 必须由宿主来问、不能让面板自己挂返回处理：浮窗的返回在 View 层就被
+     * [OverlayViewBackHandler] 以 `PRIORITY_OVERLAY` 的 `OnBackInvokedCallback` 吃掉了，
+     * 优先级高于 Compose 那层，面板里挂的 handler 根本收不到。
+     */
+    @Volatile
+    private var panelBackInterceptor: (() -> Boolean)? = null
+
     val isShowing: Boolean
         get() = composeView != null && panelVisibilityState?.targetState == true
 
@@ -137,6 +147,9 @@ object FreezerOverlayWindow {
 
     fun handleBack(): Boolean {
         if (!isShowing) return false
+        // 先问面板有没有内层要退（多选 / 展开的搜索）：有就让它退掉那一层，这次返回**不关窗**。
+        // 少了这一步，用户勾了一批应用再按返回，面板会连同勾选一起被关掉。
+        if (panelBackInterceptor?.invoke() == true) return true
         dismiss()
         return true
     }
@@ -166,7 +179,9 @@ object FreezerOverlayWindow {
                     OverlayAwareModuleTheme {
                         FreezerOverlayRoot(
                             visibilityState = visibilityState,
-                            onDismiss = ::dismiss
+                            onDismiss = ::dismiss,
+                            // 面板把「这次返回我能不能消费」注册回来，`handleBack` 关窗前先问它。
+                            onRegisterBackInterceptor = { panelBackInterceptor = it }
                         )
                     }
                 }
@@ -194,6 +209,8 @@ object FreezerOverlayWindow {
         val wm = windowManager
         backHandler?.detach()
         backHandler = null
+        // 拦截图随窗口一起作废：不清的话下一次 show 之前会留着一个引用旧组合的闭包。
+        panelBackInterceptor = null
         if (view != null && wm != null) {
             runCatching { wm.removeView(view) }
         }
@@ -209,7 +226,8 @@ object FreezerOverlayWindow {
 @Composable
 private fun FreezerOverlayRoot(
     visibilityState: MutableTransitionState<Boolean>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onRegisterBackInterceptor: ((backInterceptor: (() -> Boolean)?) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val appDeps = remember(context) {
@@ -278,6 +296,7 @@ private fun FreezerOverlayRoot(
                         },
                         onAppLaunched = onDismiss,
                         overlayMode = true,
+                        onRegisterBackInterceptor = onRegisterBackInterceptor,
                     )
                 }
             }

@@ -34,6 +34,9 @@ class FreezerPanelActivity : ComponentActivity() {
                     FreezerPanelContent(
                         settingsRepository = deps.settingsRepository,
                         title = getString(com.slideindex.app.R.string.freezer_shortcut_label),
+                        // 必须显式给 onBack：`SettingsLazyScreenScaffold` 只按它决定挂不挂返回处理，
+                        // 不给的话返回键走系统默认直接 finish —— 多选态和展开的搜索都退不掉。
+                        onBack = { finish() },
                         onManageApps = {
                             startActivity(FreezerPanelIntents.manageApps(this@FreezerPanelActivity))
                         },

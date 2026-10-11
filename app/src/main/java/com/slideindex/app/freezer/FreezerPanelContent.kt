@@ -1,6 +1,7 @@
 package com.slideindex.app.freezer
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,6 +55,7 @@ import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchBottomContent
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
+import com.slideindex.app.ui.miuix.MiuixNavigationBackHandler
 import com.slideindex.app.ui.miuix.MiuixSettingsFab
 import com.slideindex.app.ui.miuix.consumeExpandableSearchBack
 import com.slideindex.app.ui.settings.components.LazySettingsItem
@@ -68,6 +71,20 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/**
+ * 面板**自己挂**返回处理时走哪条派发链。
+ *
+ * 三种宿主的返回链路互不相通，混用会出真问题（吞掉预测性返回 / 拦截器收不到），所以做成显式参数。
+ * 浮窗那条走 [FreezerPanelContent] 的 `onRegisterBackInterceptor`，不在这个枚举里。
+ */
+enum class FreezerBackChain {
+    /** 独立 Activity（`FreezerPanelActivity`）：用 activity 的 `BackHandler`。 */
+    ACTIVITY,
+
+    /** NavDisplay 子页（`FreezerHomeScreen`）：走 navigationevent 链，见 `MiuixNavigationBackHandler`。 */
+    NAVIGATION_EVENT,
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FreezerPanelContent(
@@ -78,6 +95,20 @@ fun FreezerPanelContent(
     onManageApps: (() -> Unit)? = null,
     onAppLaunched: (() -> Unit)? = null,
     overlayMode: Boolean = false,
+    /**
+     * 由**浮窗宿主**传入：把「面板能不能消费这次返回」注册进去，宿主在关窗之前先问一句。
+     *
+     * 传了它就不再挂 [MiuixNavigationBackHandler] —— 浮窗的返回在 View 层被
+     * `OverlayViewBackHandler` 以 `PRIORITY_OVERLAY` 的 `OnBackInvokedCallback` 吃掉了，
+     * 优先级高于 Compose 这层，面板自己挂的 handler 根本收不到（那正是"按返回直接关面板"的原因）。
+     * 导航子页与 Activity 传 null，走下面的 [MiuixNavigationBackHandler]。
+     */
+    onRegisterBackInterceptor: ((backInterceptor: (() -> Boolean)?) -> Unit)? = null,
+    /**
+     * 面板**自己挂**返回处理时走哪条派发链。三种宿主的返回链路完全不同，不能靠猜：
+     * 浮窗走上面的拦截器；剩下两种看这里。
+     */
+    backChain: FreezerBackChain = FreezerBackChain.ACTIVITY,
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -227,17 +258,57 @@ fun FreezerPanelContent(
         }
     }
 
+    /**
+     * 退掉面板**内层**的一档：多选 → 展开的搜索。返回 `true` = 这次返回被面板消费掉了。
+     *
+     * 三个调用方共用它（浮窗宿主的返回漏斗、顶栏 ←、导航子页的返回处理），
+     * 免得三处各判一遍、判出三种行为。
+     */
+    fun consumeInnerBack(): Boolean {
+        if (selectionMode) {
+            exitSelection()
+            return true
+        }
+        return consumeExpandableSearchBack(
+            expanded = searchExpanded,
+            query = searchQuery,
+            onExpandedChange = { searchExpanded = it },
+            onQueryChange = { searchQuery = it }
+        )
+    }
+
     val handleBack: () -> Unit = {
-        if (
-            onBack != null &&
-            !consumeExpandableSearchBack(
-                expanded = searchExpanded,
-                query = searchQuery,
-                onExpandedChange = { searchExpanded = it },
-                onQueryChange = { searchQuery = it }
-            )
-        ) {
-            onBack()
+        if (!consumeInnerBack()) {
+            onBack?.invoke()
+        }
+    }
+
+    // 返回键的接法分两种宿主，**不能混**：
+    // - 导航子页（`FreezerHomeScreen`）与 Activity：Compose 收得到返回，面板自己挂一层。
+    //   ⚠️ 用 MiuixNavigationBackHandler 而不是 activity 的 BackHandler：这个项目走
+    //   `androidx.navigationevent` 分发链，混用会吞掉系统预测性返回的 progress 事件
+    //   （见 `MiuixNavigationBackHandler` 的注释）。
+    // - 浮窗（`FreezerOverlayWindow`）：返回在 View 层就被吃掉了（见参数注释），
+    //   只能把拦截器交给宿主，由宿主在关窗之前先问一句。
+    if (onRegisterBackInterceptor != null) {
+        // 浮窗：返回在 View 层就被 `OverlayViewBackHandler` 吃掉了（见参数注释），
+        // 面板挂什么都收不到 —— 只能把拦截器交给宿主，由它在关窗之前问一句。
+        val innerBack = rememberUpdatedState<() -> Boolean>({ consumeInnerBack() })
+        DisposableEffect(onRegisterBackInterceptor) {
+            onRegisterBackInterceptor.invoke { innerBack.value() }
+            onDispose { onRegisterBackInterceptor.invoke(null) }
+        }
+    } else if (backChain == FreezerBackChain.NAVIGATION_EVENT) {
+        // NavDisplay 子页：必须走 navigationevent 链。这里混用 activity 的 BackHandler 会吞掉
+        // 系统预测性返回的 progress 事件（见 `MiuixNavigationBackHandler` 的注释）。
+        MiuixNavigationBackHandler(enabled = selectionMode || searchExpanded) {
+            consumeInnerBack()
+        }
+    } else {
+        // 独立 Activity：没有 NavDisplay 在抢返回，也没装 navigationevent 的 owner，
+        // activity 的 BackHandler 才是这条路上对的那个（enabled=false 时交回系统默认 finish）。
+        BackHandler(enabled = selectionMode || searchExpanded) {
+            consumeInnerBack()
         }
     }
 
