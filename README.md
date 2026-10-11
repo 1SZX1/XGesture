@@ -423,12 +423,15 @@ Special thanks to the following open-source projects for their architecture, ins
 - [SideGesture](https://github.com/aaronzzx/SideGesture) — Edge gesture and overlay architecture reference
 - [EdgeGesture](https://github.com/evilgodxu/EdgeGesture) — Expand panel, alarm reminder, screen translation, universal copy, and back-tap gesture reference
 - [EdgeX](https://github.com/oxohang/EdgeX) & [FanFreeform](https://github.com/oxohang/FanFreeform) — Honeycomb launcher and App Freezer architecture reference
+- [Hail](https://github.com/aistra0528/Hail) — Freezer privileged paths (PM API and shell fallback, suspend reflection cascade)
 - [ClipboardListener](https://github.com/aa2013/ClipboardListener) & [ClipShare](https://github.com/aa2013/ClipShare) — Android 10+ background clipboard listening architecture
 - [Root Activity Launcher](https://github.com/zacharee/RootActivityLauncher) — Non-exported activity launching scheme
 - [Circle To Search](https://github.com/AKS-Labs/CircleToSearch) — Multi-engine reverse image search strategy
 - [Nova Text](https://github.com/CashewTeam/BigBang_NovaText) — Floating ball OCR and word selection interaction
 - [XposedSmsCode](https://github.com/tianma8023/XposedSmsCode) — OTP SMS Hook and verification code extraction rules
 - [Miuix](https://github.com/compose-miuix-ui/miuix) — Elegant Material & Miuix style Compose UI component library
+- [Quick Search](https://github.com/teja2495/quick-search) — Aggregated search: file/contact/calculator indexes and web suggestions
+- [QuickDash](https://github.com/balajitechlabs/quickdash) — Behaviour-spec reference for the Quick Menu tools
 
 ---
 

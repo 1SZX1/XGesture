@@ -404,12 +404,15 @@ XGesture が日常で役立つと感じたら、開発者にコーヒー ☕ を
 - [SideGesture](https://github.com/aaronzzx/SideGesture) — エッジジェスチャーと Overlay 構成
 - [EdgeGesture](https://github.com/evilgodxu/EdgeGesture) — 拡張パネル、背面ジェスチャー等
 - [EdgeX](https://github.com/oxohang/EdgeX) & [FanFreeform](https://github.com/oxohang/FanFreeform) — ハニカムランチャーと凍結室
+- [Hail](https://github.com/aistra0528/Hail) — 凍結室の凍結/一時停止の特権パス（PM API と shell フォールバック）
 - [ClipboardListener](https://github.com/aa2013/ClipboardListener) & [ClipShare](https://github.com/aa2013/ClipShare) — バックグラウンドクリップボード監視
 - [Root Activity Launcher](https://github.com/zacharee/RootActivityLauncher) — 非エクスポート Activity 起動
 - [Circle To Search](https://github.com/AKS-Labs/CircleToSearch) — 逆画像検索多エンジン統合
 - [Nova Text](https://github.com/CashewTeam/BigBang_NovaText) — フローティングボール OCR
 - [XposedSmsCode](https://github.com/tianma8023/XposedSmsCode) — OTP SMS Hook
 - [Miuix](https://github.com/compose-miuix-ui/miuix) — Miuix Compose コンポーネント
+- [Quick Search](https://github.com/teja2495/quick-search) — 集約検索のファイル/連絡先/電卓インデックスと Web サジェスト
+- [QuickDash](https://github.com/balajitechlabs/quickdash) — 「クイックメニュー」各ツールの仕様参考
 
 ---
 

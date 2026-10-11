@@ -5,6 +5,10 @@ XGesture（`com.slideindex.app`）在 [GNU Affero General Public License v3.0](L
 
 完整文件级映射见 [docs/ATTRIBUTIONS.md](docs/ATTRIBUTIONS.md)。
 
+> **维护提示**：本文件有两份副本 —— 仓库根 `THIRD_PARTY_NOTICES.md` 与
+> `app/src/main/assets/licenses/third_party_notices.md`（App 内「开源许可」页读的是后者）。
+> **两份必须逐行一致**；改完请运行 `python scripts/check-notices-sync.py` 校验。
+
 ---
 
 ## SideGesture (gulugulu / SideGesture)
