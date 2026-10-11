@@ -24,6 +24,16 @@
 | `app/.../search/ImageSearchEngine.kt` | 同上 | 改编 | GPL-3.0 |
 | `app/.../overlay/FloatBallImageSearchPanel.kt` | 同上 | 思路+架构参考 | GPL-3.0 |
 | `app/.../overlay/FloatBallOverlay.kt` 等悬浮球取词 | [Nova Text](https://github.com/CashewTeam/BigBang_NovaText) | 交互思路 | GPL-3.0 |
+| `app/.../barcode/QrPayloadParser.kt` | [QuickDash](https://github.com/balajitechlabs/quickdash) | 行为规格参考（无代码移植） | GPL-3.0（仓库自述） |
+| `app/.../barcode/QrCodeGenerator.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
+| `app/.../quickmenu/UnitConversionEngine.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
+| `app/.../quickmenu/CurrencyRateEngine.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
+| `app/.../quickmenu/PasswordGenerator.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
+| `app/.../quickmenu/StopwatchLogic.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
+| `app/.../quickmenu/CountdownLogic.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
+| `app/.../quickmenu/TextToolkit.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
+| `app/.../overlay/quickmenu/QuickMenuScanActivity.kt` | 同上 | 交互对齐（取景框/手电筒/放大/对焦） | 同上 |
+| `app/.../overlay/quickmenu/QuickMenuToolScreens.kt` | 同上 | 交互对齐（扫码页布局、密码页动作摆位） | 同上 |
 | `app/.../xposed/hook/SmsHandlerHook.kt` | [XposedSmsCode](https://github.com/tianma8023/XposedSmsCode) | 改编 | GPL-3.0 |
 | `app/.../xposed/hook/SmsProviderHook.kt` | 同上 | 补充（Telephony Provider 捕获） | GPL-3.0 |
 | `app/.../xposed/hook/SmsCaptureForwarder.kt` | 同上 | 衍生 | GPL-3.0 |
