@@ -64,13 +64,18 @@ class RemindAlarmService : Service() {
             importance = NotificationManager.IMPORTANCE_LOW,
             tag = TAG,
         )
-        if (!channel.canPromote) {
+        // 判据只能是「渠道存不存在」（isUsable）：渠道存在、只是被用户关掉通知时，
+        // startForeground() 依然会成功（通知不显示而已）；跳过它会被 AMS 以前台服务超时为由杀进程。
+        if (!channel.isUsable) {
             Log.e(TAG, "提醒通知渠道不可用，跳过前台化，仅显示浮层")
             showOverlay(minutes)
             playAlarmSound()
             vibrate()
             mainHandler.postDelayed(autoStopRunnable, 5 * 60_000L)
             return
+        }
+        if (channel.blocked) {
+            Log.w(TAG, "渠道存在但被用户关闭：通知不可见，仍照常前台化以免前台服务超时杀进程")
         }
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(getString(R.string.gesture_remind_notify_title))

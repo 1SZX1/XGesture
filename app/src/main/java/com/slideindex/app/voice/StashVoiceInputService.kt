@@ -381,7 +381,13 @@ class StashVoiceInputService : Service() {
 
     /* ==================== 前台通知 ==================== */
 
-    /** 起前台通知。返回 false 表示渠道不可用（此时不前台化）。 */
+    /**
+     * 起前台通知。返回 false 只代表**渠道真的不存在**（这时不能 startForeground）。
+     *
+     * 注意判据用 [ForegroundNotificationChannels.Result.isUsable]，不能用 `canPromote`：
+     * 用户关掉通知渠道时 startForeground() 依然会成功（通知不显示），而不调它会被 AMS
+     * 以前台服务超时为由杀掉整个进程。
+     */
     private fun promoteToForeground(recording: Boolean): Boolean {
         val channelId = if (recording) CHANNEL_ID_RECORD else CHANNEL_ID
         val channel = ForegroundNotificationChannels.ensureUsable(
@@ -393,9 +399,12 @@ class StashVoiceInputService : Service() {
             importance = NotificationManager.IMPORTANCE_LOW,
             tag = TAG,
         )
-        if (!channel.canPromote) {
+        if (!channel.isUsable) {
             Log.e(TAG, if (recording) "录音通知渠道不可用" else "语音输入通知渠道不可用")
             return false
+        }
+        if (channel.blocked) {
+            Log.w(TAG, "渠道存在但被用户关闭：通知不可见，仍照常前台化以免前台服务超时杀进程")
         }
         val cancelIntent = PendingIntent.getService(
             this,

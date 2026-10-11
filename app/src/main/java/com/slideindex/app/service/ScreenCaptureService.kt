@@ -58,11 +58,17 @@ class ScreenCaptureService : Service() {
                     return START_NOT_STICKY
                 }
                 // 渠道先落地再 startForeground：渠道缺失会被系统判为非法前台服务通知并杀进程。
-                if (!ensureChannel().canPromote) {
+                // 但「用户关掉了通知渠道」不是放弃的理由（见 Result.isUsable）：不调
+                // startForeground() 会被 AMS 以前台服务超时为由杀进程，截图功能跟着一起没了。
+                val channel = ensureChannel()
+                if (!channel.isUsable) {
                     Log.e(TAG, "截图通知渠道不可用，放弃前台化")
                     SessionState.markNotReady()
                     stopSelf()
                     return START_NOT_STICKY
+                }
+                if (channel.blocked) {
+                    Log.w(TAG, "渠道存在但被用户关闭：通知不可见，仍照常前台化以免前台服务超时杀进程")
                 }
                 try {
                     startForeground(NOTIFICATION_ID, buildNotification())
