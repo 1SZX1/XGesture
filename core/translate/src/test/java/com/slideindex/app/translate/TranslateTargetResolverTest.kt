@@ -17,6 +17,19 @@ class TranslateTargetResolverTest {
     }
 
     @Test
+    fun followApp_withTurkishUiTags_resolvesTurkish() {
+        listOf("tr", "tr-TR", "tr-CY").forEach { languageTag ->
+            assertEquals(
+                "tr",
+                TranslateTargetResolver.resolve(
+                    storedCode = TranslateTargetLanguages.FOLLOW_APP,
+                    appUiLanguageTag = languageTag,
+                ),
+            )
+        }
+    }
+
+    @Test
     fun followApp_withSystemUiTag_unsupportedLocale_fallsBackToEnglish() {
         assertEquals(
             "en",

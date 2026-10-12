@@ -1928,6 +1928,7 @@
     <string name="translate_target_label_pt_pt" translatable="false">Português (Portugal)</string>
     <string name="translate_target_label_es" translatable="false">Español</string>
     <string name="translate_target_label_ru" translatable="false">Русский</string>
+    <string name="translate_target_label_tr" translatable="false">Türkçe</string>
     <string name="float_ball_instant_translate">即时翻译</string>
     <string name="float_ball_instant_translate_desc">开启后在取词面板上方用浮窗显示译文；关闭则跳转翻译，装了翻译 App 就用它，否则打开网页</string>
     <string name="float_ball_instant_translate_on">即时翻译</string>

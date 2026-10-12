@@ -21,6 +21,7 @@ object TranslateLanguageCatalog {
         TranslateLanguageOption("pt-PT", "Portuguese (Portugal)", "pt"),
         TranslateLanguageOption("es", "Spanish", "es"),
         TranslateLanguageOption("ru", "Russian", "ru"),
+        TranslateLanguageOption("tr", "Turkish", "tr"),
     )
 
     fun find(code: String): TranslateLanguageOption? =

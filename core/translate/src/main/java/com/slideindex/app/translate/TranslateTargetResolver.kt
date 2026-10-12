@@ -22,6 +22,7 @@ object TranslateTargetResolver {
             normalized == "en" -> "en"
             normalized == "ja" -> "ja"
             normalized == "ar" -> "ar"
+            normalized == "tr" || normalized.startsWith("tr-") -> "tr"
             else -> mapSystemLocale(locale)
         }
     }
