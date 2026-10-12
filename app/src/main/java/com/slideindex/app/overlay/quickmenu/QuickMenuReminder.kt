@@ -12,13 +12,16 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -72,20 +75,19 @@ internal fun QuickMenuReminderScreen() {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             REMINDER_MINUTES.forEach { minutes ->
-                val selected = minutes == selectedMinutes
-                OutlinedButton(
+                // 用 FilterChip（与倒计时页的分钟预设同款）：它自带**选中态**（填充色 + 边框）。
+                // 之前用 OutlinedButton 只改文字颜色 ✗ —— 用户反馈"看不出哪个选中了"，那不是错觉 ✗
+                FilterChip(
+                    selected = minutes == selectedMinutes,
                     onClick = { selectedMinutes = minutes },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        text = stringResource(R.string.quick_menu_reminder_minutes, minutes),
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                    label = { Text(stringResource(R.string.quick_menu_reminder_minutes, minutes)) },
+                )
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
