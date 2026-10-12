@@ -1,7 +1,6 @@
 package com.slideindex.app.barcode
 
 import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 /**
@@ -419,7 +418,11 @@ object QrPayloadParser {
     }
 
     private fun decodeSafely(value: String): String = try {
-        URLDecoder.decode(value, StandardCharsets.UTF_8)
+        // ⚠️ 必须用**两参 String** 这个重载：`decode(String, Charset)` 是 API 33 才有的，
+        // 而本项目 minSdk 31、也没开 core library desugaring —— 用它会直接被 lint 判 error
+        // （NewApi），把 CI 的 Lint Check 任务整条卡红。两参 String 版从 API 1 就有。
+        @Suppress("DEPRECATION")
+        URLDecoder.decode(value, "UTF-8")
     } catch (_: IllegalArgumentException) {
         value
     }
