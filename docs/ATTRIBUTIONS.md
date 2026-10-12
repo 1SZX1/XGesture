@@ -5,6 +5,35 @@
 > 改完运行 `python scripts/check-notices-sync.py` 校验两份逐行一致。
 > （这条提示刻意放在这里：两份 notices 都是**用户可见**文档，不该出现开发指令。）
 
+## GestureEVO 文件对照表（跟上游同步时用）
+
+来源：<https://github.com/LumiaGG/GestureEVO>（GPL-3.0-only）→ 其 `app/src/main/java/io/github/lumiagg/gestureevo/`。
+这些文件里都已带来源头注释；改上游时照这张表定位，**不必重新考古**。
+
+| 本仓库文件 | GestureEVO 源文件 |
+|---|---|
+| `app/.../inspire/AccessibilityNodeManager.kt` | `inspire/AccessibilityNodeManager.kt` |
+| `app/.../inspire/BaseFloatingWindow.kt` | `floating/BaseFloatingWindow.kt` |
+| `app/.../inspire/InspireDataHolder.kt` | `inspire/InspireDataHolder.kt` |
+| `app/.../inspire/InspireFloating.kt` | `inspire/InspireFloating.kt` |
+| `app/.../inspire/ManagedBitmap.kt` | `inspire/ManagedBitmap.kt` |
+| `app/.../inspire/ui/InspireView.kt` | `inspire/ui/InspireView.kt` |
+| `app/.../imageeditor/SlideIndexImageEditorActivity.kt` | `inspire/imageeditor/InspireImageEditorActivity.kt` |
+| `app/.../imageeditor/model/EditAction.kt` | `inspire/imageeditor/model/EditAction.kt` |
+| `app/.../imageeditor/model/EditorMode.kt` | `inspire/imageeditor/model/EditorMode.kt` |
+| `app/.../imageeditor/state/EditorSession.kt` | `inspire/imageeditor/state/EditorSession.kt` |
+| `app/.../imageeditor/ui/BrushSizePreviewView.kt` | `inspire/imageeditor/ui/BrushSizePreviewView.kt` |
+| `app/.../imageeditor/ui/ShapeTypePreviewView.kt` | `inspire/imageeditor/ui/ShapeTypePreviewView.kt` |
+| `app/.../imageeditor/ui/ImageEditorView.java` | `inspire/imageeditor/ui/InspireImageEditorView.kt` |
+| `app/.../imageeditor/utils/EditorExportEngine.kt` | `inspire/imageeditor/utils/EditorExportEngine.kt` |
+| `app/.../imageeditor/utils/EditorRenderUtils.kt` | `inspire/imageeditor/utils/EditorRenderUtils.kt` |
+| `app/.../screensearch/ScreenSearchFloating.kt` | `screen_search/ScreenSearchFloating.kt` |
+| `app/.../screensearch/ScreenSearchHighlightView.kt` | `screen_search/ScreenSearchHighlightView.kt` |
+| `app/.../screensearch/ScreenSearchCapture.kt` | `screen_search/ScreenSearchFloating.kt`（沿用 `buildRevealCropRect`） |
+| `app/.../timeddnd/TempDndManager.kt` | `utils/TempDndRestoreWorker.kt`（同名 object） |
+| `app/.../timeddnd/TempDndRestoreWorker.kt` | `utils/TempDndRestoreWorker.kt` |
+| `app/.../timeddnd/TempDndNotificationReceiver.kt` | `utils/TempDndRestoreWorker.kt` |
+
 | 本仓库路径 | 来源项目 | 关系 | 许可证 |
 |-----------|---------|------|--------|
 | `app/.../xposed/hook/ClipboardWhitelistHook.kt` | [Clipboard Whitelist](https://github.com/Tehcneko/ClipboardWhitelist) | 移植+修改 | GPL-3.0 |
@@ -30,9 +59,10 @@
 | `app/.../overlay/FloatBallImageSearchPanel.kt` | 同上 | 思路+架构参考 | GPL-3.0 |
 | `app/.../overlay/FloatBallOverlay.kt` 等悬浮球取词 | [Nova Text](https://github.com/CashewTeam/BigBang_NovaText) | 交互思路 | GPL-3.0 |
 | `app/.../inspire/*`（悬浮球取词管线，10 个文件） | [GestureEVO](https://github.com/LumiaGG/GestureEVO) | 移植+改写（`InspireView`/`InspireFloating`/`InspireDataHolder`/`ManagedBitmap`/`AccessibilityNodeManager`/`BaseFloatingWindow` 等同名类） | GPL-3.0 |
-| `app/.../screensearch/*`（屏内搜索，6 个文件） | 同上 | 移植+改写（`ScreenSearchFloating`/`ScreenSearchCapture`/`ScreenSearchHighlightView`；搜索主循环与 `MAX_ATTEMPTS`/`MAX_CAPTURE_FAILURES`/`PRE_START_DELAY_MS`/`REVEAL_SCAN_RATIO` 等常量同源，本仓库另做了全屏遍历、滚动停稳判定与触底检测） | GPL-3.0 |
+| `app/.../screensearch/*`（屏内搜索，6 个文件） | 同上 | 移植+改写（`ScreenSearchFloating`/`ScreenSearchHighlightView`/`ScreenSearchCapture` 有同名类或方法；搜索主循环与 `MAX_ATTEMPTS`/`MAX_CAPTURE_FAILURES`/`PRE_START_DELAY_MS`/`REVEAL_SCAN_RATIO` 等常量同源，本仓库另做了全屏遍历、滚动停稳判定与触底检测）；`ScreenSearchIndicatorCard`/`ScreenSearchPanelCard`/`ScreenSearchPanelState` **无对应，为本项目自研** | GPL-3.0 |
 | `app/.../service/SlideIndexAccessibilityGestureInjector.kt`（滚动观感） | 同上 | 行为对齐 | GPL-3.0 |
-| `app/.../imageeditor/*` | 同上 | 交互风格参考（编辑器；无代码标注） | GPL-3.0 |
+| `app/.../imageeditor/*`（图片编辑器，26 个文件） | 同上 | **移植+改写**（`model/{EditAction,EditorMode}`、`state/EditorSession`、`ui/{BrushSizePreviewView,ShapeTypePreviewView,ImageEditorView}`、`utils/{EditorExportEngine,EditorRenderUtils}` 对应其 `inspire/imageeditor/*`；`ImageEditorView` 与其 `InspireImageEditorView` **71 个同名方法**，`SlideIndexImageEditorActivity` 与其 Activity **18 个同名方法**。其余（快捷工具、素材取色、钉图、共享拖拽、序号标注等）为本项目自研） | GPL-3.0 |
+| `app/.../timeddnd/*`（临时免打扰，5 个文件） | 同上 | **移植+改写**（`TempDndManager` 对应其 `utils/TempDndRestoreWorker.kt` 内的同名 object：`hasUsableDndPolicyAccess` 签名一致，`enableTempDnd`/`restoreDnd`/`scheduleRestore`/`showCountdownNotification`/`createNotificationChannelIfNeeded` 同名；本仓库拆为 5 个文件并新增 `cancelActive` 与规则记录） | GPL-3.0 |
 | `app/.../barcode/QrPayloadParser.kt` | [QuickDash](https://github.com/balajitechlabs/quickdash) | 行为规格参考（无代码移植） | GPL-3.0（仓库自述） |
 | `app/.../barcode/QrCodeGenerator.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
 | `app/.../quickmenu/UnitConversionEngine.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |

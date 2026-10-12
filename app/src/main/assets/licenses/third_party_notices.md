@@ -52,8 +52,8 @@ XGesture（`com.slideindex.app`）在 [GNU Affero General Public License v3.0](L
 - **Copyright:** GestureEVO contributors
 - **License:** [GNU General Public License v3.0](app/src/main/assets/licenses/GPL-3.0.txt)（项目标注 GPL-3.0-only）
 - **Source:** https://github.com/LumiaGG/GestureEVO
-- **Used in:** 悬浮球取词管线（`inspire/`：`InspireView`、`InspireFloating`、`InspireDataHolder`、`ManagedBitmap`、`AccessibilityNodeManager`、`BaseFloatingWindow` 等，类职责与模块划分沿用该项目）、屏幕搜索（`screensearch/`：`ScreenSearchFloating`、`ScreenSearchCapture`、`ScreenSearchHighlightView` 等，搜索主循环、无障碍与 OCR 两条取文路径、滚动节奏与区域裁剪策略沿用该项目）、无障碍手势注入的观感对齐（`SlideIndexAccessibilityGestureInjector`）、图片编辑器的交互风格参考
-- **Modifications:** 以 Kotlin 集成至 XGesture 取词与手势管线；按本项目的数据模型、设置体系与主题改写；构建与依赖替换为本仓库体系；屏幕搜索在其基础上废除区域裁剪改为全屏遍历、单步滚动幅度由 60% 屏高收窄至 30%、新增滚动后停稳判定与触底检测、截图前隐藏本项目浮层
+- **Used in:** 悬浮球取词管线（`inspire/`：`InspireView`、`InspireFloating`、`InspireDataHolder`、`ManagedBitmap`、`AccessibilityNodeManager`、`BaseFloatingWindow` 等，类职责与模块划分沿用该项目）、屏幕搜索（`screensearch/`：`ScreenSearchFloating`、`ScreenSearchCapture`、`ScreenSearchHighlightView` 等，搜索主循环、无障碍与 OCR 两条取文路径、滚动节奏与区域裁剪策略沿用该项目）、图片编辑器（`imageeditor/`：`EditorSession`、`EditorMode`、`EditAction`、`EditorExportEngine`、`EditorRenderUtils`、`BrushSizePreviewView`、`ShapeTypePreviewView` 沿用其模块划分；核心视图 `ui/ImageEditorView` 与其 `ui/InspireImageEditorView` 有 71 个同名方法）、临时免打扰（`timeddnd/`：`TempDndManager` 与其同名实现，`hasUsableDndPolicyAccess` 签名一致）、无障碍手势注入的观感对齐（`SlideIndexAccessibilityGestureInjector`）
+- **Modifications:** 以 Kotlin 集成至 XGesture 取词与手势管线；按本项目的数据模型、设置体系与主题改写；构建与依赖替换为本仓库体系；屏幕搜索在其基础上废除区域裁剪改为全屏遍历、单步滚动幅度由 60% 屏高收窄至 30%、新增滚动后停稳判定与触底检测、截图前隐藏本项目浮层；图片编辑器拆分为 model/state/ui/utils 多文件，核心视图在本仓库为 Java 实现（其源为 Kotlin `ui/InspireImageEditorView`）并接入本项目的 Material 取色与主题，新增序号标注、钉图、共享拖拽与快捷工具；临时免打扰拆为 5 个文件并新增取消与规则记录。移植文件均已加来源头注释
 - **Note:** GestureEVO 的 `inspire/` 内含 `BigBang*` 类，其取词交互应源自 BigBang / Nova Text 一脉（本项目对二者的参考见上一条）
 
 ---
