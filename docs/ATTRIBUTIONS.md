@@ -36,6 +36,7 @@
 | `app/.../timeddnd/TempDndManager.kt` | `utils/TempDndRestoreWorker.kt`（同名 object） |
 | `app/.../timeddnd/TempDndRestoreWorker.kt` | `utils/TempDndRestoreWorker.kt` |
 | `app/.../timeddnd/TempDndNotificationReceiver.kt` | `utils/TempDndRestoreWorker.kt` |
+| `app/.../timeddnd/TempDndLimits.kt` | `utils/TempDndRestoreWorker.kt`（`DEFAULT_MINUTES` / `MAX_MINUTES` 时长范围） |
 
 | 本仓库路径 | 来源项目 | 关系 | 许可证 |
 |-----------|---------|------|--------|
@@ -65,7 +66,7 @@
 | `app/.../screensearch/*`（屏内搜索，6 个文件） | 同上 | 移植+改写（`ScreenSearchFloating`/`ScreenSearchHighlightView`/`ScreenSearchCapture` 有同名类或方法；搜索主循环与 `MAX_ATTEMPTS`/`MAX_CAPTURE_FAILURES`/`PRE_START_DELAY_MS`/`REVEAL_SCAN_RATIO` 等常量同源，本仓库另做了全屏遍历、滚动停稳判定与触底检测）；`ScreenSearchIndicatorCard`/`ScreenSearchPanelCard`/`ScreenSearchPanelState` **无对应，为本项目自研** | GPL-3.0 |
 | `app/.../service/SlideIndexAccessibilityGestureInjector.kt`（滚动观感） | 同上 | 行为对齐 | GPL-3.0 |
 | `app/.../imageeditor/*`（图片编辑器，26 个文件） | 同上 | **移植+改写**（`model/{EditAction,EditorMode}`、`state/EditorSession`、`ui/{BrushSizePreviewView,ShapeTypePreviewView,ImageEditorView}`、`utils/{EditorExportEngine,EditorRenderUtils}` 对应其 `inspire/imageeditor/*`；`ImageEditorView` 与其 `InspireImageEditorView` **71 个同名方法**，`SlideIndexImageEditorActivity` 与其 Activity **18 个同名方法**。其余（快捷工具、素材取色、钉图、共享拖拽、序号标注等）为本项目自研） | GPL-3.0 |
-| `app/.../timeddnd/*`（临时免打扰，5 个文件） | 同上 | **移植+改写**（`TempDndManager` 对应其 `utils/TempDndRestoreWorker.kt` 内的同名 object：`hasUsableDndPolicyAccess` 签名一致，`enableTempDnd`/`restoreDnd`/`scheduleRestore`/`showCountdownNotification`/`createNotificationChannelIfNeeded` 同名；本仓库拆为 5 个文件并新增 `cancelActive` 与规则记录） | GPL-3.0 |
+| `app/.../timeddnd/*`（临时免打扰，6 个文件） | 同上 | **移植+改写**（`TempDndManager` 对应其 `utils/TempDndRestoreWorker.kt` 内的同名 object：`hasUsableDndPolicyAccess` 签名一致，`enableTempDnd`/`restoreDnd`/`scheduleRestore`/`showCountdownNotification`/`createNotificationChannelIfNeeded` 同名；本仓库拆为 6 个文件，新增 `cancelActive`、规则记录，并把时长范围独立为 `TempDndLimits`（1..1440 分钟，与其取值一致；原先借用提醒模块的 1..120）） | GPL-3.0 |
 | `app/.../barcode/QrPayloadParser.kt` | [QuickDash](https://github.com/balajitechlabs/quickdash) | 行为规格参考（无代码移植） | GPL-3.0（仓库自述） |
 | `app/.../barcode/QrCodeGenerator.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |
 | `app/.../quickmenu/UnitConversionEngine.kt` | 同上 | 行为规格参考（无代码移植） | 同上 |

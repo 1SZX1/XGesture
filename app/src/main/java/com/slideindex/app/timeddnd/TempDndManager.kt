@@ -25,7 +25,6 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.slideindex.app.R
-import com.slideindex.app.remind.RemindAlarmScheduler
 import com.slideindex.app.util.PermissionHelper
 import com.slideindex.app.util.VolumeControlHelper
 import java.util.concurrent.TimeUnit
@@ -80,7 +79,7 @@ object TempDndManager {
             Log.w(TAG, "Policy access pre-check failed, will still try enabling DND directly")
         }
 
-        val safeMinutes = RemindAlarmScheduler.clampMinutes(minutes)
+        val safeMinutes = TempDndLimits.clampMinutes(minutes)
 
         val snapshot = TempDndPreferences.readOriginalFilter(appContext)
         if (snapshot == TempDndPreferences.NO_FILTER_SNAPSHOT) {

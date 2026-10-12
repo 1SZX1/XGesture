@@ -13,7 +13,6 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.app.RemoteInput
 import com.slideindex.app.R
-import com.slideindex.app.remind.RemindAlarmScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,7 +53,7 @@ class TempDndNotificationReceiver : BroadcastReceiver() {
         }
         TempDndManager.enableTempDnd(
             context.applicationContext,
-            RemindAlarmScheduler.clampMinutes(minutes),
+            TempDndLimits.clampMinutes(minutes),
         )
     }
 
