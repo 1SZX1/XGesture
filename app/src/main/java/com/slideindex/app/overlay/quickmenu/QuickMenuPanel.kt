@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,7 +31,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -86,6 +90,10 @@ fun QuickMenuPanel(
 ) {
     val titles = QuickMenuTool.entries.associateWith { stringResource(it.titleRes) }
     val descs = QuickMenuTool.entries.associateWith { stringResource(it.descRes) }
+    val context = LocalContext.current
+    // **必须放在 if (page == null) 之外**：列表在切到子页时会离开组合，状态若留在里面就会被重置，
+    // 表现就是"从子页返回后回到了顶部"（真机反馈）。
+    val listState = rememberLazyListState()
 
     AnimatedVisibility(
         visible = visible,
@@ -133,6 +141,27 @@ fun QuickMenuPanel(
                                 )
                             },
                             placeholder = { Text(stringResource(R.string.quick_menu_search_hint)) },
+                            // 顶部一键扫码：用户要的是"从最上面直接扫"，不必先翻到识码页。
+                            // 先切到识码页（结果在那里展示），再拉起相机；与识码页的按钮共用 launchCameraScan。
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        onOpenTool(QuickMenuTool.SCAN_DECODER)
+                                        launchCameraScan(
+                                            context = context,
+                                            onContentChange = onScanContentChange,
+                                            onResultsChange = onScanResultsChange,
+                                            onImageChange = onScanImageChange,
+                                        )
+                                    },
+                                ) {
+                                    Icon(
+                                        // 用二维码图标（与 quickdash 的扫码入口一致），相机图标更像"拍照"
+                                        imageVector = Icons.Filled.QrCodeScanner,
+                                        contentDescription = stringResource(R.string.quick_menu_scan_camera),
+                                    )
+                                }
+                            },
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         ToolList(
@@ -140,6 +169,7 @@ fun QuickMenuPanel(
                             recents = recents,
                             titles = titles,
                             descs = descs,
+                            state = listState,
                             onOpenTool = onOpenTool,
                         )
                     } else {
@@ -219,6 +249,7 @@ private fun ToolList(
     recents: List<QuickMenuTool>,
     titles: Map<QuickMenuTool, String>,
     descs: Map<QuickMenuTool, String>,
+    state: LazyListState,
     onOpenTool: (QuickMenuTool) -> Unit,
 ) {
     val matched = remember(query, titles, descs) {
@@ -241,6 +272,8 @@ private fun ToolList(
     }
 
     LazyColumn(
+        // 状态由上层持有：从子页返回时列表位置不会被重置到顶部（真机反馈）。
+        state = state,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp),
     ) {
@@ -400,8 +433,10 @@ private fun QuickMenuToolScreen(
         )
         QuickMenuTool.PASSWORD -> QuickMenuPasswordScreen()
         QuickMenuTool.TEXT_TOOL -> QuickMenuTextToolScreen()
+        QuickMenuTool.TRANSLATE -> QuickMenuTranslateScreen()
         QuickMenuTool.STOPWATCH -> QuickMenuStopwatchScreen()
         QuickMenuTool.COUNTDOWN -> QuickMenuCountdownScreen()
+        QuickMenuTool.REMINDER -> QuickMenuReminderScreen()
         QuickMenuTool.TIMER_HISTORY -> QuickMenuHistoryScreen()
         QuickMenuTool.CALCULATOR -> QuickMenuCalculatorScreen()
         QuickMenuTool.POMODORO -> QuickMenuPomodoroScreen()
@@ -410,6 +445,10 @@ private fun QuickMenuToolScreen(
         QuickMenuTool.ENTRY_FOREGROUND_ACTIVITY,
         QuickMenuTool.ENTRY_FREEZER,
         QuickMenuTool.ENTRY_SHELL_PANEL,
+        QuickMenuTool.ENTRY_SEARCH_PANEL,
+        QuickMenuTool.ENTRY_CLIPBOARD_PANEL,
+        QuickMenuTool.ENTRY_PIN_TO_SCREEN,
+        QuickMenuTool.ENTRY_STASH_PANEL,
         -> Unit
     }
 }

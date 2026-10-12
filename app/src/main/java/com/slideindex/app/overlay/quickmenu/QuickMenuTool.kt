@@ -3,18 +3,24 @@ package com.slideindex.app.overlay.quickmenu
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AcUnit
+import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.CurrencyExchange
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.HourglassBottom
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.Timelapse
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -86,6 +92,12 @@ enum class QuickMenuTool(
         group = QuickMenuGroup.TEXT,
         icon = Icons.Outlined.TextFields,
     ),
+    TRANSLATE(
+        titleRes = R.string.quick_menu_translate_title,
+        descRes = R.string.quick_menu_translate_desc,
+        group = QuickMenuGroup.TEXT,
+        icon = Icons.Outlined.Translate,
+    ),
     PASSWORD(
         titleRes = R.string.quick_menu_password_title,
         descRes = R.string.quick_menu_password_desc,
@@ -103,6 +115,12 @@ enum class QuickMenuTool(
         descRes = R.string.quick_menu_timer_desc,
         group = QuickMenuGroup.TIME,
         icon = Icons.Outlined.HourglassBottom,
+    ),
+    REMINDER(
+        titleRes = R.string.quick_menu_reminder_title,
+        descRes = R.string.quick_menu_reminder_desc,
+        group = QuickMenuGroup.TIME,
+        icon = Icons.Outlined.Alarm,
     ),
     TIMER_HISTORY(
         titleRes = R.string.quick_menu_history_title,
@@ -150,6 +168,34 @@ enum class QuickMenuTool(
         descRes = R.string.quick_menu_entry_shell_desc,
         group = QuickMenuGroup.ACTION,
         icon = Icons.Outlined.Terminal,
+    ),
+
+    // 再补三个"把已有能力收进菜单"的入口（文案全部复用动作列表里的同名动作，不新增字符串）。
+    ENTRY_SEARCH_PANEL(
+        titleRes = R.string.gesture_action_search_panel,
+        descRes = R.string.external_invocation_entry_search_panel_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.Search,
+    ),
+    ENTRY_CLIPBOARD_PANEL(
+        titleRes = R.string.gesture_action_clipboard_panel,
+        descRes = R.string.external_invocation_entry_clipboard_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.ContentPaste,
+    ),
+    ENTRY_PIN_TO_SCREEN(
+        titleRes = R.string.gesture_action_pin_to_screen,
+        descRes = R.string.gesture_action_pin_to_screen_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.PushPin,
+    ),
+    //「闪念」就是侧边面板的两个 tab 之一（代码里叫 Stash，界面上叫 Ideas/闪念）。
+    // 这里和上面的「剪贴板」入口是同一个面板的两个 tab，所以两个入口都保留。
+    ENTRY_STASH_PANEL(
+        titleRes = R.string.gesture_action_stash_panel,
+        descRes = R.string.external_invocation_entry_stash_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.Lightbulb,
     ),
     ;
 

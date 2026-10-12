@@ -187,8 +187,16 @@ class ActionExecutor(
                     OhoQuickToolsOverlayWindow.show(context, settings, resolvedSide, y)
                 }
             GestureAction.QuickMenu ->
-                overlayPanels.showStandaloneOverlay(anchorRawY) { y ->
-                    QuickMenuOverlayWindow.show(context, settings, resolvedSide, y)
+                // **打开 / 收起**：原来只有"打开"（show 幂等），所以手势再按一次没有任何反应。
+                // 收起后 Session 不再被丢弃（见 QuickMenuOverlayWindow.dismiss），所以再打开还停在原来那一页。
+                if (QuickMenuOverlayWindow.isShowing) {
+                    QuickMenuOverlayWindow.dismiss()
+                    // 与另一分支保持同一个返回类型（这个 when 的结果是 Boolean）
+                    true
+                } else {
+                    overlayPanels.showStandaloneOverlay(anchorRawY) { y ->
+                        QuickMenuOverlayWindow.show(context, settings, resolvedSide, y)
+                    }
                 }
             GestureAction.HoneycombLauncher ->
                 overlayPanels.showStandaloneOverlay(anchorRawY) { y ->

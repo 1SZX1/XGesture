@@ -29,6 +29,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission
         android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS"
@@ -417,6 +418,14 @@
         -->
         <receiver
             android:name=".overlay.quickmenu.QuickMenuTimerAlarmReceiver"
+            android:exported="false" />
+
+        <!--
+          定时提醒到点：发一条通知（标题就是用户输入的提醒内容）。
+          与倒计时分开的 request code（7302），互不干扰。
+        -->
+        <receiver
+            android:name=".overlay.quickmenu.QuickMenuReminderAlarmReceiver"
             android:exported="false" />
 
         <activity

@@ -4,6 +4,14 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import com.slideindex.app.di.OverlayDependencyAccess
+import com.slideindex.app.settings.FloatBallTranslateEngine
+import com.slideindex.app.translate.TranslateDependencyAccess
+import com.slideindex.app.translate.TranslateEngine
+import com.slideindex.app.translate.TranslateLanguageCatalog
+import com.slideindex.app.translate.TranslateResult
+import com.slideindex.app.translate.TranslateTargetResolver
+import com.slideindex.app.ui.translateTargetAutonym
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -670,6 +678,45 @@ internal fun QuickMenuQrGeneratorScreen() {
 
 // ---------------------------------------------------------------- 识码解析
 
+/**
+ * 拉起相机扫码并把结果落到当前页面。
+ *
+ * 抽成函数是因为**两个地方**都要用它：识码页的「相机扫码」按钮，以及菜单列表搜索框旁的扫码按钮
+ * （用户要"从顶部一键扫码"）。以前这段内联在按钮里，抽出后两处走同一条路，行为不会分叉。
+ */
+internal fun launchCameraScan(
+    context: Context,
+    onContentChange: (String) -> Unit,
+    onResultsChange: (List<BarcodeScanResult>) -> Unit,
+    onImageChange: (Bitmap?) -> Unit,
+) {
+    // 浮层必须先收起：无障碍覆盖层永远在最上层，不收起来相机预览会被它整个盖住。
+    QuickMenuOverlayWindow.suspendForExternalActivity()
+    QuickMenuScanActivity.launch(context) { scanned, scannedImage ->
+        QuickMenuOverlayWindow.resumeFromExternalActivity()
+        // ① 先把"锁定那一帧"的结果与定格图立刻显示出来：标记与图**同源**，天然对齐。
+        applyScanResults(context, scanned, scannedImage, onContentChange, onResultsChange, onImageChange)
+        // ② 再在这张**同一张图**上做一次全码制 + TRY_HARDER 的重扫，把同画面里其余的码补齐。
+        //    与选图/截屏走完全同一个函数，所以三条路的召回率一致；因为扫的是同一张图，标记也不会偏移。
+        if (scannedImage == null) return@launch
+        QuickMenuWork.launch {
+            val rescanned = withContext(Dispatchers.Default) { scanBarcodes(scannedImage) }
+            if (rescanned.isNotEmpty()) {
+                // **合并**而不是替换：重扫走的是另一套策略，它可能先命中别的码；直接替换会表现为
+                // "刚标出来的码又消失、改成标别的码"（真机反馈）。
+                applyScanResults(
+                    context = context,
+                    results = mergeScanResults(scanned, rescanned),
+                    image = scannedImage,
+                    onContentChange = onContentChange,
+                    onResultsChange = onResultsChange,
+                    onImageChange = onImageChange,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 internal fun QuickMenuScanDecoderScreen(
     content: String,
@@ -684,41 +731,7 @@ internal fun QuickMenuScanDecoderScreen(
     ToolScaffold {
         // 相机扫码是主操作。quickdash 的扫码页也是"打开就是取景器"，没有常驻输入框。
         Button(
-            onClick = {
-                // 浮层必须先收起：无障碍覆盖层永远在最上层，不收起来相机预览会被它整个盖住。
-                QuickMenuOverlayWindow.suspendForExternalActivity()
-                QuickMenuScanActivity.launch(context) { scanned, scannedImage ->
-                    QuickMenuOverlayWindow.resumeFromExternalActivity()
-                    // ① 先把"锁定那一帧"的结果与定格图立刻显示出来：标记与图**同源**，天然对齐。
-                    applyScanResults(
-                        context = context,
-                        results = scanned,
-                        image = scannedImage,
-                        onContentChange = onContentChange,
-                        onResultsChange = onResultsChange,
-                        onImageChange = onImageChange,
-                    )
-                    // ② 再在这张**同一张图**上做一次全码制 + TRY_HARDER 的重扫，把同画面里其余的码补齐。
-                    //    与选图/截屏走完全同一个函数，所以三条路的召回率一致；
-                    //    因为扫的是同一张图，补出来的标记也不会偏移。
-                    if (scannedImage == null) return@launch
-                    QuickMenuWork.launch {
-                        val rescanned = withContext(Dispatchers.Default) { scanBarcodes(scannedImage) }
-                        if (rescanned.isNotEmpty()) {
-                            // **合并**而不是替换：重扫走的是另一套策略（全码制 + TRY_HARDER + 两种二值化），
-                            // 它可能先命中别的码；直接替换会表现为"刚标出来的码又消失、改成标别的码"（真机反馈）。
-                            applyScanResults(
-                                context = context,
-                                results = mergeScanResults(scanned, rescanned),
-                                image = scannedImage,
-                                onContentChange = onContentChange,
-                                onResultsChange = onResultsChange,
-                                onImageChange = onImageChange,
-                            )
-                        }
-                    }
-                }
-            },
+            onClick = { launchCameraScan(context, onContentChange, onResultsChange, onImageChange) },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(imageVector = Icons.Filled.PhotoCamera, contentDescription = null)
@@ -940,6 +953,191 @@ private fun webUrlOfText(text: String): String? {
         trimmed.startsWith("www.", ignoreCase = true) -> "https://$trimmed"
         else -> null
     }
+}
+
+// ---------------------------------------------------------------- 翻译
+
+/**
+ * 翻译小工具：输入 → 翻译 → 结果（可复制）。
+ *
+ * 直接复用 App 既有的翻译链路（`TranslateService`：Google / ML Kit / 云端 LLM），**目标语言读的就是
+ * 「翻译」设置里那一项** —— 用户在悬浮球那边配好，这里不用再配一遍。
+ *
+ * 一个取舍：引擎设成「本地 App」时**不**照搬。那条路是"把文字交给另一个 App 去显示"，需要一个前台
+ * Activity 跟它交互，跟面板里的输入框不兼容；这里退化成离线可用的 ML Kit（本地、免费、无需配额）。
+ */
+/**
+ * 翻译页的**跨"收起/展开"状态**。
+ *
+ * 为什么不用 `remember`：收起面板会销毁窗口 → 组合被销毁 → `remember` 里的东西全丢 ✗
+ * （真机反馈："输入的文字收起再展开就没了"）。这里和 `QuickMenuTimerRuntime` / `QuickMenuPreferences`
+ * 同一个套路：**把状态放在组合之外**，窗口来去都不影响 ✓
+ */
+internal object QuickMenuTranslateState {
+    var input by mutableStateOf("")
+    var output by mutableStateOf("")
+    var detected by mutableStateOf<String?>(null)
+    var target by mutableStateOf("")
+}
+
+@Composable
+internal fun QuickMenuTranslateScreen() {
+    val context = LocalContext.current
+    val settings = remember(context) {
+        OverlayDependencyAccess.overlayDependencies(context)?.settingsRepository?.readSnapshot()
+    }
+    val languages = remember { TranslateLanguageCatalog.options }
+    // 目标语言标签用 App 既有的 `translateTargetAutonym`（**各语言用自己的语言写自己**：
+    // 日本語 / العربية / English…），与「取词面板翻译」和「ML Kit 语言包」两页完全一致。
+    // 不用 catalog 里的 `displayName` —— 那是硬编码英文 ✗
+    // ⚠️ 它是 @Composable，所以这里**不能**包在 remember{} 里（remember 的 lambda 不是组合作用域），
+    // 直接每次重组算一遍即可（13 条，极便宜）。
+    val targetOptions = languages.map { it.code to translateTargetAutonym(it.code) }
+    // 首帧用设置里那项回填（之后尊重用户在本页的手选，且能跨收起/展开保留）
+    if (QuickMenuTranslateState.target.isBlank()) {
+        QuickMenuTranslateState.target = settings?.let {
+            TranslateTargetResolver.resolve(it.floatBallTranslateTargetLang, it.appUiLanguageTag)
+        } ?: "en"
+    }
+
+    // 本次实际使用的引擎（**面板内**把「本地 App」退化成 ML Kit，所以显示的是真在用的那个）
+    val engine = when (settings?.floatBallTranslateEngine) {
+        FloatBallTranslateEngine.GOOGLE -> TranslateEngine.GOOGLE
+        FloatBallTranslateEngine.CLOUD_LLM -> TranslateEngine.CLOUD_LLM
+        FloatBallTranslateEngine.LOCAL_APP,
+        FloatBallTranslateEngine.ML_KIT,
+        null,
+        -> TranslateEngine.ML_KIT
+    }
+    val engineLabel = stringResource(
+        when (engine) {
+            TranslateEngine.GOOGLE -> R.string.float_ball_translate_engine_google
+            TranslateEngine.CLOUD_LLM -> R.string.float_ball_translate_engine_cloud
+            TranslateEngine.ML_KIT -> R.string.float_ball_translate_engine_mlkit
+        },
+    )
+    // 这两条是"这一次操作"的瞬时状态，跟着组合走即可（收起面板丢掉也不影响体验）
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+
+    ToolScaffold {
+        // 只留**目标语言**：源语言由引擎自己检测（三个引擎都支持，ML Kit 用 LanguageIdentification）。
+        // 有意不做"手动指定源语言"的下拉——现有引擎接口没有 source 参数，放了也是白选 ✗
+        // （要真做就得给 core 那层加参数，属于另一件事）。检测结果仍然会显示在译文上方。
+        // 注意 `DropdownBox` 是 `RowScope` 扩展（自己带权重），所以必须直接放在 Row 里。
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FieldLabel(stringResource(R.string.float_ball_translate_target_lang))
+            DropdownBox(
+                current = translateTargetAutonym(QuickMenuTranslateState.target),
+                options = targetOptions,
+                onSelect = { QuickMenuTranslateState.target = it },
+            )
+        }
+
+        OutlinedTextField(
+            value = QuickMenuTranslateState.input,
+            onValueChange = { QuickMenuTranslateState.input = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.quick_menu_translate_title)) },
+            minLines = 2,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    val pasted = clipboard?.primaryClip?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+                    if (pasted.isNotBlank()) QuickMenuTranslateState.input = pasted
+                },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.quick_menu_translate_paste))
+            }
+            Button(
+                onClick = {
+                    val text = QuickMenuTranslateState.input.trim()
+                    if (text.isEmpty() || busy) return@Button
+                    busy = true
+                    error = null
+                    // 与组合无关的作用域：翻译是挂起调用，期间面板可能被系统摘掉。
+                    QuickMenuWork.launch {
+                        val service = TranslateDependencyAccess.translateService(context)
+                        if (service == null) {
+                            busy = false
+                            return@launch
+                        }
+                        // 引擎内部自动检测源语言（Google 用 sl=auto、ML Kit 用 LanguageIdentification），
+                        // 检测结果由 TranslateResult.Success.detectedSourceLanguage 带回来显示。
+                        when (val result = service.translate(text, QuickMenuTranslateState.target, engine)) {
+                            is TranslateResult.Success -> {
+                                QuickMenuTranslateState.output = result.translatedText
+                                QuickMenuTranslateState.detected = result.detectedSourceLanguage
+                                error = null
+                            }
+                            is TranslateResult.Failure -> error = result.message
+                        }
+                        busy = false
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                enabled = QuickMenuTranslateState.input.isNotBlank() && !busy,
+            ) {
+                Text(stringResource(R.string.quick_menu_translate_action))
+            }
+        }
+        if (QuickMenuTranslateState.output.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            // 一行元信息，**不新增视觉元素**（就是原来那行的位置与小字灰）：
+            // `谁译的 · 源语言 → 目标语言`。源语言是引擎真实检测的结果（可能为空：云端 LLM 不回报），
+            // 为空时只显示 `谁译的 · → 目标语言`。
+            val sourceLabel = detectedLabel(QuickMenuTranslateState.detected)
+            val targetLabel = translateTargetAutonym(QuickMenuTranslateState.target)
+            Text(
+                text = if (sourceLabel != null) {
+                    "$engineLabel · $sourceLabel → $targetLabel"
+                } else {
+                    "$engineLabel · → $targetLabel"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ResultRow(text = QuickMenuTranslateState.output, copyLabel = "translate")
+        }
+        error?.let { message ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+
+
+/**
+ * 把引擎回报的源语言码转成"能看懂的自称"。
+ *
+ * 引擎给的码口径不一：Google 可能给 `zh-CN`，ML Kit 给它自己的 `zh`。所以按三步匹配目录：
+ * 完整码 → ML Kit 码 → 语言前缀；都匹配不到就原样显示（宁可显示 `xx`，也不要空白）。
+ */
+@Composable
+private fun detectedLabel(detected: String?): String? {
+    val code = detected?.takeIf { it.isNotBlank() } ?: return null
+    val catalogCode = TranslateLanguageCatalog.options.firstOrNull { it.code.equals(code, ignoreCase = true) }?.code
+        ?: TranslateLanguageCatalog.options.firstOrNull { it.mlKitLanguage.equals(code, ignoreCase = true) }?.code
+        ?: TranslateLanguageCatalog.options.firstOrNull {
+            it.code.substringBefore('-').equals(code, ignoreCase = true)
+        }?.code
+    return if (catalogCode != null) translateTargetAutonym(catalogCode) else code
 }
 
 // ---------------------------------------------------------------- 密码生成

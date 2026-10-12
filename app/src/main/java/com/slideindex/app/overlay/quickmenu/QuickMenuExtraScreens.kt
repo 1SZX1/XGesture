@@ -5,7 +5,11 @@ import android.content.ClipboardManager
 import android.content.Context
 import com.slideindex.app.di.OverlayDependencyAccess
 import com.slideindex.app.freezer.FreezerOverlayWindow
+import com.slideindex.app.overlay.FloatBallStashPanel
 import com.slideindex.app.overlay.ForegroundActivityInspectorOverlayWindow
+import com.slideindex.app.overlay.PinToScreenDialog
+import com.slideindex.app.overlay.StashPanelInitialTab
+import com.slideindex.app.overlay.searchpanel.SearchPanelOverlayWindow
 import com.slideindex.app.service.ShellCommandPanelTrampoline
 
 /**
@@ -51,6 +55,25 @@ internal fun quickMenuRunEntry(context: Context, tool: QuickMenuTool): Boolean =
             onPersist = { commands -> QuickMenuWork.launch { deps.settingsRepository.setShellCommands(commands) } },
         )
         true
+    }.getOrDefault(false)
+
+    // 把已有能力收进菜单：三处都是**直接复用既有入口**，不重写引擎。
+    QuickMenuTool.ENTRY_SEARCH_PANEL -> runCatching {
+        SearchPanelOverlayWindow.show(context)
+    }.getOrDefault(false)
+
+    QuickMenuTool.ENTRY_CLIPBOARD_PANEL -> runCatching {
+        // 与动作列表里的「打开剪贴板」走同一条路：侧边面板直接落在剪贴板那一页。
+        FloatBallStashPanel.toggle(context, initialTab = StashPanelInitialTab.Clipboard)
+    }.getOrDefault(false)
+
+    QuickMenuTool.ENTRY_PIN_TO_SCREEN -> runCatching {
+        PinToScreenDialog.show(context)
+    }.getOrDefault(false)
+
+    QuickMenuTool.ENTRY_STASH_PANEL -> runCatching {
+        //「闪念」= 侧边面板的另一档 tab（代码里叫 Stash，界面上叫 Ideas/闪念）
+        FloatBallStashPanel.toggle(context, initialTab = StashPanelInitialTab.Stash)
     }.getOrDefault(false)
 
     else -> false

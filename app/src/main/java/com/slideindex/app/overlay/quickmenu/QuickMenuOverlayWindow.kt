@@ -230,7 +230,13 @@ object QuickMenuOverlayWindow {
         }
     }
 
-    /** 关闭面板：先播退场动画，再拆窗口并丢弃 Session。 */
+    /**
+     * 关闭面板：先播退场动画，再拆窗口。
+     *
+     * **刻意不丢弃 Session**：它承载"当前在哪一页 / 搜索词 / 最近使用 / 识码结果与定格图"。
+     * 动作列表里那条是「打开/收起快捷菜单」（同一个手势切来切去），收起就等于清空的话，
+     * 每次打开都回到根页、刚扫到的东西也没了（真机反馈）。
+     */
     fun dismiss() {
         mainHandler.post {
             if (!host.isAttached) {
@@ -244,7 +250,7 @@ object QuickMenuOverlayWindow {
             mainHandler.postDelayed({
                 detachBackHandler()
                 host.destroy()
-                session = null
+                // Session 留着：下次 show 会复用，于是"收起再打开"仍停在原页、原搜索词、原识码结果。
                 suspendedForExternal = false
             }, DISMISS_ANIMATION_MS)
         }
