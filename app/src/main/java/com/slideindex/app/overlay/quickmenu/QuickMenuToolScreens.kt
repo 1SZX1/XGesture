@@ -51,7 +51,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -94,7 +93,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.slideindex.app.R
 import com.slideindex.app.barcode.QrCodeGenerator
-import com.slideindex.app.barcode.QrPayloadParser
 import com.slideindex.app.barcode.mergeScanResults
 import com.slideindex.app.barcode.BarcodeScanResult
 import com.slideindex.app.barcode.ScanOutcome
@@ -682,7 +680,6 @@ internal fun QuickMenuScanDecoderScreen(
     onImageChange: (Bitmap?) -> Unit,
 ) {
     val context = LocalContext.current
-    val parsed = remember(content) { if (content.isBlank()) null else QrPayloadParser.parse(content) }
 
     ToolScaffold {
         // 相机扫码是主操作。quickdash 的扫码页也是"打开就是取景器"，没有常驻输入框。
@@ -843,7 +840,7 @@ internal fun QuickMenuScanDecoderScreen(
                         .clickable { onContentChange(result.text) },
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -858,6 +855,9 @@ internal fun QuickMenuScanDecoderScreen(
                         if (selected) {
                             Icon(imageVector = Icons.Filled.Check, contentDescription = null)
                         }
+                        // 复制 / 转到挂在**每一条**上：以前这些操作在下面单独一块"解析详情"里，
+                        // 而那块和这里的候选列表看起来是"两块结果"，用户反馈看不出什么关系。
+                        ScanItemActions(text = result.text)
                     }
                 }
             }
@@ -868,55 +868,29 @@ internal fun QuickMenuScanDecoderScreen(
             )
         }
 
-        if (parsed != null) {
-            Text(
-                text = scanKindLabel(parsed.kind),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            // 识别出链接时给一个"转到"：这是扫码之后最常见的下一步。
-            // 文案复用既有的 `pick_result_open_link`（取词面板打开链接用的同一句），不新增字符串。
-            webUrlOf(parsed)?.let { url ->
-                FilledTonalButton(
-                    onClick = {
-                        // 浏览器会盖在我们上面，且用户可能不回来 → **只收起、不自动恢复**（与分享同一策略）
-                        QuickMenuOverlayWindow.hideForExternalShare()
-                        // 失败静默：只会出现在"没有任何应用能处理 http(s)"的极端机型上
-                        runCatching {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                            )
-                        }
-                    },
-                ) {
-                    Icon(imageVector = Icons.Filled.OpenInNew, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = stringResource(R.string.pick_result_open_link))
-                }
-            }
-            if (parsed.summary.isNotBlank()) {
-                ResultRow(text = parsed.summary, copyLabel = "scan")
-            }
-            parsed.fields.forEach { field ->
+        // 只有一个码（或选图/截屏只认出一个）时没有候选列表，这里给一行"内容 + 复制/转到"，
+        // 保证单码也能复制、也能一键打开链接。
+        if (results.size <= 1 && content.isNotBlank()) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = scanFieldLabel(field.id),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = field.value,
+                        text = content,
                         style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
+                    ScanItemActions(text = content)
                 }
             }
-            // 原文一并给出：方便核对、也方便转发给别的 App。
-            ResultRow(text = content, copyLabel = "scan-raw")
-        } else {
+        } else if (results.isEmpty()) {
             Text(
                 text = stringResource(R.string.quick_menu_scan_hint),
                 style = MaterialTheme.typography.bodySmall,
@@ -926,37 +900,47 @@ internal fun QuickMenuScanDecoderScreen(
     }
 }
 
-/** 解析结果类型 → 本地化标题。 */
+/**
+ * 一条识别结果上的操作：复制，以及（内容是 http/https 时）转到。
+ *
+ * 这两件事以前挂在屏幕底部那块"解析详情"里，而那块与上面的候选列表看起来是**两块结果**、
+ * 关系说不清（用户反馈："上面不是已经有找到 x 个码显示结果了吗"）。现在操作直接挂在每一条结果上，
+ * 界面只剩"找到的码 + 每项的操作"。转到按钮的文案复用既有的 `pick_result_open_link`，
+ * 不新增字符串。
+ */
 @Composable
-private fun scanKindLabel(kind: QrPayloadParser.Kind): String = stringResource(
-    when (kind) {
-        QrPayloadParser.Kind.WEB_URL -> R.string.quick_menu_scan_kind_web_url
-        QrPayloadParser.Kind.WIFI -> R.string.quick_menu_scan_kind_wifi
-        QrPayloadParser.Kind.CONTACT -> R.string.quick_menu_scan_kind_contact
-        QrPayloadParser.Kind.PHONE -> R.string.quick_menu_scan_kind_phone
-        QrPayloadParser.Kind.EMAIL -> R.string.quick_menu_scan_kind_email
-        QrPayloadParser.Kind.PRODUCT_BARCODE -> R.string.quick_menu_scan_kind_barcode
-        QrPayloadParser.Kind.PLAIN_TEXT -> R.string.quick_menu_scan_kind_plain
-    },
-)
+private fun ScanItemActions(text: String) {
+    val context = LocalContext.current
+    val url = remember(text) { webUrlOfText(text) }
+    IconButton(onClick = { copyToClipboard(context, "scan", text) }) {
+        Icon(imageVector = Icons.Filled.ContentCopy, contentDescription = null)
+    }
+    if (url != null) {
+        IconButton(onClick = {
+            // 浏览器会盖在我们上面，且用户可能不回来 → **只收起、不自动恢复**（与分享同一策略）
+            QuickMenuOverlayWindow.hideForExternalShare()
+            // 失败静默：只会出现在"没有任何应用能处理 http(s)"的极端机型上
+            runCatching {
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+        }) {
+            Icon(imageVector = Icons.Filled.OpenInNew, contentDescription = stringResource(R.string.pick_result_open_link))
+        }
+    }
+}
 
-/** 字段标识 → 本地化字段名（解析器刻意不内嵌文案，标签在这里落到各语言）。 */
-@Composable
-private fun scanFieldLabel(id: QrPayloadParser.FieldId): String = stringResource(
-    when (id) {
-        QrPayloadParser.FieldId.URL -> R.string.quick_menu_scan_field_url
-        QrPayloadParser.FieldId.HOST -> R.string.quick_menu_scan_field_host
-        QrPayloadParser.FieldId.SSID -> R.string.quick_menu_scan_field_ssid
-        QrPayloadParser.FieldId.SECURITY -> R.string.quick_menu_scan_field_security
-        QrPayloadParser.FieldId.PASSWORD -> R.string.quick_menu_scan_field_password
-        QrPayloadParser.FieldId.NAME -> R.string.quick_menu_scan_field_name
-        QrPayloadParser.FieldId.PHONE -> R.string.quick_menu_scan_field_phone
-        QrPayloadParser.FieldId.EMAIL -> R.string.quick_menu_scan_field_email
-        QrPayloadParser.FieldId.SUBJECT -> R.string.quick_menu_scan_field_subject
-        QrPayloadParser.FieldId.BARCODE -> R.string.quick_menu_scan_field_barcode
-        QrPayloadParser.FieldId.BARCODE_TYPE -> R.string.quick_menu_scan_field_barcode_type
-    },
-)
+/** 内容是可直接打开的链接时返回它（`www.` 开头会补成 https）；否则 null。 */
+private fun webUrlOfText(text: String): String? {
+    val trimmed = text.trim()
+    return when {
+        trimmed.startsWith("http://", ignoreCase = true) -> trimmed
+        trimmed.startsWith("https://", ignoreCase = true) -> trimmed
+        trimmed.startsWith("www.", ignoreCase = true) -> "https://$trimmed"
+        else -> null
+    }
+}
 
 // ---------------------------------------------------------------- 密码生成
 
@@ -1888,22 +1872,6 @@ private fun DrawScope.drawMarkerCorners(rect: Rect, color: Color) {
  * 重试拿到的是"旋转后那张图"的坐标，所以必须按**反方向**转回原图坐标系，否则标记会整体歪掉。
  * 旋转是逆变换：`rotatePoints(points, -degrees)`（`rotatePoint` 对负角度做了归一化）。
  */
-/**
- * 能从识别结果直接打开的链接（只认 `http`/`https`）。
- *
- * 有意不认其它协议：`tel:`/`mailto:`/`intent://` 这类要么会静默拨号、要么能触发任意跳转，
- * 交给用户自己复制出去处理更稳妥。
- */
-private fun webUrlOf(parsed: QrPayloadParser.Result?): String? {
-    // WebUrl 已经补全过协议（`www.` 开头会补成 https://），优先用它
-    if (parsed is QrPayloadParser.WebUrl) {
-        return parsed.url.takeIf { it.startsWith("http", ignoreCase = true) }
-    }
-    val raw = parsed?.raw?.trim().orEmpty()
-    val isWeb = raw.startsWith("http://", ignoreCase = true) ||
-        raw.startsWith("https://", ignoreCase = true)
-    return raw.takeIf { isWeb }
-}
 
 private fun scanBarcodes(bitmap: Bitmap): List<BarcodeScanResult> {
     val direct = runCatching { ZxingBarcodeScanner.scanBitmap(bitmap) }.getOrDefault(emptyList())
