@@ -64,6 +64,12 @@ internal fun QuickMenuReminderScreen() {
     var selectedMinutes by remember { mutableStateOf(REMINDER_MINUTES.first()) }
     var message by remember { mutableStateOf<String?>(null) }
     val needExactPermission = remember(context) { !QuickMenuReminderAlarm.canScheduleExact(context) }
+    // 资源读取留在**组合期**（stringResource 是 configuration-aware 的）：
+    // 在 onClick 回调里用 LocalContext.current 的 getString 会拿到过期值，lint 的
+    // LocalContextGetResourceValueCall 会直接判错、中断构建。
+    val notifyTitle = stringResource(R.string.quick_menu_reminder_notify_title)
+    val setDoneTemplate = stringResource(R.string.quick_menu_reminder_set_done)
+    val setFailed = stringResource(R.string.quick_menu_reminder_set_failed)
 
     ToolScaffold {
         OutlinedTextField(
@@ -93,12 +99,12 @@ internal fun QuickMenuReminderScreen() {
         Spacer(modifier = Modifier.height(8.dp))
         Button(
             onClick = {
-                val text = title.trim().ifEmpty { context.getString(R.string.quick_menu_reminder_notify_title) }
+                val text = title.trim().ifEmpty { notifyTitle }
                 val ok = QuickMenuReminderAlarm.schedule(context, text, selectedMinutes * 60_000L)
                 message = if (ok) {
-                    context.getString(R.string.quick_menu_reminder_set_done, "$selectedMinutes")
+                    setDoneTemplate.format("$selectedMinutes")
                 } else {
-                    context.getString(R.string.quick_menu_reminder_set_failed)
+                    setFailed
                 }
             },
             modifier = Modifier.fillMaxWidth(),
