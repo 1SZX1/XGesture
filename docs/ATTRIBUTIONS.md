@@ -18,6 +18,9 @@
 | `app/.../inspire/InspireFloating.kt` | `inspire/InspireFloating.kt` |
 | `app/.../inspire/ManagedBitmap.kt` | `inspire/ManagedBitmap.kt` |
 | `app/.../inspire/ui/InspireView.kt` | `inspire/ui/InspireView.kt` |
+| `app/.../inspire/ui/InspireViewCallback.kt` | `inspire/ui/InspireView.kt`（该文件内联的 interface `InspireViewCallBack`） |
+| `app/.../inspire/ScreenContentNode.kt` | `inspire/AccessibilityNodeManager.kt`（该文件内联的 data class） |
+| `app/.../inspire/InspireCoordinator.kt` | `inspire/InspireFloating.kt`（仅沿用 `processScreenContent` 并行取词骨架） |
 | `app/.../imageeditor/SlideIndexImageEditorActivity.kt` | `inspire/imageeditor/InspireImageEditorActivity.kt` |
 | `app/.../imageeditor/model/EditAction.kt` | `inspire/imageeditor/model/EditAction.kt` |
 | `app/.../imageeditor/model/EditorMode.kt` | `inspire/imageeditor/model/EditorMode.kt` |
@@ -58,7 +61,7 @@
 | `app/.../search/ImageSearchEngine.kt` | 同上 | 改编 | GPL-3.0 |
 | `app/.../overlay/FloatBallImageSearchPanel.kt` | 同上 | 思路+架构参考 | GPL-3.0 |
 | `app/.../overlay/FloatBallOverlay.kt` 等悬浮球取词 | [Nova Text](https://github.com/CashewTeam/BigBang_NovaText) | 交互思路 | GPL-3.0 |
-| `app/.../inspire/*`（悬浮球取词管线，10 个文件） | [GestureEVO](https://github.com/LumiaGG/GestureEVO) | 移植+改写（`InspireView`/`InspireFloating`/`InspireDataHolder`/`ManagedBitmap`/`AccessibilityNodeManager`/`BaseFloatingWindow` 等同名类） | GPL-3.0 |
+| `app/.../inspire/*`（悬浮球取词管线，10 个文件） | [GestureEVO](https://github.com/LumiaGG/GestureEVO) | 移植+改写（`InspireView`/`InspireFloating`/`InspireDataHolder`/`ManagedBitmap`/`AccessibilityNodeManager`/`BaseFloatingWindow` 等同名类；10 个文件的逐文件对应见上方 GestureEVO 对照表——其中 `InspireCoordinator.kt` 仅沿用 `processScreenContent` 并行取词骨架、`PickPrefetchCache.kt` 为本项目自研，其余 8 个为移植或派生） | GPL-3.0 |
 | `app/.../screensearch/*`（屏内搜索，6 个文件） | 同上 | 移植+改写（`ScreenSearchFloating`/`ScreenSearchHighlightView`/`ScreenSearchCapture` 有同名类或方法；搜索主循环与 `MAX_ATTEMPTS`/`MAX_CAPTURE_FAILURES`/`PRE_START_DELAY_MS`/`REVEAL_SCAN_RATIO` 等常量同源，本仓库另做了全屏遍历、滚动停稳判定与触底检测）；`ScreenSearchIndicatorCard`/`ScreenSearchPanelCard`/`ScreenSearchPanelState` **无对应，为本项目自研** | GPL-3.0 |
 | `app/.../service/SlideIndexAccessibilityGestureInjector.kt`（滚动观感） | 同上 | 行为对齐 | GPL-3.0 |
 | `app/.../imageeditor/*`（图片编辑器，26 个文件） | 同上 | **移植+改写**（`model/{EditAction,EditorMode}`、`state/EditorSession`、`ui/{BrushSizePreviewView,ShapeTypePreviewView,ImageEditorView}`、`utils/{EditorExportEngine,EditorRenderUtils}` 对应其 `inspire/imageeditor/*`；`ImageEditorView` 与其 `InspireImageEditorView` **71 个同名方法**，`SlideIndexImageEditorActivity` 与其 Activity **18 个同名方法**。其余（快捷工具、素材取色、钉图、共享拖拽、序号标注等）为本项目自研） | GPL-3.0 |
