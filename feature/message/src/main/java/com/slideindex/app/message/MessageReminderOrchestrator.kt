@@ -180,7 +180,7 @@ class MessageReminderOrchestrator @Inject constructor(
                     onDismiss = {},
                 )
             }
-        }, UNLOCK_OPEN_DELAY_MS)
+        }, resolveUnlockOpenDelayMs(settings))
     }
 
     private fun openPendingMessage(context: Context, data: NotificationData) {
@@ -305,7 +305,5 @@ class MessageReminderOrchestrator @Inject constructor(
 
     private companion object {
         const val TAG = "MessageReminder"
-        /** 解锁后稍作延迟再打开，避免与桌面/解锁动画竞争。 */
-        const val UNLOCK_OPEN_DELAY_MS = 900L
     }
 }

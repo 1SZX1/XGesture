@@ -511,6 +511,8 @@ internal object SettingsPreferenceKeys {
     val MESSAGE_OPEN_LAST_ON_UNLOCK = booleanPreferencesKey("message_open_last_on_unlock")
     val MESSAGE_OPEN_LAST_ALWAYS_PACKAGES =
         stringSetPreferencesKey("message_open_last_always_packages")
+    /** 解锁后等待多久再打开最后一条消息（毫秒）。 */
+    val MESSAGE_UNLOCK_OPEN_DELAY_MS = intPreferencesKey("message_unlock_open_delay_ms")
     val MESSAGE_UNLOCK_CONFIRMATION_AUTO_DISMISS_SECONDS =
         intPreferencesKey("message_unlock_confirmation_auto_dismiss_seconds")
     /** 锁屏期间到达的消息，其悬浮球提醒保留到解锁后再显示。 */

@@ -87,6 +87,8 @@
     <string name="message_reminder_unlock_confirm_always_allow">このアプリを常に許可</string>
     <string name="message_reminder_unlock_confirm_cancel">キャンセル</string>
     <string name="message_reminder_unlock_confirm_open">開く</string>
+    <string name="message_reminder_unlock_open_delay">ロック解除後の遅延</string>
+    <string name="message_reminder_unlock_open_delay_desc">ロック解除後、メッセージを開くまでの待ち時間。0 ミリ秒は即時に開きます（ロック解除アニメーションと競合する場合があります）</string>
     <string name="message_reminder_unlock_auto_dismiss">確認ダイアログの自動非表示</string>
     <string name="message_reminder_unlock_auto_dismiss_desc">確認ダイアログの表示時間。0 は自動非表示しません</string>
     <string name="message_reminder_unlock_auto_dismiss_never">しない</string>
@@ -1254,7 +1256,7 @@
     <string name="quick_menu_scan_capture_failed">スクリーンショットに失敗しました（エラー %1$d）</string>
     <string name="quick_menu_scan_no_code_found">この画像から QR コードまたはバーコードを検出できませんでした</string>
     <string name="quick_menu_scan_candidates">%1$d 個のコードを検出</string>
-    <string name="quick_menu_scan_candidates_hint">タップすると解析結果を表示します</string>
+    <string name="quick_menu_scan_candidates_hint">画像上のマーカーまたは下の項目をタップすると結果を表示します</string>
     <string name="quick_menu_scan_torch">ライト</string>
     <string name="quick_menu_scan_close">閉じる</string>
     <string name="quick_menu_scan_capture">画面をキャプチャ</string>

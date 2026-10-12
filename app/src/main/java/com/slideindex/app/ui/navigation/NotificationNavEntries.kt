@@ -362,6 +362,7 @@ fun NavEntryBuilder.notificationNavEntries(ctx: MainNavContext) {
             onAlwaysAllowChange = viewModel::setMessageOpenLastAlways,
             onUnlockConfirmationAutoDismissSecondsChange =
                 viewModel::setMessageUnlockConfirmationAutoDismissSeconds,
+            onUnlockOpenDelayMsChange = viewModel::setMessageUnlockOpenDelayMs,
         )
     }
 

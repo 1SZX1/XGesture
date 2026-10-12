@@ -5,6 +5,7 @@ import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.gesture.GestureRule
 import com.slideindex.app.gesture.GestureTriggerType
 import com.slideindex.app.gesture.TriggerHandle
+import com.slideindex.app.message.MessageSettings
 import com.slideindex.app.overlay.PanelSide
 import com.slideindex.app.otp.OtpKeywords
 import com.slideindex.app.shake.ShakeGestureType
@@ -326,6 +327,32 @@ class SettingsMutatorsTest {
         repository.removeFreezerApp("com.example.app")
         val afterRemove = awaitSettings { !it.freezerAppIntents.containsKey("com.example.app") }
         assertFalse(afterRemove.freezerAppIntents.containsKey("com.example.app"))
+    }
+
+    @Test
+    fun messageUnlockOpenDelayMs_clampsToRange() = runBlocking {
+        repository.setMessageUnlockOpenDelayMs(-100)
+        assertEquals(
+            0,
+            awaitSettings { it.messageReminderSettings.unlockOpenDelayMs == 0 }
+                .messageReminderSettings.unlockOpenDelayMs,
+        )
+
+        repository.setMessageUnlockOpenDelayMs(9_999)
+        val max = MessageSettings.MAX_UNLOCK_OPEN_DELAY_MS
+        assertEquals(
+            max,
+            awaitSettings { it.messageReminderSettings.unlockOpenDelayMs == max }
+                .messageReminderSettings.unlockOpenDelayMs,
+        )
+    }
+
+    @Test
+    fun messageUnlockOpenDelayMs_defaultsTo900ms() = runBlocking {
+        assertEquals(
+            MessageSettings.DEFAULT_UNLOCK_OPEN_DELAY_MS,
+            awaitSettings().messageReminderSettings.unlockOpenDelayMs,
+        )
     }
 }
 

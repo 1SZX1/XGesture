@@ -1130,6 +1130,10 @@ internal object SettingsSnapshotReader {
             unlockConfirmationAutoDismissSeconds =
                 (prefs[SettingsPreferenceKeys.MESSAGE_UNLOCK_CONFIRMATION_AUTO_DISMISS_SECONDS] ?: 3)
                     .coerceIn(0, 30),
+            unlockOpenDelayMs =
+                (prefs[SettingsPreferenceKeys.MESSAGE_UNLOCK_OPEN_DELAY_MS]
+                    ?: MessageSettings.DEFAULT_UNLOCK_OPEN_DELAY_MS)
+                    .coerceIn(0, MessageSettings.MAX_UNLOCK_OPEN_DELAY_MS),
             keepFloatIconAfterUnlock =
                 prefs[SettingsPreferenceKeys.MESSAGE_KEEP_FLOAT_ICON_AFTER_UNLOCK] ?: false,
         )

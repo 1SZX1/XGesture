@@ -260,6 +260,12 @@ class MessageSettingsMutator @Inject constructor(
                 seconds.coerceIn(0, 30)
         }
 
+    suspend fun setMessageUnlockOpenDelayMs(millis: Int) =
+        editor.edit {
+            it[SettingsPreferenceKeys.MESSAGE_UNLOCK_OPEN_DELAY_MS] =
+                millis.coerceIn(0, MessageSettings.MAX_UNLOCK_OPEN_DELAY_MS)
+        }
+
     suspend fun setMessageOpenLastAlways(packageName: String, enabled: Boolean) = editor.edit { prefs ->
         val packages = (prefs[SettingsPreferenceKeys.MESSAGE_OPEN_LAST_ALWAYS_PACKAGES] ?: emptySet()).toMutableSet()
         if (enabled) packages.add(packageName) else packages.remove(packageName)

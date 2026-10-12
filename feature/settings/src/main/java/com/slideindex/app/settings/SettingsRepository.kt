@@ -1111,6 +1111,8 @@ class SettingsRepository @Inject constructor(
         message.setMessageKeepFloatIconAfterUnlock(enabled)
     suspend fun setMessageUnlockConfirmationAutoDismissSeconds(seconds: Int) =
         message.setMessageUnlockConfirmationAutoDismissSeconds(seconds)
+    suspend fun setMessageUnlockOpenDelayMs(millis: Int) =
+        message.setMessageUnlockOpenDelayMs(millis)
     suspend fun setMessageOpenLastAlways(packageName: String, enabled: Boolean) =
         message.setMessageOpenLastAlways(packageName, enabled)
     suspend fun upsertMessageAppFilterRule(rule: MessageAppFilterRule) = message.upsertMessageAppFilterRule(rule)

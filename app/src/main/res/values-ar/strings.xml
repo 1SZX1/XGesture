@@ -87,6 +87,8 @@
     <string name="message_reminder_unlock_confirm_always_allow">السماح دائماً لهذا التطبيق</string>
     <string name="message_reminder_unlock_confirm_cancel">إلغاء</string>
     <string name="message_reminder_unlock_confirm_open">فتح</string>
+    <string name="message_reminder_unlock_open_delay">التأخير بعد إلغاء القفل</string>
+    <string name="message_reminder_unlock_open_delay_desc">مدة الانتظار بعد إلغاء القفل قبل فتح الرسالة؛ 0 مللي ثانية يعني الفتح فوراً (قد يتعارض مع حركة إلغاء القفل)</string>
     <string name="message_reminder_unlock_auto_dismiss">اختفاء نافذة التأكيد التلقائي</string>
     <string name="message_reminder_unlock_auto_dismiss_desc">تعيين مدة عرض نافذة التأكيد، 0 ثانية تعني عدم الاختفاء التلقائي</string>
     <string name="message_reminder_unlock_auto_dismiss_never">أبداً</string>
@@ -1237,7 +1239,7 @@
     <string name="quick_menu_scan_capture_failed">فشل أخذ لقطة الشاشة (رمز الخطأ %1$d)</string>
     <string name="quick_menu_scan_no_code_found">لم يُعثر على رمز QR أو باركود في هذه الصورة</string>
     <string name="quick_menu_scan_candidates">تم العثور على %1$d رموز</string>
-    <string name="quick_menu_scan_candidates_hint">اضغط على أحدها لعرض نتيجته</string>
+    <string name="quick_menu_scan_candidates_hint">اضغط على علامة في الصورة أو على أحد العناصر أدناه لعرض النتيجة</string>
     <string name="quick_menu_scan_torch">المصباح</string>
     <string name="quick_menu_scan_close">إغلاق</string>
     <string name="quick_menu_scan_capture">التقاط الشاشة</string>

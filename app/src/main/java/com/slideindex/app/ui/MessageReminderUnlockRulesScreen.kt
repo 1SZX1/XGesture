@@ -35,6 +35,7 @@ fun MessageReminderUnlockRulesScreen(
     onBack: () -> Unit,
     onAlwaysAllowChange: (String, Boolean) -> Unit,
     onUnlockConfirmationAutoDismissSecondsChange: (Int) -> Unit,
+    onUnlockOpenDelayMsChange: (Int) -> Unit,
 ) {
     val allApps by collectLaunchableAppsAsState()
     var searchQuery by remember { mutableStateOf("") }
@@ -42,10 +43,13 @@ fun MessageReminderUnlockRulesScreen(
     val neverDismissLabel = stringResource(R.string.message_reminder_unlock_auto_dismiss_never)
     val unlockRulesDesc = stringResource(R.string.message_reminder_open_last_rules_desc_page)
     val unlockAutoDismissDesc = stringResource(R.string.message_reminder_unlock_auto_dismiss_desc)
+    val unlockOpenDelayDesc = stringResource(R.string.message_reminder_unlock_open_delay_desc)
     val autoDismissTitle = stringResource(R.string.message_reminder_unlock_auto_dismiss)
+    val openDelayTitle = stringResource(R.string.message_reminder_unlock_open_delay)
     val alwaysAllowSectionTitle = stringResource(R.string.message_reminder_open_last_rules_always)
     val emptyAppsText = stringResource(R.string.message_reminder_open_last_rules_empty)
     val autoDismissSeconds = settings.unlockConfirmationAutoDismissSeconds
+    val openDelayMs = settings.unlockOpenDelayMs
 
     val apps = remember(allApps, settings.enabledPackages, searchQuery) {
         val query = searchQuery.trim().lowercase()
@@ -71,12 +75,28 @@ fun MessageReminderUnlockRulesScreen(
             text = unlockRulesDesc,
         )
         settingsLazyHint(
+            key = "unlock-open-delay-desc",
+            text = unlockOpenDelayDesc,
+        )
+        settingsLazyHint(
             key = "unlock-auto-dismiss-desc",
             text = unlockAutoDismissDesc,
         )
         groupedCardItems(
             keyPrefix = "unlock-confirm-dismiss",
             items = listOf(
+                settingsCardScopeItem("open-delay") {
+                    SettingsSliderRow(
+                        title = openDelayTitle,
+                        value = openDelayMs.toFloat(),
+                        valueRange = 0f..MessageSettings.MAX_UNLOCK_OPEN_DELAY_MS.toFloat(),
+                        steps = UNLOCK_OPEN_DELAY_STEPS,
+                        enabled = controlsEnabled,
+                        label = "${openDelayMs}ms",
+                        formatLabel = { millis -> "${millis.toInt()}ms" },
+                        onValueChange = { onUnlockOpenDelayMsChange(it.toInt()) },
+                    )
+                },
                 settingsCardScopeItem("auto-dismiss") {
                     SettingsSliderRow(
                         title = autoDismissTitle,
@@ -145,3 +165,6 @@ fun MessageReminderUnlockRulesScreen(
         }
     }
 }
+
+/** 解锁后延迟滑杆的档位数：0–1500ms 按 100ms 一档（steps = 档数 - 1）。 */
+private const val UNLOCK_OPEN_DELAY_STEPS = 14

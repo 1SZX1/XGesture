@@ -116,6 +116,8 @@
     <string name="message_reminder_unlock_confirm_always_allow">Always allow this app</string>
     <string name="message_reminder_unlock_confirm_cancel">Cancel</string>
     <string name="message_reminder_unlock_confirm_open">Open</string>
+    <string name="message_reminder_unlock_open_delay">Delay before opening</string>
+    <string name="message_reminder_unlock_open_delay_desc">How long to wait after unlock before opening the message; 0 ms opens immediately (may compete with the unlock animation)</string>
     <string name="message_reminder_unlock_auto_dismiss">Auto-dismiss confirmation</string>
     <string name="message_reminder_unlock_auto_dismiss_desc">How long to show the confirmation dialog; 0 means never auto-dismiss</string>
     <string name="message_reminder_unlock_auto_dismiss_never">Never</string>
@@ -2391,7 +2393,7 @@
     <string name="quick_menu_scan_capture_failed">Screenshot failed (error %1$d)</string>
     <string name="quick_menu_scan_no_code_found">No QR code or barcode found in this image</string>
     <string name="quick_menu_scan_candidates">Found %1$d codes</string>
-    <string name="quick_menu_scan_candidates_hint">Tap one to view its decoded result</string>
+    <string name="quick_menu_scan_candidates_hint">Tap a marker on the image or an entry below to view its result</string>
     <string name="quick_menu_scan_torch">Torch</string>
     <string name="quick_menu_scan_close">Close</string>
     <string name="quick_menu_scan_capture">Capture screen</string>

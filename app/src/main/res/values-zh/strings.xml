@@ -87,6 +87,8 @@
     <string name="message_reminder_unlock_confirm_always_allow">始终允许此应用</string>
     <string name="message_reminder_unlock_confirm_cancel">取消</string>
     <string name="message_reminder_unlock_confirm_open">打开</string>
+    <string name="message_reminder_unlock_open_delay">解锁后延迟</string>
+    <string name="message_reminder_unlock_open_delay_desc">解锁后等待多久再打开消息，0 毫秒表示立即打开（可能与解锁动画竞争）</string>
     <string name="message_reminder_unlock_auto_dismiss">确认弹窗自动消失</string>
     <string name="message_reminder_unlock_auto_dismiss_desc">设置确认弹窗显示多久，0 秒表示不自动消失</string>
     <string name="message_reminder_unlock_auto_dismiss_never">永不</string>
@@ -1263,7 +1265,7 @@
     <string name="quick_menu_scan_capture_failed">截屏失败（错误码 %1$d）</string>
     <string name="quick_menu_scan_no_code_found">这张图里没有识别到二维码或条码</string>
     <string name="quick_menu_scan_candidates">找到 %1$d 个码</string>
-    <string name="quick_menu_scan_candidates_hint">点一条查看它的解析结果</string>
+    <string name="quick_menu_scan_candidates_hint">点图上的标记或下面的条目查看解析结果</string>
     <string name="quick_menu_scan_torch">手电筒</string>
     <string name="quick_menu_scan_close">关闭</string>
     <string name="quick_menu_scan_capture">截屏识别</string>

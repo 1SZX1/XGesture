@@ -1,5 +1,6 @@
 package com.slideindex.app.message
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,6 +39,28 @@ class LastMessageUnlockPolicyTest {
                 settings = MessageSettings(enabled = true, openLastMessageOnUnlock = true),
                 pendingUnlockMessage = null,
             ),
+        )
+    }
+
+    @Test
+    fun openDelay_defaultsTo900ms() {
+        assertEquals(
+            MessageSettings.DEFAULT_UNLOCK_OPEN_DELAY_MS.toLong(),
+            resolveUnlockOpenDelayMs(MessageSettings()),
+        )
+    }
+
+    @Test
+    fun openDelay_keepsUserValue() {
+        assertEquals(150L, resolveUnlockOpenDelayMs(MessageSettings(unlockOpenDelayMs = 150)))
+    }
+
+    @Test
+    fun openDelay_clampsOutOfRangeValues() {
+        assertEquals(0L, resolveUnlockOpenDelayMs(MessageSettings(unlockOpenDelayMs = -50)))
+        assertEquals(
+            MessageSettings.MAX_UNLOCK_OPEN_DELAY_MS.toLong(),
+            resolveUnlockOpenDelayMs(MessageSettings(unlockOpenDelayMs = 9_999)),
         )
     }
 

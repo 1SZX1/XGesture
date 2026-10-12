@@ -59,6 +59,10 @@ class MessageSettingsViewModel @Inject constructor(
         settingsRepository.setMessageUnlockConfirmationAutoDismissSeconds(seconds)
     }
 
+    fun setMessageUnlockOpenDelayMs(millis: Int) = launchSettingsWrite {
+        settingsRepository.setMessageUnlockOpenDelayMs(millis)
+    }
+
     fun setMessageOpenLastAlways(packageName: String, enabled: Boolean) = launchSettingsWrite {
         settingsRepository.setMessageOpenLastAlways(packageName, enabled)
     }
