@@ -24,8 +24,10 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -303,6 +305,7 @@ class QuickMenuScanActivity : ComponentActivity() {
      *
      * ⚠️ 必须**始终** `proxy.close()`：不关会让分析流水线停住（表现为画面卡住、再也不出结果）。
      */
+    @OptIn(ExperimentalGetImage::class)
     private fun handleFrame(proxy: ImageProxy) {
         try {
             if (delivered || decoding) return
