@@ -2,14 +2,20 @@ package com.slideindex.app.overlay.quickmenu
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AcUnit
+import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.CurrencyExchange
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.HourglassBottom
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Straighten
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.Timelapse
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.slideindex.app.R
@@ -25,6 +31,12 @@ enum class QuickMenuGroup(@StringRes val titleRes: Int) {
     TEXT(R.string.quick_menu_section_text),
     SECURITY(R.string.quick_menu_section_security),
     TIME(R.string.quick_menu_section_time),
+
+    /** 日常小工具（计算器、取色…）。 */
+    TOOL(R.string.quick_menu_section_tool),
+
+    /** 应用已有的功能/面板入口（前台活动探测、Shell 面板、冰箱…）。 */
+    ACTION(R.string.quick_menu_section_action),
 }
 
 /**
@@ -97,6 +109,47 @@ enum class QuickMenuTool(
         descRes = R.string.quick_menu_history_desc,
         group = QuickMenuGroup.TIME,
         icon = Icons.Outlined.History,
+    ),
+
+    // ---- 实用工具（不是"转换/识别"，就是日常小工具）----
+    CALCULATOR(
+        titleRes = R.string.quick_menu_calc_title,
+        descRes = R.string.quick_menu_calc_desc,
+        group = QuickMenuGroup.TOOL,
+        icon = Icons.Outlined.Calculate,
+    ),
+    POMODORO(
+        titleRes = R.string.quick_menu_pomodoro_title,
+        descRes = R.string.quick_menu_pomodoro_desc,
+        group = QuickMenuGroup.TIME,
+        icon = Icons.Outlined.Timelapse,
+    ),
+    COLOR_PICKER(
+        titleRes = R.string.quick_menu_color_title,
+        descRes = R.string.quick_menu_color_desc,
+        group = QuickMenuGroup.TOOL,
+        icon = Icons.Outlined.Colorize,
+    ),
+
+    // ---- 应用已有的功能/面板：**预置入口**，点一下即打开，不需要任何配置 ----
+    // 这三项不是"工具"，是把 App 里本来就要翻好几层才找得到的东西直接收进菜单。
+    ENTRY_FOREGROUND_ACTIVITY(
+        titleRes = R.string.gesture_action_foreground_activity_inspector,
+        descRes = R.string.quick_menu_entry_fg_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.Info,
+    ),
+    ENTRY_FREEZER(
+        titleRes = R.string.gesture_action_freezer_panel,
+        descRes = R.string.quick_menu_entry_freezer_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.AcUnit,
+    ),
+    ENTRY_SHELL_PANEL(
+        titleRes = R.string.gesture_action_shell_command_panel,
+        descRes = R.string.quick_menu_entry_shell_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.Terminal,
     ),
     ;
 

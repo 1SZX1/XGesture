@@ -269,15 +269,21 @@ object QuickMenuOverlayWindow {
                     onScanResultsChange = { current.scanResults.value = it },
                     onScanImageChange = { current.scanImage.value = it },
                     onOpenTool = { tool ->
-                        current.page.value = tool
-                        // 乐观更新：先用本地顺序刷 UI，再异步落盘（写失败也不影响本次使用）。
-                        current.recents.value = QuickMenuRecentsCodec.record(current.recents.value, tool)
-                        scope.launch {
-                            val saved = QuickMenuRecentsStore.record(
-                                hostContext.applicationContext,
-                                tool,
-                            )
-                            if (saved.isNotEmpty()) current.recents.value = saved
+                        // **预置入口**（前台活动探测、冰箱…）：点一下就直接打开对应面板，并收起本菜单。
+                        // 刻意**不切页**：这类项没有自己的界面，切过去只会留一个空白子页面（真机反馈"何意味"）。
+                        if (quickMenuRunEntry(hostContext, tool)) {
+                            hideForExternalShare()
+                        } else {
+                            current.page.value = tool
+                            // 乐观更新：先用本地顺序刷 UI，再异步落盘（写失败也不影响本次使用）。
+                            current.recents.value = QuickMenuRecentsCodec.record(current.recents.value, tool)
+                            scope.launch {
+                                val saved = QuickMenuRecentsStore.record(
+                                    hostContext.applicationContext,
+                                    tool,
+                                )
+                                if (saved.isNotEmpty()) current.recents.value = saved
+                            }
                         }
                     },
                     onBack = { current.page.value = null },

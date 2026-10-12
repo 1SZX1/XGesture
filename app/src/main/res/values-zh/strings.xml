@@ -1156,6 +1156,17 @@
     <string name="quick_menu_section_text">文本</string>
     <string name="quick_menu_section_security">安全</string>
     <string name="quick_menu_section_time">计时</string>
+    <string name="quick_menu_section_tool">实用工具</string>
+    <string name="quick_menu_section_action">应用功能</string>
+    <string name="quick_menu_calc_title">计算器</string>
+    <string name="quick_menu_calc_desc">直接算表达式，结果可复制</string>
+    <string name="quick_menu_pomodoro_title">番茄钟</string>
+    <string name="quick_menu_pomodoro_desc">专注 25 分钟，休息 5 分钟</string>
+    <string name="quick_menu_color_title">屏幕取色</string>
+    <string name="quick_menu_color_desc">截图后点一下取色值，可复制</string>
+    <string name="quick_menu_entry_fg_desc">查看当前前台应用与活动</string>
+    <string name="quick_menu_entry_freezer_desc">打开冰箱（冻结/挂起应用）</string>
+    <string name="quick_menu_entry_shell_desc">打开 Shell 命令面板</string>
     <string name="quick_menu_no_match">没有匹配的工具</string>
     <string name="quick_menu_back">返回</string>
     <string name="quick_menu_unit_title">单位换算</string>

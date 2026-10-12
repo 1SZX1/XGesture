@@ -162,7 +162,7 @@ private const val ENTROPY_FULL_SCALE_BITS = 128
 private const val SCREENSHOT_HIDE_DELAY_MS = 120L
 
 @Composable
-private fun ToolScaffold(content: @Composable ColumnScope.() -> Unit) {
+internal fun ToolScaffold(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()

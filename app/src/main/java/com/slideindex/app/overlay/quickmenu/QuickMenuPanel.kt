@@ -403,5 +403,13 @@ private fun QuickMenuToolScreen(
         QuickMenuTool.STOPWATCH -> QuickMenuStopwatchScreen()
         QuickMenuTool.COUNTDOWN -> QuickMenuCountdownScreen()
         QuickMenuTool.TIMER_HISTORY -> QuickMenuHistoryScreen()
+        QuickMenuTool.CALCULATOR -> QuickMenuCalculatorScreen()
+        QuickMenuTool.POMODORO -> QuickMenuPomodoroScreen()
+        QuickMenuTool.COLOR_PICKER -> QuickMenuColorPickerScreen()
+        // 预置入口**不切页**（点击处已直接执行并收起菜单），这里只是让 when 穷尽
+        QuickMenuTool.ENTRY_FOREGROUND_ACTIVITY,
+        QuickMenuTool.ENTRY_FREEZER,
+        QuickMenuTool.ENTRY_SHELL_PANEL,
+        -> Unit
     }
 }
