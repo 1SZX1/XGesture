@@ -43,7 +43,18 @@ XGesture（`com.slideindex.app`）在 [GNU Affero General Public License v3.0](L
 - **License:** [GNU General Public License v3.0](app/src/main/assets/licenses/GPL-3.0.txt)
 - **Source:** https://github.com/CashewTeam/BigBang_NovaText
 - **Used in:** 悬浮球取词、无障碍文本提取与 OCR 降级等交互思路（无直接代码移植）
-- **Note:** XGesture 悬浮球主实现参考 GestureEVO / FooView 路线；与 Nova Text 属同类产品思路借鉴
+- **Note:** XGesture 悬浮球主实现参考 GestureEVO / FooView 路线；与 Nova Text 属同类产品思路借鉴（GestureEVO 已开源，另见下一条）
+
+---
+
+## GestureEVO
+
+- **Copyright:** GestureEVO contributors
+- **License:** [GNU General Public License v3.0](app/src/main/assets/licenses/GPL-3.0.txt)（项目标注 GPL-3.0-only）
+- **Source:** https://github.com/LumiaGG/GestureEVO
+- **Used in:** 悬浮球取词管线（`inspire/`：`InspireView`、`InspireFloating`、`InspireDataHolder`、`ManagedBitmap`、`AccessibilityNodeManager`、`BaseFloatingWindow` 等，类职责与模块划分沿用该项目）、无障碍手势注入的观感对齐（`SlideIndexAccessibilityGestureInjector`）、图片编辑器的交互风格参考
+- **Modifications:** 以 Kotlin 集成至 XGesture 取词与手势管线；按本项目的数据模型、设置体系与主题改写；构建与依赖替换为本仓库体系
+- **Note:** GestureEVO 的 `inspire/` 内含 `BigBang*` 类，其取词交互应源自 BigBang / Nova Text 一脉（本项目对二者的参考见上一条）
 
 ---
 
