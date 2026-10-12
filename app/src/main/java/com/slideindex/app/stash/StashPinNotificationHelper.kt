@@ -41,15 +41,42 @@ internal object StashPinNotificationHelper {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         saveSnapshot(context, snapshot, displayBitmap, richImageBitmaps)
         ensureChannel(context)
+        NotificationManagerCompat.from(context).notify(
+            NOTIFICATION_ID,
+            buildNotification(context, displayBitmap, title)
+        )
+    }
+
+    /**
+     * 只换标题：内容 OCR 回来原地刷新用。
+     * 图片直接沿用 [saveSnapshot] 落下的 PNG（不重写缓存）；渠道本身是静默的，所以不会二次提醒。
+     */
+    fun updatePinNotificationTitle(context: Context, title: String) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+        val image = pinImageFile(context)
+            ?.let { file -> runCatching { BitmapFactory.decodeFile(file.absolutePath) }.getOrNull() }
+            ?: return
+        ensureChannel(context)
+        NotificationManagerCompat.from(context).notify(
+            NOTIFICATION_ID,
+            buildNotification(context, image, title)
+        )
+    }
+
+    private fun buildNotification(
+        context: Context,
+        displayBitmap: Bitmap,
+        title: String
+    ): android.app.Notification {
         val contentIntent = PendingIntent.getActivity(
             context,
             RESTORE_REQUEST_CODE,
-            android.content.Intent(context, PinNotificationRestoreTrampolineActivity::class.java).apply {
+            Intent(context, PinNotificationRestoreTrampolineActivity::class.java).apply {
                 action = ACTION_RESTORE_PIN
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(context.getString(R.string.stash_pin_notification_text))
@@ -58,7 +85,6 @@ internal object StashPinNotificationHelper {
             .setAutoCancel(true)
             .setSilent(true)
             .build()
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
     }
 
     fun restoreToScreenPin(context: Context) {

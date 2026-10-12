@@ -20,6 +20,8 @@ import android.os.Looper
 import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -30,12 +32,14 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -93,6 +97,8 @@ import com.slideindex.app.clipboard.ClipboardEntry
 import com.slideindex.app.clipboard.ClipboardImageStore
 import com.slideindex.app.clipboard.resolvedContentBlocks
 import com.slideindex.app.di.OverlayDependencyAccess
+import com.slideindex.app.ocr.OcrDependencyAccess
+import com.slideindex.app.ocr.OcrEngines
 import com.slideindex.app.overlay.history.HistoryCardSnapshot
 import com.slideindex.app.overlay.history.recordHistoryCardSnapshot
 import com.slideindex.app.overlay.history.rememberHistoryCardSnapshot
@@ -104,8 +110,12 @@ import com.slideindex.app.stash.StashPinNotificationHelper
 import com.slideindex.app.stash.resolvedContentBlocks
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.math.abs
 import kotlin.math.max
@@ -133,10 +143,31 @@ private const val EDGE_DOCK_SIZE_DP = 50f
 private const val EDGE_SNAP_ANIM_MS = 200L
 private const val PIN_CONTROL_BAR_MIN_WIDTH_DP = 188f
 private const val PIN_CONTROL_BAR_SLOT_HEIGHT_DP = 56f
-private const val DROP_TARGET_HIT_SLOP_DP = 10f
-private const val DROP_TARGET_CHIP_WIDTH_DP = 100f
-private const val DROP_TARGET_CHIP_HEIGHT_DP = 52f
-private const val DROP_TARGET_EDGE_PADDING_DP = 8f
+/** 命中容错：只在贴边标签的**内侧**外扩这么多；值越大越容易和贴边吸附抢手势。 */
+private const val DROP_TARGET_HIT_SLOP_DP = 4f
+/** 手指在同一投放口里驻留这么久才"武装"（放大 + 实色），松手才认投放。 */
+private const val DROP_TARGET_ARM_DELAY_MS = 140L
+/**
+ * 三个投放口的尺寸；必须和 [ScreenPinDropTargets] 里的 dp 值、[computeFallbackDropBounds] 完全一致。
+ * 半隐：顶部/底部只露上/下一半、右侧只露左一半，所以「半隐方向」的尺寸是 **可见尺寸 × 2**。
+ */
+private const val DROP_TARGET_NOTIFY_WIDTH_DP = 168f
+private const val DROP_TARGET_NOTIFY_HEIGHT_DP = 64f
+private const val DROP_TARGET_STASH_WIDTH_DP = 136f
+private const val DROP_TARGET_STASH_HEIGHT_DP = 104f
+private const val DROP_TARGET_DELETE_WIDTH_DP = 176f
+private const val DROP_TARGET_DELETE_HEIGHT_DP = 64f
+/** 静止态半透明、被手指压住才完全不透明；武装后再放大 —— 两级反馈。 */
+private const val DROP_TARGET_IDLE_ALPHA = 0.6f
+private const val DROP_TARGET_ARMED_SCALE = 1.1f
+/** 入场/退场：从各自贴着的那条边滑进来、滑出去。 */
+private const val DROP_TARGET_ENTER_MS = 140
+private const val DROP_TARGET_ENTER_SLIDE_DP = 12f
+/** 退场动画播完（加一点余量）才把常驻的投放层窗口置为 GONE。 */
+private const val DROP_TARGET_EXIT_HIDE_DELAY_MS = DROP_TARGET_ENTER_MS + 40L
+/** 通知标题用钉图内容 OCR：大图必须先降采样，标题也限长。 */
+private const val NOTIFICATION_OCR_MAX_EDGE_PX = 1280
+private const val NOTIFICATION_TITLE_MAX_CHARS = 24
 
 private fun pinOverlayFlags(): Int {
     return WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
@@ -257,11 +288,33 @@ internal fun measureTextPinSizePx(
     return (contentW + paddingPx * 2) to (contentH + paddingPx * 2)
 }
 
+/** 投放口贴的安全线：状态栏 / 导航栏 / 刘海所占的那几段不算可投放区。 */
+private class DropTargetInsets(
+    val topPx: Int = 0,
+    val bottomPx: Int = 0,
+    val rightPx: Int = 0,
+)
+
 private class DropOverlayState {
     var deleteBounds: Rect = Rect()
     var notifyBounds: Rect = Rect()
     var stashBounds: Rect = Rect()
+    var insets: DropTargetInsets = DropTargetInsets()
+
+    /** 可投放区（整屏去掉安全线），随 [insets] 一起算好，拖动中不再反复新建。 */
+    var usable: Rect = Rect()
+
+    /** 手指当前压住的投放口：立刻点亮（半透明 → 不透明）。 */
     val highlighted = mutableStateOf(ScreenPinDropZone.NONE)
+
+    /** 压住且已驻留够 [DROP_TARGET_ARM_DELAY_MS] 的投放口：放大 + 实色，松手才认。 */
+    val armed = mutableStateOf(ScreenPinDropZone.NONE)
+
+    /**
+     * 本次拖动是否处于显示中：三个口由它一起驱动（false→true 滑入、true→false 滑出）。
+     * 投放层窗口现在常驻，所以退场动画播完之前不能把窗口拆掉。
+     */
+    val visible = mutableStateOf(false)
 }
 
 object ScreenPinManager {
@@ -274,6 +327,32 @@ object ScreenPinManager {
     private var dropOverlay: DropOverlayState? = null
     private var dropComposeView: ComposeView? = null
     private var dropOwner: OverlayComposeOwner? = null
+
+    /** 当前正被压住/已武装的投放口，用来实现「松手只认武装过的口」。 */
+    private var armedDropZone = ScreenPinDropZone.NONE
+    private var armedAtMs = 0L
+
+    /**
+     * 驻留到点后把 [DropOverlayState.armed] 置上。
+     * 手指停在投放口上不动时不会再有 MOVE 事件，必须靠这个延时兜底。
+     */
+    private val armDropTargetRunnable = Runnable {
+        val overlay = dropOverlay ?: return@Runnable
+        val zone = overlay.highlighted.value
+        if (zone != ScreenPinDropZone.NONE && zone == armedDropZone) {
+            overlay.armed.value = zone
+        }
+    }
+
+    /** 退场动画播完后把常驻的投放层窗口藏起来；期间若又开始了新拖动，就不藏。 */
+    private val hideDropOverlayViewRunnable = Runnable {
+        if (dropOverlay?.visible?.value != true) {
+            dropComposeView?.visibility = View.GONE
+        }
+    }
+
+    /** 通知标题的补 OCR（不阻塞发通知）。 */
+    private val ocrScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun pinText(context: Context, text: String) {
         val trimmed = text.trim()
@@ -491,7 +570,7 @@ object ScreenPinManager {
             return
         }
         pins.keys.toList().forEach { removePin(it) }
-        hideDropOverlay()
+        destroyDropOverlay()
     }
 
     private fun addPin(
@@ -800,6 +879,8 @@ object ScreenPinManager {
         appContext?.let { PinDragHelper.releaseCache(it, pinId) }
         if (pins.isEmpty()) {
             unregisterScreenOffReceiver()
+            // 没有钉图了：常驻的投放层窗口一起拆掉，别留一个整屏 overlay 挂在那。
+            destroyDropOverlay()
         }
     }
 
@@ -814,7 +895,10 @@ object ScreenPinManager {
 
     private fun finishPinDrag(pinId: String, fingerX: Float, fingerY: Float) {
         val instance = pins[pinId] ?: return
-        val zone = resolveDropZone(fingerX, fingerY)
+        // 只有"驻留够时长"的投放口才认投放：手指顺路扫过（其实想贴边吸附）不会被误投。
+        val underFinger = resolveDropZone(fingerX, fingerY)
+        val accepted = dropOverlay?.armed?.value ?: ScreenPinDropZone.NONE
+        val zone = if (underFinger == accepted) accepted else ScreenPinDropZone.NONE
         when (zone) {
             ScreenPinDropZone.STASH -> stashPin(pinId)
             ScreenPinDropZone.DELETE -> removePin(pinId)
@@ -825,38 +909,68 @@ object ScreenPinManager {
 
     private fun resolveDropZone(fingerX: Float, fingerY: Float): ScreenPinDropZone {
         val overlay = dropOverlay ?: return ScreenPinDropZone.NONE
-        val metrics = appContext?.resources?.displayMetrics
-        val fallback = metrics?.let { computeFallbackDropBounds(it) }
+        val metrics = appContext?.resources?.displayMetrics ?: return ScreenPinDropZone.NONE
+        ensureDropBoundsReady(overlay, metrics)
+        val usable = overlay.usable
         val overlayView = dropComposeView
         val x = fingerX.roundToInt()
         val y = fingerY.roundToInt()
-        val delete = screenDropBounds(overlayView, overlay.deleteBounds, fallback?.deleteBounds)
-        val notify = screenDropBounds(overlayView, overlay.notifyBounds, fallback?.notifyBounds)
-        val stash = screenDropBounds(overlayView, overlay.stashBounds, fallback?.stashBounds)
-        if (delete != null && hitDropTarget(delete, x, y, metrics)) return ScreenPinDropZone.DELETE
-        if (notify != null && hitDropTarget(notify, x, y, metrics)) return ScreenPinDropZone.NOTIFICATION
-        if (stash != null && hitDropTarget(stash, x, y, metrics)) return ScreenPinDropZone.STASH
+        val delete = screenDropBounds(overlayView, overlay.deleteBounds)
+        val notify = screenDropBounds(overlayView, overlay.notifyBounds)
+        val stash = screenDropBounds(overlayView, overlay.stashBounds)
+        if (delete != null && hitDropTarget(delete, x, y, metrics, usable)) return ScreenPinDropZone.DELETE
+        if (notify != null && hitDropTarget(notify, x, y, metrics, usable)) return ScreenPinDropZone.NOTIFICATION
+        if (stash != null && hitDropTarget(stash, x, y, metrics, usable)) return ScreenPinDropZone.STASH
         return ScreenPinDropZone.NONE
     }
 
-    private fun screenDropBounds(
-        overlayView: ComposeView?,
-        boundsInOverlay: Rect,
-        fallback: Rect?
-    ): Rect? {
-        if (overlayView != null && !boundsInOverlay.isEmpty) {
-            return overlayBoundsToScreen(overlayView, boundsInOverlay)
-        }
-        return fallback?.takeUnless { it.isEmpty }
+    /**
+     * Compose 首次上报 bounds 之前的兜底：只算一次。
+     * 拖动中每个 MOVE 事件都会走 [resolveDropZone]，不能在那里反复新建 Rect / 状态对象。
+     */
+    private fun ensureDropBoundsReady(overlay: DropOverlayState, metrics: DisplayMetrics) {
+        if (!overlay.notifyBounds.isEmpty) return
+        val fallback = computeFallbackDropBounds(metrics, overlay.insets)
+        overlay.notifyBounds = fallback.notifyBounds
+        overlay.deleteBounds = fallback.deleteBounds
+        overlay.stashBounds = fallback.stashBounds
+        overlay.usable = fallback.usable
     }
 
-    private fun hitDropTarget(bounds: Rect, x: Int, y: Int, metrics: DisplayMetrics?): Boolean {
+    /** 可投放区：整屏去掉状态栏 / 导航栏 / 刘海那几条安全线。 */
+    private fun usableDropArea(metrics: DisplayMetrics, insets: DropTargetInsets): Rect =
+        Rect(
+            0,
+            insets.topPx.coerceIn(0, metrics.heightPixels),
+            (metrics.widthPixels - insets.rightPx).coerceIn(0, metrics.widthPixels),
+            (metrics.heightPixels - insets.bottomPx).coerceIn(0, metrics.heightPixels)
+        )
+
+    private fun screenDropBounds(overlayView: ComposeView?, boundsInOverlay: Rect): Rect? {
+        if (boundsInOverlay.isEmpty) return null
+        // overlay 窗口就是整屏 (0,0)，Compose 上报的和兜底的矩形都在同一套屏幕坐标里。
+        return overlayView?.let { overlayBoundsToScreen(it, boundsInOverlay) }
+    }
+
+    /**
+     * 命中判定：矩形先和 [usable] 求交（贴进状态栏/导航栏里的部分不算），再只往**屏内**扩
+     * [DROP_TARGET_HIT_SLOP_DP]。外扩被夹在可用区里，所以贴着安全线的那条边不会多出一圈误触带。
+     */
+    private fun hitDropTarget(
+        bounds: Rect,
+        x: Int,
+        y: Int,
+        metrics: DisplayMetrics?,
+        usable: Rect
+    ): Boolean {
         if (bounds.isEmpty) return false
         val slop = metrics?.let { (DROP_TARGET_HIT_SLOP_DP * it.density).roundToInt() } ?: 0
-        return x >= bounds.left - slop &&
-            x <= bounds.right + slop &&
-            y >= bounds.top - slop &&
-            y <= bounds.bottom + slop
+        val left = (bounds.left - slop).coerceAtLeast(usable.left)
+        val top = (bounds.top - slop).coerceAtLeast(usable.top)
+        val right = (bounds.right + slop).coerceAtMost(usable.right)
+        val bottom = (bounds.bottom + slop).coerceAtMost(usable.bottom)
+        if (right <= left || bottom <= top) return false
+        return x >= left && x < right && y >= top && y < bottom
     }
 
     private fun stashPin(pinId: String) {
@@ -919,8 +1033,9 @@ object ScreenPinManager {
     private fun postPinToNotification(pinId: String) {
         val instance = pins[pinId] ?: return
         val context = appContext ?: return
+        val content = instance.content
         val snapshot = buildNotificationSnapshot(instance)
-        val (title, displayBitmap) = when (val content = instance.content) {
+        val (title, displayBitmap) = when (content) {
             is PinContent.Image -> {
                 context.getString(R.string.stash_pin_notification_title) to content.bitmap
             }
@@ -936,7 +1051,63 @@ object ScreenPinManager {
         }
         StashPinNotificationHelper.postPinSnapshot(context, snapshot, displayBitmap, title)
         Toast.makeText(context, R.string.stash_pin_notification_posted, Toast.LENGTH_SHORT).show()
+        // 图片类钉图身上没有文本可带 → 先按通用标题发出去，再异步 OCR 出内容**原地刷新**标题。
+        // 拿的是降采样副本：钉图本身紧接着就会被 removePin 回收。
+        val ocrSource = content.ocrTitleSourceBitmap()
         removePin(pinId)
+        if (ocrSource != null) {
+            ocrScope.launch {
+                val text = recognizeNotificationTitle(context, ocrSource)
+                ocrSource.recycle()
+                if (!text.isNullOrBlank()) {
+                    StashPinNotificationHelper.updatePinNotificationTitle(context, text)
+                }
+            }
+        }
+    }
+
+    /**
+     * 需要补 OCR 的钉图内容 → 一份降采样副本；已经有文本的（Text / 带文本块的 Rich）返回 null。
+     * 副本由调用方负责 recycle。
+     */
+    private fun PinContent.ocrTitleSourceBitmap(): Bitmap? {
+        if (this is PinContent.Text) return null
+        if (this is PinContent.Rich && richCombinedText(blocks).isNotBlank()) return null
+        val source = when (this) {
+            is PinContent.Image -> bitmap
+            is PinContent.Rich -> blocks.filterIsInstance<PinDisplayBlock.Image>().firstOrNull()?.bitmap
+            is PinContent.Text -> null
+        } ?: return null
+        val maxEdge = max(source.width, source.height).coerceAtLeast(1)
+        if (maxEdge <= NOTIFICATION_OCR_MAX_EDGE_PX) {
+            return runCatching { source.copy(Bitmap.Config.ARGB_8888, false) }.getOrNull()
+        }
+        val scale = NOTIFICATION_OCR_MAX_EDGE_PX.toFloat() / maxEdge
+        val targetW = (source.width * scale).roundToInt().coerceAtLeast(1)
+        val targetH = (source.height * scale).roundToInt().coerceAtLeast(1)
+        return runCatching { Bitmap.createScaledBitmap(source, targetW, targetH, true) }.getOrNull()
+    }
+
+    /**
+     * 拿钉图内容 OCR 出一行能当通知标题的文字。
+     * 复用取词那条 PP-OCR 链路；模型没选 / 不是 PP-OCR / 识别为空都返回 null（保持通用标题）。
+     */
+    private suspend fun recognizeNotificationTitle(context: Context, bitmap: Bitmap): String? {
+        val modelId = OverlayDependencyAccess.overlayDependencies(context)
+            ?.settingsRepository
+            ?.readSnapshot()
+            ?.floatBallOcrModelId
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        if (OcrDependencyAccess.catalogProvider(context)?.findModel(modelId)?.engine != OcrEngines.PPOCR) {
+            return null
+        }
+        val inference = OcrDependencyAccess.inferenceService(context) ?: return null
+        val lines = runCatching { inference.recognizePpOcrLines(modelId, bitmap) }.getOrNull() ?: return null
+        return lines.asSequence()
+            .map { it.text.trim() }
+            .firstOrNull { line -> line.any { it.isLetterOrDigit() } }
+            ?.take(NOTIFICATION_TITLE_MAX_CHARS)
     }
 
     private fun buildNotificationSnapshot(instance: PinInstance): PinNotificationSnapshot {
@@ -1219,47 +1390,104 @@ object ScreenPinManager {
         instance.params.height = panelH
     }
 
-    private fun computeFallbackDropBounds(metrics: DisplayMetrics): DropOverlayState {
-        val chipW = (DROP_TARGET_CHIP_WIDTH_DP * metrics.density).roundToInt()
-        val chipH = (DROP_TARGET_CHIP_HEIGHT_DP * metrics.density).roundToInt()
-        val edge = (DROP_TARGET_EDGE_PADDING_DP * metrics.density).roundToInt()
+    /**
+     * 投放口贴的三条安全线：状态栏/刘海的上沿、导航栏/刘海的下沿、右侧刘海。
+     * 取 `max(可见栏位, 刘海)`：沉浸全屏时贴回物理边缘，有刘海时不会被挖孔吃掉。
+     */
+    private fun resolveDropTargetInsets(context: Context): DropTargetInsets {
+        val wm = context.getSystemService(WindowManager::class.java) ?: return DropTargetInsets()
+        val windowInsets = wm.currentWindowMetrics.windowInsets
+        val bars = windowInsets.getInsets(
+            WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+        )
+        val cutout = windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.displayCutout())
+        return DropTargetInsets(
+            topPx = max(bars.top, cutout.top),
+            bottomPx = max(bars.bottom, cutout.bottom),
+            rightPx = max(bars.right, cutout.right)
+        )
+    }
+
+    /**
+     * Compose 还没上报 bounds 时用的兜底矩形：尺寸必须和 [ScreenPinDropTargets] 里的一致。
+     * 三个口分别贴顶部 / 底部 / 右侧安全线。
+     */
+    private fun computeFallbackDropBounds(
+        metrics: DisplayMetrics,
+        insets: DropTargetInsets
+    ): DropOverlayState {
+        val d = metrics.density
+        val notifyW = (DROP_TARGET_NOTIFY_WIDTH_DP * d).roundToInt()
+        val notifyH = (DROP_TARGET_NOTIFY_HEIGHT_DP * d).roundToInt()
+        val stashW = (DROP_TARGET_STASH_WIDTH_DP * d).roundToInt()
+        val stashH = (DROP_TARGET_STASH_HEIGHT_DP * d).roundToInt()
+        val deleteW = (DROP_TARGET_DELETE_WIDTH_DP * d).roundToInt()
+        val deleteH = (DROP_TARGET_DELETE_HEIGHT_DP * d).roundToInt()
         val screenW = metrics.widthPixels
         val screenH = metrics.heightPixels
+        val top = insets.topPx.coerceIn(0, screenH)
+        val bottom = (screenH - insets.bottomPx).coerceIn(0, screenH)
+        val right = (screenW - insets.rightPx).coerceIn(0, screenW)
         return DropOverlayState().apply {
+            this.insets = insets
+            usable = usableDropArea(metrics, insets)
+            // 半隐：三个矩形都故意跨过各自的安全线一半，命中时和 [usable] 求交后只剩屏内那半。
             notifyBounds = Rect(
-                edge,
-                screenH / 2 - chipH / 2,
-                edge + chipW,
-                screenH / 2 + chipH / 2
+                screenW / 2 - notifyW / 2,
+                top - notifyH / 2,
+                screenW / 2 + notifyW / 2,
+                top + notifyH / 2
             )
             deleteBounds = Rect(
-                screenW / 2 - chipW / 2,
-                screenH - edge - chipH,
-                screenW / 2 + chipW / 2,
-                screenH - edge
+                screenW / 2 - deleteW / 2,
+                bottom - deleteH / 2,
+                screenW / 2 + deleteW / 2,
+                bottom + deleteH / 2
             )
             stashBounds = Rect(
-                screenW - edge - chipW,
-                screenH / 2 - chipH / 2,
-                screenW - edge,
-                screenH / 2 + chipH / 2
+                right - stashW / 2,
+                screenH / 2 - stashH / 2,
+                right + stashW / 2,
+                screenH / 2 + stashH / 2
             )
         }
     }
 
+    /**
+     * 让投放层显示出来。窗口本身**常驻**（有钉图期间一直挂着，空闲只 GONE）：
+     * 只有第一次拖动会建窗，之后每次拖动只把 [DropOverlayState.visible] 置上，
+     * 由它驱动三个口滑入；退场同理见 [hideDropOverlay]。
+     */
     private fun showDropOverlay() {
-        if (dropComposeView != null) return
         val context = appContext ?: return
         val wm = windowManager ?: return
+        val state = dropOverlay ?: ensureDropOverlayAttached(context, wm) ?: return
+        resetDropTargetArm()
+        state.highlighted.value = ScreenPinDropZone.NONE
+        dropComposeView?.visibility = View.VISIBLE
+        state.visible.value = true
+    }
+
+    /** 首次拖动时把投放层窗口挂上，之后一直复用。挂不上返回 null（这次没有投放口，但不影响拖动本身）。 */
+    private fun ensureDropOverlayAttached(context: Context, wm: WindowManager): DropOverlayState? {
+        dropComposeView?.let { return dropOverlay }
         val metrics = context.resources.displayMetrics
-        val state = computeFallbackDropBounds(metrics)
+        val insets = resolveDropTargetInsets(context)
+        val state = computeFallbackDropBounds(metrics, insets)
         val owner = OverlayComposeOwner()
         val composeView = OverlayCompose.createComposeView(context, owner)
         composeView.setContent {
             OverlayAwareModuleTheme {
                 val highlighted by state.highlighted
+                val armed by state.armed
+                val visible by state.visible
                 ScreenPinDropTargets(
                     highlighted = highlighted,
+                    armed = armed,
+                    visible = visible,
+                    topInsetPx = insets.topPx,
+                    bottomInsetPx = insets.bottomPx,
+                    rightInsetPx = insets.rightPx,
                     onDeleteBounds = { state.deleteBounds = it },
                     onNotifyBounds = { state.notifyBounds = it },
                     onStashBounds = { state.stashBounds = it }
@@ -1282,19 +1510,66 @@ object ScreenPinManager {
         val added = runCatching { wm.addView(composeView, params) }.isSuccess
         if (!added) {
             owner.destroy()
-            return
+            return null
         }
+        composeView.visibility = View.GONE
         dropOverlay = state
         dropComposeView = composeView
         dropOwner = owner
+        return state
     }
 
+    /**
+     * 拖动过程中更新投放口的两级状态：
+     * 1. [DropOverlayState.highlighted]：手指当前压住的口 → 立刻点亮（有反馈）；
+     * 2. [DropOverlayState.armed]：同一口连续压住 [DROP_TARGET_ARM_DELAY_MS] 之后才"武装"（放大 + 实色）。
+     *
+     * 松手时只认已武装的口（见 [finishPinDrag]）：想贴边吸附时手指顺路扫过投放口不会被误投。
+     */
     private fun updateDropHighlight(fingerX: Float, fingerY: Float) {
-        dropOverlay?.highlighted?.value = resolveDropZone(fingerX, fingerY)
+        val overlay = dropOverlay ?: return
+        val zone = resolveDropZone(fingerX, fingerY)
+        overlay.highlighted.value = zone
+        if (zone == armedDropZone) {
+            if (zone != ScreenPinDropZone.NONE &&
+                overlay.armed.value != zone &&
+                System.currentTimeMillis() - armedAtMs >= DROP_TARGET_ARM_DELAY_MS
+            ) {
+                overlay.armed.value = zone
+            }
+            return
+        }
+        armedDropZone = zone
+        armedAtMs = System.currentTimeMillis()
+        overlay.armed.value = ScreenPinDropZone.NONE
+        mainHandler.removeCallbacks(armDropTargetRunnable)
+        if (zone != ScreenPinDropZone.NONE) {
+            mainHandler.postDelayed(armDropTargetRunnable, DROP_TARGET_ARM_DELAY_MS)
+        }
+    }
+
+    /** 拖拽结束 / 取消时清掉驻留状态与延时回调。 */
+    private fun resetDropTargetArm() {
+        mainHandler.removeCallbacks(armDropTargetRunnable)
+        armedDropZone = ScreenPinDropZone.NONE
+        armedAtMs = 0L
+        dropOverlay?.armed?.value = ScreenPinDropZone.NONE
     }
 
     private fun hideDropOverlay() {
+        resetDropTargetArm()
         dropOverlay?.highlighted?.value = ScreenPinDropZone.NONE
+        val state = dropOverlay ?: return
+        // 常驻窗口：先播退场动画，播完再 GONE（不销毁，下次拖动直接复用）。
+        state.visible.value = false
+        mainHandler.removeCallbacks(hideDropOverlayViewRunnable)
+        mainHandler.postDelayed(hideDropOverlayViewRunnable, DROP_TARGET_EXIT_HIDE_DELAY_MS)
+    }
+
+    /** 真正拆掉常驻窗口：最后一个钉图消失、或【关闭全部钉图】时调用。 */
+    private fun destroyDropOverlay() {
+        mainHandler.removeCallbacks(hideDropOverlayViewRunnable)
+        dropOverlay?.visible?.value = false
         val view = dropComposeView
         val owner = dropOwner
         if (view != null) {
@@ -1724,39 +1999,78 @@ private suspend fun PointerInputScope.detectPinDragAndTap(
     }
 }
 
+/** 贴边标签圆哪两角：顶上垂下来的圆下面、底下的圆上面、右侧的圆左边。 */
+private enum class DropTargetCorners { TOP, BOTTOM, START }
+
 @Composable
 private fun ScreenPinDropTargets(
     highlighted: ScreenPinDropZone,
+    armed: ScreenPinDropZone,
+    visible: Boolean,
+    topInsetPx: Int,
+    bottomInsetPx: Int,
+    rightInsetPx: Int,
     onDeleteBounds: (Rect) -> Unit,
     onNotifyBounds: (Rect) -> Unit,
     onStashBounds: (Rect) -> Unit
 ) {
-    val stashActive = highlighted == ScreenPinDropZone.STASH
-    val deleteActive = highlighted == ScreenPinDropZone.DELETE
-    val notifyActive = highlighted == ScreenPinDropZone.NOTIFICATION
+    val density = LocalDensity.current
     Box(modifier = Modifier.fillMaxSize()) {
+        // 「通知」放顶上：**半隐**贴着状态栏/刘海的下沿，只露下半截，像从顶边垂下来的一片标签。
         DropTargetChip(
             text = stringResource(R.string.stash_drop_target_notification),
+            widthDp = DROP_TARGET_NOTIFY_WIDTH_DP,
+            heightDp = DROP_TARGET_NOTIFY_HEIGHT_DP,
+            corners = DropTargetCorners.BOTTOM,
+            danger = false,
+            hovered = highlighted == ScreenPinDropZone.NOTIFICATION,
+            armed = armed == ScreenPinDropZone.NOTIFICATION,
+            visible = visible,
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 8.dp),
-            active = notifyActive,
+                .align(Alignment.TopCenter)
+                .offset(
+                    y = with(density) {
+                        topInsetPx.toDp() - (DROP_TARGET_NOTIFY_HEIGHT_DP / 2).dp
+                    }
+                ),
             onBoundsInWindow = onNotifyBounds
         )
+        // 「删除」常驻危险色，**半隐**贴着导航栏上沿，只露上半截。
         DropTargetChip(
             text = stringResource(R.string.stash_drop_target_delete),
+            widthDp = DROP_TARGET_DELETE_WIDTH_DP,
+            heightDp = DROP_TARGET_DELETE_HEIGHT_DP,
+            corners = DropTargetCorners.TOP,
+            danger = true,
+            hovered = highlighted == ScreenPinDropZone.DELETE,
+            armed = armed == ScreenPinDropZone.DELETE,
+            visible = visible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 8.dp),
-            active = deleteActive,
+                .offset(
+                    y = with(density) {
+                        (DROP_TARGET_DELETE_HEIGHT_DP / 2).dp - bottomInsetPx.toDp()
+                    }
+                ),
             onBoundsInWindow = onDeleteBounds
         )
+        // 「暂存」贴右边缘的竖长条，**半隐**在屏幕右侧之外，只露左半截。
         DropTargetChip(
             text = stringResource(R.string.stash_drop_target_stash),
+            widthDp = DROP_TARGET_STASH_WIDTH_DP,
+            heightDp = DROP_TARGET_STASH_HEIGHT_DP,
+            corners = DropTargetCorners.START,
+            danger = false,
+            hovered = highlighted == ScreenPinDropZone.STASH,
+            armed = armed == ScreenPinDropZone.STASH,
+            visible = visible,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 8.dp),
-            active = stashActive,
+                .offset(
+                    x = with(density) {
+                        (DROP_TARGET_STASH_WIDTH_DP / 2).dp - rightInsetPx.toDp()
+                    }
+                ),
             onBoundsInWindow = onStashBounds
         )
     }
@@ -1765,20 +2079,60 @@ private fun ScreenPinDropTargets(
 @Composable
 private fun DropTargetChip(
     text: String,
+    widthDp: Float,
+    heightDp: Float,
+    corners: DropTargetCorners,
+    danger: Boolean,
+    hovered: Boolean,
+    armed: Boolean,
+    visible: Boolean,
     modifier: Modifier = Modifier,
-    active: Boolean,
     onBoundsInWindow: (Rect) -> Unit
 ) {
-    val bg = if (active) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f)
+    val radius = 20.dp
+    val shape = when (corners) {
+        DropTargetCorners.TOP -> RoundedCornerShape(topStart = radius, topEnd = radius)
+        DropTargetCorners.BOTTOM -> RoundedCornerShape(bottomStart = radius, bottomEnd = radius)
+        DropTargetCorners.START -> RoundedCornerShape(topStart = radius, bottomStart = radius)
     }
-    val fg = if (active) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+    val container = when {
+        danger -> MaterialTheme.colorScheme.error
+        armed -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
+    val content = when {
+        danger -> MaterialTheme.colorScheme.onError
+        armed -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val stroke = if (danger) content.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant
+    // 半隐之后有一半在屏幕外/状态栏后面，文字只能待在**可见的那一半**里。
+    val labelAlign = when (corners) {
+        DropTargetCorners.BOTTOM -> Alignment.BottomCenter
+        DropTargetCorners.TOP -> Alignment.TopCenter
+        DropTargetCorners.START -> Alignment.CenterStart
+    }
+    val labelPadding = when (corners) {
+        DropTargetCorners.BOTTOM -> PaddingValues(start = 12.dp, end = 12.dp, bottom = 8.dp)
+        DropTargetCorners.TOP -> PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp)
+        DropTargetCorners.START -> PaddingValues(start = 10.dp, end = 6.dp)
+    }
+
+    // 一次拖动 = 一次 0→1（滑入）与 1→0（滑出）：窗口常驻后不能用"首次组合"来触发动画。
+    // 注意变量名不能叫 scale/alpha —— 那会撞上 GraphicsLayerScope 的同名成员。
+    val progress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(DROP_TARGET_ENTER_MS)
+    )
+    val chipScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (armed) DROP_TARGET_ARMED_SCALE else 1f,
+        animationSpec = androidx.compose.animation.core.tween(DROP_TARGET_ENTER_MS)
+    )
+    val chipAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (hovered || armed) 1f else DROP_TARGET_IDLE_ALPHA,
+        animationSpec = androidx.compose.animation.core.tween(DROP_TARGET_ENTER_MS)
+    )
+
     Box(
         modifier = modifier.onGloballyPositioned { coords ->
             val bounds = coords.boundsInParent()
@@ -1793,13 +2147,33 @@ private fun DropTargetChip(
         }
     ) {
         Box(
-            Modifier
-                .shadow(8.dp, RoundedCornerShape(20.dp))
-                .clip(RoundedCornerShape(20.dp))
-                .background(bg)
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+            modifier = Modifier
+                .size(widthDp.dp, heightDp.dp)
+                .graphicsLayer {
+                    // 缩放/位移都走 graphicsLayer：不动 layout，上面上报的命中矩形保持稳定。
+                    val slide = (1f - progress) * DROP_TARGET_ENTER_SLIDE_DP.dp.toPx()
+                    translationX = if (corners == DropTargetCorners.START) slide else 0f
+                    translationY = when (corners) {
+                        DropTargetCorners.TOP -> -slide
+                        DropTargetCorners.BOTTOM -> slide
+                        DropTargetCorners.START -> 0f
+                    }
+                    scaleX = chipScale
+                    scaleY = chipScale
+                    this.alpha = chipAlpha * progress
+                }
+                .clip(shape)
+                .background(container)
+                .border(2.dp, stroke, shape),
+            contentAlignment = labelAlign
         ) {
-            Text(text = text, color = fg, fontSize = 14.sp)
+            Text(
+                text = text,
+                color = content,
+                fontSize = 14.sp,
+                maxLines = 1,
+                modifier = Modifier.padding(labelPadding)
+            )
         }
     }
 }
