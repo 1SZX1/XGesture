@@ -43,7 +43,7 @@ class LastMessageUnlockPolicyTest {
     }
 
     @Test
-    fun openDelay_defaultsTo900ms() {
+    fun openDelay_defaultsTo600ms() {
         assertEquals(
             MessageSettings.DEFAULT_UNLOCK_OPEN_DELAY_MS.toLong(),
             resolveUnlockOpenDelayMs(MessageSettings()),

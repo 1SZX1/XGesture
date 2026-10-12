@@ -348,7 +348,7 @@ class SettingsMutatorsTest {
     }
 
     @Test
-    fun messageUnlockOpenDelayMs_defaultsTo900ms() = runBlocking {
+    fun messageUnlockOpenDelayMs_defaultsTo600ms() = runBlocking {
         assertEquals(
             MessageSettings.DEFAULT_UNLOCK_OPEN_DELAY_MS,
             awaitSettings().messageReminderSettings.unlockOpenDelayMs,

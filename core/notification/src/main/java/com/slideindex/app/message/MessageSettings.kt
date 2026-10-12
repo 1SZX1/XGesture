@@ -109,7 +109,7 @@ data class MessageSettings(
         const val C_NOTICE_MAX_RETAINED_CONVERSATIONS = 20
 
         /** 「解锁后进入最后一条消息」的默认延迟：避免与解锁/桌面动画竞争。 */
-        const val DEFAULT_UNLOCK_OPEN_DELAY_MS = 900
+        const val DEFAULT_UNLOCK_OPEN_DELAY_MS = 600
 
         /** 解锁后打开延迟的上限（毫秒）：再长也只是白白等。 */
         const val MAX_UNLOCK_OPEN_DELAY_MS = 1500
