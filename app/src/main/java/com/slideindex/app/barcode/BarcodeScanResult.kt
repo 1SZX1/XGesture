@@ -60,6 +60,37 @@ fun scanOutcome(texts: List<String>): ScanOutcome {
 }
 
 /**
+ * 合并两批识别结果：**按文本去重，保留先出现那条**。
+ *
+ * 用途：相机路径先出"触发那一帧"的结果（便宜的单码读取器，用于立刻给用户反馈），随后再对同一张图做
+ * 重量级重扫（全码制 + TRY_HARDER）。重扫走的是另一套策略，**可能先命中别的码**——直接替换会让用户
+ * 看到"刚标出来的码又消失了、改成标别的码"（真机反馈）。所以这里取并集：
+ *
+ * - 两批都有同一个码：保留**先出现**那条（触发那条与"已经是显示朝向"的定格图同坐标系，点位最准）；
+ * - 只有一批有：照原样并进来，谁也不丢；
+ * - 空白文本丢弃。
+ */
+fun mergeScanResults(
+    existing: List<BarcodeScanResult>,
+    incoming: List<BarcodeScanResult>,
+): List<BarcodeScanResult> {
+    if (incoming.isEmpty()) return existing.filter { it.text.isNotBlank() }
+    if (existing.isEmpty()) return incoming.filter { it.text.isNotBlank() }.distinctBy { it.text }
+
+    val merged = ArrayList<BarcodeScanResult>(existing.size + incoming.size)
+    val seen = HashSet<String>(existing.size + incoming.size)
+    for (result in existing) {
+        if (result.text.isBlank()) continue
+        if (seen.add(result.text)) merged += result
+    }
+    for (result in incoming) {
+        if (result.text.isBlank()) continue
+        if (seen.add(result.text)) merged += result
+    }
+    return merged
+}
+
+/**
  * 把定位点收成一个外接矩形，供界面在图上画标记。
  *
  * @param minSize 每个方向的最小尺寸（归一化）。**必须有**：一维条码只有两个端点，外接矩形高度为 0，

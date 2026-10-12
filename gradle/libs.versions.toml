@@ -36,6 +36,7 @@ opencv = "5.0.0.1"
 okhttp = "5.5.0"
 profileinstaller = "1.4.1"
 zxing = "3.5.4"
+camera = "1.6.2"
 markdown-renderer = "0.45.0"
 haze = "1.7.3"
 palette = "1.0.0"
@@ -108,6 +109,10 @@ mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref 
 mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkit-language-id" }
 tesseract4android = { group = "cz.adaptech.tesseract4android", name = "tesseract4android", version.ref = "tesseract4android" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
+camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camera" }
+camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camera" }
+camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camera" }
+camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camera" }
 opencv-android = { group = "org.opencv", name = "opencv", version.ref = "opencv" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }

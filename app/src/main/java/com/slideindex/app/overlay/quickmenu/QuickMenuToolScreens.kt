@@ -3,12 +3,14 @@ package com.slideindex.app.overlay.quickmenu
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,8 +48,10 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -82,9 +86,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import com.slideindex.app.R
 import com.slideindex.app.barcode.QrCodeGenerator
 import com.slideindex.app.barcode.QrPayloadParser
+import com.slideindex.app.barcode.mergeScanResults
 import com.slideindex.app.barcode.BarcodeScanResult
 import com.slideindex.app.barcode.ScanOutcome
 import com.slideindex.app.barcode.ZxingBarcodeScanner
@@ -129,6 +140,12 @@ private val SWAP_ACTION_SIZE = 48.dp
  * **必须有**：一维条码只给两个端点，外接矩形高度为 0，不兜底就画不出可点的标记。
  */
 private const val MARKER_MIN_SIZE = 0.05f
+
+/** 标记区的压暗强度：只压暗不"挖亮"的话，码本身也一起变暗，反而更难看清。 */
+private const val MARKER_DIM_ALPHA = 0.45f
+
+/** 四角括号的臂长占标记短边的比例。 */
+private const val MARKER_CORNER_FRACTION = 0.28f
 
 /**
  * 强度进度条的"满格"参考值（bit）。
@@ -691,9 +708,11 @@ internal fun QuickMenuScanDecoderScreen(
                     QuickMenuWork.launch {
                         val rescanned = withContext(Dispatchers.Default) { scanBarcodes(scannedImage) }
                         if (rescanned.isNotEmpty()) {
+                            // **合并**而不是替换：重扫走的是另一套策略（全码制 + TRY_HARDER + 两种二值化），
+                            // 它可能先命中别的码；直接替换会表现为"刚标出来的码又消失、改成标别的码"（真机反馈）。
                             applyScanResults(
                                 context = context,
-                                results = rescanned,
+                                results = mergeScanResults(scanned, rescanned),
                                 image = scannedImage,
                                 onContentChange = onContentChange,
                                 onResultsChange = onResultsChange,
@@ -855,6 +874,27 @@ internal fun QuickMenuScanDecoderScreen(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
+            // 识别出链接时给一个"转到"：这是扫码之后最常见的下一步。
+            // 文案复用既有的 `pick_result_open_link`（取词面板打开链接用的同一句），不新增字符串。
+            webUrlOf(parsed)?.let { url ->
+                FilledTonalButton(
+                    onClick = {
+                        // 浏览器会盖在我们上面，且用户可能不回来 → **只收起、不自动恢复**（与分享同一策略）
+                        QuickMenuOverlayWindow.hideForExternalShare()
+                        // 失败静默：只会出现在"没有任何应用能处理 http(s)"的极端机型上
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    },
+                ) {
+                    Icon(imageVector = Icons.Filled.OpenInNew, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = stringResource(R.string.pick_result_open_link))
+                }
+            }
             if (parsed.summary.isNotBlank()) {
                 ResultRow(text = parsed.summary, copyLabel = "scan")
             }
@@ -1733,6 +1773,12 @@ private fun ScanImageWithMarkers(
     onSelect: (String) -> Unit,
 ) {
     val imageBitmap = remember(image) { image.asImageBitmap() }
+    val accent = MaterialTheme.colorScheme.primary
+    val markerBoxes = remember(results) {
+        results.map { result ->
+            result to result.points.boundingBoxOrNull(MARKER_MIN_SIZE)
+        }
+    }
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
@@ -1740,31 +1786,52 @@ private fun ScanImageWithMarkers(
             .clip(RoundedCornerShape(12.dp))
             .background(Color.Black),
     ) {
+        val boxWidth = maxWidth
+        val boxHeight = maxHeight
         Image(
             bitmap = imageBitmap,
             contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize(),
         )
-        results.forEachIndexed { index, result ->
-            val box = result.points.boundingBoxOrNull(MARKER_MIN_SIZE) ?: return@forEachIndexed
+        // 压暗 + "挖亮"标记区 + 四角括号。
+        // 只压暗不挖亮的话，码本身会一起变暗、反而更难看清；这里把标记区按原亮度重画一遍。
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val boxPx = markerBoxes.mapNotNull { (_, box) ->
+                box?.let {
+                    Rect(
+                        left = size.width * it.left,
+                        top = size.height * it.top,
+                        right = size.width * it.right,
+                        bottom = size.height * it.bottom,
+                    )
+                }
+            }
+            drawRect(color = Color.Black.copy(alpha = MARKER_DIM_ALPHA))
+            boxPx.forEach { rect ->
+                clipRect(rect.left, rect.top, rect.right, rect.bottom) {
+                    drawImage(
+                        image = imageBitmap,
+                        srcOffset = IntOffset.Zero,
+                        srcSize = IntSize(imageBitmap.width, imageBitmap.height),
+                        dstOffset = IntOffset.Zero,
+                        dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                    )
+                }
+            }
+            boxPx.forEach { rect ->
+                drawMarkerCorners(rect = rect, color = Color.White)
+            }
+        }
+        markerBoxes.forEachIndexed { index, (result, box) ->
+            if (box == null) return@forEachIndexed
             val selected = result.text == selectedText
             Box(
                 modifier = Modifier
-                    .offset(x = maxWidth * box.left, y = maxHeight * box.top)
+                    .offset(x = boxWidth * box.left, y = boxHeight * box.top)
                     .size(
-                        width = maxWidth * (box.right - box.left),
-                        height = maxHeight * (box.bottom - box.top),
-                    )
-                    .clip(RoundedCornerShape(6.dp))
-                    .border(
-                        width = if (selected) 3.dp else 2.dp,
-                        color = if (selected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            Color.White
-                        },
-                        shape = RoundedCornerShape(6.dp),
+                        width = boxWidth * (box.right - box.left),
+                        height = boxHeight * (box.bottom - box.top),
                     )
                     .clickable { onSelect(result.text) },
             ) {
@@ -1773,14 +1840,42 @@ private fun ScanImageWithMarkers(
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
                     modifier = Modifier
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.6f),
-                        )
+                        .background(if (selected) accent else Color.Black.copy(alpha = 0.6f))
                         .padding(horizontal = 4.dp, vertical = 1.dp),
                 )
+                if (selected) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .border(width = 2.dp, color = accent, shape = RoundedCornerShape(6.dp)),
+                    )
+                }
             }
         }
     }
+}
+
+/** 画一个"四角括号"的选中框：只画八个短笔，不挡住码本身。 */
+private fun DrawScope.drawMarkerCorners(rect: Rect, color: Color) {
+    val side = minOf(rect.width, rect.height)
+    val arm = side * MARKER_CORNER_FRACTION
+    val stroke = maxOf(2f, side * 0.03f)
+    val left = rect.left
+    val top = rect.top
+    val right = rect.right
+    val bottom = rect.bottom
+    // 左上
+    drawLine(color, Offset(left, top + arm), Offset(left, top), strokeWidth = stroke)
+    drawLine(color, Offset(left, top), Offset(left + arm, top), strokeWidth = stroke)
+    // 右上
+    drawLine(color, Offset(right - arm, top), Offset(right, top), strokeWidth = stroke)
+    drawLine(color, Offset(right, top), Offset(right, top + arm), strokeWidth = stroke)
+    // 左下
+    drawLine(color, Offset(left, bottom - arm), Offset(left, bottom), strokeWidth = stroke)
+    drawLine(color, Offset(left, bottom), Offset(left + arm, bottom), strokeWidth = stroke)
+    // 右下
+    drawLine(color, Offset(right - arm, bottom), Offset(right, bottom), strokeWidth = stroke)
+    drawLine(color, Offset(right, bottom), Offset(right, bottom - arm), strokeWidth = stroke)
 }
 
 /**
@@ -1793,6 +1888,23 @@ private fun ScanImageWithMarkers(
  * 重试拿到的是"旋转后那张图"的坐标，所以必须按**反方向**转回原图坐标系，否则标记会整体歪掉。
  * 旋转是逆变换：`rotatePoints(points, -degrees)`（`rotatePoint` 对负角度做了归一化）。
  */
+/**
+ * 能从识别结果直接打开的链接（只认 `http`/`https`）。
+ *
+ * 有意不认其它协议：`tel:`/`mailto:`/`intent://` 这类要么会静默拨号、要么能触发任意跳转，
+ * 交给用户自己复制出去处理更稳妥。
+ */
+private fun webUrlOf(parsed: QrPayloadParser.Result?): String? {
+    // WebUrl 已经补全过协议（`www.` 开头会补成 https://），优先用它
+    if (parsed is QrPayloadParser.WebUrl) {
+        return parsed.url.takeIf { it.startsWith("http", ignoreCase = true) }
+    }
+    val raw = parsed?.raw?.trim().orEmpty()
+    val isWeb = raw.startsWith("http://", ignoreCase = true) ||
+        raw.startsWith("https://", ignoreCase = true)
+    return raw.takeIf { isWeb }
+}
+
 private fun scanBarcodes(bitmap: Bitmap): List<BarcodeScanResult> {
     val direct = runCatching { ZxingBarcodeScanner.scanBitmap(bitmap) }.getOrDefault(emptyList())
     if (direct.isNotEmpty()) return direct.cleaned()

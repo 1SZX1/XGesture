@@ -84,4 +84,46 @@ class BarcodeScanResultTest {
         assertEquals(0.2f, points[0].x, 1e-6f)
         assertEquals(0.5f, points[0].y, 1e-6f)
     }
+
+    // ---------------------------------------------------------------- 合并（触发结果 + 重扫结果）
+
+    private fun result(text: String, x: Float = 0.5f) =
+        BarcodeScanResult(text = text, format = "QR_CODE", points = listOf(point(x, x)))
+
+    @Test
+    fun merge_emptyIncoming_keepsExisting() {
+        val existing = listOf(result("a"))
+        assertEquals(existing, mergeScanResults(existing, emptyList()))
+    }
+
+    @Test
+    fun merge_emptyExisting_usesIncoming() {
+        assertEquals(listOf(result("a")), mergeScanResults(emptyList(), listOf(result("a"))))
+    }
+
+    @Test
+    fun merge_keepsTheEarlierEntryForTheSameCode() {
+        // 两边都有同一个码时保留**先出现**那条：触发那条的定位点与定格图同坐标系，最准。
+        val first = result("same", x = 0.1f)
+        val later = result("same", x = 0.9f)
+        val merged = mergeScanResults(listOf(first), listOf(later))
+        assertEquals(1, merged.size)
+        assertEquals(0.1f, merged.first().points.first().x, 1e-6f)
+    }
+
+    @Test
+    fun merge_neverLosesEitherSide() {
+        // 这正是修复"刚标出来的码又消失了"的关键：两边并集，谁也不丢
+        val merged = mergeScanResults(listOf(result("trigger")), listOf(result("rescanned")))
+        assertEquals(listOf("trigger", "rescanned"), merged.map { it.text })
+    }
+
+    @Test
+    fun merge_dropsBlanks() {
+        assertEquals(
+            listOf("a"),
+            mergeScanResults(listOf(result("a")), listOf(result(""), result("   "))).map { it.text },
+        )
+        assertEquals(emptyList<String>(), mergeScanResults(emptyList(), listOf(result(""))).map { it.text })
+    }
 }
