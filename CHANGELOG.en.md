@@ -12,6 +12,50 @@ Release pages are published with the English notes first, then the Chinese ones.
 notes follow the system language: `notesEn` is shown to non-Chinese locales and `notes` to
 Chinese ones, each falling back to the other when a version is missing.
 
+## [1.41.0] - 2026-10-13
+
+### Added
+- New "Page scroll" gesture action: opens a floating control bar that keeps the page scrolling smoothly, with direction, speed, pause and close
+- New "Hold and drag" page scroll mode: hold the edge and move up or down to scroll page by page
+- New page scroll settings: default speed and control bar colour (dark grey, black or white) or follow the app accent colour
+- New "Gesture macros": record taps and swipes in another app as a sequence of steps, then replay them with a single gesture
+- New macro recording bar: pause, resume, stop and save while recording, with a count of recorded actions
+- New macro editing and test run: set the name and target app, review the steps, and run a macro without binding it to a gesture first
+- New "Gesture macro" gesture action: bind a macro to a gesture
+- New "Quick menu" gesture action: one entry that gathers 14 tools and 10 app feature entries, fully populated with no setup
+- New quick menu tools: unit converter, currency converter, QR code generator, code scanner, text toolkit, translate, password generator, stopwatch, countdown, timer reminder, timer history, pomodoro, calculator, screen colour picker
+- New quick menu app feature entries: foreground activity inspector, freezer, shell command panel, search panel, clipboard panel, pin to screen, ideas, page scroll, widget panel, run macro
+- New quick menu search and a "Recently used" section
+- New live camera scanning in the code scanner: recognises several codes at once so you can pick one from the candidates, and also reads codes inside images
+- New QR code generator: turns text, a link or a Wi-Fi network into a QR code
+- New freezer list multi-select: enter selection mode to select all, unfreeze in bulk or remove several apps from the list
+- New freezer side panel "Panel width" options (standard or compact)
+- New image pins get a notification title that recognises the text in the image
+- New "Delay after unlock" setting: wait 0 to 1500 ms before opening a message, adjustable in 100 ms steps
+- New freeform "Mi Window" mode: opens freeform through the Mi Window app and falls back to standard freeform when it is not installed
+- New freeform "Follow trigger position": docks the window to the side the gesture came from and centres it on the trigger height
+- New freeform bottom safe margin: the window no longer covers the gesture bar or the keyboard area
+- New pick-and-translate target languages: Turkish, Brazilian Portuguese, European Portuguese and Indonesian
+
+### Changed
+- The page scroll control bar uses the M3 Expressive look, shows its level as a numeric badge and drops the handle
+- The quick menu action toggles between "Open" and "Collapse"
+- The pin drop targets are now half-hidden and always present: available whenever you drag, fading out on release
+- Overlay hint bars use the dark background style
+- Temporary Do Not Disturb can now last from 1 minute to 24 hours
+- The "Delay after unlock" default is now 600 ms
+- Freeform size and position are now computed from the real display size and orientation, which is more reliable in landscape
+- The freeform settings page explains the reliable size range under the system's second scaling
+- The third-party licences page uses structured cards and documents each project's origin and ported parts
+
+### Fixed
+- Fix clipboard monitoring failing to start in Shizuku mode and staying at "Not listening"
+- Fix the floating action button covering the last row of the freezer grid and the shell command panel
+- Fix the back key leaving freezer multi-select entirely instead of stepping back one level
+- Fix the about page appendix stopping short of the bottom when flinging to the end
+- Fix overflowing origin chips, duplicated titles and developer hints leaking to users on the licences page
+- Fix the minute presets in the quick menu timer reminder not showing which one is selected
+
 ## [1.40.2] - 2026-10-11
 
 ### Fixed
