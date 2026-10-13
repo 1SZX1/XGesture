@@ -124,7 +124,34 @@ fun PageScrollSettingsScreen(
                         )
                     },
                 )
+                for (preset in BAR_COLOR_PRESETS) {
+                    add(
+                        settingsCardScopeItem("bar-color-${preset.argb}") {
+                            SettingRadioRow(
+                                title = stringResource(preset.titleRes),
+                                selected = settings.controlBarColorArgb == preset.argb,
+                                enabled = !settings.controlBarUseAccentColor,
+                                onClick = {
+                                    settings = settings.copy(controlBarColorArgb = preset.argb)
+                                    PageScrollPrefs.saveControlBarColor(context, preset.argb)
+                                },
+                            )
+                        },
+                    )
+                }
             },
         )
     }
 }
+
+/** 控制条底色的几个预设（跟随强调色打开时这几项不可选）。 */
+private val BAR_COLOR_PRESETS = listOf(
+    BarColorPreset(R.string.page_scroll_bar_color_dark, PageScrollSettings.DEFAULT_BAR_COLOR_ARGB),
+    BarColorPreset(R.string.page_scroll_bar_color_black, 0xFF000000.toInt()),
+    BarColorPreset(R.string.page_scroll_bar_color_white, 0xFFFFFFFF.toInt()),
+)
+
+private data class BarColorPreset(
+    val titleRes: Int,
+    val argb: Int,
+)

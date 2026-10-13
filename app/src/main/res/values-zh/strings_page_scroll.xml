@@ -26,6 +26,9 @@
     <string name="page_scroll_speed_title">默认滚动速度</string>
     <string name="page_scroll_speed_value">速度 %1$d / %2$d</string>
     <string name="page_scroll_bar_color_title">控制条颜色</string>
+    <string name="page_scroll_bar_color_dark">深灰</string>
+    <string name="page_scroll_bar_color_black">纯黑</string>
+    <string name="page_scroll_bar_color_white">白色</string>
     <string name="page_scroll_bar_use_accent_title">使用应用强调色</string>
     <string name="page_scroll_bar_use_accent_subtitle">让控制条按钮跟随当前应用的强调色。</string>
 </resources>

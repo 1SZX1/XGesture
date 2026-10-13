@@ -129,7 +129,8 @@ internal class PageScrollControlBar(
             alpha = if (isEnabled) 1f else 0.35f
         }
         pauseButton?.apply {
-            text = if (paused) GLYPH_PLAY else GLYPH_PAUSE
+            // 暂停/继续 + 当前档位（两行）。
+            text = (if (paused) GLYPH_PLAY else GLYPH_PAUSE) + "\n" + settings.speedLevel
             contentDescription = context.getString(
                 if (paused) R.string.page_scroll_resume else R.string.page_scroll_pause,
             )
@@ -197,8 +198,15 @@ internal class PageScrollControlBar(
     }
 
     private fun resolveButtonColor(settings: PageScrollSettings): Int {
-        val base = if (settings.controlBarUseAccentColor) ACCENT_FALLBACK else settings.controlBarColorArgb
+        val base = if (settings.controlBarUseAccentColor) themeAccentColor() else settings.controlBarColorArgb
         return base or ALPHA_OPAQUE
+    }
+
+    /** 跟随强调色时从主题取（浮层里拿不到 Compose 主题，所以直接读主题属性）。 */
+    private fun themeAccentColor(): Int {
+        val value = TypedValue()
+        val resolved = context.theme.resolveAttribute(android.R.attr.colorAccent, value, true)
+        return if (resolved && value.data != 0) value.data else ACCENT_FALLBACK
     }
 
     private fun buildLayoutParams(side: Side, anchorRawY: Float): WindowManager.LayoutParams {

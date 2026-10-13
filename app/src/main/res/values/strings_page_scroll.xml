@@ -26,6 +26,9 @@
     <string name="page_scroll_speed_title">Default scroll speed</string>
     <string name="page_scroll_speed_value">Speed %1$d of %2$d</string>
     <string name="page_scroll_bar_color_title">Bar color</string>
+    <string name="page_scroll_bar_color_dark">Dark gray</string>
+    <string name="page_scroll_bar_color_black">Black</string>
+    <string name="page_scroll_bar_color_white">White</string>
     <string name="page_scroll_bar_use_accent_title">Use accent color</string>
     <string name="page_scroll_bar_use_accent_subtitle">Match the bar buttons to the current app accent color.</string>
 </resources>
