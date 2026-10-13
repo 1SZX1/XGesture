@@ -607,6 +607,10 @@
     <string name="free_window_launch_mode">厂商小窗模式</string>
     <string name="free_window_adjust_layout">调节小窗尺寸与位置</string>
     <string name="free_window_adjust_layout_desc">实时预览并自定义小窗</string>
+    <string name="free_window_layout_unsupported">该模式由系统决定窗口大小，尺寸与位置设置对它无效</string>
+    <string name="free_window_follow_trigger">跟随触发位置</string>
+    <string name="free_window_follow_trigger_desc">小窗贴到触发那一侧，并按触发高度居中；拿不到触发位置时仍用上面的固定位置</string>
+    <string name="free_window_cap_hint">小米会二次缩放小窗，本应用能交付的可见尺寸上限约为竖屏 %1$d%%、横屏 %2$d%%；尺寸编辑器会按这个范围限制拖拽。</string>
     <string name="free_window_mode_dialog_title">选择启动模式</string>
     <string name="free_window_mode_hint">各厂商通过 ActivityOptions 的 windowingMode 启动小窗，模式值不同；Flyme 为 11，HyperOS 为 5 等。若无效请在对应系统设置中开启小窗/自由窗口。</string>
     <string name="free_window_mode_standard">自由窗口（标准）</string>
@@ -621,6 +625,8 @@
     <string name="free_window_mode_flyme_desc">Mode 11，适用于 FlymeOS 系统</string>
     <string name="free_window_mode_nubia">自由窗口 6（努比亚/红魔）</string>
     <string name="free_window_mode_nubia_desc">通过系统窗中回复标识启动小窗，无需 Shizuku</string>
+    <string name="free_window_mode_sunshine">自由窗口 7（米窗 / Sunshine）</string>
+    <string name="free_window_mode_sunshine_desc">通过米窗应用开小窗，需自装 com.sunshine.freeform；未安装时回落到标准自由窗口</string>
     <string name="free_window_preview_title">调节小窗尺寸与位置</string>
     <string name="free_window_preview_save">完成预览并保存</string>
     <string name="free_window_portrait_preview">竖屏</string>

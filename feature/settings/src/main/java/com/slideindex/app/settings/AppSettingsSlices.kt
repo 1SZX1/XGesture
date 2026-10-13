@@ -465,6 +465,11 @@ data class FreeWindowSettings(
     val freeWindowHeightFraction: Float = 0.55f,
     val freeWindowLeftFraction: Float = 0.1f,
     val freeWindowTopFraction: Float = 0.15f,
+    /**
+     * 跟随触发位置：小窗水平贴到本次手势/轮盘触发的那一侧、竖直以触发高度居中。
+     * 拿不到触发信息（或已过期）时仍用上面的固定百分比。
+     */
+    val freeWindowFollowTriggerSide: Boolean = false,
     // 横屏预置（与竖屏完全独立，运行时按当前显示方向二选一）
     val freeWindowLandWidthFraction: Float = 0.68f,
     val freeWindowLandHeightFraction: Float = 0.4f,

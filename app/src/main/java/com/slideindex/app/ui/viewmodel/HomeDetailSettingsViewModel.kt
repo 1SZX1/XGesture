@@ -172,6 +172,11 @@ class HomeDetailSettingsViewModel @Inject constructor(
         settingsRepository.setFreeWindowModeId(modeId)
     }
 
+    /** 「跟随触发位置」：小窗按触发侧贴边、按触发高度居中。 */
+    fun setFreeWindowFollowTriggerSide(enabled: Boolean) = launchSettingsWrite {
+        settingsRepository.setFreeWindowFollowTriggerSide(enabled)
+    }
+
     /**
      * 一次性保存竖屏与横屏两套小窗尺寸位置；两套互不影响，运行时按当前显示方向取用。
      */

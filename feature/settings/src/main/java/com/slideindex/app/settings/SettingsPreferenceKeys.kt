@@ -101,6 +101,8 @@ internal object SettingsPreferenceKeys {
     val FREE_WINDOW_HEIGHT = floatPreferencesKey("free_window_height_fraction")
     val FREE_WINDOW_LEFT = floatPreferencesKey("free_window_left_fraction")
     val FREE_WINDOW_TOP = floatPreferencesKey("free_window_top_fraction")
+    /** 「跟随触发位置」：小窗按手势触发侧贴边、按触发高度居中。 */
+    val FREE_WINDOW_FOLLOW_TRIGGER = booleanPreferencesKey("free_window_follow_trigger")
     val FREE_WINDOW_LAND_WIDTH = floatPreferencesKey("free_window_land_width_fraction")
     val FREE_WINDOW_LAND_HEIGHT = floatPreferencesKey("free_window_land_height_fraction")
     val FREE_WINDOW_LAND_LEFT = floatPreferencesKey("free_window_land_left_fraction")

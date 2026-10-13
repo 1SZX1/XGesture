@@ -225,6 +225,8 @@ internal object SettingsSnapshotReader {
                 freeWindowHeightFraction = prefs[SettingsPreferenceKeys.FREE_WINDOW_HEIGHT] ?: 0.55f,
                 freeWindowLeftFraction = prefs[SettingsPreferenceKeys.FREE_WINDOW_LEFT] ?: 0.1f,
                 freeWindowTopFraction = prefs[SettingsPreferenceKeys.FREE_WINDOW_TOP] ?: 0.15f,
+                freeWindowFollowTriggerSide =
+                    prefs[SettingsPreferenceKeys.FREE_WINDOW_FOLLOW_TRIGGER] ?: false,
                 freeWindowLandWidthFraction = prefs[SettingsPreferenceKeys.FREE_WINDOW_LAND_WIDTH] ?: 0.68f,
                 freeWindowLandHeightFraction = prefs[SettingsPreferenceKeys.FREE_WINDOW_LAND_HEIGHT] ?: 0.4f,
                 freeWindowLandLeftFraction = prefs[SettingsPreferenceKeys.FREE_WINDOW_LAND_LEFT] ?: 0.16f,

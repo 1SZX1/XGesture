@@ -52,6 +52,7 @@ import com.slideindex.app.util.AssistantLauncher
 import com.slideindex.app.util.VoiceActionHelper
 import com.slideindex.app.util.ContinuousAdjustController
 import com.slideindex.app.util.FlashlightHelper
+import com.slideindex.app.util.FreeWindowTriggerAnchor
 import com.slideindex.app.util.InputMethodHelper
 import com.slideindex.app.util.InputTapUtil
 import com.slideindex.app.util.OverlayBrightnessControl
@@ -162,6 +163,11 @@ class ActionExecutor(
             FloatBallOverlayAnchorPolicy.resolve(touchDownAnchor, anchorRawX, gestureTouchDownRawX)
         val overlayAnchorY =
             FloatBallOverlayAnchorPolicy.resolve(touchDownAnchor, anchorRawY, gestureTouchDownRawY)
+        // 「跟随触发位置」的自由窗口要用：记下本次触发的侧与高度（开关关闭时无人读取）。
+        FreeWindowTriggerAnchor.record(
+            side = resolvedSide,
+            rawY = overlayAnchorY ?: anchorRawY ?: gestureTouchDownRawY,
+        )
         return when (action) {
             GestureAction.OpenIndex,
             GestureAction.TaskSwitcher,
@@ -516,10 +522,14 @@ class ActionExecutor(
         longPressArmed: Boolean = false,
         anchorRawY: Float? = null,
         panelSide: PanelSide? = null,
-    ): Boolean = launchHelper.launchQuickItem(item, settings, longPressArmed, anchorRawY) { action, appSettings, armed, y ->
-        // 从圆环/蜂窝/面板里点开的条目同样要知道“当前在哪一侧”，否则打开的面板只能按
-        // 宿主默认（左优先）落地：真机反馈右侧圆环里点快速启动器槽位，面板弹到左边。
-        execute(action, appSettings, armed, anchorRawX = null, anchorRawY = y, panelSide = panelSide)
+    ): Boolean {
+        // 蜂窝 / 轮盘 / 圆环里挑应用是直接启动、不经过 execute()，所以在这里补记触发锚点。
+        FreeWindowTriggerAnchor.record(side = panelSide ?: side, rawY = anchorRawY)
+        return launchHelper.launchQuickItem(item, settings, longPressArmed, anchorRawY) { action, appSettings, armed, y ->
+            // 从圆环/蜂窝/面板里点开的条目同样要知道“当前在哪一侧”，否则打开的面板只能按
+            // 宿主默认（左优先）落地：真机反馈右侧圆环里点快速启动器槽位，面板弹到左边。
+            execute(action, appSettings, armed, anchorRawX = null, anchorRawY = y, panelSide = panelSide)
+        }
     }
 
     fun switchToRecentTask(

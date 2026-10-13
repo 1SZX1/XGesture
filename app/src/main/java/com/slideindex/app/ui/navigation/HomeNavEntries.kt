@@ -346,6 +346,7 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             onEnabledChange = viewModel::setFreeWindowEnabled,
             onLongPressDurationChange = viewModel::setLongPressLaunchDurationMs,
             onLaunchPolicyChange = viewModel::setAppLaunchPolicyId,
+            onFollowTriggerSideChange = viewModel::setFreeWindowFollowTriggerSide,
             onOpenMode = { ctx.navigate(AppNavKey.HomeFreeWindowMode) },
             onOpenLayoutEditor = { FreeWindowLayoutEditorSession.open() },
         )

@@ -355,6 +355,8 @@ class SettingsRepository @Inject constructor(
         portrait: FreeWindowLayoutFractions,
         landscape: FreeWindowLayoutFractions,
     ) = overlay.setFreeWindowLayout(portrait = portrait, landscape = landscape)
+    suspend fun setFreeWindowFollowTriggerSide(enabled: Boolean) =
+        overlay.setFreeWindowFollowTriggerSide(enabled)
     suspend fun setAppLaunchPolicyId(id: Int) = overlay.setAppLaunchPolicyId(id)
     suspend fun setLongPressLaunchDurationMs(value: Int) = overlay.setLongPressLaunchDurationMs(value)
     suspend fun setFloatingPointerSensitivityFraction(value: Float) =

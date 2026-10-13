@@ -607,6 +607,10 @@
     <string name="free_window_launch_mode">وضع النافذة الحرة للمصنع</string>
     <string name="free_window_adjust_layout">ضبط حجم وموضع النافذة الحرة</string>
     <string name="free_window_adjust_layout_desc">معاينة وتخصيص النافذة الحرة في الوقت الفعلي</string>
+    <string name="free_window_layout_unsupported">هذا الوضع يحدد أبعاد النافذة بنفسه، لذا لا ينطبق الحجم والموضع</string>
+    <string name="free_window_follow_trigger">متابعة موضع التشغيل</string>
+    <string name="free_window_follow_trigger_desc">تُلصق النافذة بالجانب الذي تم التشغيل منه وتتوسط ارتفاع التشغيل؛ وعند تعذر معرفة الموضع يُستخدم الموضع الثابت أعلاه</string>
+    <string name="free_window_cap_hint">يعيد MIUI / HyperOS تحجيم النافذة الحرة مرة أخرى، لذا فإن أقصى حجم مرئي يمكن تسليمه هو نحو %1$d%% عمودي و%2$d%% أفقي؛ ويقصر محرر الحجم السحب على هذا النطاق.</string>
     <string name="free_window_mode_dialog_title">اختيار وضع التشغيل</string>
     <string name="free_window_mode_hint">تقوم المصانع المختلفة بتشغيل النوافذ الحرة عبر windowingMode في ActivityOptions، وتختلف قيم الوضع؛ Flyme هو 11، HyperOS هو 5، إلخ. إذا لم يكن فعالاً، يرجى تفعيل النافذة الحرة/النافذة الحرة في إعدادات النظام المقابلة.</string>
     <string name="free_window_mode_standard">النافذة الحرة (قياسي)</string>
@@ -621,6 +625,8 @@
     <string name="free_window_mode_flyme_desc">الوضع 11، مناسب لأنظمة FlymeOS</string>
     <string name="free_window_mode_nubia">النافذة الحرة 6 (Nubia/RedMagic)</string>
     <string name="free_window_mode_nubia_desc">تشغيل النافذة الحرة عبر علامة الرد في نافذة النظام، لا يتطلب Shizuku</string>
+    <string name="free_window_mode_sunshine">النافذة الحرة 7 (Sunshine / Mi Window)</string>
+    <string name="free_window_mode_sunshine_desc">تشغيل النافذة الحرة عبر تطبيق Sunshine (يتطلب com.sunshine.freeform)؛ وعند عدم تثبيته يتم الرجوع إلى النافذة الحرة القياسية</string>
     <string name="free_window_preview_title">ضبط حجم وموضع النافذة الحرة</string>
     <string name="free_window_preview_save">إنهاء المعاينة والحفظ</string>
     <string name="free_window_portrait_preview">معاينة الوضع العمودي</string>

@@ -29,6 +29,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.slideindex.app.settings.FreeWindowLayoutFractions
+import com.slideindex.app.settings.FreeWindowMode
 import com.slideindex.app.settings.OverlaySettings
 import com.slideindex.app.ui.FreeWindowLayoutEditorOverlay
 import com.slideindex.app.ui.FreeWindowLayoutEditorSession
@@ -57,6 +58,7 @@ import com.slideindex.app.ui.navigation.NavPermissionStates
 import com.slideindex.app.update.UpdateAppForeground
 import com.slideindex.app.update.UpdateIntents
 import com.slideindex.app.util.AppLocaleApplier
+import com.slideindex.app.util.FreeWindowLauncher
 import com.slideindex.app.util.PermissionHelper
 import com.slideindex.app.util.PredictiveBackHelper
 import com.slideindex.app.util.TaskManagerUtil
@@ -176,6 +178,8 @@ class MainActivity : ComponentActivity() {
                     onShowUpdateConsumed = { pendingShowUpdate.value = false }
                 )
                 if (FreeWindowLayoutEditorSession.isOpen) {
+                    // 编辑器只让用户拖到"这套算法真能交付"的范围（小米竖屏 70% / 横屏 55.5%）。
+                    val editorMode = FreeWindowMode.fromId(freeWindowSettings.freeWindowModeId)
                     FreeWindowLayoutEditorOverlay(
                         portrait = FreeWindowLayoutFractions(
                             widthFraction = freeWindowSettings.freeWindowWidthFraction,
@@ -188,6 +192,14 @@ class MainActivity : ComponentActivity() {
                             heightFraction = freeWindowSettings.freeWindowLandHeightFraction,
                             leftFraction = freeWindowSettings.freeWindowLandLeftFraction,
                             topFraction = freeWindowSettings.freeWindowLandTopFraction,
+                        ),
+                        portraitCap = FreeWindowLauncher.deliverableLimitFraction(
+                            editorMode,
+                            isLandscape = false,
+                        ),
+                        landscapeCap = FreeWindowLauncher.deliverableLimitFraction(
+                            editorMode,
+                            isLandscape = true,
                         ),
                         onDismiss = { FreeWindowLayoutEditorSession.close() },
                         onSave = { portrait, landscape ->

@@ -83,6 +83,9 @@ class OverlaySettingsMutator @Inject constructor(
     suspend fun setFreeWindowModeId(id: Int) = editor.edit {
         it[SettingsPreferenceKeys.FREE_WINDOW_MODE] = FreeWindowMode.fromId(id).id
     }
+    suspend fun setFreeWindowFollowTriggerSide(enabled: Boolean) = editor.edit {
+        it[SettingsPreferenceKeys.FREE_WINDOW_FOLLOW_TRIGGER] = enabled
+    }
     suspend fun setFreeWindowLayout(
         portrait: FreeWindowLayoutFractions,
         landscape: FreeWindowLayoutFractions,

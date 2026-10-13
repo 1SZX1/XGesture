@@ -1,10 +1,11 @@
-﻿package com.slideindex.app.ui
+package com.slideindex.app.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Launch
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -15,9 +16,11 @@ import com.slideindex.app.R
 import com.slideindex.app.settings.AppLaunchPolicy
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.effectiveLongPressDurationMs
+import com.slideindex.app.settings.ignoresLaunchBounds
 import com.slideindex.app.settings.resolvedFreeWindowMode
 import com.slideindex.app.settings.resolvedLaunchPolicy
 import com.slideindex.app.settings.titleRes
+import com.slideindex.app.util.FreeWindowLauncher
 import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.settings.components.settingsLazyTipCard
 import com.slideindex.app.ui.settings.components.SettingDropdownRow
@@ -35,10 +38,28 @@ fun FreeWindowSettingsScreen(
     onEnabledChange: (Boolean) -> Unit,
     onLongPressDurationChange: (Int) -> Unit,
     onLaunchPolicyChange: (Int) -> Unit,
+    onFollowTriggerSideChange: (Boolean) -> Unit,
     onOpenMode: () -> Unit,
     onOpenLayoutEditor: () -> Unit
 ) {
     val selectedMode = settings.resolvedFreeWindowMode()
+    // 米窗这类模式自己决定窗口几何，尺寸 / 位置 / 跟随对它无效 → 一并灰掉并说明原因。
+    val layoutApplies = !selectedMode.ignoresLaunchBounds()
+    val layoutRowEnabled = settings.freeWindowEnabled && layoutApplies
+    // 这套算法实际能交付的可见尺寸上限（小米竖屏 70% / 横屏 55.5%，其它机型 100%）。
+    val portraitCap = FreeWindowLauncher.deliverableLimitFraction(selectedMode, isLandscape = false)
+    val landscapeCap = FreeWindowLauncher.deliverableLimitFraction(selectedMode, isLandscape = true)
+    val capApplies = layoutApplies && (portraitCap < 1f || landscapeCap < 1f)
+    // 提示文案要在 lazy 作用域外算好：`settingsLazyTipCard` 是 LazyListScope 扩展，里面不能调 @Composable。
+    val capHint = if (capApplies) {
+        stringResource(
+            R.string.free_window_cap_hint,
+            (portraitCap * 100).roundToInt(),
+            (landscapeCap * 100).roundToInt(),
+        )
+    } else {
+        null
+    }
     val selectedPolicy = settings.resolvedLaunchPolicy()
     val longPressDuration = settings.effectiveLongPressDurationMs()
     val showLongPressDuration = selectedPolicy.usesLongPress()
@@ -119,6 +140,8 @@ fun FreeWindowSettingsScreen(
             title = freeWindowSectionTitle
         )
         settingsLazyTipCard(key = "free-window-mode-tip", text = freeWindowModeHint)
+        // 小米会被 MIUI 二次缩放：能交付的可见尺寸有硬上限，提前写清楚，别让用户设一个做不到的值。
+        capHint?.let { hint -> settingsLazyTipCard(key = "free-window-cap-tip", text = hint) }
         groupedCardItems(
             keyPrefix = "free-window-mode",
             items = buildList {
@@ -138,15 +161,31 @@ fun FreeWindowSettingsScreen(
                         SettingNavigationRow(
                             icon = { label -> Icon(Icons.Outlined.AspectRatio, contentDescription = label) },
                             title = stringResource(R.string.free_window_adjust_layout),
-                            subtitle = stringResource(
-                                R.string.free_window_layout_summary,
-                                (settings.freeWindowWidthFraction * 100).roundToInt(),
-                                (settings.freeWindowHeightFraction * 100).roundToInt(),
-                                (settings.freeWindowLandWidthFraction * 100).roundToInt(),
-                                (settings.freeWindowLandHeightFraction * 100).roundToInt(),
-                            ),
-                            enabled = settings.freeWindowEnabled,
+                            subtitle = if (layoutApplies) {
+                                stringResource(
+                                    R.string.free_window_layout_summary,
+                                    (settings.freeWindowWidthFraction * 100).roundToInt(),
+                                    (settings.freeWindowHeightFraction * 100).roundToInt(),
+                                    (settings.freeWindowLandWidthFraction * 100).roundToInt(),
+                                    (settings.freeWindowLandHeightFraction * 100).roundToInt(),
+                                )
+                            } else {
+                                stringResource(R.string.free_window_layout_unsupported)
+                            },
+                            enabled = layoutRowEnabled,
                             onClick = onOpenLayoutEditor
+                        )
+                    }
+                )
+                add(
+                    settingsCardScopeItem("free-window-follow-trigger") {
+                        SettingToggleRow(
+                            icon = { label -> Icon(Icons.Outlined.TouchApp, contentDescription = label) },
+                            title = stringResource(R.string.free_window_follow_trigger),
+                            subtitle = stringResource(R.string.free_window_follow_trigger_desc),
+                            checked = settings.freeWindowFollowTriggerSide,
+                            enabled = layoutRowEnabled,
+                            onCheckedChange = onFollowTriggerSideChange
                         )
                     }
                 )

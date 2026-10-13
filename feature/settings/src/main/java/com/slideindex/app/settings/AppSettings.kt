@@ -100,6 +100,7 @@ data class AppSettings(
     val freeWindowHeightFraction get() = freeWindow.freeWindowHeightFraction
     val freeWindowLeftFraction get() = freeWindow.freeWindowLeftFraction
     val freeWindowTopFraction get() = freeWindow.freeWindowTopFraction
+    val freeWindowFollowTriggerSide get() = freeWindow.freeWindowFollowTriggerSide
     val freeWindowLandWidthFraction get() = freeWindow.freeWindowLandWidthFraction
     val freeWindowLandHeightFraction get() = freeWindow.freeWindowLandHeightFraction
     val freeWindowLandLeftFraction get() = freeWindow.freeWindowLandLeftFraction

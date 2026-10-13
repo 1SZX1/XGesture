@@ -12,6 +12,15 @@ enum class FreeWindowMode(
     ORIGINOS(3, 106),
     FLYME(4, 11),
     NUBIA(5, 5),
+
+    /**
+     * 米窗（Sunshine，需自装 `com.sunshine.freeform`）。
+     *
+     * 它不走 `windowingMode`：改为向米窗发广播请它开小窗，所以这里的 [windowingMode] 只是
+     * 「米窗未安装时回落到标准自由窗口」用的兜底值。因为不消费 `launchBounds`，
+     * 该模式下尺寸与跟随开关在设置页一并禁用（见 [ignoresLaunchBounds]）。
+     */
+    SUNSHINE(6, 5),
     ;
 
     companion object {
@@ -40,3 +49,12 @@ enum class FreeWindowMode(
 fun AppSettings.resolvedFreeWindowMode(): FreeWindowMode = FreeWindowMode.fromId(freeWindowModeId)
 
 fun FreeWindowMode.usesNubiaFreeformIdentifier(): Boolean = this == FreeWindowMode.NUBIA
+
+/** 走米窗广播而不是 `ActivityOptions.setLaunchWindowingMode`。 */
+fun FreeWindowMode.usesSunshineBroadcast(): Boolean = this == FreeWindowMode.SUNSHINE
+
+/**
+ * 该模式不消费 `launchBounds`，所以尺寸 / 位置 / 跟随触发对它都没有意义：
+ * 米窗由米窗自己决定窗口几何。
+ */
+fun FreeWindowMode.ignoresLaunchBounds(): Boolean = this == FreeWindowMode.SUNSHINE

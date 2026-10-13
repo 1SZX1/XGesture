@@ -2020,6 +2020,10 @@
     <string name="free_window_launch_mode">OEM freeform mode</string>
     <string name="free_window_adjust_layout">Adjust freeform size &amp; position</string>
     <string name="free_window_adjust_layout_desc">Live preview and customize freeform windows</string>
+    <string name="free_window_layout_unsupported">This mode decides the window geometry itself, so size and position do not apply</string>
+    <string name="free_window_follow_trigger">Follow trigger position</string>
+    <string name="free_window_follow_trigger_desc">Dock the window to the triggered side and center it on the trigger height; falls back to the fixed position above when no trigger is available</string>
+    <string name="free_window_cap_hint">MIUI / HyperOS scales freeform windows a second time, so the visible size this app can deliver is capped at about %1$d%% in portrait and %2$d%% in landscape; the size editor limits dragging to that range.</string>
     <string name="free_window_mode_dialog_title">Choose launch mode</string>
     <string name="free_window_mode_hint">OEMs launch freeform via ActivityOptions windowingMode with different values (Flyme 11, HyperOS 5, etc.). If it fails, enable freeform/free window in system settings.</string>
     <string name="free_window_mode_standard">Freeform (standard)</string>
@@ -2034,6 +2038,8 @@
     <string name="free_window_mode_flyme_desc">Mode 11, for FlymeOS</string>
     <string name="free_window_mode_nubia">Freeform 6 (Nubia/RedMagic)</string>
     <string name="free_window_mode_nubia_desc">Uses system window-reply identifier; no Shizuku required</string>
+    <string name="free_window_mode_sunshine">Freeform 7 (Sunshine / Mi Window)</string>
+    <string name="free_window_mode_sunshine_desc">Opens freeform through the Sunshine app (com.sunshine.freeform required); falls back to standard freeform when it is not installed</string>
     <string name="free_window_preview_title">Adjust freeform size &amp; position</string>
     <string name="free_window_preview_save">Finish preview and save</string>
     <string name="free_window_portrait_preview">Portrait</string>

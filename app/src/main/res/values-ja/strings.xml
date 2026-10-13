@@ -603,6 +603,10 @@
     <string name="free_window_launch_mode">OEM フリーフォームモード</string>
     <string name="free_window_adjust_layout">フリーフォームのサイズと位置を調整</string>
     <string name="free_window_adjust_layout_desc">フリーフォームウィンドウをライブプレビューしてカスタマイズ</string>
+    <string name="free_window_layout_unsupported">このモードではウィンドウ形状をシステムが決めるため、サイズと位置は適用されません</string>
+    <string name="free_window_follow_trigger">トリガー位置に追従</string>
+    <string name="free_window_follow_trigger_desc">トリガーした側に寄せ、トリガー高さを中心に配置します。トリガー位置が取得できない場合は上の固定位置を使います</string>
+    <string name="free_window_cap_hint">MIUI / HyperOS はフリーフォームをさらに拡大縮小するため、実際に反映できる可視サイズの上限は縦 %1$d%%／横 %2$d%% 程度です。サイズエディタはこの範囲にドラッグを制限します。</string>
     <string name="free_window_mode_dialog_title">起動モードを選択</string>
     <string name="free_window_mode_hint">OEM は ActivityOptions の windowingMode に異なる値を使ってフリーフォームを起動します（Flyme 11、HyperOS 5 など）。失敗する場合は、システム設定でフリーフォーム/フリーウィンドウを有効にしてください。</string>
     <string name="free_window_mode_standard">フリーフォーム（標準）</string>
@@ -617,6 +621,8 @@
     <string name="free_window_mode_flyme_desc">モード 11、FlymeOS 向け</string>
     <string name="free_window_mode_nubia">フリーフォーム 6（Nubia/RedMagic）</string>
     <string name="free_window_mode_nubia_desc">システムのウィンドウ返信識別子で起動（Shizuku 不要）</string>
+    <string name="free_window_mode_sunshine">フリーフォーム 7（Sunshine / Mi Window）</string>
+    <string name="free_window_mode_sunshine_desc">Sunshine アプリ経由でフリーフォームを開きます（com.sunshine.freeform が必要）。未インストール時は標準フリーフォームにフォールバックします</string>
     <string name="free_window_preview_title">フリーフォームのサイズと位置を調整</string>
     <string name="free_window_preview_save">プレビューを終了して保存</string>
     <string name="free_window_portrait_preview">縦向きプレビュー</string>
