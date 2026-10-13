@@ -61,6 +61,7 @@ build_java_*.txt
 docs/floatwidget-search-panel-reverse.md
 docs/*-reverse.md
 docs/*-analysis.md
+docs/macro-port-plan.md
 
 # --- Lint 临时报告 ---
 .lint-report-extract/
