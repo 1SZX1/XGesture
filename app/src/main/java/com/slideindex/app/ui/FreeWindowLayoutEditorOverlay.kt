@@ -68,21 +68,15 @@ fun FreeWindowLayoutEditorOverlay(
     landscape: FreeWindowLayoutFractions,
     onDismiss: () -> Unit,
     onSave: (portrait: FreeWindowLayoutFractions, landscape: FreeWindowLayoutFractions) -> Unit,
-    portraitCap: Float = 1f,
-    landscapeCap: Float = 1f,
 ) {
     val activity = LocalActivity.current
     var selectedTab by rememberSaveable { mutableIntStateOf(TAB_PORTRAIT) }
-    val portraitState = remember(portrait, portraitCap) {
-        mutableStateOf(portrait.limitedTo(portraitCap))
-    }
-    val landscapeState = remember(landscape, landscapeCap) {
-        mutableStateOf(landscape.limitedTo(landscapeCap))
-    }
+    // 不按"系统二次缩放"的上限夹取：那只是我们尚未在真机验证的假设，
+    // 按它夹会把用户存量配置单向改小。上限只做提示（见设置页），不在这里限制也不改写数据。
+    val portraitState = remember(portrait) { mutableStateOf(portrait) }
+    val landscapeState = remember(landscape) { mutableStateOf(landscape) }
     val isLandscape = selectedTab == TAB_LANDSCAPE
     val currentLayout = if (isLandscape) landscapeState.value else portraitState.value
-    // 当前预览方向的交付上限：拖动尺寸不许越过它（越过的那部分系统不会照做，见 FreeWindowLauncher）。
-    val currentCap = if (isLandscape) landscapeCap else portraitCap
 
     fun applyLayout(transform: (FreeWindowLayoutFractions) -> FreeWindowLayoutFractions) {
         val target = if (isLandscape) landscapeState else portraitState
@@ -168,16 +162,16 @@ fun FreeWindowLayoutEditorOverlay(
                         .align(Alignment.BottomEnd)
                         .padding(10.dp)
                         .size(48.dp)
-                        .pointerInput(selectedTab, canvasWidthPx, canvasHeightPx, currentCap) {
+                        .pointerInput(selectedTab, canvasWidthPx, canvasHeightPx) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
                                 applyLayout { layout ->
                                     val newWidthPx = FreeWindowLayoutLimits.normalizeWidth(
                                         layout.widthFraction + dragAmount.x / canvasWidthPx
-                                    ).coerceAtMost(currentCap) * canvasWidthPx
+                                    ) * canvasWidthPx
                                     val newHeightPx = FreeWindowLayoutLimits.normalizeHeight(
                                         layout.heightFraction + dragAmount.y / canvasHeightPx
-                                    ).coerceAtMost(currentCap) * canvasHeightPx
+                                    ) * canvasHeightPx
                                     val maxLeft =
                                         ((canvasWidthPx - newWidthPx) / canvasWidthPx).coerceAtLeast(0f)
                                     val maxTop =
@@ -248,23 +242,4 @@ fun FreeWindowLayoutEditorOverlay(
             )
         }
     }
-}
-
-/**
- * 把一个方向的预置夹进「这套算法能交付的上限」：小米竖屏 70% / 横屏 55.5%，其它机型 100%。
- *
- * 位置随之夹到「窗口仍然放得下」的范围，免得预览里就已经出屏。
- */
-private fun FreeWindowLayoutFractions.limitedTo(cap: Float): FreeWindowLayoutFractions {
-    val limited = cap.coerceIn(FreeWindowLayoutLimits.MIN_WIDTH_FRACTION, 1f)
-    val width = FreeWindowLayoutLimits.normalizeWidth(widthFraction).coerceAtMost(limited)
-    val height = FreeWindowLayoutLimits.normalizeHeight(heightFraction).coerceAtMost(limited)
-    return FreeWindowLayoutFractions(
-        widthFraction = width,
-        heightFraction = height,
-        leftFraction = FreeWindowLayoutLimits.normalizeLeft(leftFraction)
-            .coerceAtMost((1f - width).coerceAtLeast(0f)),
-        topFraction = FreeWindowLayoutLimits.normalizeTop(topFraction)
-            .coerceAtMost((1f - height).coerceAtLeast(0f)),
-    )
 }

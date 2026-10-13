@@ -46,7 +46,8 @@ fun FreeWindowSettingsScreen(
     // 米窗这类模式自己决定窗口几何，尺寸 / 位置 / 跟随对它无效 → 一并灰掉并说明原因。
     val layoutApplies = !selectedMode.ignoresLaunchBounds()
     val layoutRowEnabled = settings.freeWindowEnabled && layoutApplies
-    // 这套算法实际能交付的可见尺寸上限（小米竖屏 70% / 横屏 55.5%，其它机型 100%）。
+    // 系统二次缩放后的"可靠区间"（小米竖屏 70% / 横屏 55.5%，其它机型 100%）。
+    // 只用来提示，不限制用户能配多大、也不改写已存配置——它还是未在真机验证过的假设。
     val portraitCap = FreeWindowLauncher.deliverableLimitFraction(selectedMode, isLandscape = false)
     val landscapeCap = FreeWindowLauncher.deliverableLimitFraction(selectedMode, isLandscape = true)
     val capApplies = layoutApplies && (portraitCap < 1f || landscapeCap < 1f)
@@ -140,7 +141,7 @@ fun FreeWindowSettingsScreen(
             title = freeWindowSectionTitle
         )
         settingsLazyTipCard(key = "free-window-mode-tip", text = freeWindowModeHint)
-        // 小米会被 MIUI 二次缩放：能交付的可见尺寸有硬上限，提前写清楚，别让用户设一个做不到的值。
+        // 小米会被 MIUI 二次缩放：只把"可靠区间"讲清楚，不限制用户能设多大。
         capHint?.let { hint -> settingsLazyTipCard(key = "free-window-cap-tip", text = hint) }
         groupedCardItems(
             keyPrefix = "free-window-mode",

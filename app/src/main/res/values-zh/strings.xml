@@ -610,7 +610,7 @@
     <string name="free_window_layout_unsupported">该模式由系统决定窗口大小，尺寸与位置设置对它无效</string>
     <string name="free_window_follow_trigger">跟随触发位置</string>
     <string name="free_window_follow_trigger_desc">小窗贴到触发那一侧，并按触发高度居中；拿不到触发位置时仍用上面的固定位置</string>
-    <string name="free_window_cap_hint">小米会二次缩放小窗，本应用能交付的可见尺寸上限约为竖屏 %1$d%%、横屏 %2$d%%；尺寸编辑器会按这个范围限制拖拽。</string>
+    <string name="free_window_cap_hint">小米会二次缩放小窗：约竖屏 %1$d%%、横屏 %2$d%% 以内是可靠区间，设得更大时系统可能不按你设的尺寸显示。</string>
     <string name="free_window_mode_dialog_title">选择启动模式</string>
     <string name="free_window_mode_hint">各厂商通过 ActivityOptions 的 windowingMode 启动小窗，模式值不同；Flyme 为 11，HyperOS 为 5 等。若无效请在对应系统设置中开启小窗/自由窗口。</string>
     <string name="free_window_mode_standard">自由窗口（标准）</string>

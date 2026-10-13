@@ -606,7 +606,7 @@
     <string name="free_window_layout_unsupported">このモードではウィンドウ形状をシステムが決めるため、サイズと位置は適用されません</string>
     <string name="free_window_follow_trigger">トリガー位置に追従</string>
     <string name="free_window_follow_trigger_desc">トリガーした側に寄せ、トリガー高さを中心に配置します。トリガー位置が取得できない場合は上の固定位置を使います</string>
-    <string name="free_window_cap_hint">MIUI / HyperOS はフリーフォームをさらに拡大縮小するため、実際に反映できる可視サイズの上限は縦 %1$d%%／横 %2$d%% 程度です。サイズエディタはこの範囲にドラッグを制限します。</string>
+    <string name="free_window_cap_hint">MIUI / HyperOS はフリーフォームをさらに拡大縮小します。縦 %1$d%%／横 %2$d%% 程度までが確実な範囲で、それを超えると設定したサイズどおりにならない場合があります。</string>
     <string name="free_window_mode_dialog_title">起動モードを選択</string>
     <string name="free_window_mode_hint">OEM は ActivityOptions の windowingMode に異なる値を使ってフリーフォームを起動します（Flyme 11、HyperOS 5 など）。失敗する場合は、システム設定でフリーフォーム/フリーウィンドウを有効にしてください。</string>
     <string name="free_window_mode_standard">フリーフォーム（標準）</string>

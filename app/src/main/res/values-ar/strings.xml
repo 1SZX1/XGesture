@@ -610,7 +610,7 @@
     <string name="free_window_layout_unsupported">هذا الوضع يحدد أبعاد النافذة بنفسه، لذا لا ينطبق الحجم والموضع</string>
     <string name="free_window_follow_trigger">متابعة موضع التشغيل</string>
     <string name="free_window_follow_trigger_desc">تُلصق النافذة بالجانب الذي تم التشغيل منه وتتوسط ارتفاع التشغيل؛ وعند تعذر معرفة الموضع يُستخدم الموضع الثابت أعلاه</string>
-    <string name="free_window_cap_hint">يعيد MIUI / HyperOS تحجيم النافذة الحرة مرة أخرى، لذا فإن أقصى حجم مرئي يمكن تسليمه هو نحو %1$d%% عمودي و%2$d%% أفقي؛ ويقصر محرر الحجم السحب على هذا النطاق.</string>
+    <string name="free_window_cap_hint">يعيد MIUI / HyperOS تحجيم النافذة الحرة مرة أخرى. النطاق الموثوق هو نحو %1$d%% عمودي و%2$d%% أفقي؛ وفوق ذلك قد لا يلتزم النظام بالحجم الذي تحدده.</string>
     <string name="free_window_mode_dialog_title">اختيار وضع التشغيل</string>
     <string name="free_window_mode_hint">تقوم المصانع المختلفة بتشغيل النوافذ الحرة عبر windowingMode في ActivityOptions، وتختلف قيم الوضع؛ Flyme هو 11، HyperOS هو 5، إلخ. إذا لم يكن فعالاً، يرجى تفعيل النافذة الحرة/النافذة الحرة في إعدادات النظام المقابلة.</string>
     <string name="free_window_mode_standard">النافذة الحرة (قياسي)</string>
