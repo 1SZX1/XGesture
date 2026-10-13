@@ -161,6 +161,8 @@ internal fun QuickLauncherAddOverlaySheetBody(
     onEnterFolderLibrary: () -> Unit = {},
     onClearFolderDraft: () -> Unit = {},
     onReportEmbedParentConfirm: (QuickLauncherEmbedParentConfirm?) -> Unit = {},
+    /** 「手势宏」挑选钩子（透传到动作列表）。 */
+    onRequestRunMacro: ((GestureAction) -> Unit) -> Unit = {},
 ) {
     var visitedTabs by remember { mutableStateOf(setOf(selectedTab)) }
     LaunchedEffect(selectedTab) {
@@ -334,6 +336,7 @@ internal fun QuickLauncherAddOverlaySheetBody(
                         onSubScreenChange(QuickLauncherAddSubScreen.Main)
                     },
                     launchCreateShortcut = launchCreateShortcut,
+                    onRequestRunMacro = onRequestRunMacro,
                     onBrowseActivityShortcut = {
                         onEnterFolderLibrary()
                         onSubScreenChange(QuickLauncherAddSubScreen.PickApp)
@@ -440,6 +443,7 @@ internal fun QuickLauncherAddOverlaySheetBody(
                         onOpenSimulateKeyEvent = {
                             onSubScreenChange(QuickLauncherAddSubScreen.SimulateKeyEventConfig())
                         },
+                        onRequestRunMacro = onRequestRunMacro,
                         singleSelect = singleSelect,
                         pinNoneAtTop = pinNoneAtTop,
                         noneSelected = slotEmpty,
@@ -599,6 +603,8 @@ private fun QuickLauncherAddActionsTab(
     onOpenExecuteShellCommand: () -> Unit,
     onOpenOpenLink: () -> Unit,
     onOpenSimulateKeyEvent: () -> Unit,
+    /** 「手势宏」的挑选钩子：弹选择框挑一条宏，拿到带 macroId 的动作再落库。 */
+    onRequestRunMacro: ((GestureAction) -> Unit) -> Unit = {},
     modifier: Modifier,
     singleSelect: Boolean = false,
     pinNoneAtTop: Boolean = false,
@@ -618,6 +624,7 @@ private fun QuickLauncherAddActionsTab(
             onOpenExecuteShellCommand = onOpenExecuteShellCommand,
             onOpenOpenLink = onOpenOpenLink,
             onOpenSimulateKeyEvent = onOpenSimulateKeyEvent,
+            onRequestRunMacro = onRequestRunMacro,
             singleSelect = singleSelect,
             pinNoneAtTop = pinNoneAtTop,
             noneSelected = noneSelected,
@@ -778,6 +785,8 @@ internal fun QuickLauncherCreateFolderScreen(
         (CreatedShortcut?) -> Unit,
     ) -> Unit,
     onBrowseActivityShortcut: () -> Unit,
+    /** 「手势宏」挑选钩子（透传到文件夹内的动作列表）。 */
+    onRequestRunMacro: ((GestureAction) -> Unit) -> Unit = {},
     modifier: Modifier = Modifier,
     selectedTab: Int = 0,
     searchQuery: String = "",
@@ -845,6 +854,7 @@ internal fun QuickLauncherCreateFolderScreen(
                     onOpenSimulateKeyEvent = {
                         onSubScreenChange(QuickLauncherAddSubScreen.SimulateKeyEventConfig())
                     },
+                    onRequestRunMacro = onRequestRunMacro,
                     singleSelect = false,
                     modifier = Modifier.fillMaxSize(),
                 )

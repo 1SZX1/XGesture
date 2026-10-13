@@ -249,6 +249,16 @@ fun gestureActionLabelText(context: Context, action: GestureAction): String = wh
         context.getString(R.string.gesture_action_simulate_key_event_named, name)
     }
     else -> when (action.type) {
+        GestureActionType.RUN_MACRO -> {
+            // 显示"运行宏：<宏名>"；宏被删掉时给一个明确的失效文案，而不是空字符串。
+            val macroId = (action as? GestureAction.RunMacro)?.macroId.orEmpty()
+            val macroName = com.slideindex.app.macro.MacroStore.byId(context, macroId)?.name
+            if (macroName.isNullOrBlank()) {
+                context.getString(R.string.macro_action_run_macro_missing)
+            } else {
+                context.getString(R.string.macro_action_run_macro_named, macroName)
+            }
+        }
         GestureActionType.NONE -> context.getString(R.string.gesture_action_none)
         GestureActionType.OPEN_INDEX -> context.getString(R.string.gesture_action_open_index)
         GestureActionType.QUICK_LAUNCHER -> context.getString(R.string.gesture_action_quick_launcher)
@@ -401,6 +411,7 @@ fun gestureActionLabel(action: GestureAction, settings: AppSettings? = null): St
         }
     }
     else -> when (action.type) {
+        GestureActionType.RUN_MACRO -> stringResource(R.string.macro_action_run_macro)
         GestureActionType.NONE -> stringResource(R.string.gesture_action_none)
         GestureActionType.OPEN_INDEX -> stringResource(R.string.gesture_action_open_index)
         GestureActionType.QUICK_LAUNCHER -> stringResource(R.string.gesture_action_quick_launcher)

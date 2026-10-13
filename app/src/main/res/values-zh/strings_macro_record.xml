@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 宏：录制浮动条 -->
+    <string name="macro_record_badge">宏</string>
+    <string name="macro_record_running">录制中</string>
+    <string name="macro_record_drag_handle">拖动</string>
+    <string name="macro_record_counts">动作 %1$d</string>
+    <string name="macro_record_counts_with_waits">动作 %1$d · 等待 %2$d</string>
+
+    <!-- 宏：录制浮动条按钮 -->
+    <string name="macro_record_pause">暂停</string>
+    <string name="macro_record_resume">继续</string>
+    <string name="macro_record_stop">停止</string>
+    <string name="macro_record_save">保存</string>
+    <string name="macro_record_confirm_discard">放弃这段录制？</string>
+    <string name="macro_record_discard">放弃</string>
+    <string name="macro_record_keep">保留</string>
+
+    <!-- 宏：录制结果提示 -->
+    <string name="macro_record_nothing">还没录到步骤</string>
+    <string name="macro_record_saved">已保存宏：%1$s</string>
+</resources>

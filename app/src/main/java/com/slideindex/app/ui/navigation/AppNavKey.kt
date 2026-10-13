@@ -275,6 +275,10 @@ sealed interface AppNavKey : NavKey {
 
     // Extension tab
     @Serializable data object ExtensionHub : AppNavKey
+    // 手势宏（宏列表 / 新建-编辑 / 目标 App 选择）
+    @Serializable data object MacroList : AppNavKey
+    @Serializable data class MacroEdit(val macroId: String) : AppNavKey
+    @Serializable data class MacroTargetApp(val macroId: String) : AppNavKey
     @Serializable data object QuickWheelList : AppNavKey
     @Serializable data class QuickWheelConfig(val wheelId: String) : AppNavKey
     @Serializable data class QuickWheelSlotEditor(

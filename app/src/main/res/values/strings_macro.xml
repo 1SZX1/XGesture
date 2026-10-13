@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 宏：执行期提示 -->
+    <string name="macro_run_requires_android_n">Macros require Android 7.0 or later.</string>
+    <string name="macro_run_already_running">A macro is already running.</string>
+    <string name="macro_run_service_unavailable">Accessibility service is not connected.</string>
+    <string name="macro_run_target_not_found">Can\'t open the target app.</string>
+    <string name="macro_run_app_timeout">Target app did not come to the front in time.</string>
+    <string name="macro_run_foreground_changed">Macro stopped: the foreground app changed.</string>
+    <string name="macro_run_step_failed">Macro step failed: %1$s</string>
+    <string name="macro_run_completed">Macro finished: %1$s</string>
+    <string name="macro_record_touch_unavailable">Recording stopped: touch replay isn\'t available on this device.</string>
+    <string name="macro_record_stopped_screen_off">Recording stopped because the screen turned off.</string>
+    <string name="macro_record_stopped_timeout">Recording stopped automatically (it stayed open too long).</string>
+
+    <!-- 宏：步骤名（失败提示里用） -->
+    <string name="macro_step_wait">wait</string>
+    <string name="macro_step_tap">tap</string>
+    <string name="macro_step_swipe">swipe</string>
+
+    <!-- 宏：动作条目 -->
+    <string name="macro_action_run_macro">Gesture macro</string>
+    <string name="macro_action_run_macro_named">Gesture macro: %1$s</string>
+    <string name="macro_action_run_macro_missing">Gesture macro (deleted)</string>
+    <string name="macro_pick_empty">No gesture macros yet. Create one in Extensions → Gesture macros first.</string>
+    <string name="macro_test_run">Test run</string>
+    <string name="macro_test_run_desc">Runs this macro once right now, without binding it to a gesture.</string>
+</resources>

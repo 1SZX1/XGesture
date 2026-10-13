@@ -175,6 +175,8 @@ class SlideIndexApp : Application(), androidx.work.Configuration.Provider {
         }
         otpAutoFillStatsInstaller.install()
         otpRecordLimitsInstaller.install()
+        // 「录制宏」的接线：把录制实现塞进界面侧定义的窄接口（不接线时界面会提示尚未接入）。
+        com.slideindex.app.macro.MacroRecordingInstaller.install(this)
         ClipboardMonitorStartup.applicationReady = true
 
         // —— 仅主进程：启动期重活、调度、拉起常驻服务 ——

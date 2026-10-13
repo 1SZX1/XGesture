@@ -17,11 +17,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.slideindex.app.R
+import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.launcher.QuickLauncherItem
 import com.slideindex.app.launcher.QuickLauncherItemCodec
 import com.slideindex.app.launcher.QuickLauncherItemType
 import com.slideindex.app.overlay.honeycombRuntimeItems
 import com.slideindex.app.settings.AppSettings
+import com.slideindex.app.ui.gesturepicker.MacroPickDialog
 import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
@@ -83,6 +85,8 @@ fun HoneycombLauncherAddPickerScreen(
     }
 
     var pendingCreateHost by remember { mutableStateOf<AppShortcutLoader.CreateShortcutHost?>(null) }
+    // 「手势宏」要先挑一条宏再落库：这里挂待处理回调，弹选择框。
+    var pendingMacroPick by remember { mutableStateOf<((GestureAction) -> Unit)?>(null) }
     val createLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -175,6 +179,7 @@ fun HoneycombLauncherAddPickerScreen(
                     onOpenExecuteShellCommand = { onOpenExecuteShellCommand("") },
                     onOpenOpenLink = onOpenOpenLink,
                     onOpenSimulateKeyEvent = onOpenSimulateKeyEvent,
+                    onRequestRunMacro = { onPicked -> pendingMacroPick = onPicked },
                 )
             }
             QuickLauncherEditorAddTab.APPS -> {
@@ -210,5 +215,17 @@ fun HoneycombLauncherAddPickerScreen(
                 )
             }
         }
+    }
+
+    val macroPick = pendingMacroPick
+    if (macroPick != null) {
+        MacroPickDialog(
+            show = true,
+            onDismissRequest = { pendingMacroPick = null },
+            onPick = { macro ->
+                pendingMacroPick = null
+                macroPick(GestureAction.RunMacro(macro.id))
+            },
+        )
     }
 }

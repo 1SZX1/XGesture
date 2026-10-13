@@ -72,6 +72,7 @@ import com.slideindex.app.ui.quicklauncher.QuickLauncherEmbedParentConfirm
 import com.slideindex.app.ui.quicklauncher.QUICK_LAUNCHER_SHEET_ENTER_MS
 import com.slideindex.app.ui.quicklauncher.QUICK_LAUNCHER_SHEET_EXIT_MS
 import com.slideindex.app.ui.quicklauncher.QuickLauncherAddOverlaySheetBody
+import com.slideindex.app.ui.gesturepicker.MacroPickOverlay
 import com.slideindex.app.ui.quicklauncher.QuickLauncherAddSubScreen
 import com.slideindex.app.util.AppShortcutLoader
 import com.slideindex.app.util.AppShortcutLoader.CreatedShortcut
@@ -98,6 +99,8 @@ fun RingLauncherSlotConfigSheet(
     var visible by remember { mutableStateOf(false) }
     var subScreen by remember { mutableStateOf<QuickLauncherAddSubScreen>(QuickLauncherAddSubScreen.Main) }
     var panelPickVisible by remember { mutableStateOf(false) }
+    // 「手势宏」要先挑一条宏再落库（本面板是悬浮窗，选择层必须画在界面里，不能用平台 Dialog）。
+    var pendingMacroPick by remember { mutableStateOf<((GestureAction) -> Unit)?>(null) }
     var embedParentConfirm by remember { mutableStateOf<QuickLauncherEmbedParentConfirm?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -384,6 +387,7 @@ fun RingLauncherSlotConfigSheet(
                                 },
                             )
                         } else {
+                          Box(modifier = Modifier.fillMaxSize()) {
                             QuickLauncherAddOverlaySheetBody(
                                 modifier = Modifier.fillMaxSize(),
                                 padding = PaddingValues(0.dp),
@@ -416,7 +420,20 @@ fun RingLauncherSlotConfigSheet(
                                     requestDismiss()
                                 },
                                 onReportEmbedParentConfirm = { embedParentConfirm = it },
+                                onRequestRunMacro = { onPicked -> pendingMacroPick = onPicked },
                             )
+
+                            val macroPick = pendingMacroPick
+                            if (macroPick != null) {
+                                MacroPickOverlay(
+                                    onDismissRequest = { pendingMacroPick = null },
+                                    onPick = { macro ->
+                                        pendingMacroPick = null
+                                        macroPick(GestureAction.RunMacro(macro.id))
+                                    },
+                                )
+                            }
+                          }
                         }
                     }
                 }

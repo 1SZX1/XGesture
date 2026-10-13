@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 宏：执行期提示 -->
+    <string name="macro_run_requires_android_n">宏需要 Android 7.0 或更高版本。</string>
+    <string name="macro_run_already_running">已有宏正在运行。</string>
+    <string name="macro_run_service_unavailable">无障碍服务未连接。</string>
+    <string name="macro_run_target_not_found">打不开目标应用。</string>
+    <string name="macro_run_app_timeout">目标应用没能在限定时间内到前台。</string>
+    <string name="macro_run_foreground_changed">已切换到其它应用，宏停止。</string>
+    <string name="macro_run_step_failed">宏步骤失败：%1$s</string>
+    <string name="macro_run_completed">宏已完成：%1$s</string>
+    <string name="macro_record_touch_unavailable">录制已停止：这台设备上的触摸回放不可用。</string>
+    <string name="macro_record_stopped_screen_off">已灭屏，录制自动结束。</string>
+    <string name="macro_record_stopped_timeout">录制开着太久，已自动结束。</string>
+
+    <!-- 宏：步骤名（失败提示里用） -->
+    <string name="macro_step_wait">等待</string>
+    <string name="macro_step_tap">点击</string>
+    <string name="macro_step_swipe">滑动</string>
+
+    <!-- 宏：动作条目 -->
+    <string name="macro_action_run_macro">手势宏</string>
+    <string name="macro_action_run_macro_named">手势宏：%1$s</string>
+    <string name="macro_action_run_macro_missing">手势宏（已删除）</string>
+    <string name="macro_pick_empty">还没有手势宏。先去「扩展 → 手势宏」里创建一条。</string>
+    <string name="macro_test_run">试运行</string>
+    <string name="macro_test_run_desc">现在就把这条宏跑一遍（不用先绑到手势上）。</string>
+</resources>

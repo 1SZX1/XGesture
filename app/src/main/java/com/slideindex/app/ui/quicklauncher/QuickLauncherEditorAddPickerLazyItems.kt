@@ -24,6 +24,7 @@ import com.slideindex.app.ui.AppPackageEntry
 import com.slideindex.app.ui.gestureActionIcon
 import com.slideindex.app.ui.gesturepicker.gestureActionDescription
 import com.slideindex.app.ui.gesturepicker.gestureActionLabel
+import com.slideindex.app.ui.gesturepicker.gestureActionLabelText
 import com.slideindex.app.ui.picker.FilteredShortcutCatalog
 import com.slideindex.app.ui.picker.GestureActionCatalog
 import com.slideindex.app.gesture.ActionPickerCatalogPolicy
@@ -45,6 +46,11 @@ fun LazyListScope.quickLauncherAddPickerActionItems(
     onOpenExecuteShellCommand: () -> Unit,
     onOpenOpenLink: () -> Unit = {},
     onOpenSimulateKeyEvent: () -> Unit = {},
+    /**
+     * 「手势宏」必须带 macroId 才有意义：这里把"挑一条宏"的动作交回给调用方（由它挂选择框），
+     * 拿到结果后再落库。缺省空实现时保持旧行为（不推荐，等于存了个空动作）。
+     */
+    onRequestRunMacro: ((GestureAction) -> Unit) -> Unit = {},
     singleSelect: Boolean = false,
     pinNoneAtTop: Boolean = false,
     noneSelected: Boolean = false,
@@ -132,6 +138,38 @@ fun LazyListScope.quickLauncherAddPickerActionItems(
                     onOpenConfig = {
                         requestPermissionForAdjustAction(context, action)
                         onOpenSimulateKeyEvent()
+                    },
+                )
+            } else if (action.type == GestureActionType.RUN_MACRO) {
+                // 「手势宏」：先弹选择框挑一条宏，拿到带 macroId 的动作再落库
+                //（否则会存进一个 macroId 为空的"空宏动作"，执行时静默失效）。
+                val added = QuickLauncherItemCodec.actionKey(action) in configuredActionKeys
+                // 列表里这一项是"模板动作"（macroId 为空）：显示通用名，别显示成"宏已删除"。
+                val macroLabel = if ((action as? GestureAction.RunMacro)?.macroId.isNullOrBlank()) {
+                    stringResource(R.string.macro_action_run_macro)
+                } else {
+                    gestureActionLabelText(context, action)
+                }
+                QuickLauncherActionRow(
+                    action = action,
+                    segmentIndex = index,
+                    segmentCount = section.actions.size,
+                    label = macroLabel,
+                    subtitle = gestureActionDescription(action),
+                    added = added,
+                    singleSelect = singleSelect,
+                    onToggle = {
+                        onRequestRunMacro { picked ->
+                            if (!added) {
+                                requestPermissionForAdjustAction(context, picked)
+                            }
+                            // 配置型动作一律按"新增"落库（与 Shell 命令/打开链接的约定一致）：
+                            // 否则在"已添加"状态下选完宏反而会把它取消掉，表现为"选了没反应"。
+                            onToggleItem(
+                                QuickLauncherItem.action(picked, gestureActionLabelText(context, picked)),
+                                false,
+                            )
+                        }
                     },
                 )
             } else {

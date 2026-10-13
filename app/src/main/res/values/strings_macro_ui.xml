@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 扩展 Hub 入口 -->
+    <string name="macro_entry_title">Gesture macros</string>
+    <string name="macro_entry_desc">Record a sequence of taps and swipes in another app, then replay it with one gesture.</string>
+
+    <!-- 列表页 -->
+    <string name="macro_list_title">Gesture macros</string>
+    <string name="macro_list_hint">A macro is a script of taps, swipes and waits that runs inside its target app. Tap a row to edit it, long-press to delete it.</string>
+    <string name="macro_search_hint">Search macros…</string>
+    <string name="macro_list_empty">No macros yet</string>
+    <string name="macro_list_no_match">No macro matches this search</string>
+    <string name="macro_create">New macro</string>
+    <string name="macro_row_summary">%1$s - %2$d actions</string>
+
+    <!-- 删除确认 -->
+    <string name="macro_delete_title">Delete macro</string>
+    <string name="macro_delete_message">Delete "%1$s"? This cannot be undone.</string>
+    <string name="macro_delete_confirm">Delete</string>
+
+    <!-- 新建 / 编辑页 -->
+    <string name="macro_editor_title">Edit macro</string>
+    <string name="macro_section_basic">Basics</string>
+    <string name="macro_section_record">Recording</string>
+    <string name="macro_name_label">Macro name</string>
+    <string name="macro_target_label">Target app</string>
+    <string name="macro_target_none">Not selected</string>
+    <string name="macro_target_value">%1$s · %2$s</string>
+    <string name="macro_start_recording">Start recording</string>
+    <string name="macro_recording">Recording</string>
+    <string name="macro_start_recording_desc">Opens the target app and records what you do there.</string>
+    <string name="macro_save">Save</string>
+    <string name="macro_help_idle">Starting a recording opens the target app. Use it normally; when you are done, tap save on the floating bar.</string>
+    <string name="macro_help_recording">Recording: use the target app, then tap save on the floating bar to come back here.</string>
+    <string name="macro_error_name_required">Please enter a macro name</string>
+
+    <!-- 目标 App 选择页 -->
+    <string name="macro_target_pick_title">Target app</string>
+    <string name="macro_target_pick_subtitle">Only apps that can be launched from the home screen are listed.</string>
+    <string name="macro_target_empty">No launchable app found</string>
+    <string name="macro_target_selected">Selected · %1$s</string>
+
+    <!-- 录制器接线状态 -->
+    <string name="macro_recording_unavailable">Recording is not available in this build yet</string>
+    <string name="macro_recording_start_failed">Could not start recording</string>
+    <string name="macro_recording_saved">Recording saved: %1$d steps</string>
+    <string name="macro_recording_empty">No step was recorded</string>
+</resources>

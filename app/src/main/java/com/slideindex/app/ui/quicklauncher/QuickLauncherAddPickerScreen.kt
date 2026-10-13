@@ -30,6 +30,7 @@ import top.yukonga.miuix.kmp.icon.extended.AddFolder
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.TextButton
 import com.slideindex.app.R
+import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.launcher.QuickLauncherItem
 import com.slideindex.app.launcher.QuickLauncherItemCodec
 import com.slideindex.app.launcher.QuickLauncherItemType
@@ -38,6 +39,7 @@ import com.slideindex.app.launcher.resolveFolderItems
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
+import com.slideindex.app.ui.gesturepicker.MacroPickDialog
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixLabeledTextField
 import com.slideindex.app.ui.miuix.MiuixScaffoldSearchTabBottomContent
@@ -75,6 +77,8 @@ fun QuickLauncherAddPickerScreen(
     var searchExpanded by remember { mutableStateOf(false) }
     val searchFocusRequester = remember { FocusRequester() }
     val tabs = remember { QuickLauncherEditorAddTab.entries }
+    // 「手势宏」要先挑一条宏再落库：这里挂待处理回调，弹选择框。
+    var pendingMacroPick by remember { mutableStateOf<((GestureAction) -> Unit)?>(null) }
 
     val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
 
@@ -207,6 +211,7 @@ fun QuickLauncherAddPickerScreen(
                     onOpenExecuteShellCommand = { onOpenExecuteShellCommand("") },
                     onOpenOpenLink = onOpenOpenLink,
                     onOpenSimulateKeyEvent = onOpenSimulateKeyEvent,
+                    onRequestRunMacro = { onPicked -> pendingMacroPick = onPicked },
                 )
             }
             QuickLauncherEditorAddTab.APPS -> {
@@ -243,6 +248,18 @@ fun QuickLauncherAddPickerScreen(
             }
         }
     }
+
+    val macroPick = pendingMacroPick
+    if (macroPick != null) {
+        MacroPickDialog(
+            show = true,
+            onDismissRequest = { pendingMacroPick = null },
+            onPick = { macro ->
+                pendingMacroPick = null
+                macroPick(GestureAction.RunMacro(macro.id))
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -272,6 +289,8 @@ fun QuickLauncherCreateFolderScreen(
     var searchQuery by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
     val tabs = remember { QuickLauncherEditorAddTab.entries }
+    // 「手势宏」要先挑一条宏再落库：这里挂待处理回调，弹选择框。
+    var pendingMacroPick by remember { mutableStateOf<((GestureAction) -> Unit)?>(null) }
     var folderSelectedTab by remember { mutableIntStateOf(0) }
 
     val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
@@ -423,6 +442,7 @@ fun QuickLauncherCreateFolderScreen(
                     onOpenExecuteShellCommand = { onOpenExecuteShellCommand("") },
                     onOpenOpenLink = onOpenOpenLink,
                     onOpenSimulateKeyEvent = onOpenSimulateKeyEvent,
+                    onRequestRunMacro = { onPicked -> pendingMacroPick = onPicked },
                 )
             }
             QuickLauncherEditorAddTab.APPS -> {
@@ -458,5 +478,17 @@ fun QuickLauncherCreateFolderScreen(
                 )
             }
         }
+    }
+
+    val macroPick = pendingMacroPick
+    if (macroPick != null) {
+        MacroPickDialog(
+            show = true,
+            onDismissRequest = { pendingMacroPick = null },
+            onPick = { macro ->
+                pendingMacroPick = null
+                macroPick(GestureAction.RunMacro(macro.id))
+            },
+        )
     }
 }

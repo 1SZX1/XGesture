@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.gesture.GestureActionType
 import com.slideindex.app.settings.ExtensionHubSettings
+import com.slideindex.app.settings.macro.ui.MacroEntryCard
 import com.slideindex.app.ui.miuix.MiuixHubScaffold
 import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.settings.components.SettingNavigationRow
@@ -47,6 +48,7 @@ fun ExtensionHubScreen(
     onOpenWidgetPanel: () -> Unit,
     onOpenStashClipboard: () -> Unit,
     onOpenFreezer: () -> Unit = {},
+    onOpenMacro: () -> Unit = {},
     onOpenSettingsBackup: () -> Unit,
     onOpenNativeEnginePacks: () -> Unit,
     onOpenDiagnosticLogs: () -> Unit,
@@ -209,6 +211,11 @@ fun ExtensionHubScreen(
                             subtitle = stringResource(R.string.extension_freezer_subtitle),
                             onClick = onOpenFreezer
                         )
+                    }
+                )
+                add(
+                    settingsCardScopeItem("macro") {
+                        MacroEntryCard(onClick = onOpenMacro)
                     }
                 )
             }

@@ -765,6 +765,9 @@ private fun NavEntryBuilder.registerMainTabNavEntries(
         }
         MainBottomNavDestination.Shake -> shakeNavEntries(ctx)
         MainBottomNavDestination.Notification -> notificationNavEntries(ctx)
-        MainBottomNavDestination.Extension -> extensionNavEntries(ctx)
+        MainBottomNavDestination.Extension -> {
+            extensionNavEntries(ctx)
+            macroNavEntries(ctx)
+        }
     }
 }

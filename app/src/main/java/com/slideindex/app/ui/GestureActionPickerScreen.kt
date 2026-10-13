@@ -37,6 +37,7 @@ import com.slideindex.app.ui.gesturepicker.actionPickerAppItems
 import com.slideindex.app.ui.gesturepicker.ActionPickerShortcutRow
 import com.slideindex.app.ui.gesturepicker.actionPickerShortcutItems
 import com.slideindex.app.ui.gesturepicker.GestureLaunchWindowModeDialog
+import com.slideindex.app.ui.gesturepicker.MacroPickDialog
 import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredActions
 import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredApps
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
@@ -147,8 +148,12 @@ fun GestureActionPickerScreen(
     }
 
     var hasSelected by remember { mutableStateOf(false) }
+    // 「运行宏」要先挑一条宏：这里只为它开一个二级选择弹窗，选中后再真正回调出去。
+    var macroPickVisible by remember { mutableStateOf(false) }
     val safeSelect: (GestureAction) -> Unit = { action ->
-        if (!hasSelected) {
+        if (action is GestureAction.RunMacro && action.macroId.isBlank()) {
+            macroPickVisible = true
+        } else if (!hasSelected) {
             hasSelected = true
             onSelect(action)
         }
@@ -309,6 +314,17 @@ fun GestureActionPickerScreen(
                 onConfirm = { mode ->
                     pendingLaunchApp = null
                     safeSelect(GestureAction.LaunchApp(app.packageName, mode))
+                },
+            )
+        }
+
+        if (macroPickVisible) {
+            MacroPickDialog(
+                show = true,
+                onDismissRequest = { macroPickVisible = false },
+                onPick = { macro ->
+                    macroPickVisible = false
+                    safeSelect(GestureAction.RunMacro(macro.id))
                 },
             )
         }

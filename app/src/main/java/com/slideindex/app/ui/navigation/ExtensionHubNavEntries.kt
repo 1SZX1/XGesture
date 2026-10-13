@@ -62,6 +62,7 @@ fun NavEntryBuilder.extensionHubNavEntries(ctx: MainNavContext) {
             onOpenWidgetPanel = { ctx.navigate(AppNavKey.WidgetPanel) },
             onOpenStashClipboard = { ctx.navigate(AppNavKey.StashClipboard) },
             onOpenFreezer = { ctx.navigate(AppNavKey.ExtensionFreezer) },
+            onOpenMacro = { ctx.navigate(AppNavKey.MacroList) },
             onOpenSettingsBackup = { ctx.navigate(AppNavKey.ExtensionBackup) },
             onOpenNativeEnginePacks = { ctx.navigate(AppNavKey.NativeEnginePacks) },
             onOpenDiagnosticLogs = { ctx.navigate(AppNavKey.ExtensionDiagnosticLogs) },

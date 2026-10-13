@@ -37,6 +37,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.TASK_SWITCHER -> ThinActionIcons.ViewCarousel
     GestureActionType.SHELL_COMMAND_PANEL -> ThinActionIcons.Code
     GestureActionType.EXECUTE_SHELL_COMMAND -> ThinActionIcons.PlayCircle
+    GestureActionType.RUN_MACRO -> ThinActionIcons.PlayCircle
     GestureActionType.QUICK_TOOLS_OVERLAY -> ThinActionIcons.QuickTools
     GestureActionType.QUICK_MENU -> Icons.Outlined.Calculate
     GestureActionType.WIDGET_POPUP_OVERLAY -> ThinActionIcons.Widgets
@@ -132,6 +133,7 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.TASK_SWITCHER -> ThinActionIcons.ViewCarousel
     GestureActionType.SHELL_COMMAND_PANEL -> ThinActionIcons.Code
     GestureActionType.EXECUTE_SHELL_COMMAND -> ThinActionIcons.Code
+    GestureActionType.RUN_MACRO -> ThinActionIcons.PlayCircle
     GestureActionType.QUICK_TOOLS_OVERLAY -> ThinActionIcons.QuickTools
     GestureActionType.QUICK_MENU -> Icons.Outlined.Calculate
     GestureActionType.WIDGET_POPUP_OVERLAY -> ThinActionIcons.Widgets

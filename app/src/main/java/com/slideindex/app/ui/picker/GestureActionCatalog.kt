@@ -184,6 +184,7 @@ object GestureActionCatalog {
         GestureActionType.SIMULATE_POINTER_SWIPE,
         GestureActionType.SHELL_COMMAND_PANEL,
         GestureActionType.EXECUTE_SHELL_COMMAND,
+        GestureActionType.RUN_MACRO,
         GestureActionType.SIMULATE_KEY_EVENT,
         GestureActionType.FREEZER_PANEL,
         GestureActionType.REFREEZE,
@@ -228,6 +229,8 @@ object GestureActionCatalog {
             add(GestureAction.SimulatePointerSwipe())
         }
         add(GestureAction.SnoozeOverlays)
+        // 「运行宏」：选中后由选择器弹二级列表挑一条宏（见 MacroPickDialog）。
+        add(GestureAction.RunMacro())
         if (trigger == GestureTriggerType.SHORT_SINGLE_TAP) add(GestureAction.ClickPassthrough)
     }
 
@@ -242,6 +245,7 @@ object GestureActionCatalog {
         add(GestureAction.QuickWheel())
         addAll(sharedCoreActions())
         add(GestureAction.SnoozeOverlays)
+        add(GestureAction.RunMacro())
     }
 
     private fun sharedCoreActions(): List<GestureAction> = listOf(

@@ -133,6 +133,9 @@ fun SettingsLazyScreenScaffoldWithExpandableSearch(
     hintResId: Int = R.string.search_hint,
     enableBackHandler: Boolean = true,
     extraActions: @Composable RowScope.() -> Unit = {},
+    floatingActionButton: @Composable () -> Unit = {},
+    /** 悬浮按钮需要预留的底部空间，见 [com.slideindex.app.ui.miuix.MiuixSettingsFabInset]。 */
+    fabInset: Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) {
     var searchExpanded by remember { mutableStateOf(false) }
@@ -156,6 +159,8 @@ fun SettingsLazyScreenScaffoldWithExpandableSearch(
         subtitle = subtitle,
         onBack = handleBack,
         enableBackHandler = enableBackHandler,
+        floatingActionButton = floatingActionButton,
+        fabInset = fabInset,
         actions = {
             MiuixExpandableSearchIconAction(
                 expanded = searchExpanded,

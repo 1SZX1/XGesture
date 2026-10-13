@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 扩展 Hub 入口 -->
+    <string name="macro_entry_title">手势宏</string>
+    <string name="macro_entry_desc">在别的应用里把点击、滑动录成一串动作，之后用一个手势重放。</string>
+
+    <!-- 列表页 -->
+    <string name="macro_list_title">手势宏</string>
+    <string name="macro_list_hint">宏是一串在目标应用里执行的点击、滑动与等待。点一行进入编辑，长按可删除。</string>
+    <string name="macro_search_hint">搜索宏…</string>
+    <string name="macro_list_empty">还没有宏</string>
+    <string name="macro_list_no_match">没有匹配的宏</string>
+    <string name="macro_create">新建宏</string>
+    <string name="macro_row_summary">%1$s - %2$d 个动作</string>
+
+    <!-- 删除确认 -->
+    <string name="macro_delete_title">删除宏</string>
+    <string name="macro_delete_message">删除"%1$s"？此操作不可撤销。</string>
+    <string name="macro_delete_confirm">删除</string>
+
+    <!-- 新建 / 编辑页 -->
+    <string name="macro_editor_title">编辑宏</string>
+    <string name="macro_section_basic">基本信息</string>
+    <string name="macro_section_record">录制</string>
+    <string name="macro_name_label">宏名称</string>
+    <string name="macro_target_label">目标应用</string>
+    <string name="macro_target_none">尚未选择</string>
+    <string name="macro_target_value">%1$s · %2$s</string>
+    <string name="macro_start_recording">开始录制</string>
+    <string name="macro_recording">录制中</string>
+    <string name="macro_start_recording_desc">会启动目标应用，并记录你在里面的操作。</string>
+    <string name="macro_save">保存</string>
+    <string name="macro_help_idle">点开始录制会启动目标应用；在里面正常操作，完成后点悬浮条上的保存。</string>
+    <string name="macro_help_recording">录制中：在目标应用里操作，完成后点悬浮条上的保存返回这里。</string>
+    <string name="macro_error_name_required">请填写宏名称</string>
+
+    <!-- 目标 App 选择页 -->
+    <string name="macro_target_pick_title">选择目标应用</string>
+    <string name="macro_target_pick_subtitle">只列出能从桌面启动的应用。</string>
+    <string name="macro_target_empty">没有找到可启动的应用</string>
+    <string name="macro_target_selected">已选择 · %1$s</string>
+
+    <!-- 录制器接线状态 -->
+    <string name="macro_recording_unavailable">当前版本还没接入录制功能</string>
+    <string name="macro_recording_start_failed">无法开始录制</string>
+    <string name="macro_recording_saved">已保存录制：%1$d 步</string>
+    <string name="macro_recording_empty">没有录到步骤</string>
+</resources>

@@ -50,8 +50,10 @@ import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.activity.ActivityShortcut
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.launcher.QuickLauncherItem
 import com.slideindex.app.overlay.PanelSide
+import com.slideindex.app.ui.gesturepicker.MacroPickOverlay
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchFieldStrip
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixTabRowContourHost
@@ -355,6 +357,8 @@ private fun QuickLauncherAddOverlaySheetContent(
     var addedAppPackages by remember { mutableStateOf(configuredAppPackages) }
     var addedShortcutKeys by remember { mutableStateOf(configuredShortcutKeys) }
     var addedActionKeys by remember { mutableStateOf(configuredActionKeys) }
+    // 「手势宏」要先挑一条宏再落库：这里挂待处理回调，弹选择框。
+    var pendingMacroPick by remember { mutableStateOf<((GestureAction) -> Unit)?>(null) }
 
     fun addItem(item: QuickLauncherItem) {
         val (apps, shortcuts, actions) = addQuickLauncherItem(
@@ -386,32 +390,48 @@ private fun QuickLauncherAddOverlaySheetContent(
         if (added) removeItem(item) else addItem(item)
     }
 
-    QuickLauncherAddOverlaySheetBody(
-        modifier = modifier.fillMaxSize(),
-        padding = PaddingValues(0.dp),
-        nestedScrollConnection = null,
-        searchQuery = searchQuery,
-        apps = apps,
-        addedAppPackages = addedAppPackages,
-        addedShortcutKeys = addedShortcutKeys,
-        addedActionKeys = addedActionKeys,
-        activityShortcuts = activityShortcuts,
-        shellCommands = shellCommands,
-        onToggle = ::toggleItem,
-        launchCreateShortcut = launchCreateShortcut,
-        subScreen = subScreen,
-        onSubScreenChange = onSubScreenChange,
-        selectedTab = selectedTab,
-        singleSelect = false,
-        folderName = folderName,
-        folderItems = folderItems,
-        folderPickerActive = folderPickerActive,
-        onFolderNameChange = onFolderNameChange,
-        onToggleFolderItem = onToggleFolderItem,
-        onEnterFolderLibrary = onEnterFolderLibrary,
-        onClearFolderDraft = onClearFolderDraft,
-        onReportEmbedParentConfirm = onReportEmbedParentConfirm,
-    )
+    // 宏选择层必须"画在面板里"，不能用平台 Dialog：本面板自己就是悬浮窗（type 2038），
+    // 弹 type 2 的 Dialog 会被系统拒绝并闪退。
+    Box(modifier = modifier.fillMaxSize()) {
+        QuickLauncherAddOverlaySheetBody(
+            modifier = Modifier.fillMaxSize(),
+            padding = PaddingValues(0.dp),
+            nestedScrollConnection = null,
+            searchQuery = searchQuery,
+            apps = apps,
+            addedAppPackages = addedAppPackages,
+            addedShortcutKeys = addedShortcutKeys,
+            addedActionKeys = addedActionKeys,
+            activityShortcuts = activityShortcuts,
+            shellCommands = shellCommands,
+            onToggle = ::toggleItem,
+            launchCreateShortcut = launchCreateShortcut,
+            subScreen = subScreen,
+            onSubScreenChange = onSubScreenChange,
+            selectedTab = selectedTab,
+            singleSelect = false,
+            folderName = folderName,
+            folderItems = folderItems,
+            folderPickerActive = folderPickerActive,
+            onFolderNameChange = onFolderNameChange,
+            onToggleFolderItem = onToggleFolderItem,
+            onEnterFolderLibrary = onEnterFolderLibrary,
+            onClearFolderDraft = onClearFolderDraft,
+            onReportEmbedParentConfirm = onReportEmbedParentConfirm,
+            onRequestRunMacro = { onPicked -> pendingMacroPick = onPicked },
+        )
+
+        val macroPick = pendingMacroPick
+        if (macroPick != null) {
+            MacroPickOverlay(
+                onDismissRequest = { pendingMacroPick = null },
+                onPick = { macro ->
+                    pendingMacroPick = null
+                    macroPick(GestureAction.RunMacro(macro.id))
+                },
+            )
+        }
+    }
 }
 
 @Composable

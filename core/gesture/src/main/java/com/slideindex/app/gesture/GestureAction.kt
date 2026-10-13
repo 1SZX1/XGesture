@@ -132,6 +132,9 @@ enum class GestureActionType(val id: Int) {
      * 打开即有全部工具，用户不需要预先挑选、绑定或配置任何一项。
      */
     QUICK_MENU(95),
+
+    /** 「运行宏」：把一条录制好的宏重放到它自己的目标 App 里；payload 是宏 id。 */
+    RUN_MACRO(96),
     ;
 
     companion object {
@@ -540,6 +543,19 @@ sealed class GestureAction {
     data object QuickMenu : GestureAction() {
         override val type = GestureActionType.QUICK_MENU
         override val payload = ""
+    }
+
+    /**
+     * 「运行宏」：把一条宏重放到它自己的目标 App 里。
+     *
+     * 只保存宏 id —— 宏本体在独立存储里（见 `com.slideindex.app.macro.MacroStore`），
+     * 所以宏改名/改步骤不需要动任何绑定；宏被删掉后绑定会退化成无效动作。
+     */
+    data class RunMacro(
+        val macroId: String = "",
+    ) : GestureAction() {
+        override val type = GestureActionType.RUN_MACRO
+        override val payload = macroId
     }
 
     /** Samsung OHO+ style widget popup hosting system App Widgets via [com.slideindex.app.overlay.WidgetPopupOverlayWindow]. */
@@ -999,6 +1015,7 @@ sealed class GestureAction {
                 GestureActionType.SCROLL_TO_BOTTOM -> ScrollToBottom
                 GestureActionType.SHELL_COMMAND_PANEL -> ShellCommandPanel
                 GestureActionType.EXECUTE_SHELL_COMMAND -> ExecuteShellCommand(payload)
+                GestureActionType.RUN_MACRO -> RunMacro(payload)
                 GestureActionType.OPEN_LINK -> OpenLink.fromPayload(payload)
                 GestureActionType.QUICK_TOOLS_OVERLAY -> QuickToolsOverlay
                 GestureActionType.QUICK_MENU -> QuickMenu
