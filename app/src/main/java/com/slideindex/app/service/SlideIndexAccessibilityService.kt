@@ -127,11 +127,6 @@ class SlideIndexAccessibilityService : AccessibilityService() {
                 foregroundTracker.handleWindowStateChanged(event)
                 ClipboardFloatImeCoordinator.onWindowsChanged(this)
                 KeyboardTriggerImeCoordinator.onWindowsChanged(this)
-                // 诊断：「页面滚动」运行期间记录每次窗口变化（用来定位弹输入法/弹窗的时机）。
-                com.slideindex.app.pagescroll.PageScrollActionRunner.onWindowChanged(
-                    event.packageName?.toString(),
-                    event.className?.toString(),
-                )
             }
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
                 // 注意：这里**不**失效前台包名缓存。WINDOWS_CHANGED 由输入法/弹窗/Toast 高频触发，
@@ -139,10 +134,6 @@ class SlideIndexAccessibilityService : AccessibilityService() {
                 foregroundTracker.handleWindowsChanged()
                 ClipboardFloatImeCoordinator.onWindowsChanged(this)
                 KeyboardTriggerImeCoordinator.onWindowsChanged(this)
-            }
-            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
-                // 诊断：「页面滚动」用它确认某一轮手势真的把页面滚动了。
-                com.slideindex.app.pagescroll.PageScrollActionRunner.onPageScrolled()
             }
         }
     }

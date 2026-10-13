@@ -51,16 +51,6 @@ object PageScrollActionRunner {
 
     // ---- 按住拖动执行方式：由手势会话在 开始/移动/抬起 三个时机驱动 ----
 
-    /** 无障碍服务收到系统滚动事件（诊断用：确认某轮真的滚动了）。 */
-    fun onPageScrolled() {
-        scroller?.onPageScrolled()
-    }
-
-    /** 无障碍服务收到窗口变化（诊断用：定位"弹键盘"发生在哪一拍之后）。 */
-    fun onWindowChanged(packageName: String?, className: String?) {
-        scroller?.onWindowChanged(packageName, className)
-    }
-
     /** 设置里选的是"按住拖动"吗？ */
     fun isHoldDragMode(context: Context): Boolean =
         PageScrollPrefs.read(context).mode == PageScrollMode.HOLD_AND_DRAG

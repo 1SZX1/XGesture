@@ -5,36 +5,30 @@ import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.graphics.Path
 import android.graphics.Point
-import android.graphics.Rect
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.util.DisplayMetrics
-import android.util.Log
 import android.view.WindowManager
-import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import com.slideindex.app.R
 import com.slideindex.app.service.SlideIndexAccessibilityService
 import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * 「页面滚动」的自动滚动引擎（续接式）。
+ * 「页面滚动」的自动滚动引擎。
  *
- * 一次拖动 = **一条连续手势**，内部按 [SEGMENT_MS] 切成小段，用 `StrokeDescription.continueStroke`
- * 一段段接下去；**段边界就是响应点**：
- * - 切方向 / 调速：下一段立刻按新参数走（最多等一段 ≈150ms）
- * - 停止 / 暂停：**不再续接**，当前段自然收尾（手势以真实位移结束，不是"半截"→ 不会被当成单击）
+ * 一次拖动按 [SEGMENT_MS] 切成小段下发，段边界就是响应点：
+ * - 切方向 / 调速：下一段立刻按新参数走（最多等一段）
+ * - 停止 / 暂停：不再续接，当前段以真实位移自然收尾（不做 1px 微步，避免被当成单击）
  *
- * 路径只在**可滚动列表内部**（实测 QQ 聊天页列表 y 227..2076、输入框 2093..2206）：
- * - 按下点与抬起点都在列表里 → 触摸流归列表所有、列表会在拖动中拦截 → 不会误点、不会聚焦输入框
- * - 方向：箭头 ↓（看下面内容）= 手指从列表下方**往上划**；↑ 相反
+ * 路径只在**可滚动列表内部**（实测 QQ 聊天页：列表 y 227..2076、输入框 2093..2206）：
+ * 按下点与抬起点都在列表里 → 触摸流归列表所有，拖动中会被列表拦截 → 不会误点、不会聚焦输入框。
+ * 方向：箭头 ↓（看下面内容）= 手指从列表下方往上划；↑ 相反。
  *
- * 平台差异：`continueStroke` 需要 API 26+；更低版本退化成"一轮一整段"（同样只走列表内部）。
+ * 平台差异：`continueStroke` 需要 API 26+；更低版本每段独立下发（同样只走列表内部）。
  */
 internal class PageScrollAutoScroller(
     private val context: Context,
@@ -55,8 +49,6 @@ internal class PageScrollAutoScroller(
     private var consecutiveFailures = 0
     private var cancelStreak = 0
 
-    // ---- 一条手势（一个"轮次"）的状态 ----
-
     /** 当前这段的 StrokeDescription：下一段必须由它 continueStroke 出来。 */
     private var activeStroke: GestureDescription.StrokeDescription? = null
 
@@ -65,14 +57,6 @@ internal class PageScrollAutoScroller(
 
     private var cycleActive = false
     private var segmentIndex = 0
-
-    // ---- 诊断（只打日志，不改行为） ----
-
-    private var cycleIndex = 0
-    private var cycleStartedAt = 0L
-    private var lastCycleFinishedAt = 0L
-    private var segmentStartedAt = 0L
-    private var scrollEventsInCycle = 0
 
     val isRunning: Boolean get() = bar?.isShowing == true
 
@@ -103,6 +87,9 @@ internal class PageScrollAutoScroller(
         directionDown = true
         cycleActive = false
         activeStroke = null
+        // 上一轮若在"手指按在控制条上"状态里被收尾（抬手事件没到），这个标记会一直是 true，
+        // 之后每一轮都会"跳过本轮" → 滑动彻底停住。起始时复位。
+        userTouchingControls = false
         generation++
         val controlBar = bar ?: PageScrollControlBar(context, { settings }, barListener).also { bar = it }
         if (!controlBar.show(side, anchorRawY)) {
@@ -111,11 +98,6 @@ internal class PageScrollAutoScroller(
         }
         controlBar.refresh(settings, paused = false, directionDown = directionDown)
         PageScrollPrefs.saveLastSide(context, side.name)
-        Log.d(
-            TAG,
-            "开始滚动 side=$side 触发点Y=${anchorRawY.roundToInt()} 方向=DOWN " +
-                "档位=${settings.speedLevel} 屏幕=${realScreenSize()} 段长=${SEGMENT_MS}ms",
-        )
         scheduleNextCycle(START_DELAY_MS)
         onStateChanged()
         return true
@@ -127,33 +109,19 @@ internal class PageScrollAutoScroller(
         cycleTask = null
         // 不再续接即可：当前这段会自然走完（真实位移收尾），随后手势结束。
         cycleActive = false
+        activeStroke = null
         paused = false
         consecutiveFailures = 0
         cancelStreak = 0
+        userTouchingControls = false
         bar?.dismiss()
-        Log.d(TAG, "停止（当前段会自然收尾，最多 ${SEGMENT_MS}ms）")
         onStateChanged()
-    }
-
-    private fun cycleElapsedMs(): Long =
-        if (cycleStartedAt > 0L) SystemClock.uptimeMillis() - cycleStartedAt else -1L
-
-    /** 无障碍服务收到系统滚动事件时回调：说明这一轮真的把页面滚动了。 */
-    fun onPageScrolled() {
-        scrollEventsInCycle++
-    }
-
-    /** 无障碍服务收到窗口变化时回调：用来定位"弹键盘"发生在哪一拍之后。 */
-    fun onWindowChanged(packageName: String?, className: String?) {
-        if (!isRunning) return
-        Log.d(TAG, "窗口变化 包=$packageName 类=$className（距本轮开始 ${cycleElapsedMs()}ms）")
     }
 
     private val barListener = object : PageScrollControlBar.Listener {
         override fun onReverseDirection() {
             directionDown = !directionDown
             // 不需要打断手势：下一段的段边界会按新方向走。
-            Log.d(TAG, "用户切换方向 → ${if (directionDown) "DOWN" else "UP"}（下一段生效）")
             bar?.refresh(settings, paused, directionDown)
         }
 
@@ -163,7 +131,6 @@ internal class PageScrollAutoScroller(
 
         override fun onTogglePause() {
             paused = !paused
-            Log.d(TAG, if (paused) "用户暂停（当前段后停）" else "用户继续")
             bar?.refresh(settings, paused, directionDown)
             if (paused) {
                 cycleTask?.let { mainHandler.removeCallbacks(it) }
@@ -173,15 +140,9 @@ internal class PageScrollAutoScroller(
             }
         }
 
-        override fun onClose() {
-            Log.d(TAG, "用户关闭")
-            stop()
-        }
+        override fun onClose() = stop()
 
         override fun onUserTouchingControls(touching: Boolean) {
-            if (touching != userTouchingControls) {
-                Log.d(TAG, if (touching) "手指按在控制条上" else "手指离开控制条")
-            }
             userTouchingControls = touching
         }
     }
@@ -194,7 +155,6 @@ internal class PageScrollAutoScroller(
         if (next == settings.speedLevel) return
         settings = settings.copy(speedLevel = next)
         PageScrollPrefs.saveSpeedLevel(context, next)
-        Log.d(TAG, "用户调速 → 档位 $next（下一段生效）")
         bar?.refresh(settings, paused, directionDown)
     }
 
@@ -206,11 +166,10 @@ internal class PageScrollAutoScroller(
         mainHandler.postDelayed(task, delayMs)
     }
 
-    /** 开始一条新的连续手势（从当前方向的"按下锚点"起手）。 */
+    /** 开始一条新的拖动（从当前方向的"按下锚点"起手）。 */
     private fun startCycle(token: Int) {
         if (token != generation || !isRunning || paused) return
         if (cycleActive || userTouchingControls) {
-            Log.d(TAG, "跳过本轮 手势在飞=$cycleActive 手指在控制条上=$userTouchingControls")
             scheduleNextCycle(RETRY_DELAY_MS)
             return
         }
@@ -230,19 +189,6 @@ internal class PageScrollAutoScroller(
         currentY = if (directionDown) band.second else band.first
         cycleActive = true
         segmentIndex = 0
-        cycleIndex++
-        val now = SystemClock.uptimeMillis()
-        val gapMs = if (lastCycleFinishedAt > 0L) now - lastCycleFinishedAt else -1L
-        cycleStartedAt = now
-        scrollEventsInCycle = 0
-        Log.d(
-            TAG,
-            "cycle#$cycleIndex 起手 dir=${if (directionDown) "DOWN" else "UP"} " +
-                "x=${(screen.x * X_RATIO_CENTER).roundToInt()} 按下Y=${currentY.roundToInt()} " +
-                "列表带=[${band.first.roundToInt()},${band.second.roundToInt()}] " +
-                "level=${settings.speedLevel} 距上轮=${gapMs}ms",
-        )
-        logTouchDownTarget(service, screen.x * X_RATIO_CENTER, currentY)
         dispatchSegment(service, token)
     }
 
@@ -251,15 +197,17 @@ internal class PageScrollAutoScroller(
         height * PRESS_TOP_RATIO to height * PRESS_BOTTOM_RATIO
 
     /**
-     * 下发下一段（150ms 左右），并在完成回调里决定"要不要继续接"。
+     * 下发下一段，并在完成回调里决定"要不要继续接"。
      *
-     * 关键点：
-     * - 每一段都重新读 `directionDown` / `settings` → 段边界即响应点
-     * - 到达锚点、或收到停止/暂停 → 这一段用 `willContinue=false` 收尾（真实位移结束，不做 1px 微步）
-     * - 续接失败（拿不到 continuation）→ 补一整段真实行程，绝不发微小位移
+     * - 每段都重新读 `directionDown` / `settings` → 段边界即响应点
+     * - 到达锚点或收到停止/暂停 → 这一段用 `willContinue=false` 收尾
+     * - 续接失败 → 补一整段真实行程，绝不发微小位移
      */
     private fun dispatchSegment(service: AccessibilityService, token: Int) {
-        if (token != generation) return
+        if (token != generation) {
+            endCycleState()
+            return
+        }
         val screen = realScreenSize()
         if (screen.x <= 0 || screen.y <= 0) {
             finishCycle(token)
@@ -270,7 +218,6 @@ internal class PageScrollAutoScroller(
         val speed = settings.speedDpPerSecond
         val dir = if (directionDown) -1f else 1f
 
-        // 一段要走的距离（dp→px）。第一段保证超过 touchSlop，让列表尽快接管。
         val stepPx = speed * density * SEGMENT_MS / 1000f
         val touchSlop = android.view.ViewConfiguration.get(context).scaledTouchSlop
         val wanted = if (segmentIndex == 0) max(stepPx, touchSlop * 2f) else stepPx
@@ -287,30 +234,26 @@ internal class PageScrollAutoScroller(
             .roundToInt().toLong()
             .coerceIn(MIN_SEGMENT_MS, MAX_SEGMENT_MS)
 
-        val wantsStop = paused || !isRunning
-        val willContinue = !reachedEnd && !wantsStop
+        val willContinue = !reachedEnd && !paused && isRunning
 
         val path = Path().apply {
             moveTo(x, currentY)
             lineTo(x, nextY)
         }
-        val stroke = if (segmentIndex == 0) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                GestureDescription.StrokeDescription(path, 0L, durationMs, willContinue)
-            } else {
-                GestureDescription.StrokeDescription(path, 0L, durationMs)
-            }
+        val canContinue = segmentIndex > 0 &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            activeStroke != null
+        val stroke = if (canContinue) {
+            runCatching {
+                activeStroke!!.continueStroke(path, 0L, durationMs, willContinue)
+            }.getOrNull()
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            GestureDescription.StrokeDescription(path, 0L, durationMs, willContinue)
         } else {
-            val previous = activeStroke
-            if (previous != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                runCatching { previous.continueStroke(path, 0L, durationMs, willContinue) }.getOrNull()
-            } else {
-                null
-            }
+            GestureDescription.StrokeDescription(path, 0L, durationMs)
         }
         if (stroke == null) {
-            // 续接失败：补一整段真实行程（从当前位置直接走到锚点），保证有真实位移、不是小点。
-            Log.w(TAG, "cycle#$cycleIndex 第${segmentIndex + 1}段续接失败 → 补一整段完成本轮")
+            // 续接失败：从当前位置直接走到锚点，保证有真实位移。
             val restPath = Path().apply {
                 moveTo(x, currentY)
                 lineTo(x, if (directionDown) band.first else band.second)
@@ -324,23 +267,14 @@ internal class PageScrollAutoScroller(
 
         activeStroke = stroke
         segmentIndex++
-        segmentStartedAt = SystemClock.uptimeMillis()
-        Log.d(
-            TAG,
-            "cycle#$cycleIndex 第${segmentIndex}段 从Y=${currentY.roundToInt()} 到Y=${nextY.roundToInt()} " +
-                "(${travelPx.roundToInt()}px, ${durationMs}ms, 继续=$willContinue)",
-        )
-        val previousY = currentY
         currentY = nextY
-        dispatchStrokeDescription(service, stroke, token, previousY)
+        dispatchStrokeDescription(service, stroke, token)
     }
 
-    /** 派发一段手势，并处理完成/取消。 */
     private fun dispatchStrokeDescription(
         service: AccessibilityService,
         stroke: GestureDescription.StrokeDescription,
         token: Int,
-        fromY: Float = currentY,
     ) {
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
         val accepted = runCatching {
@@ -357,38 +291,22 @@ internal class PageScrollAutoScroller(
                 },
                 null,
             )
-        }.getOrElse {
-            Log.w(TAG, "手势派发异常", it)
-            false
-        }
-        if (!accepted) {
-            Log.w(TAG, "cycle#$cycleIndex 第${segmentIndex}段派发被拒 (fromY=${fromY.roundToInt()})")
-            onSegmentCancelled(token)
-        }
+        }.getOrDefault(false)
+        if (!accepted) onSegmentCancelled(token)
     }
 
     private fun onSegmentCompleted(token: Int) {
         if (token != generation) {
             // 已停止/重启：不再续接，手势到这里自然结束。
             endCycleState()
-            Log.d(TAG, "cycle#$cycleIndex 段完成但已过期 → 不续接，收尾")
             return
         }
-        val wantsStop = paused || !isRunning
         val screen = realScreenSize()
         val band = bandOf(screen.y.toFloat())
         val atEnd = if (directionDown) currentY <= band.first + 0.5f else currentY >= band.second - 0.5f
+        val wantsStop = paused || !isRunning
         if (wantsStop || atEnd) {
             endCycleState()
-            Log.d(
-                TAG,
-                "cycle#$cycleIndex 结束 段数=$segmentIndex 总耗时=${cycleElapsedMs()}ms " +
-                    "系统滚动事件=$scrollEventsInCycle 次" + if (wantsStop) "（因停止/暂停）" else "（到达锚点）",
-            )
-            if (scrollEventsInCycle == 0) {
-                Log.w(TAG, "⚠ cycle#$cycleIndex 没有任何滚动事件：起点不可滚动 / 被遮挡 / 被当成点击")
-            }
-            lastCycleFinishedAt = SystemClock.uptimeMillis()
             if (!wantsStop) scheduleNextCycle(0L) else onStateChanged()
             return
         }
@@ -404,15 +322,9 @@ internal class PageScrollAutoScroller(
     private fun onSegmentCancelled(token: Int) {
         endCycleState()
         cancelStreak++
-        lastCycleFinishedAt = SystemClock.uptimeMillis()
-        Log.w(
-            TAG,
-            "cycle#$cycleIndex 被取消 段数=$segmentIndex 已过=${cycleElapsedMs()}ms 连续第${cancelStreak}次",
-        )
         if (cancelStreak >= MAX_CANCEL_STREAK) {
             cancelStreak = 0
             paused = true
-            Log.w(TAG, "连续被取消 $MAX_CANCEL_STREAK 次，先暂停滚动")
             bar?.refresh(settings, paused = true, directionDown = directionDown)
             onStateChanged()
             return
@@ -429,7 +341,6 @@ internal class PageScrollAutoScroller(
 
     private fun finishCycle(token: Int) {
         endCycleState()
-        lastCycleFinishedAt = SystemClock.uptimeMillis()
         if (token == generation && isRunning && !paused) scheduleNextCycle(0L)
     }
 
@@ -437,51 +348,6 @@ internal class PageScrollAutoScroller(
         cycleActive = false
         activeStroke = null
         segmentIndex = 0
-    }
-
-    /**
-     * 打出"落点压在哪个节点上"以及从根到它的节点链（定位误点/弹键盘用）。
-     */
-    private fun logTouchDownTarget(service: AccessibilityService, x: Float, y: Float) {
-        val root = runCatching { service.rootInActiveWindow }.getOrNull()
-        if (root == null) {
-            Log.d(TAG, "落点(${x.roundToInt()},${y.roundToInt()}) 拿不到根节点")
-            return
-        }
-        val report = StringBuilder()
-        var current: AccessibilityNodeInfo? = root
-        var depth = 0
-        while (current != null && depth < 24) {
-            val bounds = Rect()
-            runCatching { current.getBoundsInScreen(bounds) }
-            val contains = bounds.contains(x.roundToInt(), y.roundToInt())
-            report.append("\n    ").append(" ".repeat(depth * 2))
-                .append(if (contains) "└ " else "× ").append(current.className ?: "?")
-                .append(" [").append(bounds.toShortString()).append("]")
-                .append(" id=").append(current.viewIdResourceName ?: "-")
-                .append(" click=").append(current.isClickable)
-                .append(" editable=").append(runCatching { current.isEditable }.getOrDefault(false))
-                .append(" scrollable=").append(current.isScrollable)
-            if (!contains) {
-                if (current !== root) runCatching { current.recycle() }
-                break
-            }
-            var next: AccessibilityNodeInfo? = null
-            for (index in 0 until current.childCount) {
-                val child = runCatching { current.getChild(index) }.getOrNull() ?: continue
-                val childBounds = Rect()
-                runCatching { child.getBoundsInScreen(childBounds) }
-                if (childBounds.contains(x.roundToInt(), y.roundToInt())) {
-                    next = child
-                    break
-                }
-                runCatching { child.recycle() }
-            }
-            if (current !== root) runCatching { current.recycle() }
-            current = next
-            depth++
-        }
-        Log.d(TAG, "落点(${x.roundToInt()},${y.roundToInt()}) 命中链：$report")
     }
 
     private fun realScreenSize(): Point {
@@ -497,8 +363,6 @@ internal class PageScrollAutoScroller(
     }
 
     private companion object {
-        const val TAG = "PageScrollAuto"
-
         const val START_DELAY_MS = 320L
         const val RETRY_DELAY_MS = 100L
         const val CANCEL_RETRY_MS = 350L
@@ -521,7 +385,6 @@ internal class PageScrollAutoScroller(
         const val PRESS_TOP_RATIO = 0.16f
         const val PRESS_BOTTOM_RATIO = 0.78f
 
-        /** 手势路径的横向位置：走屏幕中线。 */
         const val X_RATIO_CENTER = 0.5f
 
         const val MAX_CONSECUTIVE_FAILURES = 3
