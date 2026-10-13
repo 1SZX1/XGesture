@@ -61,6 +61,7 @@ object PageScrollPrefs {
     private const val KEY_BAR_COLOR = "control_bar_color"
     private const val KEY_BAR_USE_ACCENT = "control_bar_use_accent"
     private const val KEY_LAST_SIDE = "last_side"
+    private const val KEY_BAR_Y_RATIO = "control_bar_y_ratio"
 
     fun read(context: Context): PageScrollSettings {
         val prefs = prefs(context)
@@ -90,6 +91,13 @@ object PageScrollPrefs {
     fun saveLastSide(context: Context, sideName: String) {
         prefs(context).edit().putString(KEY_LAST_SIDE, sideName).apply()
     }
+
+    /** 控制条竖直位置（按可移动范围的比例，0..1）；-1 表示还没记过。 */
+    fun saveBarYRatio(context: Context, ratio: Float) {
+        prefs(context).edit().putFloat(KEY_BAR_Y_RATIO, ratio.coerceIn(0f, 1f)).apply()
+    }
+
+    fun barYRatio(context: Context): Float = prefs(context).getFloat(KEY_BAR_Y_RATIO, -1f)
 
     fun saveControlBarColor(context: Context, argb: Int) {
         prefs(context).edit().putInt(KEY_BAR_COLOR, argb).apply()
