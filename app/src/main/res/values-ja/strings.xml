@@ -4158,6 +4158,7 @@
     <string name="translate_target_label_pt_pt">Português (Portugal)</string>
     <string name="translate_target_label_es">Español</string>
     <string name="translate_target_label_ru">Русский</string>
+    <string name="translate_target_label_tr">Türkçe</string>
     <string name="clipboard_monitoring_mode_lsposed">LSPosed · システム許可リスト</string>
     <string name="clipboard_monitoring_mode_lsposed_desc">LSPosed モジュールで許可リストのアプリを既定の IME として扱わせ、フォーカスを奪わずにバックグラウンドでクリップボードを読めるようにします。モジュールが有効で、スコープにシステムフレームワークが含まれている必要があります</string>
     <string name="clipboard_lsposed_whitelist">LSPosed 許可リスト</string>

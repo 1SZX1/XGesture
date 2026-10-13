@@ -4162,6 +4162,7 @@
     <string name="translate_target_label_pt_pt">Português (Portugal)</string>
     <string name="translate_target_label_es">Español</string>
     <string name="translate_target_label_ru">Русский</string>
+    <string name="translate_target_label_tr">Türkçe</string>
     <string name="clipboard_monitoring_mode_lsposed">LSPosed · قائمة سماح النظام</string>
     <string name="clipboard_monitoring_mode_lsposed_desc">يستخدم وحدة LSPosed لجعل التطبيقات المدرجة في قائمة السماح تبدو كالإدخال الافتراضي، فتقرأ الحافظة في الخلفية دون سحب التركيز؛ يجب أن تكون الوحدة نشطة وأن يشمل نطاقها إطار النظام</string>
     <string name="clipboard_lsposed_whitelist">قائمة سماح LSPosed</string>

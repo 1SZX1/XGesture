@@ -31,11 +31,15 @@ jobs:
             debug_task: assembleFullDebug
             artifact: release-apk-full
             apk_path: app/build/outputs/apk/full/release/*.apk
+            debug_artifact: debug-apk-full
+            debug_apk_path: app/build/outputs/apk/full/debug/*.apk
           - variant: lite
             task: assembleLiteRelease
             debug_task: assembleLiteDebug
             artifact: release-apk-lite
             apk_path: app/build/outputs/apk/lite/release/*.apk
+            debug_artifact: debug-apk-lite
+            debug_apk_path: app/build/outputs/apk/lite/debug/*.apk
 
     steps:
       - name: Checkout
@@ -91,6 +95,14 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.apk_path }}
+          if-no-files-found: error
+
+      - name: Upload debug APK
+        if: env.SIGN_RELEASE != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.debug_artifact }}
+          path: ${{ matrix.debug_apk_path }}
           if-no-files-found: error
 
   translations:

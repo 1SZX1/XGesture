@@ -22,6 +22,7 @@ fun translateTargetAutonym(catalogCode: String): String =
         "pt-pt" -> stringResource(R.string.translate_target_label_pt_pt)
         "es" -> stringResource(R.string.translate_target_label_es)
         "ru" -> stringResource(R.string.translate_target_label_ru)
+        "tr" -> stringResource(R.string.translate_target_label_tr)
         else -> catalogCode
     }
 
