@@ -19,8 +19,8 @@ object SideGestureDefaults {
             slotRule(
                 side,
                 GestureTriggerType.SHORT_SWIPE_UP,
-                GestureAction.OpenIndex,
-                triggerMode = GestureTriggerMode.CONTINUOUS,
+                GestureAction.QuickMenu,
+                triggerMode = GestureTriggerMode.ON_RELEASE,
             ),
             slotRule(
                 side,

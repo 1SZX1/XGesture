@@ -3,6 +3,7 @@ package com.slideindex.app.ui
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.slideindex.app.gesture.GestureActionType
 import com.slideindex.app.overlay.PanelSide
@@ -94,7 +95,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.KEEP_SCREEN_ON -> ThinActionIcons.KeepScreenOn
     GestureActionType.SCROLL_TO_TOP -> ThinActionIcons.ScrollToTop
     GestureActionType.SCROLL_TO_BOTTOM -> ThinActionIcons.ScrollToBottom
-    GestureActionType.PAGE_SCROLL -> ThinActionIcons.ScrollToBottom
+    GestureActionType.PAGE_SCROLL -> Icons.Outlined.SwapVert
     GestureActionType.TOGGLE_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.TIMED_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.SCREEN_RECORD -> ThinActionIcons.ScreenRecord
@@ -191,7 +192,7 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.KEEP_SCREEN_ON -> ThinActionIcons.KeepScreenOn
     GestureActionType.SCROLL_TO_TOP -> ThinActionIcons.ScrollToTop
     GestureActionType.SCROLL_TO_BOTTOM -> ThinActionIcons.ScrollToBottom
-    GestureActionType.PAGE_SCROLL -> ThinActionIcons.ScrollToBottom
+    GestureActionType.PAGE_SCROLL -> Icons.Outlined.SwapVert
     GestureActionType.TOGGLE_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.TIMED_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.SCREEN_RECORD -> ThinActionIcons.ScreenRecord

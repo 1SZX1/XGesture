@@ -180,6 +180,7 @@ fun QuickMenuPanel(
                         )
                         QuickMenuToolScreen(
                             tool = page,
+                            onDismiss = onDismiss,
                             scanContent = scanContent,
                             scanResults = scanResults,
                             scanImage = scanImage,
@@ -412,6 +413,7 @@ private fun ToolRow(tool: QuickMenuTool, title: String, description: String, onC
 @Composable
 private fun QuickMenuToolScreen(
     tool: QuickMenuTool,
+    onDismiss: () -> Unit,
     scanContent: String,
     scanResults: List<BarcodeScanResult>,
     scanImage: Bitmap?,
@@ -441,6 +443,7 @@ private fun QuickMenuToolScreen(
         QuickMenuTool.CALCULATOR -> QuickMenuCalculatorScreen()
         QuickMenuTool.POMODORO -> QuickMenuPomodoroScreen()
         QuickMenuTool.COLOR_PICKER -> QuickMenuColorPickerScreen()
+        QuickMenuTool.MACRO_RUN -> QuickMenuMacroScreen(onRan = onDismiss)
         // 预置入口**不切页**（点击处已直接执行并收起菜单），这里只是让 when 穷尽
         QuickMenuTool.ENTRY_FOREGROUND_ACTIVITY,
         QuickMenuTool.ENTRY_FREEZER,
@@ -449,6 +452,8 @@ private fun QuickMenuToolScreen(
         QuickMenuTool.ENTRY_CLIPBOARD_PANEL,
         QuickMenuTool.ENTRY_PIN_TO_SCREEN,
         QuickMenuTool.ENTRY_STASH_PANEL,
+        QuickMenuTool.PAGE_SCROLL,
+        QuickMenuTool.WIDGET_PANEL,
         -> Unit
     }
 }

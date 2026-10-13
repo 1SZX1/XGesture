@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 快捷菜单里「运行宏」页用到的新文案 -->
+<resources>
+    <string name="quick_menu_macro_desc">挑一条已录制的宏并运行</string>
+    <string name="quick_menu_macro_empty">还没有宏。可在「扩展 → 手势宏」里新建一条。</string>
+</resources>

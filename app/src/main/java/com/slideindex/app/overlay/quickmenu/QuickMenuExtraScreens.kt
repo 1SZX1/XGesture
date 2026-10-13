@@ -3,9 +3,13 @@ package com.slideindex.app.overlay.quickmenu
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import kotlinx.coroutines.flow.first
 import com.slideindex.app.di.OverlayDependencyAccess
 import com.slideindex.app.freezer.FreezerOverlayWindow
 import com.slideindex.app.overlay.FloatBallStashPanel
+import com.slideindex.app.overlay.PanelSide
+import com.slideindex.app.overlay.WidgetPopupOverlayWindow
+import com.slideindex.app.pagescroll.PageScrollActionRunner
 import com.slideindex.app.overlay.ForegroundActivityInspectorOverlayWindow
 import com.slideindex.app.overlay.PinToScreenDialog
 import com.slideindex.app.overlay.StashPanelInitialTab
@@ -71,9 +75,25 @@ internal fun quickMenuRunEntry(context: Context, tool: QuickMenuTool): Boolean =
         PinToScreenDialog.show(context)
     }.getOrDefault(false)
 
-    QuickMenuTool.ENTRY_STASH_PANEL -> runCatching {
-        //「闪念」= 侧边面板的另一档 tab（代码里叫 Stash，界面上叫 Ideas/闪念）
+    QuickMenuTool.ENTRY_STASH_PANEL -> runCatching {        //「闪念」= 侧边面板的另一档 tab（代码里叫 Stash，界面上叫 Ideas/闪念）
         FloatBallStashPanel.toggle(context, initialTab = StashPanelInitialTab.Stash)
+    }.getOrDefault(false)
+
+    //「页面滚动」：与动作层同一个入口（弹出竖条并开始滚动）。
+    QuickMenuTool.PAGE_SCROLL -> runCatching {
+        val centerY = context.resources.displayMetrics.heightPixels / 2f
+        PageScrollActionRunner.toggle(context, PanelSide.RIGHT, centerY)
+    }.getOrDefault(false)
+
+    //「小组件面板」：与动作层同一个悬浮窗入口。设置是 Flow，放到工作协程里读，不阻塞点击。
+    QuickMenuTool.WIDGET_PANEL -> runCatching {
+        val deps = OverlayDependencyAccess.overlayDependencies(context) ?: return@runCatching false
+        val appContext = context.applicationContext
+        QuickMenuWork.launch {
+            val settings = deps.settingsRepository.settings.first()
+            WidgetPopupOverlayWindow.show(appContext, settings, PanelSide.RIGHT, null)
+        }
+        true
     }.getOrDefault(false)
 
     else -> false

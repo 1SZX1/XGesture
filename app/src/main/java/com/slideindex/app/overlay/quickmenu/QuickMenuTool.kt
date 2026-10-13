@@ -3,9 +3,12 @@ package com.slideindex.app.overlay.quickmenu
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AcUnit
+import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.CurrencyExchange
 import androidx.compose.material.icons.outlined.History
@@ -196,6 +199,27 @@ enum class QuickMenuTool(
         descRes = R.string.external_invocation_entry_stash_desc,
         group = QuickMenuGroup.ACTION,
         icon = Icons.Outlined.Lightbulb,
+    ),
+    //「页面滚动」：直接复用动作层的入口（弹出竖条 + 开始滚动）。
+    PAGE_SCROLL(
+        titleRes = R.string.page_scroll_action_name,
+        descRes = R.string.page_scroll_action_description,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.SwapVert,
+    ),
+    //「小组件面板」：复用动作层的悬浮窗入口。
+    WIDGET_PANEL(
+        titleRes = R.string.gesture_action_widget_popup_overlay,
+        descRes = R.string.widget_panel_settings_title,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.Widgets,
+    ),
+    //「运行宏」：面板内切到宏列表页，点一条就执行。
+    MACRO_RUN(
+        titleRes = R.string.macro_action_run_macro,
+        descRes = R.string.quick_menu_macro_desc,
+        group = QuickMenuGroup.ACTION,
+        icon = Icons.Outlined.Apps,
     ),
     ;
 
