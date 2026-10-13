@@ -77,13 +77,14 @@ internal class PageScrollControlBar(
         }
 
         val textColor = resolveButtonColor(settings)
+        // 自上而下：方向、加速、暂停（含档位）、减速、关闭 —— 与目标实现一致。
         directionButton = button(GLYPH_ARROW_DOWN, GLYPH_TEXT_SP, textColor) { listener.onReverseDirection() }
             .also(bar::addView)
-        slowerButton = button(GLYPH_MINUS, GLYPH_TEXT_SP, textColor) { listener.onSpeedDown() }
+        fasterButton = button(GLYPH_PLUS, GLYPH_TEXT_SP, textColor) { listener.onSpeedUp() }
             .also(bar::addView)
         pauseButton = button(GLYPH_PLAY, PAUSE_TEXT_SP, textColor) { listener.onTogglePause() }
             .also(bar::addView)
-        fasterButton = button(GLYPH_PLUS, GLYPH_TEXT_SP, textColor) { listener.onSpeedUp() }
+        slowerButton = button(GLYPH_MINUS, GLYPH_TEXT_SP, textColor) { listener.onSpeedDown() }
             .also(bar::addView)
         closeButton = button(GLYPH_CLOSE, GLYPH_TEXT_SP, textColor) { listener.onClose() }
             .also(bar::addView)
@@ -158,7 +159,7 @@ internal class PageScrollControlBar(
 
     internal fun clampY(candidate: Int, barHeight: Int): Int {
         val screenHeight = context.resources.displayMetrics.heightPixels
-        val minY = dp(EDGE_MARGIN_DP)
+        val minY = dp(TOP_MARGIN_DP)
         val maxY = max(minY, screenHeight - barHeight - dp(BOTTOM_MARGIN_DP))
         return candidate.coerceIn(minY, maxY)
     }
@@ -210,10 +211,11 @@ internal class PageScrollControlBar(
     }
 
     private fun buildLayoutParams(side: Side, anchorRawY: Float): WindowManager.LayoutParams {
-        val metrics = context.resources.displayMetrics
         val barHeight = dp(BAR_HEIGHT_DP)
         val edgeMargin = dp(EDGE_MARGIN_DP)
-        val x = if (side == Side.LEFT) edgeMargin else metrics.widthPixels - edgeMargin
+        // 注意：x 是相对 gravity 锚点的偏移。RIGHT 重力下窗口右缘在 (屏宽 - x)，
+        // 所以两种边缘都用同一个边距值，**不能**再减一次屏宽（否则窗口会被推出屏幕）。
+        val x = edgeMargin
         val y = clampY((anchorRawY - barHeight / 2f).toInt(), barHeight)
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -321,6 +323,8 @@ internal class PageScrollControlBar(
 
         const val BAR_HEIGHT_DP = 216
         const val EDGE_MARGIN_DP = 8
+        /** 竖直方向的上/下留白（与目标实现一致）。 */
+        const val TOP_MARGIN_DP = 48
         const val BOTTOM_MARGIN_DP = 48
 
         const val ALPHA_OPAQUE = 0xFF000000.toInt()
