@@ -768,6 +768,7 @@ private fun NavEntryBuilder.registerMainTabNavEntries(
         MainBottomNavDestination.Extension -> {
             extensionNavEntries(ctx)
             macroNavEntries(ctx)
+            pageScrollNavEntries(ctx)
         }
     }
 }

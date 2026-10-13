@@ -1,0 +1,130 @@
+package com.slideindex.app.pagescroll
+
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.slideindex.app.R
+import com.slideindex.app.ui.miuix.groupedCardItems
+import com.slideindex.app.ui.settings.components.SettingRadioRow
+import com.slideindex.app.ui.settings.components.SettingSwitchRow
+import com.slideindex.app.ui.settings.components.SettingsScreenScaffold
+import com.slideindex.app.ui.settings.components.SettingsSliderRow
+import com.slideindex.app.ui.settings.components.settingsCardScopeItem
+import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
+import kotlin.math.roundToInt
+
+/**
+ * 「页面滚动」设置：滚动方式、默认速度、控制条配色。
+ *
+ * 速度在控制条上也能实时改，这里改的是"下次触发时用哪个档"。
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun PageScrollSettingsScreen(
+    onBack: () -> Unit,
+) {
+    val context = LocalContext.current
+    var settings by remember { mutableStateOf(PageScrollPrefs.read(context)) }
+    // 分节标题要先在组合期取好：settingsLazySmallTitle 的接收者是 LazyListScope（非组合作用域）。
+    val behaviorSectionTitle = stringResource(R.string.page_scroll_prefs_behavior)
+    val appearanceSectionTitle = stringResource(R.string.page_scroll_prefs_appearance)
+
+    SettingsScreenScaffold(
+        title = stringResource(R.string.page_scroll_prefs_title),
+        pageHint = null,
+        onBack = onBack,
+    ) {
+        settingsLazySmallTitle(
+            key = "page-scroll-behavior-section",
+            title = behaviorSectionTitle,
+        )
+        groupedCardItems(
+            keyPrefix = "page-scroll-behavior",
+            items = buildList {
+                add(
+                    settingsCardScopeItem("mode-auto") {
+                        SettingRadioRow(
+                            title = stringResource(R.string.page_scroll_mode_auto),
+                            subtitle = stringResource(R.string.page_scroll_mode_auto_description),
+                            selected = settings.mode == PageScrollMode.AUTO,
+                            onClick = {
+                                settings = settings.copy(mode = PageScrollMode.AUTO)
+                                PageScrollPrefs.saveMode(context, PageScrollMode.AUTO)
+                            },
+                        )
+                    },
+                )
+                add(
+                    settingsCardScopeItem("mode-hold") {
+                        SettingRadioRow(
+                            title = stringResource(R.string.page_scroll_mode_hold_drag),
+                            subtitle = stringResource(R.string.page_scroll_mode_hold_drag_description),
+                            selected = settings.mode == PageScrollMode.HOLD_AND_DRAG,
+                            onClick = {
+                                settings = settings.copy(mode = PageScrollMode.HOLD_AND_DRAG)
+                                PageScrollPrefs.saveMode(context, PageScrollMode.HOLD_AND_DRAG)
+                            },
+                        )
+                    },
+                )
+                add(
+                    settingsCardScopeItem("speed") {
+                        SettingsSliderRow(
+                            title = stringResource(R.string.page_scroll_speed_title),
+                            value = settings.speedLevel.toFloat(),
+                            valueRange = PageScrollSettings.MIN_SPEED_LEVEL.toFloat()..
+                                PageScrollSettings.MAX_SPEED_LEVEL.toFloat(),
+                            steps = PageScrollSettings.MAX_SPEED_LEVEL - PageScrollSettings.MIN_SPEED_LEVEL - 1,
+                            enabled = true,
+                            label = stringResource(
+                                R.string.page_scroll_speed_value,
+                                settings.speedLevel,
+                                PageScrollSettings.MAX_SPEED_LEVEL,
+                            ),
+                            onValueChange = { value ->
+                                val level = value.roundToInt().coerceIn(
+                                    PageScrollSettings.MIN_SPEED_LEVEL,
+                                    PageScrollSettings.MAX_SPEED_LEVEL,
+                                )
+                                if (level != settings.speedLevel) {
+                                    settings = settings.copy(speedLevel = level)
+                                    PageScrollPrefs.saveSpeedLevel(context, level)
+                                }
+                            },
+                        )
+                    },
+                )
+            },
+        )
+
+        settingsLazySmallTitle(
+            key = "page-scroll-appearance-section",
+            title = appearanceSectionTitle,
+        )
+        groupedCardItems(
+            keyPrefix = "page-scroll-appearance",
+            items = buildList {
+                add(
+                    settingsCardScopeItem("use-accent") {
+                        SettingSwitchRow(
+                            title = stringResource(R.string.page_scroll_bar_use_accent_title),
+                            subtitle = stringResource(R.string.page_scroll_bar_use_accent_subtitle),
+                            checked = settings.controlBarUseAccentColor,
+                            enabled = true,
+                            onCheckedChange = { enabled ->
+                                settings = settings.copy(controlBarUseAccentColor = enabled)
+                                PageScrollPrefs.saveControlBarUseAccentColor(context, enabled)
+                            },
+                        )
+                    },
+                )
+            },
+        )
+    }
+}

@@ -70,6 +70,9 @@ class GestureSession(
     internal var sessionIndexMode = false
     internal var sessionAdjustMode: ContinuousAdjustController.Mode? = null
     internal var sessionAdjustLayoutAnchorRawY = 0f
+
+    /** 「页面滚动」（按住拖动方式）本次手势内是否已激活。 */
+    internal var sessionPageScrollHoldActive = false
     internal var sessionMoveTimeActionFired = false
     internal var sessionActiveHandleId = TriggerHandle.DEFAULT_ID
     internal var sessionQuickLauncherPanelId: String = ""
@@ -333,6 +336,12 @@ class GestureSession(
             return
         }
 
+        // 「页面滚动」按住拖动方式：手指移动只用来决定方向与节奏，滚动本身由控制器发。
+        if (sessionPageScrollHoldActive) {
+            actionExecutor.updatePageScrollHoldDrag(rawY)
+            return
+        }
+
         if (sessionContinuousPick.honeycombActive()) {
             callbacks.onHoneycombLauncherPointerMove(rawX, rawY)
             return
@@ -467,6 +476,12 @@ class GestureSession(
                 if (sessionContinuousPick.shell) {
                     sessionContinuousPick.clearShell()
                     callbacks.onShellCommandPanelContinuousRelease()
+                    endSession()
+                    return
+                }
+
+                if (sessionPageScrollHoldActive) {
+                    stopPageScrollHoldDrag()
                     endSession()
                     return
                 }
@@ -701,6 +716,7 @@ class GestureSession(
         callbacks.cancelDelayed(longPressCheckRunnable)
         callbacks.cancelDelayed(hoverHapticCheckRunnable)
         actionExecutor.endContinuousAdjust()
+        stopPageScrollHoldDrag()
         pathRecognizer.reset()
         indexSession.endSession()
 
@@ -815,6 +831,23 @@ class GestureSession(
             actionExecutor.updateContinuousAdjust(mode, rawY)
             callbacks.onRequestInvalidate()
         }
+    }
+
+    /**
+     * 进入「页面滚动」的按住拖动方式：本次手势余下的移动都交给控制器决定滚动方向与节奏。
+     */
+    internal fun enterPageScrollHoldMode(rawY: Float) {
+        if (!sessionPageScrollHoldActive) {
+            sessionPageScrollHoldActive = true
+            callbacks.onSessionStart(OverlayPanelMode.NONE)
+        }
+        actionExecutor.beginPageScrollHoldDrag(rawY)
+    }
+
+    internal fun stopPageScrollHoldDrag() {
+        if (!sessionPageScrollHoldActive) return
+        sessionPageScrollHoldActive = false
+        actionExecutor.endPageScrollHoldDrag()
     }
 
     internal fun enterIndexMode(localX: Float, localY: Float) {

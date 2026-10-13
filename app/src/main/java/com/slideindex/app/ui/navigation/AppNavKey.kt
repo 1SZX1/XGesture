@@ -277,6 +277,8 @@ sealed interface AppNavKey : NavKey {
     @Serializable data object ExtensionHub : AppNavKey
     // 手势宏（宏列表 / 新建-编辑 / 目标 App 选择）
     @Serializable data object MacroList : AppNavKey
+    /** 「页面滚动」设置（滚动方式 / 默认速度 / 控制条配色）。 */
+    @Serializable data object PageScrollSettings : AppNavKey
     @Serializable data class MacroEdit(val macroId: String) : AppNavKey
     @Serializable data class MacroTargetApp(val macroId: String) : AppNavKey
     @Serializable data object QuickWheelList : AppNavKey

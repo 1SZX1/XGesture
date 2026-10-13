@@ -79,6 +79,16 @@ class ActionExecutor(
     fun beginContinuousAdjust(mode: ContinuousAdjustController.Mode, rawY: Float): Boolean =
         mediaSystem.beginContinuousAdjust(mode, rawY)
 
+    // ---- 「页面滚动」的按住拖动方式：由手势会话驱动 ----
+
+    fun isPageScrollHoldDragMode(): Boolean = PageScrollActionRunner.isHoldDragMode(context)
+
+    fun beginPageScrollHoldDrag(rawY: Float) = PageScrollActionRunner.beginHoldDrag(context, rawY)
+
+    fun updatePageScrollHoldDrag(rawY: Float) = PageScrollActionRunner.updateHoldDrag(rawY)
+
+    fun endPageScrollHoldDrag() = PageScrollActionRunner.endHoldDrag()
+
     fun updateContinuousAdjust(mode: ContinuousAdjustController.Mode, rawY: Float) {
         mediaSystem.updateContinuousAdjust(mode, rawY)
     }

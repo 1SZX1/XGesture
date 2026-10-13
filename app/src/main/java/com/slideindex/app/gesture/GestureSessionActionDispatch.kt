@@ -230,6 +230,12 @@ internal fun GestureSession.handleClassifiedGesture(
 ) {
     val action = sessionSettings.actionFor(sessionSide, classification.trigger, sessionActiveHandleId)
 
+    // 「页面滚动」的按住拖动方式：手势留在会话里，由手指移动量决定滚动方向与节奏。
+    if (action is GestureAction.PageScroll && sessionActionExecutor.isPageScrollHoldDragMode()) {
+        enterPageScrollHoldMode(rawY)
+        return
+    }
+
     when (action) {
         is GestureAction.OpenIndex -> enterIndexMode(localX, localY)
 

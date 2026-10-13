@@ -19,6 +19,9 @@ object PageScrollActionRunner {
     @Volatile
     private var scroller: PageScrollAutoScroller? = null
 
+    @Volatile
+    private var holdDrag: PageScrollHoldDragController? = null
+
     /**
      * 打开 / 关闭滚动条。
      *
@@ -46,6 +49,30 @@ object PageScrollActionRunner {
     /** 当前动作是否正在运行（供 UI 显示"打开/关闭"之类的状态）。 */
     fun isRunning(): Boolean = scroller?.isRunning == true
 
+    // ---- 按住拖动执行方式：由手势会话在 开始/移动/抬起 三个时机驱动 ----
+
+    /** 设置里选的是"按住拖动"吗？ */
+    fun isHoldDragMode(context: Context): Boolean =
+        PageScrollPrefs.read(context).mode == PageScrollMode.HOLD_AND_DRAG
+
+    fun beginHoldDrag(context: Context, rawY: Float) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { beginHoldDrag(context, rawY) }
+            return
+        }
+        val controller = holdDrag ?: PageScrollHoldDragController(context.applicationContext)
+            .also { holdDrag = it }
+        controller.begin(rawY)
+    }
+
+    fun updateHoldDrag(rawY: Float) {
+        holdDrag?.update(rawY)
+    }
+
+    fun endHoldDrag() {
+        holdDrag?.end()
+    }
+
     /** 强制关闭（例如无障碍服务被关闭时）。 */
     fun stop() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -53,6 +80,7 @@ object PageScrollActionRunner {
             return
         }
         scroller?.stop()
+        holdDrag?.end()
     }
 
     /** 传入的动作是否为本模块负责的动作。 */

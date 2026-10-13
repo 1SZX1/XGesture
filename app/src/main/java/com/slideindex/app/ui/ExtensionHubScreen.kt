@@ -49,6 +49,7 @@ fun ExtensionHubScreen(
     onOpenStashClipboard: () -> Unit,
     onOpenFreezer: () -> Unit = {},
     onOpenMacro: () -> Unit = {},
+    onOpenPageScroll: () -> Unit = {},
     onOpenSettingsBackup: () -> Unit,
     onOpenNativeEnginePacks: () -> Unit,
     onOpenDiagnosticLogs: () -> Unit,
@@ -216,6 +217,7 @@ fun ExtensionHubScreen(
                 add(
                     settingsCardScopeItem("macro") {
                         MacroEntryCard(onClick = onOpenMacro)
+                        PageScrollEntryCard(onClick = onOpenPageScroll)
                     }
                 )
             }
@@ -368,6 +370,23 @@ fun SettingsCardScope.QuickWheelEntryCard(
         },
         title = stringResource(R.string.extension_quick_wheel_entry_title),
         subtitle = stringResource(R.string.extension_quick_wheel_entry_desc),
+        onClick = onClick
+    )
+}
+
+@Composable
+fun SettingsCardScope.PageScrollEntryCard(
+    onClick: () -> Unit
+) {
+    SettingNavigationRow(
+        icon = { label ->
+            Icon(
+                gestureActionTypeOutlinedIcon(GestureActionType.PAGE_SCROLL),
+                contentDescription = label,
+            )
+        },
+        title = stringResource(R.string.page_scroll_prefs_title),
+        subtitle = stringResource(R.string.page_scroll_action_description),
         onClick = onClick
     )
 }
