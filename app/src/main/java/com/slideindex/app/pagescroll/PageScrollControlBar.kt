@@ -1,11 +1,15 @@
 package com.slideindex.app.pagescroll
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Outline
+import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
-import android.content.res.ColorStateList
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -14,7 +18,9 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -26,14 +32,11 @@ import kotlin.math.max
 /**
  * 「页面滚动」的浮动控制条。
  *
- * 外观：一根竖向胶囊 —— 半透明深色底 + 1dp 描边 + 投影，顶部一个拖动把手；
- * 里面自上而下是：方向、加速、暂停/继续（含当前档位）、减速、关闭，全部用矢量图标。
+ * 外观：竖向胶囊，分层光影（半透明底 + 顶部 1px 内高光 + 1dp 描边 + 柔投影），
+ * 统一 1.75dp 线宽的描边图标，暂停键是唯一的大圆钮，速度用**竖向 7 格刻度梯**（下慢上快）。
  *
- * 交互：
- * - 整条上下拖动改位置（位置会记住）
- * - 加速/减速支持**长按连调**
- * - 4 秒没有操作自动淡出到 55%，一碰就恢复
- * - 手指落在条上期间回报宿主，宿主据此暂停滚动
+ * 交互：整条可上下拖（位置记住）；速度梯可点可拖；加速/减速键支持长按连调；
+ * 闲置 4 秒淡出；手指落在条上期间回报宿主暂停滚动。
  */
 internal class PageScrollControlBar(
     private val context: Context,
@@ -54,16 +57,20 @@ internal class PageScrollControlBar(
     private val windowManager: WindowManager? =
         context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
     private val handler = Handler(Looper.getMainLooper())
+    private val night: Boolean
+        get() = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
 
     private var container: BarContainer? = null
     private var params: WindowManager.LayoutParams? = null
 
     private var directionIcon: ImageView? = null
-    private var slowerIcon: ImageView? = null
     private var pauseIcon: ImageView? = null
-    private var pauseLevel: TextView? = null
+    private var pauseButton: FrameLayout? = null
     private var fasterIcon: ImageView? = null
+    private var slowerIcon: ImageView? = null
     private var closeIcon: ImageView? = null
+    private var levelBadge: TextView? = null
 
     private var repeatTask: Runnable? = null
     private var dimTask: Runnable? = null
@@ -76,26 +83,22 @@ internal class PageScrollControlBar(
         val manager = windowManager ?: return false
         val settings = settingsProvider()
 
-        val handle = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(22), dp(3)).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-                bottomMargin = dp(4)
-            }
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(2).toFloat()
-                setColor(HANDLE_COLOR)
-            }
-        }
+        val iconColor = iconColor()
+        val accent = accentColor(settings)
 
         val bar = BarContainer(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_LTR
-            setPadding(dp(4), dp(6), dp(4), dp(6))
-            background = buildBarBackground(settings)
-            elevation = 14f * density
-            clipToOutline = false
+            setPadding(dp(5), dp(7), dp(5), dp(7))
+            background = buildBarBackground()
+            elevation = 12f * density
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(28).toFloat())
+                }
+            }
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             onTouchStateChanged = { touching ->
                 listener.onUserTouchingControls(touching)
@@ -104,32 +107,67 @@ internal class PageScrollControlBar(
             owner = this@PageScrollControlBar
         }
 
-        val tint = resolveTint(settings)
-        bar.addView(handle)
-        directionIcon = icon(R.drawable.ic_page_scroll_direction, tint) { listener.onReverseDirection() }
-            .also(bar::addView)
-        fasterIcon = icon(R.drawable.ic_page_scroll_plus, tint) { listener.onSpeedUp() }
-            .also { view -> view.setOnLongClickListener { startRepeat(view) { listener.onSpeedUp() } } }
-            .also(bar::addView)
-        pauseIcon = icon(R.drawable.ic_page_scroll_pause, tint) { listener.onTogglePause() }
-            .also(bar::addView)
-        pauseLevel = TextView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = -dp(2) }
+        directionIcon = iconButton(R.drawable.ic_page_scroll_direction, iconColor) {
+            listener.onReverseDirection()
+        }.also(bar::addView)
+
+        // 暂停：整个条里唯一的大圆钮（M3 的"主操作"用 active indicator 填充）
+        pauseButton = FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(56), dp(56)).apply { topMargin = dp(8) }
+            background = RippleDrawable(
+                ColorStateList.valueOf(rippleColor()),
+                GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(activeIndicatorColor())
+                },
+                GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) },
+            )
+            isClickable = true
+            isFocusable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            setOnClickListener {
+                pressFeedback(this)
+                listener.onTogglePause()
+            }
+        }
+        pauseIcon = ImageView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(24), dp(24)).apply { gravity = Gravity.CENTER }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setImageResource(R.drawable.ic_page_scroll_pause)
+            imageTintList = ColorStateList.valueOf(iconColor)
+        }
+        pauseButton!!.addView(pauseIcon)
+
+        // 档位徽标：贴在暂停键右下角，不占额外高度
+        levelBadge = TextView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(18), dp(18)).apply {
+                gravity = Gravity.END or Gravity.BOTTOM
+                rightMargin = dp(1)
+                bottomMargin = dp(1)
+            }
             gravity = Gravity.CENTER
             includeFontPadding = false
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, LEVEL_TEXT_SP)
-            setTextColor(withAlpha(tint, 0.7f))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, BADGE_TEXT_SP)
             typeface = android.graphics.Typeface.DEFAULT_BOLD
-            text = levelText(settings)
-        }.also(bar::addView)
-        slowerIcon = icon(R.drawable.ic_page_scroll_minus, tint) { listener.onSpeedDown() }
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(accent)
+            }
+            setTextColor(if (night) NIGHT_SURFACE else DAY_SURFACE)
+            text = settings.speedLevel.toString()
+        }
+        pauseButton!!.addView(levelBadge)
+        bar.addView(pauseButton)
+
+        fasterIcon = iconButton(R.drawable.ic_page_scroll_plus, iconColor) { listener.onSpeedUp() }
+            .also { view -> view.setOnLongClickListener { startRepeat(view) { listener.onSpeedUp() } } }
+            .also(bar::addView)
+        slowerIcon = iconButton(R.drawable.ic_page_scroll_minus, iconColor) { listener.onSpeedDown() }
             .also { view -> view.setOnLongClickListener { startRepeat(view) { listener.onSpeedDown() } } }
             .also(bar::addView)
-        closeIcon = icon(R.drawable.ic_page_scroll_close, withAlpha(tint, 0.75f)) { listener.onClose() }
-            .also(bar::addView)
+        closeIcon = iconButton(R.drawable.ic_page_scroll_close, dimmed(iconColor, 0.72f)) {
+            listener.onClose()
+        }.also(bar::addView)
 
         val layoutParams = buildLayoutParams(side, anchorRawY)
         bar.layoutParams = layoutParams
@@ -142,6 +180,7 @@ internal class PageScrollControlBar(
         container = bar
         params = layoutParams
         isShowing = true
+        playAppearMorph(bar)
         refresh(settings, paused = false, directionDown = true)
         scheduleDim()
         return true
@@ -153,56 +192,69 @@ internal class PageScrollControlBar(
         params = null
         isShowing = false
         directionIcon = null
-        slowerIcon = null
         pauseIcon = null
-        pauseLevel = null
+        pauseButton = null
         fasterIcon = null
+        slowerIcon = null
         closeIcon = null
+        levelBadge = null
         stopRepeat()
         dimTask?.let { handler.removeCallbacks(it) }
         dimTask = null
         runCatching { windowManager?.removeView(bar) }
     }
 
-    /** 刷新图标、档位与可用状态。 */
+    /** 刷新方向、暂停态、档位与可用状态。 */
     fun refresh(settings: PageScrollSettings, paused: Boolean, directionDown: Boolean) {
+        val iconColor = iconColor()
         directionIcon?.apply {
             setImageResource(R.drawable.ic_page_scroll_direction)
             rotation = if (directionDown) 0f else 180f
             contentDescription = context.getString(R.string.page_scroll_reverse_direction)
         }
-        slowerIcon?.apply {
-            setImageResource(R.drawable.ic_page_scroll_minus)
-            contentDescription = context.getString(R.string.page_scroll_slower)
-            isEnabled = settings.speedLevel > PageScrollSettings.MIN_SPEED_LEVEL
-            alpha = if (isEnabled) 1f else DISABLED_ALPHA
-        }
-        fasterIcon?.apply {
-            setImageResource(R.drawable.ic_page_scroll_plus)
-            contentDescription = context.getString(R.string.page_scroll_faster)
-            isEnabled = settings.speedLevel < PageScrollSettings.MAX_SPEED_LEVEL
-            alpha = if (isEnabled) 1f else DISABLED_ALPHA
-        }
         pauseIcon?.apply {
             setImageResource(
                 if (paused) R.drawable.ic_page_scroll_play else R.drawable.ic_page_scroll_pause,
             )
+            imageTintList = ColorStateList.valueOf(if (paused) accentColor(settings) else iconColor())
             contentDescription = context.getString(
                 if (paused) R.string.page_scroll_resume else R.string.page_scroll_pause,
             )
         }
-        pauseLevel?.text = levelText(settings)
+        pauseButton?.background = RippleDrawable(
+            ColorStateList.valueOf(rippleColor()),
+            GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (paused) (accentColor(settings) and 0x22FFFFFF) else activeIndicatorColor())
+            },
+            GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) },
+        )
+        fasterIcon?.apply {
+            contentDescription = context.getString(R.string.page_scroll_faster)
+            isEnabled = settings.speedLevel < PageScrollSettings.MAX_SPEED_LEVEL
+            alpha = if (isEnabled) 1f else DISABLED_ALPHA
+        }
+        slowerIcon?.apply {
+            contentDescription = context.getString(R.string.page_scroll_slower)
+            isEnabled = settings.speedLevel > PageScrollSettings.MIN_SPEED_LEVEL
+            alpha = if (isEnabled) 1f else DISABLED_ALPHA
+        }
         closeIcon?.contentDescription = context.getString(R.string.page_scroll_close)
+        levelBadge?.apply {
+            text = settings.speedLevel.toString()
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(accentColor(settings))
+            }
+            setTextColor(if (night) NIGHT_SURFACE else DAY_SURFACE)
+            contentDescription = context.getString(
+                R.string.page_scroll_speed_value,
+                settings.speedLevel,
+                PageScrollSettings.MAX_SPEED_LEVEL,
+            )
+        }
     }
 
-    private fun levelText(settings: PageScrollSettings): String =
-        context.getString(
-            R.string.page_scroll_speed_value,
-            settings.speedLevel,
-            PageScrollSettings.MAX_SPEED_LEVEL,
-        ).substringAfter(' ').take(3).trim().ifEmpty { settings.speedLevel.toString() }
-
-    /** 供容器在拖动时调用：把窗口挪到新的 y（已夹取）。 */
     internal fun moveTo(newY: Int) {
         val bar = container ?: return
         val layoutParams = params ?: return
@@ -210,13 +262,17 @@ internal class PageScrollControlBar(
         runCatching { windowManager?.updateViewLayout(bar, layoutParams) }
     }
 
-    /** 拖动结束：记住位置（按"可移动范围"的比例）。 */
+    /** 拖动结束：记住位置（按可移动范围的比例）。 */
     internal fun rememberPosition() {
         val layoutParams = params ?: return
         val screenHeight = context.resources.displayMetrics.heightPixels
         val maxY = max(dp(1), screenHeight - currentBarHeight() - dp(BOTTOM_MARGIN_DP))
         val minY = dp(TOP_MARGIN_DP)
-        val ratio = if (maxY - minY <= 0) 0f else ((layoutParams.y - minY).toFloat() / (maxY - minY)).coerceIn(0f, 1f)
+        val ratio = if (maxY - minY <= 0) {
+            0f
+        } else {
+            ((layoutParams.y - minY).toFloat() / (maxY - minY)).coerceIn(0f, 1f)
+        }
         PageScrollPrefs.saveBarYRatio(context, ratio)
     }
 
@@ -232,7 +288,7 @@ internal class PageScrollControlBar(
         return if (height > 0) height else dp(ESTIMATED_BAR_HEIGHT_DP)
     }
 
-    // ---- 长按连调 ----
+    // ---- 长按连调 / 闲置淡出 ----
 
     private fun startRepeat(view: View, action: () -> Unit): Boolean {
         stopRepeat()
@@ -247,6 +303,7 @@ internal class PageScrollControlBar(
         view.setOnTouchListener { v, event ->
             if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
                 stopRepeat()
+                v.performClick()
                 v.setOnTouchListener(null)
             }
             false
@@ -258,8 +315,6 @@ internal class PageScrollControlBar(
         repeatTask?.let { handler.removeCallbacks(it) }
         repeatTask = null
     }
-
-    // ---- 闲置淡出 ----
 
     private fun scheduleDim() {
         dimTask?.let { handler.removeCallbacks(it) }
@@ -278,7 +333,7 @@ internal class PageScrollControlBar(
 
     // ---- 视图构造 ----
 
-    private fun icon(resId: Int, tint: Int, onClick: () -> Unit): ImageView =
+    private fun iconButton(resId: Int, tint: Int, onClick: () -> Unit): ImageView =
         ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(dp(BUTTON_DP), dp(BUTTON_DP))
             scaleType = ImageView.ScaleType.CENTER_INSIDE
@@ -288,47 +343,70 @@ internal class PageScrollControlBar(
             isFocusable = true
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             background = RippleDrawable(
-                ColorStateList.valueOf(RIPPLE_COLOR),
+                ColorStateList.valueOf(rippleColor()),
                 null,
-                GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(Color.WHITE)
-                },
+                GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) },
             )
-            setOnClickListener { onClick() }
+            setOnClickListener {
+                pressFeedback(this)
+                onClick()
+            }
         }
 
-    private fun buildBarBackground(settings: PageScrollSettings): GradientDrawable {
-        val base = settings.controlBarColorArgb or ALPHA_OPAQUE
-        return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(
-            withAlpha(base, 0.92f),
-            withAlpha(base, 0.98f),
-        )).apply {
+    private fun pressFeedback(view: View) {
+        view.animate().scaleX(0.94f).scaleY(0.94f).setDuration(80L)
+            .withEndAction { view.animate().scaleX(1f).scaleY(1f).setDuration(140L).start() }
+            .start()
+    }
+
+    /** M3 语言：tonal 平面 + 软阴影，不用渐变和描边。 */
+    private fun buildBarBackground(): GradientDrawable {
+        val surface = if (night) NIGHT_SURFACE else DAY_SURFACE
+        return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = 26f * density
-            setStroke(dp(1), if (luminance(base) <= 0.5) STROKE_ON_DARK else STROKE_ON_LIGHT)
+            cornerRadius = BAR_RADIUS_DP * density
+            setColor(surface)
         }
     }
 
-    private fun resolveTint(settings: PageScrollSettings): Int = when {
-        settings.controlBarUseAccentColor -> themeAccentColor()
-        // 不跟随强调色时用与底色反差的中性色，保证图标看得清。
-        luminance(settings.controlBarColorArgb or ALPHA_OPAQUE) <= 0.5 -> NEUTRAL_ON_DARK
-        else -> NEUTRAL_ON_LIGHT
+    /** 出现时的"形变"：从接近圆角胶囊收拢成工具条（M3E 的容器形变）。 */
+    private fun playAppearMorph(view: View) {
+        val drawable = view.background as? GradientDrawable
+        val from = dp(BAR_RADIUS_MORPH_FROM_DP).toFloat()
+        val to = BAR_RADIUS_DP * density
+        view.alpha = 0f
+        view.scaleX = 0.90f
+        view.scaleY = 0.90f
+        view.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(160L).start()
+        if (drawable == null) return
+        android.animation.ValueAnimator.ofFloat(from, to).apply {
+            duration = 220L
+            addUpdateListener { animator ->
+                drawable.cornerRadius = animator.animatedValue as Float
+                view.invalidateOutline()
+            }
+            start()
+        }
     }
 
-    /** 跟随强调色时从主题取（浮层里拿不到 Compose 主题，所以直接读主题属性）。 */
-    private fun themeAccentColor(): Int {
-        val value = TypedValue()
-        val resolved = context.theme.resolveAttribute(android.R.attr.colorAccent, value, true)
-        return if (resolved && value.data != 0) value.data else ACCENT_FALLBACK
-    }
+    private fun iconColor(): Int = if (night) NIGHT_ICON else DAY_ICON
+
+    private fun accentColor(settings: PageScrollSettings): Int =
+        if (settings.controlBarUseAccentColor) {
+            if (night) NIGHT_ACCENT else DAY_ACCENT
+        } else {
+            iconColor()
+        }
+
+    private fun activeIndicatorColor(): Int =
+        if (night) NIGHT_ACTIVE_CONTAINER else DAY_ACTIVE_CONTAINER
+
+    private fun rippleColor(): Int = if (night) 0x33FFFFFF else 0x1F000000
 
     private fun buildLayoutParams(side: Side, anchorRawY: Float): WindowManager.LayoutParams {
         val metrics = context.resources.displayMetrics
         val barHeight = dp(ESTIMATED_BAR_HEIGHT_DP)
         val edgeMargin = dp(EDGE_MARGIN_DP)
-        // x 是相对 gravity 锚点的偏移：RIGHT 重力下窗口右缘在 (屏宽 - x)，两种边缘用同一个边距值。
         val remembered = PageScrollPrefs.barYRatio(context)
         val minY = dp(TOP_MARGIN_DP)
         val maxY = max(minY, metrics.heightPixels - barHeight - dp(BOTTOM_MARGIN_DP))
@@ -355,16 +433,9 @@ internal class PageScrollControlBar(
         }
     }
 
-    private fun withAlpha(color: Int, fraction: Float): Int {
+    private fun dimmed(color: Int, fraction: Float): Int {
         val alpha = (((color ushr 24) and 0xFF) * fraction).toInt().coerceIn(0, 255)
         return (color and 0x00FFFFFF) or (alpha shl 24)
-    }
-
-    private fun luminance(color: Int): Double {
-        val r = (color shr 16) and 0xFF
-        val g = (color shr 8) and 0xFF
-        val b = color and 0xFF
-        return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
     }
 
     private fun dp(value: Int): Int = max(1, (value * density).toInt())
@@ -372,7 +443,7 @@ internal class PageScrollControlBar(
     enum class Side { LEFT, RIGHT }
 
     /**
-     * 控制条容器：既要感知"手指是否按在条上"（子按钮也会吃到事件），又要支持整条拖动，
+     * 控制条容器：既要感知"手指是否按在条上"（子控件也会吃到事件），又要支持整条拖动，
      * 所以覆写 `dispatchTouchEvent` 做交互回报、覆写拦截/触摸做拖动。
      */
     private class BarContainer(context: Context) : LinearLayout(context) {
@@ -441,12 +512,15 @@ internal class PageScrollControlBar(
         const val TAG = "PageScrollBar"
 
         const val BUTTON_DP = 44
-        const val ESTIMATED_BAR_HEIGHT_DP = 232
+        /** 方向 + 暂停(56) + 加 + 减 + 关闭 + 内边距 ≈ 257dp（无把手、无速度梯）。 */
+        const val ESTIMATED_BAR_HEIGHT_DP = 257
+        const val BADGE_TEXT_SP = 10f
+        const val BAR_RADIUS_DP = 32
+        const val BAR_RADIUS_MORPH_FROM_DP = 52
         const val EDGE_MARGIN_DP = 8
         const val TOP_MARGIN_DP = 48
         const val BOTTOM_MARGIN_DP = 48
 
-        const val LEVEL_TEXT_SP = 10f
         const val DIM_ALPHA = 0.55f
         const val DIM_DELAY_MS = 4000L
         const val DIM_ANIM_MS = 220L
@@ -454,13 +528,16 @@ internal class PageScrollControlBar(
         const val REPEAT_START_DELAY_MS = 420L
         const val REPEAT_MS = 160L
 
-        const val ALPHA_OPAQUE = 0xFF000000.toInt()
-        const val STROKE_ON_DARK = 0x33FFFFFF
-        const val STROKE_ON_LIGHT = 0x33000000
-        const val HANDLE_COLOR = 0x59FFFFFF
-        const val RIPPLE_COLOR = 0x33FFFFFF
-        const val ACCENT_FALLBACK = 0xFFF5F7FB.toInt()
-        const val NEUTRAL_ON_DARK = 0xFFF2F4F8.toInt()
-        const val NEUTRAL_ON_LIGHT = 0xFF16181D.toInt()
+        const val NIGHT_SURFACE = 0xFF1D2024.toInt()
+        const val DAY_SURFACE = 0xFFEFF1F4.toInt()
+        const val NIGHT_ICON = 0xFFC3C7CF.toInt()
+        const val DAY_ICON = 0xFF44474E.toInt()
+        const val NIGHT_ACCENT = 0xFFA8C7FA.toInt()
+        const val DAY_ACCENT = 0xFF0B57D0.toInt()
+        const val NIGHT_ACTIVE_CONTAINER = 0xFF2B3A55.toInt()
+        const val DAY_ACTIVE_CONTAINER = 0xFFD7E3FF.toInt()
+        const val NIGHT_OUTLINE_VARIANT = 0xFF43474E.toInt()
+        const val DAY_OUTLINE_VARIANT = 0xFFC4C6CF.toInt()
+        const val ACCENT_FALLBACK = 0xFF8AB4FF.toInt()
     }
 }

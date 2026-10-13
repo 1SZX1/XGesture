@@ -152,6 +152,12 @@ internal class PageScrollAutoScroller(
             PageScrollSettings.MIN_SPEED_LEVEL,
             PageScrollSettings.MAX_SPEED_LEVEL,
         )
+        setSpeed(next)
+    }
+
+    /** 直接切到某一档并落盘。 */
+    private fun setSpeed(level: Int) {
+        val next = level.coerceIn(PageScrollSettings.MIN_SPEED_LEVEL, PageScrollSettings.MAX_SPEED_LEVEL)
         if (next == settings.speedLevel) return
         settings = settings.copy(speedLevel = next)
         PageScrollPrefs.saveSpeedLevel(context, next)
