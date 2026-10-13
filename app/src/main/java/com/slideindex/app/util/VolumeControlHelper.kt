@@ -182,7 +182,7 @@ object VolumeControlHelper {
     }
 
     /**
-     * 分层写入音量（移植自 One Hand Control 的实现）：
+     * 分层写入音量：
      *
      * 1. 先用 [AudioManager.setStreamVolume] 做绝对设置 —— 正常 ROM 一次到位；
      * 2. 立即回读校验：ColorOS 等 ROM 对非前台应用会**静默忽略**绝对设置（不抛异常、值不变），
@@ -255,6 +255,6 @@ object VolumeControlHelper {
 
     private const val TAG = "VolumeControlHelper"
 
-    /** 单次应用最多补多少级（与 One Hand Control 的 `const/16 0x18` 一致）。 */
+    /** 单次应用最多补多少级（经验值：24 级足够覆盖常见 ROM 的 0..160 档位跨度）。 */
     private const val MAX_ADJUST_STEPS = 24
 }
