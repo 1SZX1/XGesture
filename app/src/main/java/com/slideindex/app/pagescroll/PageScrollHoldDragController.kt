@@ -31,6 +31,9 @@ internal class PageScrollHoldDragController(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val density = max(0.1f, context.resources.displayMetrics.density)
 
+    /** 按住拖动期间的小提示（上下箭头 + 速度条），只显示、不吃触摸。 */
+    private val hint: PageScrollHoldHintOverlay by lazy { PageScrollHoldHintOverlay(context) }
+
     private var tickTask: Runnable? = null
     private var active = false
 
@@ -39,6 +42,9 @@ internal class PageScrollHoldDragController(
     private var anchorRawY = 0f
     private var noTargetStrikes = 0
 
+    /** 到顶/到底这类"暂时滚不动"只提示一次，不结束会话。 */
+    private var boundaryToastShown = false
+
     fun begin(rawY: Float) {
         if (active) return
         active = true
@@ -46,19 +52,33 @@ internal class PageScrollHoldDragController(
         directionDown = true
         intervalMs = SLOW_INTERVAL_MS
         noTargetStrikes = 0
+        hint.show(rawY)
         scheduleTick(0L)
     }
 
-    /** 手指移动：按本次位移决定方向与节奏（位移不够就不动）。 */
+    /**
+     * 手指移动：以**触发点为固定中线**决定方向与档位。
+     *
+     * - 中线附近（±[STOP_BAND_DP]）→ 停止滚动
+     * - 中线上方（手指往上划）→ 看下面的内容；下方 → 看上面的内容
+     * - 偏离 ≥[FAST_OFFSET_DP] → 快档
+     */
     fun update(rawY: Float) {
         if (!active) return
         val dy = rawY - anchorRawY
-        val distanceDp = abs(dy) / density
-        if (distanceDp < MIN_STEP_DP) return
+        val offsetDp = abs(dy) / density
+        if (offsetDp < STOP_BAND_DP) {
+            tickTask?.let { mainHandler.removeCallbacks(it) }
+            tickTask = null
+            hint.update(directionDown, fast = false)
+            return
+        }
         directionDown = dy < 0f
-        intervalMs = if (distanceDp >= FAST_STEP_DP) FAST_INTERVAL_MS else SLOW_INTERVAL_MS
-        // 重新锚定，避免"拖一次就一直滚"。
-        anchorRawY = rawY
+        val fast = offsetDp >= FAST_OFFSET_DP
+        intervalMs = if (fast) FAST_INTERVAL_MS else SLOW_INTERVAL_MS
+        noTargetStrikes = 0
+        hint.update(directionDown, fast)
+        if (tickTask == null) scheduleTick(0L)
     }
 
     fun end() {
@@ -67,6 +87,7 @@ internal class PageScrollHoldDragController(
         tickTask?.let { mainHandler.removeCallbacks(it) }
         tickTask = null
         noTargetStrikes = 0
+        hint.hide()
     }
 
     val isActive: Boolean get() = active
@@ -89,21 +110,22 @@ internal class PageScrollHoldDragController(
         if (performed) {
             noTargetStrikes = 0
             scheduleTick(intervalMs)
-        } else {
-            noTargetStrikes++
-            if (noTargetStrikes >= MAX_NO_TARGET_STRIKES) {
-                end()
-                runCatching {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.page_scroll_unavailable),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
-            } else {
-                scheduleTick(RETRY_DELAY_MS)
+            return
+        }
+        // 这里**不能结束会话**：滚到顶/底时目标节点会拒绝动作，但用户很可能马上往反方向滑。
+        // 只要手指还按着，会话就活着；反向滑动会改写方向并立刻恢复滚动。
+        noTargetStrikes++
+        if (noTargetStrikes == MAX_NO_TARGET_STRIKES && !boundaryToastShown) {
+            boundaryToastShown = true
+            runCatching {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.page_scroll_unavailable),
+                    Toast.LENGTH_SHORT,
+                ).show()
             }
         }
+        scheduleTick(BOUNDARY_RETRY_MS)
     }
 
     /** 从当前窗口的根节点广度优先找一个能滚动的节点，发一次按页滚动。 */
@@ -178,15 +200,15 @@ internal class PageScrollHoldDragController(
     private companion object {
         const val TAG = "PageScrollHoldDrag"
 
-        /** 一次拖动至少要走这么多才算有效。 */
-        const val MIN_STEP_DP = 8f
+        /** 中线死区：这个范围内视为"停在中间" → 不滚。 */
+        const val STOP_BAND_DP = 24f
 
-        /** 走得比这个多就切到快档。 */
-        const val FAST_STEP_DP = 160f
+        /** 偏离超过这么多 → 快档。 */
+        const val FAST_OFFSET_DP = 140f
 
-        const val SLOW_INTERVAL_MS = 680L
-        const val FAST_INTERVAL_MS = 260L
-        const val RETRY_DELAY_MS = 260L
+        const val SLOW_INTERVAL_MS = 620L
+        const val FAST_INTERVAL_MS = 240L
+        const val BOUNDARY_RETRY_MS = 450L
 
         const val MAX_NODES = 160
         const val MAX_DEPTH = 24

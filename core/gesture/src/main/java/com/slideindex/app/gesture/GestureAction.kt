@@ -988,6 +988,8 @@ sealed class GestureAction {
             FloatingPointer,
             RegionalScreenshotPick,
             QuickWheel(),
+            // 「页面滚动」在持续触发下 = 按住并拖动（逐页滚动），所以它也算支持持续跟踪的动作。
+            PageScroll,
         )
 
         fun from(type: GestureActionType, payload: String): GestureAction =
