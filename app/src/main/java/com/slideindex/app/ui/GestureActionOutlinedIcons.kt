@@ -94,6 +94,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.KEEP_SCREEN_ON -> ThinActionIcons.KeepScreenOn
     GestureActionType.SCROLL_TO_TOP -> ThinActionIcons.ScrollToTop
     GestureActionType.SCROLL_TO_BOTTOM -> ThinActionIcons.ScrollToBottom
+    GestureActionType.PAGE_SCROLL -> ThinActionIcons.ScrollToBottom
     GestureActionType.TOGGLE_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.TIMED_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.SCREEN_RECORD -> ThinActionIcons.ScreenRecord
@@ -190,6 +191,7 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.KEEP_SCREEN_ON -> ThinActionIcons.KeepScreenOn
     GestureActionType.SCROLL_TO_TOP -> ThinActionIcons.ScrollToTop
     GestureActionType.SCROLL_TO_BOTTOM -> ThinActionIcons.ScrollToBottom
+    GestureActionType.PAGE_SCROLL -> ThinActionIcons.ScrollToBottom
     GestureActionType.TOGGLE_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.TIMED_DND -> ThinActionIcons.DoNotDisturb
     GestureActionType.SCREEN_RECORD -> ThinActionIcons.ScreenRecord

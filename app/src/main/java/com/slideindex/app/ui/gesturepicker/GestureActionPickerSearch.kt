@@ -259,6 +259,7 @@ fun gestureActionLabelText(context: Context, action: GestureAction): String = wh
                 context.getString(R.string.macro_action_run_macro_named, macroName)
             }
         }
+        GestureActionType.PAGE_SCROLL -> context.getString(R.string.page_scroll_action_name)
         GestureActionType.NONE -> context.getString(R.string.gesture_action_none)
         GestureActionType.OPEN_INDEX -> context.getString(R.string.gesture_action_open_index)
         GestureActionType.QUICK_LAUNCHER -> context.getString(R.string.gesture_action_quick_launcher)
@@ -412,6 +413,7 @@ fun gestureActionLabel(action: GestureAction, settings: AppSettings? = null): St
     }
     else -> when (action.type) {
         GestureActionType.RUN_MACRO -> stringResource(R.string.macro_action_run_macro)
+        GestureActionType.PAGE_SCROLL -> stringResource(R.string.page_scroll_action_name)
         GestureActionType.NONE -> stringResource(R.string.gesture_action_none)
         GestureActionType.OPEN_INDEX -> stringResource(R.string.gesture_action_open_index)
         GestureActionType.QUICK_LAUNCHER -> stringResource(R.string.gesture_action_quick_launcher)

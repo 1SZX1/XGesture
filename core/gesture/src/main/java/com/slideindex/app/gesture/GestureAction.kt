@@ -135,6 +135,14 @@ enum class GestureActionType(val id: Int) {
 
     /** 「运行宏」：把一条录制好的宏重放到它自己的目标 App 里；payload 是宏 id。 */
     RUN_MACRO(96),
+
+    /**
+     * 「页面滚动」：打开一个竖排控制条，并用**被持续续接的划动手势**让页面平滑滚动。
+     *
+     * 松手后继续滚（用控制条改方向 / 调速 / 暂停 / 关闭）；速度 7 档，默认第 3 档。
+     * 具体行为见 `com.slideindex.app.pagescroll`。
+     */
+    PAGE_SCROLL(97),
     ;
 
     companion object {
@@ -558,12 +566,22 @@ sealed class GestureAction {
         override val payload = macroId
     }
 
+    /**
+     * 「页面滚动」：打开一个竖排控制条，并用**被持续续接的划动手势**让页面平滑滚动。
+     *
+     * 松手后继续滚（用控制条改方向 / 调速 / 暂停 / 关闭）；速度 7 档，默认第 3 档。
+     * 运行时实现见 `com.slideindex.app.pagescroll`。
+     */
+    data object PageScroll : GestureAction() {
+        override val type = GestureActionType.PAGE_SCROLL
+        override val payload = ""
+    }
+
     /** Samsung OHO+ style widget popup hosting system App Widgets via [com.slideindex.app.overlay.WidgetPopupOverlayWindow]. */
     data object WidgetPopupOverlay : GestureAction() {
         override val type = GestureActionType.WIDGET_POPUP_OVERLAY
         override val payload = ""
     }
-
     /** Edge-gesture regional screenshot & text pick (no persistent float ball). */
     data object RegionalScreenshotPick : GestureAction() {
         override val type = GestureActionType.REGIONAL_SCREENSHOT_PICK
@@ -1016,6 +1034,7 @@ sealed class GestureAction {
                 GestureActionType.SHELL_COMMAND_PANEL -> ShellCommandPanel
                 GestureActionType.EXECUTE_SHELL_COMMAND -> ExecuteShellCommand(payload)
                 GestureActionType.RUN_MACRO -> RunMacro(payload)
+                GestureActionType.PAGE_SCROLL -> PageScroll
                 GestureActionType.OPEN_LINK -> OpenLink.fromPayload(payload)
                 GestureActionType.QUICK_TOOLS_OVERLAY -> QuickToolsOverlay
                 GestureActionType.QUICK_MENU -> QuickMenu

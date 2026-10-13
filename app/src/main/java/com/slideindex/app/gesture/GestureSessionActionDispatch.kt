@@ -471,6 +471,7 @@ internal fun GestureSession.handleClassifiedGesture(
         is GestureAction.SimulatePointerSwipe,
         is GestureAction.ExecuteShellCommand,
         is GestureAction.RunMacro,
+        GestureAction.PageScroll,
         is GestureAction.OpenLink,
         is GestureAction.QuickWheel,
         -> {

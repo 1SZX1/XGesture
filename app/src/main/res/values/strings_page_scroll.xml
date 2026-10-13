@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 页面滚动（独立资源文件，避免改动现有 strings.xml）。 -->
+<resources>
+    <string name="page_scroll_action_name">Page Scroll</string>
+    <string name="page_scroll_action_description">Opens a floating bar that keeps scrolling the page smoothly until you pause or close it.</string>
+
+    <string name="page_scroll_reverse_direction">Reverse scroll direction</string>
+    <string name="page_scroll_slower">Scroll slower</string>
+    <string name="page_scroll_faster">Scroll faster</string>
+    <string name="page_scroll_pause">Pause scrolling</string>
+    <string name="page_scroll_resume">Resume scrolling</string>
+    <string name="page_scroll_close">Close the scrolling bar</string>
+
+    <string name="page_scroll_unavailable">This screen does not expose scrollable content.</string>
+    <string name="page_scroll_service_unavailable">Accessibility service is not running.</string>
+    <string name="page_scroll_requires_android_n">Smooth scrolling requires Android 7.0 or newer.</string>
+
+    <string name="page_scroll_prefs_title">Page Scroll</string>
+    <string name="page_scroll_prefs_behavior">Behavior</string>
+    <string name="page_scroll_prefs_appearance">Appearance</string>
+    <string name="page_scroll_mode_title">Scrolling behavior</string>
+    <string name="page_scroll_mode_auto">Smooth scrolling</string>
+    <string name="page_scroll_mode_auto_description">Keeps scrolling after you release. Use the floating bar to change direction, adjust speed, pause, or close.</string>
+    <string name="page_scroll_mode_hold_drag">Hold and drag</string>
+    <string name="page_scroll_mode_hold_drag_description">Keep holding the edge, then move up or down to scroll page by page.</string>
+    <string name="page_scroll_speed_title">Default scroll speed</string>
+    <string name="page_scroll_speed_value">Speed %1$d of %2$d</string>
+    <string name="page_scroll_bar_color_title">Bar color</string>
+    <string name="page_scroll_bar_use_accent_title">Use accent color</string>
+    <string name="page_scroll_bar_use_accent_subtitle">Match the bar buttons to the current app accent color.</string>
+</resources>

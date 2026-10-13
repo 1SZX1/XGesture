@@ -20,6 +20,7 @@ import com.slideindex.app.gesture.executor.ActionExecutorMediaSystem
 import com.slideindex.app.gesture.executor.ActionExecutorOverlayPanels
 import com.slideindex.app.launcher.QuickLauncherItem
 import com.slideindex.app.macro.MacroActionRunner
+import com.slideindex.app.pagescroll.PageScrollActionRunner
 import com.slideindex.app.overlay.FloatBallStashPanel
 import com.slideindex.app.overlay.PickResultFromHistoryCoordinator
 import com.slideindex.app.overlay.StashPanelInitialTab
@@ -162,6 +163,12 @@ class ActionExecutor(
             // 「运行宏」：宏的执行是"拉目标 App → 逐步骤注入手势"，整条流程在宏自己的工作线程上跑，
             // 这里只负责受理（返回 true 表示已接手，避免上层再走别的兜底分支）。
             is GestureAction.RunMacro -> MacroActionRunner.run(context, action)
+            // 「页面滚动」：打开/关闭竖排控制条，并让引擎持续续接划动手势。
+            GestureAction.PageScroll -> PageScrollActionRunner.toggle(
+                context = context,
+                side = resolvedSide ?: PanelSide.RIGHT,
+                anchorRawY = overlayAnchorY ?: (context.resources.displayMetrics.heightPixels / 2f),
+            )
             is GestureAction.OpenLink -> {
                 if (action.url.isBlank()) return false
                 SearchEngineLauncher.launchOpenableUri(context, action.url, settings, longPressArmed)

@@ -111,6 +111,7 @@ object GestureActionCatalog {
         GestureActionType.POWER_MENU,
         GestureActionType.SCROLL_TO_TOP,
         GestureActionType.SCROLL_TO_BOTTOM,
+        GestureActionType.PAGE_SCROLL,
         GestureActionType.CURRENT_APP_INFO,
         GestureActionType.SCREEN_OFF_KEEP_AWAKE,
         -> GestureActionCategory.Navigation
@@ -231,6 +232,8 @@ object GestureActionCatalog {
         add(GestureAction.SnoozeOverlays)
         // 「运行宏」：选中后由选择器弹二级列表挑一条宏（见 MacroPickDialog）。
         add(GestureAction.RunMacro())
+        // 「页面滚动」：打开浮动控制条并持续平滑滚动。
+        add(GestureAction.PageScroll)
         if (trigger == GestureTriggerType.SHORT_SINGLE_TAP) add(GestureAction.ClickPassthrough)
     }
 
@@ -246,6 +249,7 @@ object GestureActionCatalog {
         addAll(sharedCoreActions())
         add(GestureAction.SnoozeOverlays)
         add(GestureAction.RunMacro())
+        add(GestureAction.PageScroll)
     }
 
     private fun sharedCoreActions(): List<GestureAction> = listOf(
@@ -268,6 +272,7 @@ object GestureActionCatalog {
         GestureAction.PowerMenu,
         GestureAction.ScrollToTop,
         GestureAction.ScrollToBottom,
+        GestureAction.PageScroll,
 
         // 2. 开关与调节 (Controls & Media)
         GestureAction.ToggleWifi,
