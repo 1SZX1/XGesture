@@ -56,8 +56,11 @@ build_java_*.txt
 /check2_tmp.py
 /*_tmp.py
 
-# --- 本地逆向分析草稿（不入库） ---
+# --- 本地草稿（不入库） ---
+# 统一用通配规则：这类本地文档只留本地，避免以后被顺手提交。
 docs/floatwidget-search-panel-reverse.md
+docs/*-reverse.md
+docs/*-analysis.md
 
 # --- Lint 临时报告 ---
 .lint-report-extract/
