@@ -99,14 +99,15 @@ fun LayoutSettingsScreen(
                     )
                 },
                 CardItem("index-vertical-position") {
-                    // 四段档位：0% / 33% / 67% / 100%（steps = 中间档数 = 3）。
-                    // 用**离散**档位而不是连续滑条：位置是"挑一个大致落点"的设置，四档足够，
-                    // 也避免用户为了对准而反复微调。
+                    // 连续可调（落点 1%）+ 五个**提示点**把行程**四等分**（0 / 25 / 50 / 75 / 100%）。
+                    // 注意：`steps` 会让滑条变成离散档位（值被吸附到固定档位），这里要的是连续值，
+                    // 所以只能给 `keyPoints` —— `MiuixSliderRow` 内部会把 steps 强制为 0，
+                    // 中间值依然可选。
                     MiuixSliderRow(
                         title = stringResource(R.string.index_vertical_position),
                         value = settings.indexVerticalPositionFraction,
                         valueRange = 0f..1f,
-                        steps = 3,
+                        keyPoints = listOf(0f, 0.25f, 0.5f, 0.75f, 1f),
                         enabled = serviceEnabled,
                         summary = stringResource(R.string.index_vertical_position_desc),
                         label = "",
