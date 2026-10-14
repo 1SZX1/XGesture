@@ -124,6 +124,12 @@
     <plurals name="holographic_launcher_entry_summary_hidden">
         <item quantity="other">%d 件のアプリを非表示</item>
     </plurals>
+    <plurals name="holographic_apps_entry_count">
+        <item quantity="other">%d 件のアプリを追加済み</item>
+    </plurals>
+    <plurals name="holographic_apps_section_added">
+        <item quantity="other">追加済み（%d 件）</item>
+    </plurals>
     <plurals name="quick_launcher_folder_items_count">
         <item quantity="other">%d 件</item>
     </plurals>

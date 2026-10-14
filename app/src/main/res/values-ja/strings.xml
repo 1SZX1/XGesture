@@ -506,6 +506,8 @@
     <string name="limit_intercept_length_desc">現在のシステム API の上限は 200 dp です</string>
     <string name="side_gestures_handle_section">ハンドルレイアウト</string>
     <string name="index_height">インデックス文字の高さ</string>
+    <string name="index_vertical_position">インデックスの位置</string>
+    <string name="index_vertical_position_desc" formatted="false">0% = 上部、50% = 中央、100% = 下部</string>
     <string name="hide_empty_index_letters">空の文字を非表示</string>
     <string name="hide_empty_index_letters_desc">アプリがないインデックス文字を表示しません</string>
     <string name="apps_per_row">インデックス行あたりのアプリ数</string>
@@ -865,6 +867,25 @@
     <string name="holographic_settings_haptic_strong">強</string>
     <string name="holographic_hidden_apps_entry_desc">ホログラフィック球体からアプリを非表示</string>
     <string name="holographic_hidden_apps_desc">非表示にしたアプリは球体に表示されません。サイドインデックスや他のリストには影響しません。</string>
+    <string name="holographic_apps_entry_title">球体のアプリ</string>
+    <string name="holographic_apps_entry_desc">球体に表示するアプリを自分で選ぶ</string>
+    <string name="holographic_apps_screen_desc">モードによって球体に表示するアプリが決まります。選択リストはモード間で共有されるため、切り替えても選択は残ります。</string>
+    <string name="holographic_app_mode_all">すべてのアプリを許可</string>
+    <string name="holographic_app_mode_all_desc">インストール済みのすべてのアプリを球体に表示します</string>
+    <string name="holographic_app_mode_selected">選択したアプリのみ許可</string>
+    <string name="holographic_app_mode_selected_desc">選択したアプリだけを球体に表示します</string>
+    <string name="holographic_app_mode_exclude">選択したアプリを除外</string>
+    <string name="holographic_app_mode_exclude_desc">選択したアプリを球体に表示しません</string>
+    <string name="holographic_apps_entry_pick">アプリを選択</string>
+    <string name="holographic_apps_entry_pick_desc">球体に載せるアプリを選びます</string>
+    <string name="holographic_apps_section_selected">選択済み（%1$d）</string>
+    <string name="holographic_apps_mode_section">球体アプリの取得元</string>
+    <string name="holographic_apps_section_count">アプリ一覧（選択 %1$d / 全 %2$d）</string>
+    <string name="holographic_apps_select_all">すべて選択</string>
+    <string name="holographic_apps_deselect_all">選択を解除</string>
+    <string name="holographic_apps_allow_all_note">現在は「すべてのアプリを許可」です。球体はインストール済みのすべてのアプリを表示し、下の選択状態は参照しません。</string>
+    <string name="holographic_apps_empty">まだ何も選択されていません。下から追加すると球体に表示されます。</string>
+    <string name="holographic_no_selected_apps">球体にアプリがありません。「設定 → ホログラフィックランチャー → アプリを選択」で選ぶか、モードを「すべてのアプリを許可」に変更してください。</string>
     <string name="gesture_action_task_switcher">タスク切替</string>
     <string name="gesture_action_back">戻る</string>
     <string name="gesture_action_home">ホーム</string>
@@ -1587,6 +1608,8 @@
     <string name="quick_launcher_background_opacity_value">%1$d%%</string>
     <string name="quick_launcher_blur_strength">ぼかしの強さ</string>
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
+    <string name="quick_launcher_show_toolbar">下部ツールバーを表示</string>
+    <string name="quick_launcher_show_toolbar_desc">オフにすると通常使用時に +、−、パネル切り替えを表示しません。パネルの空白を長押しすると編集モードに入れます。</string>
     <string name="quick_launcher_items_section">ショートカット</string>
     <string name="quick_launcher_page_indicator">%1$d / %2$d ページ</string>
     <string name="quick_launcher_page_previous">前のページ</string>

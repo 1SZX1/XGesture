@@ -43,6 +43,8 @@ class QuickLauncherDisplaySettingsTest {
         assertEquals(QuickLauncherDisplaySettings.ICON_SHAPE_DEFAULT, defaults.iconShape)
         assertEquals(63, defaults.backgroundOpacityPercent)
         assertEquals(16, defaults.blurRadiusDp)
+        // 操作栏默认显示：关掉它是显式选择，不能让老用户升级后工具栏凭空消失。
+        assertEquals(true, defaults.showToolbar)
     }
 
     @Test

@@ -328,6 +328,22 @@
         <item quantity="many">%d تطبيقات مخفية</item>
         <item quantity="other">%d تطبيقات مخفية</item>
     </plurals>
+    <plurals name="holographic_apps_entry_count">
+        <item quantity="zero">تمت إضافة %d تطبيقات</item>
+        <item quantity="one">تمت إضافة %d تطبيق</item>
+        <item quantity="two">تمت إضافة %d تطبيق</item>
+        <item quantity="few">تمت إضافة %d تطبيقات</item>
+        <item quantity="many">تمت إضافة %d تطبيقات</item>
+        <item quantity="other">تمت إضافة %d تطبيقات</item>
+    </plurals>
+    <plurals name="holographic_apps_section_added">
+        <item quantity="zero">المضافة (%d تطبيقات)</item>
+        <item quantity="one">المضاف (%d تطبيق)</item>
+        <item quantity="two">المضاف (%d تطبيق)</item>
+        <item quantity="few">المضافة (%d تطبيقات)</item>
+        <item quantity="many">المضافة (%d تطبيقات)</item>
+        <item quantity="other">المضافة (%d تطبيقات)</item>
+    </plurals>
     <plurals name="quick_launcher_folder_items_count">
         <item quantity="zero">%d اختصارات</item>
         <item quantity="one">%d اختصار</item>

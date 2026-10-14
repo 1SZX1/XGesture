@@ -95,6 +95,28 @@ class OverlayServiceController(
             SlideIndexAccessibilityService.commitIndexHeightPreview()
         }
 
+    fun previewIndexVerticalPositionFraction(fraction: Float) =
+        withOverlayPreview("previewIndexVerticalPositionFraction") {
+            SlideIndexAccessibilityService.previewIndexVerticalPositionFraction(fraction)
+        }
+
+    fun clearIndexVerticalPositionPreview() =
+        withOverlayPreview("clearIndexVerticalPositionPreview") {
+            SlideIndexAccessibilityService.clearIndexVerticalPositionPreview()
+        }
+
+    /** 松手提交索引位置预览：语义同 [commitIndexHeightPreview]。 */
+    fun commitIndexVerticalPositionPreview() =
+        withOverlayPreview("commitIndexVerticalPositionPreview") {
+            SlideIndexAccessibilityService.commitIndexVerticalPositionPreview()
+        }
+
+    /** 索引页滑条松手（长度/位置共用）：只提交最近拖过的那一个。 */
+    fun commitIndexSliderPreviews() =
+        withOverlayPreview("commitIndexSliderPreviews") {
+            SlideIndexAccessibilityService.commitIndexSliderPreviews()
+        }
+
     fun setCornerZonePreviewActive(active: Boolean) =
         withOverlayPreview("setCornerZonePreviewActive") {
             SlideIndexAccessibilityService.setCornerZonePreviewActive(active)

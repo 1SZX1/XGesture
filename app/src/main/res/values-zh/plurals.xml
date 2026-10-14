@@ -127,6 +127,12 @@
     <plurals name="holographic_launcher_entry_summary_hidden">
         <item quantity="other">已隐藏 %d 个应用</item>
     </plurals>
+    <plurals name="holographic_apps_entry_count">
+        <item quantity="other">已添加 %d 个应用</item>
+    </plurals>
+    <plurals name="holographic_apps_section_added">
+        <item quantity="other">已添加（%d 个）</item>
+    </plurals>
     <plurals name="quick_launcher_folder_items_count">
         <item quantity="other">%d 个快捷项</item>
     </plurals>

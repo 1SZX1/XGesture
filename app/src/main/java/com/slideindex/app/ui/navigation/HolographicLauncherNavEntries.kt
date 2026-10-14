@@ -6,6 +6,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.yukonga.miuix.kmp.nav.core.NavEntryBuilder
 import com.slideindex.app.R
 import com.slideindex.app.ui.HiddenAppsScreen
+import com.slideindex.app.ui.HolographicLauncherAppsScreen
 import com.slideindex.app.ui.HolographicLauncherSettingsScreen
 import com.slideindex.app.ui.viewmodel.ExtensionSettingsViewModel
 
@@ -23,7 +24,24 @@ fun NavEntryBuilder.holographicLauncherNavEntries(ctx: MainNavContext) {
             onBackgroundStyleChange = viewModel::setHolographicBackgroundStyle,
             onBlurDpChange = viewModel::setHolographicBlurDp,
             onDimPercentChange = viewModel::setHolographicDimPercent,
+            onAppModeChange = viewModel::setHolographicAppMode,
+            onOpenApps = { ctx.navigate(AppNavKey.HolographicLauncherApps) },
             onOpenHiddenApps = { ctx.navigate(AppNavKey.HolographicLauncherHiddenApps) },
+        )
+    }
+
+    hiltEntry<AppNavKey.HolographicLauncherApps> {
+        val viewModel: ExtensionSettingsViewModel = hiltViewModel()
+        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
+        val holographic = gestureSettings.holographicLauncher
+        HolographicLauncherAppsScreen(
+            selectedPackages = holographic.selectedAppPackages,
+            mode = holographic.appMode,
+            onBack = { ctx.navigateBackTo(AppNavKey.HolographicLauncherSettings) },
+            onAppModeChange = viewModel::setHolographicAppMode,
+            onAddApp = viewModel::addHolographicLauncherApp,
+            onRemoveApp = viewModel::removeHolographicLauncherApp,
+            onSetSelection = viewModel::setHolographicLauncherApps,
         )
     }
 

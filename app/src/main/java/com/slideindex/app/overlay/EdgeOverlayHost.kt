@@ -387,12 +387,12 @@ class EdgeOverlayHost(
     }
 
     fun previewIndexHeightFraction(fraction: Float) {
-        OverlayLayoutPreviewStore.indexHeightFraction = fraction
+        OverlayLayoutPreviewStore.previewIndexHeightFraction(fraction)
         applyOverlayLayoutPreviewSettings()
     }
 
     fun clearIndexHeightPreview() {
-        OverlayLayoutPreviewStore.clearIndexHeightPreview()
+        OverlayLayoutPreviewStore.clearIndexSliderPreview()
         applyOverlayLayoutPreviewSettings()
     }
 
@@ -402,6 +402,28 @@ class EdgeOverlayHost(
      */
     fun commitIndexHeightPreview() {
         OverlayLayoutPreviewStore.commitIndexHeightPreview()
+        applyOverlayLayoutPreviewSettings()
+    }
+
+    fun previewIndexVerticalPositionFraction(fraction: Float) {
+        OverlayLayoutPreviewStore.previewIndexVerticalPositionFraction(fraction)
+        applyOverlayLayoutPreviewSettings()
+    }
+
+    fun clearIndexVerticalPositionPreview() {
+        OverlayLayoutPreviewStore.clearIndexSliderPreview()
+        applyOverlayLayoutPreviewSettings()
+    }
+
+    /** 松手提交索引位置预览：语义同 [commitIndexHeightPreview]。 */
+    fun commitIndexVerticalPositionPreview() {
+        OverlayLayoutPreviewStore.commitIndexVerticalPositionPreview()
+        applyOverlayLayoutPreviewSettings()
+    }
+
+    /** 索引页滑条松手（长度/位置共用）：只提交最近拖过的那一个。 */
+    fun commitIndexSliderPreviews() {
+        OverlayLayoutPreviewStore.commitIndexSliderPreviews()
         applyOverlayLayoutPreviewSettings()
     }
 

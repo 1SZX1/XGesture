@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.gesture.GestureActionType
 import com.slideindex.app.settings.ExtensionHubSettings
+import com.slideindex.app.settings.HolographicAppMode
 import com.slideindex.app.settings.macro.ui.MacroEntryCard
 import com.slideindex.app.ui.miuix.MiuixHubScaffold
 import com.slideindex.app.ui.miuix.groupedCardItems
@@ -123,6 +124,8 @@ fun ExtensionHubScreen(
                 add(
                     settingsCardScopeItem("holographic-launcher") {
                         HolographicLauncherEntryCard(
+                            selectedAppCount = settings.holographicAppCount,
+                            appMode = HolographicAppMode.fromId(settings.holographicAppModeId),
                             hiddenAppCount = settings.holographicHiddenAppCount,
                             enabled = gestureActive,
                             outlinedLeadingIcons = true,

@@ -164,11 +164,21 @@ internal fun FloatBallPickResultContent(
         showTextSection &&
         hasImageContent &&
         !isEditMode
-    val maxPanelHeight = overlayContainerHeightDp() *
-        overlayPickPanelMaxHeightFraction(appSettings.floatBallPickPanelPlacement)
     val centeredPanel = appSettings.floatBallPickPanelPlacement ==
         com.slideindex.app.settings.PickResultPanelPlacement.CENTER
-    val panelMaxImageHeight = pickResultImageMaxHeightDp()
+    // 面板高度上限 = **整块容器高度**（不再是 0.85 屏高）。
+    //
+    // 取词面板的落位是贴底，所以"再高也不会跑到屏幕外"——顶边最多贴到屏幕顶。定这个上限的
+    // 唯一目的就是"别超出屏幕"，而容器的有效高度定义上就是屏幕内可用高度，所以直接用整高即可。
+    // 0.85 那档会逼着图片按高度反推缩小宽度，这正是反复反馈的"图片还是被限高、被压窄"。
+    //
+    // 居中落位例外：它靠外层 `padding(bottom = ime)` 给键盘让位，先维持原比例，避免与键盘叠在一起。
+    val maxPanelHeight = if (centeredPanel) {
+        overlayContainerHeightDp() *
+            overlayPickPanelMaxHeightFraction(appSettings.floatBallPickPanelPlacement)
+    } else {
+        overlayContainerHeightDp()
+    }
     val panelLayoutWidth = overlayPickPanelMaxWidth(appSettings.floatBallPickPanelPlacement)
         ?: overlayContainerWidthDp()
     val imageContentWidth = if (landscapeDualColumn) {
@@ -237,29 +247,26 @@ internal fun FloatBallPickResultContent(
     } else {
         0.dp
     }
-    val reservedForTextAndChrome = if (landscapeDualColumn) {
-        panelVerticalPadding + searchGridReservedHeight + imageSectionFixedChrome
-    } else {
-        panelVerticalPadding +
+    // 图片可用高度 = 面板高度 − 上下留白 − **搜索网格预留** − **文本区预留** − 图片区自身 chrome。
+    //
+    // 优先级是「搜索区、文本区先站住自己的自然高度 → 剩下的才给图片」：面板高度有限（不超出屏幕），
+    // 装不下时就该**图片等比缩小**（宽度跟着缩、形状不变），而不是把搜索区裁掉一截或让文本区变细条。
+    // 之前漏扣文本区，算出来的上限（683dp）比图片实际需要（389dp）还大，所以图片一次都没缩过。
+    //
+    // 也不再取 `panelMaxImageHeight`（竖屏=屏宽 / 0.8 屏高那套）：那是与宽度无关的独立上限，
+    // 会在这个额度**本来够用**时把图片额外压窄。
+    val panelImageHeightCeiling = (
+        maxPanelHeight -
+            panelVerticalPadding -
+            searchGridReservedHeight -
             (if (showTextSection) {
                 textSectionChromeHeight + textImageDividerBaseHeight + minTextBodyHeight
             } else {
                 0.dp
-            }) +
-            searchGridReservedHeight
-    }
-    val affordableImageMaxHeight = when {
-        !hasImageContent -> panelMaxImageHeight
-        landscapeDualColumn -> {
-            (maxPanelHeight - panelVerticalPadding - searchGridReservedHeight - imageSectionFixedChrome)
-                .coerceAtLeast(PANEL_MIN_IMAGE_HEIGHT)
-        }
-        else -> {
-            (maxPanelHeight - reservedForTextAndChrome - imageSectionFixedChrome)
-                .coerceAtLeast(PANEL_MIN_IMAGE_HEIGHT)
-        }
-    }
-    val effectivePanelMaxImageHeight = minOf(panelMaxImageHeight, affordableImageMaxHeight)
+            }) -
+            imageSectionFixedChrome
+        ).coerceAtLeast(PANEL_MIN_IMAGE_HEIGHT)
+    val effectivePanelMaxImageHeight = panelImageHeightCeiling
     val panelImageDisplaySize = screenshot?.let { bitmap ->
         pickResultImageDisplaySize(
             bitmap = bitmap,
@@ -269,9 +276,21 @@ internal fun FloatBallPickResultContent(
             screenRect = screenRect,
             layoutMeta = layoutMeta,
             screenWidthPx = displayMetrics.widthPixels,
-            screenHeightPx = displayMetrics.heightPixels
+            screenHeightPx = displayMetrics.heightPixels,
         )
     } ?: PickResultImageDisplaySize(0.dp, 0.dp)
+
+    // 临时诊断：图片尺寸类反馈无法靠读代码判定（基准尺寸？视口？面板上限？），只有真机数值能一刀切开。
+    com.slideindex.app.diagnostic.EdgeDiag.log(
+        "pickImage",
+        "bitmap=${screenshot?.let { "${it.width}x${it.height}" }} screenRect=$screenRect " +
+            "contentWidth=$imageContentWidth viewport=${panelImageDisplaySize.width}x" +
+            "${panelImageDisplaySize.height} naturalH=${panelImageDisplaySize.naturalHeight} " +
+            "maxH=$effectivePanelMaxImageHeight panelCap=$maxPanelHeight grid=$searchGridReservedHeight " +
+            "style=${appSettings.floatBallPickPanelStyle} textFirst=$textFirstPanelEnabled " +
+            "showText=$showTextSection hasImage=$hasImageContent landscapeDual=$landscapeDualColumn " +
+            "editMode=$isEditMode"
+    )
 
     val isIntegratedBottomBar = appSettings.floatBallPickPanelStyle == com.slideindex.app.settings.PickResultPanelStyle.INTEGRATED_BOTTOM_BAR
     val collapsedImageSectionHeight = 0.dp

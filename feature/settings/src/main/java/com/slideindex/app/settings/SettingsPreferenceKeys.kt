@@ -78,6 +78,8 @@ internal object SettingsPreferenceKeys {
     val TRIGGER_TOP = floatPreferencesKey("trigger_top_fraction")
     val TRIGGER_HEIGHT = floatPreferencesKey("trigger_height_fraction")
     val INDEX_HEIGHT = floatPreferencesKey("index_height_fraction")
+    /** 字母索引条顶边在可用高度里的位置比例（0 = 最上，1 = 最下，0.5 = 居中）。 */
+    val INDEX_VERTICAL_POSITION = floatPreferencesKey("index_vertical_position_fraction")
     val HIDE_EMPTY_INDEX_LETTERS = booleanPreferencesKey("hide_empty_index_letters")
     val APPS_PER_ROW = intPreferencesKey("apps_per_row")
     val QUICK_LAUNCHER_COLUMNS_PER_PAGE = intPreferencesKey("quick_launcher_columns_per_page")
@@ -122,6 +124,8 @@ internal object SettingsPreferenceKeys {
     val QUICK_LAUNCHER_ICON_SIZE_DP = intPreferencesKey("quick_launcher_icon_size_dp")
     val QUICK_LAUNCHER_ICON_SHAPE = intPreferencesKey("quick_launcher_icon_shape")
     val QUICK_LAUNCHER_BLUR_RADIUS_DP = intPreferencesKey("quick_launcher_blur_radius_dp")
+    /** 快速启动器面板底部操作栏显隐（编辑态强制显示，见 [QuickLauncherDisplaySettings.showToolbar]）。 */
+    val QUICK_LAUNCHER_SHOW_TOOLBAR = booleanPreferencesKey("quick_launcher_show_toolbar")
     val QUICK_LAUNCHER_LEFT = stringSetPreferencesKey("quick_launcher_left")
     val QUICK_LAUNCHER_RIGHT = stringSetPreferencesKey("quick_launcher_right")
     val HONEYCOMB_LAUNCHER = stringSetPreferencesKey("honeycomb_launcher")
@@ -266,6 +270,10 @@ internal object SettingsPreferenceKeys {
     val HOLOGRAPHIC_ROTATION_SENSITIVITY = floatPreferencesKey("holographic_rotation_sensitivity")
     val HOLOGRAPHIC_HAPTIC_LEVEL = intPreferencesKey("holographic_haptic_level")
     val HOLOGRAPHIC_HIDDEN_APP_PACKAGES = stringSetPreferencesKey("holographic_hidden_app_packages")
+    /** 全息启动器「自添加应用」列表（有序，编码成单元素 Set，见 `HolographicLauncherAppPackagesCodec`）。 */
+    val HOLOGRAPHIC_LAUNCHER_APP_PACKAGES = stringSetPreferencesKey("holographic_launcher_app_packages")
+    /** 全息启动器的应用来源模式（全部 / 仅选中 / 排除选中，见 `HolographicAppMode`）。 */
+    val HOLOGRAPHIC_APP_MODE = intPreferencesKey("holographic_app_mode")
     val HOLOGRAPHIC_BACKGROUND_STYLE = intPreferencesKey("holographic_background_style")
     val HOLOGRAPHIC_BLUR_DP = intPreferencesKey("holographic_blur_dp")
     val HOLOGRAPHIC_DIM_PERCENT = intPreferencesKey("holographic_dim_percent")

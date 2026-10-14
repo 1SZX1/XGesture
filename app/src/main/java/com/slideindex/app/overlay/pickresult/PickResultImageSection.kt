@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -144,6 +146,13 @@ internal fun PickResultImageSectionGallery(
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 图片本体按「原宽 × 宽高比」铺开；比视口高时**竖着滚**查看，而不是把宽度缩掉。
+            // 这样面板只占一屏（不会顶出屏幕）、图片保持原宽、下面的搜索区也不被挤压 —— 三个诉求同时成立。
+            val imageNaturalHeight = imageDisplaySize.naturalHeight
+            val imageOverflows = imageNaturalHeight > imageDisplaySize.height
+            // 超出时顶部对齐（先看上半截，滚动看下半截）；没超出时维持原来的居中。
+            val scrollContentAlignment =
+                if (imageOverflows) Alignment.TopCenter else Alignment.Center
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -152,19 +161,26 @@ internal fun PickResultImageSectionGallery(
             ) {
                 if (images.size == 1) {
                     val image = images.first()
-                    Image(
-                        bitmap = image.asImageBitmap(),
-                        contentDescription = null,
+                    Box(
                         modifier = Modifier
-                            .width(imageDisplaySize.width)
-                            .height(imageDisplaySize.height)
-                            .clip(RoundedCornerShape(8.dp))
-                            .combinedClickable(
-                                onClick = onImageClick,
-                                onLongClick = onCopyImage,
-                            ),
-                        contentScale = ContentScale.Fit
-                    )
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = scrollContentAlignment
+                    ) {
+                        Image(
+                            bitmap = image.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .width(imageDisplaySize.width)
+                                .height(imageNaturalHeight)
+                                .clip(RoundedCornerShape(8.dp))
+                                .combinedClickable(
+                                    onClick = onImageClick,
+                                    onLongClick = onCopyImage,
+                                ),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
                 } else {
                     HorizontalPager(
                         state = pagerState,
@@ -176,19 +192,26 @@ internal fun PickResultImageSectionGallery(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                bitmap = image.asImageBitmap(),
-                                contentDescription = null,
+                            Box(
                                 modifier = Modifier
-                                    .width(imageDisplaySize.width)
-                                    .height(imageDisplaySize.height)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .combinedClickable(
-                                        onClick = onImageClick,
-                                        onLongClick = onCopyImage,
-                                    ),
-                                contentScale = ContentScale.Fit
-                            )
+                                    .fillMaxWidth()
+                                    .verticalScroll(rememberScrollState()),
+                                contentAlignment = scrollContentAlignment
+                            ) {
+                                Image(
+                                    bitmap = image.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .width(imageDisplaySize.width)
+                                        .height(imageNaturalHeight)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .combinedClickable(
+                                            onClick = onImageClick,
+                                            onLongClick = onCopyImage,
+                                        ),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
                         }
                     }
                     Text(

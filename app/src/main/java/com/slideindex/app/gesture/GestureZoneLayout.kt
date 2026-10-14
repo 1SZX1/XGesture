@@ -89,14 +89,24 @@ class GestureZoneLayout(
         }?.id
     }
 
+    /**
+     * 字母索引条矩形。
+     *
+     * 纵向位置由 `settings.indexVerticalPositionFraction` 决定（0 = 顶边贴到上边距、1 = 底边贴到下边距、
+     * 0.5 = 旧版的垂直居中）；`indexHeightFraction` 只管长度。两者都要参与夹取：条越长，可移动
+     * 的行程越短，越靠近两端越会被 [coerceSafe] 收回。
+     */
     fun indexRailRect(): RectF {
         if (side.isVerticalEdge) return RectF()
         val refHeight = referenceHeight()
         if (viewWidth <= 0 || refHeight <= 0) return RectF()
         val w = railVisualWidth().coerceAtMost(edgeWidthPx().toFloat())
         val indexH = refHeight * settings.indexHeightFraction
-        var top = (refHeight - indexH) / 2f - windowOffsetY
-        top = top.coerceSafe(dp(8f) - windowOffsetY, refHeight - indexH - dp(8f) - windowOffsetY)
+        val margin = dp(8f)
+        val travel = (refHeight - indexH - margin * 2f).coerceAtLeast(0f)
+        val positionFraction = settings.indexVerticalPositionFraction.coerceIn(0f, 1f)
+        var top = margin + travel * positionFraction - windowOffsetY
+        top = top.coerceSafe(margin - windowOffsetY, refHeight - indexH - margin - windowOffsetY)
         return when (side) {
             PanelSide.LEFT -> RectF(0f, top, w, top + indexH)
             PanelSide.RIGHT -> RectF(viewWidth - w, top, viewWidth.toFloat(), top + indexH)

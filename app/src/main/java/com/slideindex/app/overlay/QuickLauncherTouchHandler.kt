@@ -33,6 +33,10 @@ internal class QuickLauncherTouchHandler(
             }
             else -> ctrl.quickLauncherToolbarTouchActive
         }
+        // 「长按空白进编辑」已经生效时，这次松手不能再当成"点空白 → 关闭面板"。
+        // 判定放在后面（子面板/翻页快照释放等各自的短路径之后），否则会连它们的收尾一起吃掉。
+        val blankLongPressConsumed = event.actionMasked == MotionEvent.ACTION_UP ||
+            event.actionMasked == MotionEvent.ACTION_CANCEL
         val continuousPick = host.gestureSession().quickLauncherContinuousPickActive()
         EdgeDiag.log(
             "qlTouch",
@@ -125,6 +129,10 @@ internal class QuickLauncherTouchHandler(
                 pickResolver.syncPressTracking(event.eventTime)
                 if (host.panelGridSession().highlightedIndex >= 0) {
                     host.hapticTick()
+                } else {
+                    // 空白处（没有任何格子被高亮）：起长按计时。到点进编辑态，
+                    // 短按松手仍是原来的"关闭面板"（见 ACTION_UP 分支）。
+                    ctrl.scheduleBlankLongPress(event.eventTime)
                 }
                 host.invalidate()
                 return true
@@ -132,6 +140,15 @@ internal class QuickLauncherTouchHandler(
             MotionEvent.ACTION_MOVE -> {
                 if (continuousPick && pickResolver.continuousPickReady()) {
                     ctrl.quickLauncherOpeningGestureActive = false
+                }
+                // 只有移动超过 10dp 才算"不是按住空白"，避免长按时手指的细微抖动把计时取消掉。
+                if (ctrl.quickLauncherBlankPressDownTime > 0L) {
+                    val dx = localX - ctrl.quickLauncherPageSwipeStartX
+                    val dy = localY - ctrl.quickLauncherPageSwipeStartY
+                    val slop = host.dp(10f)
+                    if (dx * dx + dy * dy > slop * slop) {
+                        ctrl.cancelBlankLongPress()
+                    }
                 }
                 if (host.gestureSession().isMoveTimeActionLocked()) {
                     ctrl.quickLauncherPageSwipeStartX = touchX
@@ -206,6 +223,15 @@ internal class QuickLauncherTouchHandler(
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // 长按空白进编辑已经消费掉这次手势 → 只收尾，不关闭面板。
+                if (blankLongPressConsumed && ctrl.consumeBlankLongPress()) {
+                    ctrl.quickLauncherOpeningGestureActive = false
+                    ctrl.quickLauncherPageSwipeTracking = false
+                    ctrl.quickLauncherPageSwipeLocked = false
+                    ctrl.quickLauncherPageChangedThisGesture = false
+                    host.invalidate()
+                    return true
+                }
                 if (host.gestureSession().releaseImmediateGestureLock()) {
                     ctrl.quickLauncherOpeningGestureActive = false
                     host.onInitiatingEdgeGestureReleased()

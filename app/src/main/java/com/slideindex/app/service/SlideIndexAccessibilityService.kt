@@ -692,6 +692,23 @@ class SlideIndexAccessibilityService : AccessibilityService() {
             overlayHostOrNull("commitIndexHeightPreview")?.commitIndexHeightPreview()
         }
 
+        fun previewIndexVerticalPositionFraction(fraction: Float) {
+            overlayHostOrNull("previewIndexVerticalPositionFraction")
+                ?.previewIndexVerticalPositionFraction(fraction)
+        }
+
+        fun clearIndexVerticalPositionPreview() {
+            overlayHostOrNull("clearIndexVerticalPositionPreview")?.clearIndexVerticalPositionPreview()
+        }
+
+        fun commitIndexVerticalPositionPreview() {
+            overlayHostOrNull("commitIndexVerticalPositionPreview")?.commitIndexVerticalPositionPreview()
+        }
+
+        fun commitIndexSliderPreviews() {
+            overlayHostOrNull("commitIndexSliderPreviews")?.commitIndexSliderPreviews()
+        }
+
         fun mergeTriggerHandleLayoutPreview(
             side: com.slideindex.app.overlay.PanelSide,
             handleId: String,

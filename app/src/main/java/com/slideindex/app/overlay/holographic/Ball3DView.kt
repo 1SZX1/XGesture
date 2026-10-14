@@ -23,7 +23,6 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.random.Random
 
 class Ball3DView @JvmOverloads constructor(
     context: Context,
@@ -38,6 +37,9 @@ class Ball3DView @JvmOverloads constructor(
         private const val FLING_MAX_RAD_PER_FRAME = 0.85f
         private const val FLING_DECAY = 0.96f
         private const val FLING_STOP_THRESHOLD = 0.005f
+
+        /** 球面布点上限：再多就挤成一团、看不出也点不准。 */
+        const val MAX_BALL_APPS = 60
     }
 
     private data class AppNode(
@@ -114,7 +116,9 @@ class Ball3DView @JvmOverloads constructor(
             invalidate()
             return
         }
-        val take = apps.shuffled(Random).take(60)
+        // 不再 shuffled(Random)：球面位置必须与传入顺序一一对应，否则每次打开看到的
+        // 应用都不一样（真机反馈「有些应用永远找不到」）。截断交给调用方决定。
+        val take = apps.take(MAX_BALL_APPS)
         val size = take.size
         val goldenAngle = (3.0 - sqrt(5.0)) * Math.PI
         take.forEachIndexed { index, app ->

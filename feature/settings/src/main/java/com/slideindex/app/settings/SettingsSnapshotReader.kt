@@ -196,6 +196,8 @@ internal object SettingsSnapshotReader {
             ),
             ),
             indexHeightFraction = prefs[SettingsPreferenceKeys.INDEX_HEIGHT] ?: 0.42f,
+            indexVerticalPositionFraction =
+                (prefs[SettingsPreferenceKeys.INDEX_VERTICAL_POSITION] ?: 0.5f).coerceIn(0f, 1f),
             hideEmptyIndexLetters = prefs[SettingsPreferenceKeys.HIDE_EMPTY_INDEX_LETTERS] ?: true,
             appsPerRow = prefs[SettingsPreferenceKeys.APPS_PER_ROW] ?: 3,
             quickLauncherColumnsPerPage = prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_COLUMNS_PER_PAGE]

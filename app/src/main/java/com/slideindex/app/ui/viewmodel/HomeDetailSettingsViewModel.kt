@@ -100,6 +100,10 @@ class HomeDetailSettingsViewModel @Inject constructor(
         settingsRepository.setIndexHeightFraction(value)
     }
 
+    fun setIndexVerticalPositionFraction(value: Float) = launchSettingsWrite {
+        settingsRepository.setIndexVerticalPositionFraction(value)
+    }
+
     fun setAppsPerRow(value: Int) = launchSettingsWrite {
         settingsRepository.setAppsPerRow(value)
     }

@@ -7,6 +7,7 @@ import com.slideindex.app.settings.QuickLauncherDisplaySettings
 import com.slideindex.app.ui.SettingDropdownRow
 import com.slideindex.app.ui.SettingsSliderRow
 import com.slideindex.app.ui.miuix.CardItem
+import com.slideindex.app.ui.miuix.MiuixSwitchRow
 import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.settings.components.SETTINGS_SLIDER_PERCENT_KEY_POINTS_100
 import com.slideindex.app.ui.settings.components.settingsCardScopeItem
@@ -19,6 +20,19 @@ fun quickLauncherAppearanceCardItems(
     onDisplayChange: (QuickLauncherDisplaySettings) -> Unit,
 ): List<CardItem> {
     return buildList {
+        add(
+            settingsCardScopeItem("show-toolbar") {
+                MiuixSwitchRow(
+                    title = stringResource(R.string.quick_launcher_show_toolbar),
+                    summary = stringResource(R.string.quick_launcher_show_toolbar_desc),
+                    checked = display.showToolbar,
+                    enabled = enabled,
+                    onCheckedChange = { checked ->
+                        onDisplayChange(display.copy(showToolbar = checked))
+                    },
+                )
+            },
+        )
         val shapes = listOf(
             QuickLauncherDisplaySettings.ICON_SHAPE_DEFAULT,
             QuickLauncherDisplaySettings.ICON_SHAPE_CIRCLE,

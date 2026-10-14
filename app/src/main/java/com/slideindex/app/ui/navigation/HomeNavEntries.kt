@@ -1490,6 +1490,7 @@ fun NavEntryBuilder.layoutSettingsNavEntries(ctx: MainNavContext) {
                 ctx.navigateBackTo(AppNavKey.ExtensionHub)
             },
             onIndexHeightChange = viewModel::setIndexHeightFraction,
+            onIndexVerticalPositionChange = viewModel::setIndexVerticalPositionFraction,
             onAppsPerRowChange = viewModel::setAppsPerRow,
             onPanelOpacityChange = viewModel::setPanelOpacity,
             onHideEmptyIndexLettersChange = viewModel::setHideEmptyIndexLetters,
@@ -1498,11 +1499,14 @@ fun NavEntryBuilder.layoutSettingsNavEntries(ctx: MainNavContext) {
                 ctx.startLayoutPreview(LayoutPreviewContent.INDEX_ONLY)
             },
             onLayoutPreviewStop = {
-                ctx.commitIndexHeightPreview()
+                ctx.commitIndexSliderPreviews()
                 ctx.stopLayoutPreview()
             },
             onIndexHeightPreviewChange = { fraction ->
                 ctx.previewIndexHeightFraction(fraction)
+            },
+            onIndexVerticalPositionPreviewChange = { fraction ->
+                ctx.previewIndexVerticalPositionFraction(fraction)
             },
         )
     }

@@ -389,6 +389,8 @@ sealed interface AppNavKey : NavKey {
     @Serializable data object RingLauncherSettings : AppNavKey
     @Serializable data object HolographicLauncherSettings : AppNavKey
     @Serializable data object HolographicLauncherHiddenApps : AppNavKey
+    /** 全息启动器「自添加应用」列表（用户自己挑球面上显示哪些应用）。 */
+    @Serializable data object HolographicLauncherApps : AppNavKey
     @Serializable data object ShellCommands : AppNavKey
     @Serializable data object ActivityShortcuts : AppNavKey
     @Serializable data object ActivityShortcutPresets : AppNavKey

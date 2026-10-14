@@ -57,5 +57,12 @@ fun AppSettings.withOverlayLayoutPreview(): AppSettings {
             OverlayLayoutPreviewStore.dropCommittedIndexHeight()
         }
     }
+    OverlayLayoutPreviewStore.activeIndexVerticalPositionFraction(nowMs)?.let { fraction ->
+        val beforePreview = result
+        result = result.copy(indexVerticalPositionFraction = fraction)
+        if (result == beforePreview) {
+            OverlayLayoutPreviewStore.dropCommittedIndexVerticalPosition()
+        }
+    }
     return result
 }

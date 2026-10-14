@@ -299,6 +299,27 @@ class MainNavContext(
         activity.overlayServiceController.commitIndexHeightPreview()
     }
 
+    /**
+     * 索引页上的两个滑条（长度 / 位置）共用一个预览会话：松手时只提交**刚刚拖过的那一个**，
+     * 另一个直接丢弃。否则任何一个滑条松手都会把两个"待确认"值同时顶起来 2 秒。
+     */
+    fun commitIndexSliderPreviews() {
+        activity.overlayServiceController.commitIndexSliderPreviews()
+    }
+
+    fun previewIndexVerticalPositionFraction(fraction: Float) {
+        activity.overlayServiceController.previewIndexVerticalPositionFraction(fraction)
+    }
+
+    fun clearIndexVerticalPositionPreview() {
+        activity.overlayServiceController.clearIndexVerticalPositionPreview()
+    }
+
+    /** 松手提交索引位置预览（语义同 [commitIndexHeightPreview]）。 */
+    fun commitIndexVerticalPositionPreview() {
+        activity.overlayServiceController.commitIndexVerticalPositionPreview()
+    }
+
     fun previewTriggerHandleEdgeWidth(side: PanelSide, handleId: String, edgeWidthDp: Float) {
         activity.overlayServiceController.previewTriggerHandle(
             side = side,

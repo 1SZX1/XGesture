@@ -148,6 +148,23 @@ class ExtensionSettingsViewModel @Inject constructor(
         settingsRepository.removeHolographicHiddenApp(packageName)
     }
 
+    fun addHolographicLauncherApp(packageName: String) = launchSettingsWrite {
+        settingsRepository.addHolographicLauncherApp(packageName)
+    }
+
+    fun setHolographicAppMode(mode: com.slideindex.app.settings.HolographicAppMode) =
+        launchSettingsWrite {
+            settingsRepository.setHolographicAppMode(mode)
+        }
+
+    fun setHolographicLauncherApps(packageNames: List<String>) = launchSettingsWrite {
+        settingsRepository.setHolographicLauncherApps(packageNames)
+    }
+
+    fun removeHolographicLauncherApp(packageName: String) = launchSettingsWrite {
+        settingsRepository.removeHolographicLauncherApp(packageName)
+    }
+
     /**
      * 增删面板条目。[folderIndex] 指向面板内的文件夹时改动写进该文件夹的子项，
      * 为负（默认）时写面板根列表。

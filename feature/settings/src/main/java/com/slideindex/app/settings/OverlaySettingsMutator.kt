@@ -775,6 +775,7 @@ class OverlaySettingsMutator @Inject constructor(
                 QuickLauncherDisplaySettings.MIN_BLUR_RADIUS_DP,
                 QuickLauncherDisplaySettings.MAX_BLUR_RADIUS_DP,
             )
+        prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_SHOW_TOOLBAR] = settings.showToolbar
     }
 
     suspend fun setAppCarouselSwitcherSettings(settings: AppCarouselSwitcherSettings) = editor.edit { prefs ->
@@ -1812,5 +1813,34 @@ class OverlaySettingsMutator @Inject constructor(
         val current = it[SettingsPreferenceKeys.HOLOGRAPHIC_HIDDEN_APP_PACKAGES]?.toMutableSet() ?: return@edit
         current.remove(packageName)
         it[SettingsPreferenceKeys.HOLOGRAPHIC_HIDDEN_APP_PACKAGES] = current
+    }
+
+    /** 全息启动器：切换「球面应用来源」模式（选中列表本身保留，切回来还在）。 */
+    suspend fun setHolographicAppMode(mode: HolographicAppMode) = editor.edit {
+        it[SettingsPreferenceKeys.HOLOGRAPHIC_APP_MODE] = mode.id
+    }
+
+    /** 全息启动器：把某个应用加入选中列表（追加到末尾，保持用户挑选顺序）。 */
+    suspend fun addHolographicLauncherApp(packageName: String) = editor.edit {
+        val current = HolographicLauncherAppPackagesCodec.decode(
+            it[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES]
+        )
+        it[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES] =
+            HolographicLauncherAppPackagesCodec.encode(current + packageName)
+    }
+
+    suspend fun removeHolographicLauncherApp(packageName: String) = editor.edit {
+        val current = HolographicLauncherAppPackagesCodec.decode(
+            it[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES]
+        )
+        if (packageName !in current) return@edit
+        it[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES] =
+            HolographicLauncherAppPackagesCodec.encode(current - packageName)
+    }
+
+    /** 全息启动器：整体替换选中列表（全选 / 取消全选）。 */
+    suspend fun setHolographicLauncherApps(packageNames: List<String>) = editor.edit {
+        it[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES] =
+            HolographicLauncherAppPackagesCodec.encode(packageNames)
     }
 }

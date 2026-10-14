@@ -6,8 +6,30 @@ import com.slideindex.app.gesture.TriggerHandleDesign
  * 布局/触钮设置页拖动滑条时的临时预览值；不落盘，结束预览后应清空。
  */
 object OverlayLayoutPreviewStore {
+    /** 索引页两个滑条：松手时只提交最近拖过的那一个。 */
+    enum class IndexSlider { HEIGHT, VERTICAL_POSITION }
+
+    @Volatile
+    private var lastIndexSlider: IndexSlider? = null
+
     @Volatile
     var indexHeightFraction: Float? = null
+        private set
+
+    /** 字母索引条的纵向位置比例（0 = 顶、1 = 底），与 [indexHeightFraction] 同一套预览语义。 */
+    @Volatile
+    var indexVerticalPositionFraction: Float? = null
+        private set
+
+    fun previewIndexHeightFraction(fraction: Float) {
+        indexHeightFraction = fraction
+        lastIndexSlider = IndexSlider.HEIGHT
+    }
+
+    fun previewIndexVerticalPositionFraction(fraction: Float) {
+        indexVerticalPositionFraction = fraction
+        lastIndexSlider = IndexSlider.VERTICAL_POSITION
+    }
 
     /**
      * 已提交、但还没被设置回流确认的预览值。
@@ -22,6 +44,12 @@ object OverlayLayoutPreviewStore {
 
     @Volatile
     private var committedIndexHeightAtMs: Long = 0L
+
+    @Volatile
+    var committedIndexVerticalPositionFraction: Float? = null
+
+    @Volatile
+    private var committedIndexVerticalPositionAtMs: Long = 0L
 
     data class TriggerHandlePreview(
         val side: PanelSide,
@@ -45,14 +73,19 @@ object OverlayLayoutPreviewStore {
 
     fun clear() {
         indexHeightFraction = null
+        indexVerticalPositionFraction = null
         triggerHandlePreview = null
         committedIndexHeightFraction = null
+        committedIndexVerticalPositionFraction = null
         committedTriggerHandlePreview = null
     }
 
-    fun clearIndexHeightPreview() {
+    fun clearIndexSliderPreview() {
         indexHeightFraction = null
+        indexVerticalPositionFraction = null
         committedIndexHeightFraction = null
+        committedIndexVerticalPositionFraction = null
+        lastIndexSlider = null
     }
 
     fun clearTriggerHandlePreview() {
@@ -68,6 +101,34 @@ object OverlayLayoutPreviewStore {
         indexHeightFraction = null
     }
 
+    fun commitIndexVerticalPositionPreview() {
+        val current = indexVerticalPositionFraction ?: return
+        committedIndexVerticalPositionFraction = current
+        committedIndexVerticalPositionAtMs = android.os.SystemClock.elapsedRealtime()
+        indexVerticalPositionFraction = null
+    }
+
+    /**
+     * 索引页滑条松手：只把**最近拖过的那一个**转成"待确认"，另一个直接丢弃。
+     * （两个滑条共用一个预览会话，不区分的话任何一个松手都会让另一个也顶 2 秒。）
+     */
+    fun commitIndexSliderPreviews() {
+        when (lastIndexSlider) {
+            IndexSlider.HEIGHT -> {
+                indexVerticalPositionFraction = null
+                committedIndexVerticalPositionFraction = null
+                commitIndexHeightPreview()
+            }
+            IndexSlider.VERTICAL_POSITION -> {
+                indexHeightFraction = null
+                committedIndexHeightFraction = null
+                commitIndexVerticalPositionPreview()
+            }
+            null -> Unit
+        }
+        lastIndexSlider = null
+    }
+
     fun commitTriggerHandlePreview() {
         val current = triggerHandlePreview ?: return
         committedTriggerHandlePreview = current
@@ -81,6 +142,11 @@ object OverlayLayoutPreviewStore {
             nowMs - committedIndexHeightAtMs <= COMMIT_TTL_MS
         }
 
+    fun activeIndexVerticalPositionFraction(nowMs: Long): Float? =
+        indexVerticalPositionFraction ?: committedIndexVerticalPositionFraction?.takeIf {
+            nowMs - committedIndexVerticalPositionAtMs <= COMMIT_TTL_MS
+        }
+
     fun activeTriggerHandlePreview(nowMs: Long): TriggerHandlePreview? =
         triggerHandlePreview ?: committedTriggerHandlePreview?.takeIf {
             nowMs - committedTriggerHandleAtMs <= COMMIT_TTL_MS
@@ -88,6 +154,10 @@ object OverlayLayoutPreviewStore {
 
     fun dropCommittedIndexHeight() {
         committedIndexHeightFraction = null
+    }
+
+    fun dropCommittedIndexVerticalPosition() {
+        committedIndexVerticalPositionFraction = null
     }
 
     fun dropCommittedTriggerHandle() {

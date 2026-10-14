@@ -64,10 +64,17 @@ internal class QuickLauncherPanelToolbar(
         deleteBadgeRects.clear()
     }
 
+    /**
+     * 底部操作栏是否显示。
+     *
+     * 编辑态**强制显示**：那条栏里的「✓」是从编辑态退出来的唯一入口，设置里关掉操作栏之后
+     * 如果编辑态也不画，用户会卡在编辑态里出不来（Back 键虽然也能退，但面板内就没有可见出口了）。
+     */
     fun shouldShowToolbar(): Boolean =
         host.isPanelReady() &&
             controller.displayItems().isNotEmpty() &&
-            !host.isAddDialogShowing()
+            !host.isAddDialogShowing() &&
+            (controller.editMode || host.settings().quickLauncherDisplay.showToolbar)
 
     fun toolbarLayoutMetrics(): ToolbarLayoutMetrics = ToolbarLayoutMetrics(
         toolbarHeight = host.dp(36f),

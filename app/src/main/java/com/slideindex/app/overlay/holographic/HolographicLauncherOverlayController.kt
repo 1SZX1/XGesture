@@ -82,6 +82,11 @@ class HolographicLauncherOverlayController(
         view?.close()
     }
 
+    /** 后台补齐图标后重排球面（见 [HolographicLauncherOverlayView.refreshAppIcons]）。 */
+    fun refreshAppIcons(apps: List<HolographicLauncherApp>) {
+        view?.refreshAppIcons(apps)
+    }
+
     fun removeNow() {
         val current = view
         if (current == null) return

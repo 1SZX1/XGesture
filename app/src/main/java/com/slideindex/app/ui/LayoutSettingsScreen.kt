@@ -38,6 +38,7 @@ fun LayoutSettingsScreen(
     serviceEnabled: Boolean,
     onBack: () -> Unit,
     onIndexHeightChange: (Float) -> Unit,
+    onIndexVerticalPositionChange: (Float) -> Unit,
     onAppsPerRowChange: (Int) -> Unit,
     onPanelOpacityChange: (Float) -> Unit,
     onHideEmptyIndexLettersChange: (Boolean) -> Unit,
@@ -45,6 +46,7 @@ fun LayoutSettingsScreen(
     onLayoutPreviewStart: () -> Unit,
     onLayoutPreviewStop: () -> Unit,
     onIndexHeightPreviewChange: (Float) -> Unit = {},
+    onIndexVerticalPositionPreviewChange: (Float) -> Unit = {},
 ) {
     DisposableEffect(Unit) {
         onDispose {
@@ -94,6 +96,28 @@ fun LayoutSettingsScreen(
                         onLayoutPreviewStop = onLayoutPreviewStop,
                         onLayoutPreviewValueChange = onIndexHeightPreviewChange,
                         onValueChange = onIndexHeightChange,
+                    )
+                },
+                CardItem("index-vertical-position") {
+                    // 四段档位：0% / 33% / 67% / 100%（steps = 中间档数 = 3）。
+                    // 用**离散**档位而不是连续滑条：位置是"挑一个大致落点"的设置，四档足够，
+                    // 也避免用户为了对准而反复微调。
+                    MiuixSliderRow(
+                        title = stringResource(R.string.index_vertical_position),
+                        value = settings.indexVerticalPositionFraction,
+                        valueRange = 0f..1f,
+                        steps = 3,
+                        enabled = serviceEnabled,
+                        summary = stringResource(R.string.index_vertical_position_desc),
+                        label = "",
+                        formatLabel = { "${(it * 100).roundToInt()}%" },
+                        // 与「字母索引长度」同样的通道：拖动期只写预览、松手才提交一次设置。
+                        commitOnFinish = true,
+                        triggersLayoutPreview = true,
+                        onLayoutPreviewStart = onLayoutPreviewStart,
+                        onLayoutPreviewStop = onLayoutPreviewStop,
+                        onLayoutPreviewValueChange = onIndexVerticalPositionPreviewChange,
+                        onValueChange = onIndexVerticalPositionChange,
                     )
                 },
                 CardItem("apps-per-row") {

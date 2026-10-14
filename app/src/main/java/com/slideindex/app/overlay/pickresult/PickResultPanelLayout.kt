@@ -1014,6 +1014,11 @@ internal fun PickResultCollapsePanelColumn(
         { delta -> applySearchDragState.value(delta) }
     }
     val maxSearchSectionHeight = searchGridSectionPrefixHeight + expandedSearchGridContentHeight
+    // 注意：这里**不要**去覆盖 `collapseHeights.searchGridHeight`。
+    // 曾经为了让搜索网格不被裁而把它直接改成自然高度，结果绕过了折叠用的
+    // `searchExpansionFraction`，搜索区再也收不起来（真机 bug）。
+    // 搜索区高度该由 `computePickResultCollapseHeights` 按展开进度算；
+    // 「装不下」的问题由图片让位解决（见 `FloatBallPickResultContent` 的图片额度）。
     val totalImageCollapsiblePx = remember(
         maxImageSectionHeight,
         minImageSectionHeight,
@@ -1401,6 +1406,9 @@ internal fun PickResultCollapsePanelColumn(
                     }
                 }
             } else {
+                // 同屏堆叠样式下，图片、文本区、搜索区在同一屏里互相抢高度，而面板只有一屏高，
+                // 于是总有一块被压扁（真机反馈：搜索区被挤成细条）。
+                // 这里先让图片块**按自己的高度排**（不参与压缩），整列是否可滚动在下面统一处理。
                 renderImageBlock()
                 if (showTextSection) {
                     PickResultTextImageDividerBlock(

@@ -8,11 +8,15 @@ import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
+import com.slideindex.app.R
+import com.slideindex.app.data.AppInfo
 import com.slideindex.app.data.AppRepository
 import com.slideindex.app.di.OverlayDependencyAccess
 import com.slideindex.app.gesture.ActionExecutor
 import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.settings.AppSettings
+import com.slideindex.app.settings.HolographicAppMode
 import com.slideindex.app.overlay.ScreenOffDismissReceiver
 import com.slideindex.app.util.PermissionHelper
 
@@ -62,7 +66,16 @@ object HolographicLauncherOverlayWindow {
 
         val apps = resolveApps(hostContext, settings, appRepository)
         if (apps.isEmpty()) {
-            Log.w(TAG, "show: no launchable apps")
+            // 「仅显示选中」但一个都没挑 → 必须给用户看得见的提示：只写日志的话表现就是
+            // 「点了完全没反应」，用户根本不知道要去设置里挑应用。
+            Log.w(TAG, "show: no launchable apps (mode=${settings.holographicLauncher.appMode})")
+            if (settings.holographicLauncher.appMode == HolographicAppMode.SELECTED_ONLY) {
+                Toast.makeText(
+                    hostContext,
+                    hostContext.getString(R.string.holographic_no_selected_apps),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
             return false
         }
 
@@ -95,6 +108,17 @@ object HolographicLauncherOverlayWindow {
 
         appContext = hostContext
         screenOffDismissReceiver.register(hostContext)
+        // 图标一律后台补：resolveApps 只取内存缓存里已有的，缺图的节点在球面上先不画，
+        // 补齐后再重排一次（同一个列表 → 位置不变，只是多了图）。
+        HolographicLauncherIconLoader.loadMissingIconsAsync(
+            appRepository = appRepository,
+            apps = apps,
+            onIconsReady = {
+                if (controller === overlayController && overlayController.isVisible) {
+                    overlayController.refreshAppIcons(apps)
+                }
+            },
+        )
         return true
     }
 
@@ -108,22 +132,60 @@ object HolographicLauncherOverlayWindow {
         releaseOverlayState()
     }
 
+    /**
+     * 组装球面用的应用列表。
+     *
+     * 三档模式决定怎么用**同一份**选中列表（见 `HolographicAppMode`）：
+     * - `ALL` → 全部已安装应用 − 遗留黑名单 `hiddenAppPackages`（老用户默认档，观感不变）；
+     * - `SELECTED_ONLY` → 只用选中列表，顺序即挑选顺序（球面按列表顺序铺点，顺序稳定用户才有肌肉记忆）；
+     * - `EXCLUDE_SELECTED` → 全部已安装应用 − 选中列表。
+     *
+     * 模式与列表分开存的意义：切换模式时**选择不会被清掉**，也永远不存在
+     * 「两种模式都添加过、到底听谁的」这种说不清的状态 —— 只有一个模式生效。
+     *
+     * 图标刻意**不在这里同步解析**：这一步跑在主线程，而魅族/小米等 OEM 的
+     * `PackageManager.getApplicationIcon` 单次可达秒级（见 `OverlayIconLoader` 的事故记录），
+     * 几百个包逐个解析会直接把触摸事件卡到 ANR。这里统一交给 [HolographicLauncherIconLoader]
+     * 后台补齐，球面先画缺图的节点。
+     */
     private fun resolveApps(
         context: Context,
         settings: AppSettings,
         appRepository: AppRepository,
     ): List<HolographicLauncherApp> {
-        val hidden = settings.holographicLauncher.hiddenAppPackages
         val selfPackage = context.packageName
-        return appRepository.getCachedApps()
-            .filter { it.packageName != selfPackage && it.packageName !in hidden }
+        val holographic = settings.holographicLauncher
+        val selectedPackages = holographic.selectedAppPackages
+        val cachedByPackage = appRepository.getCachedApps().associateBy { it.packageName }
+        // 稳定顺序：以前球面是 `shuffled(Random).take(60)`，用户每次打开看到的应用都不一样、
+        // 有些永远找不到。选中列表保持挑选顺序，其余按拼音排。
+        val allSorted = appRepository.getCachedApps().sortedBy { it.pinyinKey }
+
+        val apps: Sequence<AppInfo> = when (holographic.appMode) {
+            HolographicAppMode.ALL ->
+                allSorted.asSequence().filter { it.packageName !in holographic.hiddenAppPackages }
+
+            HolographicAppMode.SELECTED_ONLY ->
+                selectedPackages.asSequence().mapNotNull { packageName ->
+                    cachedByPackage[packageName] ?: appRepository.lookupApp(packageName)
+                }
+
+            HolographicAppMode.EXCLUDE_SELECTED -> {
+                val excluded = selectedPackages.toSet()
+                allSorted.asSequence().filter { it.packageName !in excluded }
+            }
+        }
+
+        return apps
+            .filter { it.packageName != selfPackage }
             .map { info ->
                 HolographicLauncherApp(
                     packageName = info.packageName,
                     label = info.label,
-                    icon = appRepository.launchIconDrawable(info.packageName),
+                    icon = appRepository.peekLaunchIconDrawable(info.packageName),
                 )
             }
+            .toList()
     }
 
     private fun releaseOverlayState() {

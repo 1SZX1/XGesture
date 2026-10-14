@@ -90,6 +90,16 @@ class HolographicLauncherOverlayView(
         backgroundView.refreshBlur()
     }
 
+    /**
+     * 后台补齐图标后重排球面。
+     *
+     * 只重放点、**不重置旋转与自动关闭计时**（`bind()` 会 resetAutoClose）：节点是按同一个列表
+     * 顺序重建的，所以位置不变，用户只是看到原本空着的格子上出现了图标。
+     */
+    fun refreshAppIcons(apps: List<HolographicLauncherApp>) {
+        ballView.setApps(apps)
+    }
+
     fun resetAutoClose() {
         cancelAutoClose()
         val delayMs = timeoutSeconds.coerceIn(

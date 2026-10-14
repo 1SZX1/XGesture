@@ -98,46 +98,80 @@ internal fun pickResultImageContentWidth(horizontalPadding: Dp = 40.dp): Dp {
     return (containerWidth - horizontalPadding).coerceAtLeast(0.dp)
 }
 
+/**
+ * 图片区尺寸。
+ *
+ * [width]/[height] 是图片区视口；[naturalHeight] 默认与 [height] 相同。只有「宽度优先」方案
+ * （高度超出视口时不缩宽度、改由图片自身滚动）才会让 [naturalHeight] 大于 [height]；
+ * 当前取词面板走的是「图片让位给搜索区」，两者相等。
+ */
 internal data class PickResultImageDisplaySize(
     val width: Dp,
     val height: Dp,
+    val naturalHeight: Dp = height,
 )
 
-/** 面板图片预览高度上限：竖屏为屏宽；横屏取 min(屏宽, 屏高×45%)，避免抢垂直空间。 */
+/**
+ * 图片预览高度上限的**硬**天花板。
+ *
+ * 竖屏**不能**再等于屏宽：屏宽只是"按内容宽撑开后多高还算合理"的旧经验值，一旦图片撑开后
+ * 高于它，[applyPickResultImageDisplayCaps] 就会反过来把**宽度**也一起缩掉，竖长截图因此被压窄
+ * （真机反馈：截取较高范围的区域后图片被压着看不清）。这里统一放宽到容器高度的 80%，
+ * 剩下的真实约束交给面板自身的 0.85/0.92/0.70 高度上限与「可负担高度」预算。
+ */
 @Composable
 internal fun pickResultImageMaxHeightDp(): Dp {
+    val containerHeight = overlayContainerHeightDp()
+    if (!overlayIsLandscape()) return containerHeight * PORTRAIT_IMAGE_MAX_HEIGHT_FRACTION
     val widthDp = with(LocalDensity.current) {
         LocalWindowInfo.current.containerSize.width.toDp()
     }
-    if (!overlayIsLandscape()) return widthDp
-    return minOf(widthDp, overlayContainerHeightDp() * 0.45f)
+    return minOf(widthDp, containerHeight * LANDSCAPE_IMAGE_MAX_HEIGHT_FRACTION)
 }
+
+/** 竖屏：图片高度最多占容器高度的 80%（面板上限 0.85，留出分页头与图片区自身 chrome）。 */
+private const val PORTRAIT_IMAGE_MAX_HEIGHT_FRACTION = 0.80f
+
+/** 横屏：不再抢垂直空间，维持旧值 45%。 */
+private const val LANDSCAPE_IMAGE_MAX_HEIGHT_FRACTION = 0.45f
 
 private fun applyPickResultImageDisplayCaps(
     baseWidth: Dp,
     baseHeight: Dp,
     contentWidth: Dp,
     maxHeight: Dp,
+    maxWidth: Dp,
+    /** true：高度超出 [maxHeight] 时**不缩宽度**，只把高度夹到视口（超出部分靠滚动查看）。 */
+    keepWidthOnOverflowHeight: Boolean = false,
 ): PickResultImageDisplaySize {
     if (baseWidth <= 0.dp || baseHeight <= 0.dp) {
         return PickResultImageDisplaySize(contentWidth, maxHeight)
     }
-    if (baseWidth <= contentWidth && baseHeight <= maxHeight) {
+    // 宽度上限永远生效：图片再高也不能横向超出屏幕。
+    val widthCap = minOf(contentWidth, maxWidth)
+    if (baseWidth <= widthCap && baseHeight <= maxHeight) {
         return PickResultImageDisplaySize(baseWidth, baseHeight)
     }
     val aspect = baseHeight / baseWidth
-    val heightAtFullWidth = contentWidth * aspect
+    val heightAtFullWidth = widthCap * aspect
     if (heightAtFullWidth <= maxHeight) {
-        return PickResultImageDisplaySize(contentWidth, heightAtFullWidth)
+        return PickResultImageDisplaySize(widthCap, heightAtFullWidth)
+    }
+    if (keepWidthOnOverflowHeight) {
+        // 宽度优先：宽度给到上限，高度夹进视口；图片本体尺寸由调用方另行计算，
+        // 这里返回的 height 只表示「视口里看得见多少」。
+        return PickResultImageDisplaySize(widthCap, maxHeight)
     }
     val widthAtMaxHeight = maxHeight / aspect
     return PickResultImageDisplaySize(widthAtMaxHeight, maxHeight)
 }
 
 /**
- * 计算图片展示尺寸：有 screenRect 时与 pin 一致（screenRect 屏幕像素→dp），
- * 仅当超出屏幕边界时等比缩小；无 screenRect 时保留 bitmap 自然 dp 尺寸不放大，
- * 仅在超出内容区宽度或 maxHeight 时等比缩小。
+ * 计算**图片区视口**的展示尺寸。
+ *
+ * 顺序是「宽度是主语、高度是结果」：宽 = min(图片原宽, 内容宽, 屏幕宽)，高 = 宽 × 宽高比。
+ * [keepWidthOnOverflowHeight] 为 true 时（取词面板用滚动方案），高度超出视口**不再反推缩小宽度**，
+ * 只把高度夹到视口；图片本体的真实高度 = 视口宽度 × 宽高比，由调用方用 [pickResultImageNaturalHeight] 取。
  */
 internal fun pickResultImageDisplaySize(
     bitmap: Bitmap,
@@ -148,6 +182,7 @@ internal fun pickResultImageDisplaySize(
     layoutMeta: ScreenshotLayoutMeta?,
     screenWidthPx: Int,
     screenHeightPx: Int,
+    keepWidthOnOverflowHeight: Boolean = false,
 ): PickResultImageDisplaySize {
     val hasScreenRect = screenRect != null && !screenRect.isEmpty
     val (baseWidth, baseHeight) = if (hasScreenRect) {
@@ -162,18 +197,60 @@ internal fun pickResultImageDisplaySize(
     } else {
         with(density) { bitmap.width.toDp() to bitmap.height.toDp() }
     }
+    val screenMaxWidth = with(density) { screenWidthPx.toDp() }
+    val screenMaxHeight = with(density) { screenHeightPx.toDp() }
     return if (hasScreenRect) {
-        val screenMaxWidth = with(density) { screenWidthPx.toDp() }
-        val screenMaxHeight = with(density) { screenHeightPx.toDp() }
         applyPickResultImageDisplayCaps(
             baseWidth = baseWidth,
             baseHeight = baseHeight,
             contentWidth = minOf(screenMaxWidth, contentWidth),
             maxHeight = minOf(screenMaxHeight, maxHeight),
+            maxWidth = screenMaxWidth,
+            keepWidthOnOverflowHeight = keepWidthOnOverflowHeight,
         )
     } else {
-        applyPickResultImageDisplayCaps(baseWidth, baseHeight, contentWidth, maxHeight)
+        applyPickResultImageDisplayCaps(
+            baseWidth = baseWidth,
+            baseHeight = baseHeight,
+            contentWidth = contentWidth,
+            maxHeight = maxHeight,
+            maxWidth = screenMaxWidth,
+            keepWidthOnOverflowHeight = keepWidthOnOverflowHeight,
+        )
     }
+}
+
+/**
+ * 图片本体在「宽度优先」下的真实高度 = 展示宽度 × 宽高比；拿不到原图时返回 null。
+ *
+ * 图片区视口高度由 [pickResultImageDisplaySize] 给出，图片本体比它高多少，就由
+ * `PickResultImageSection` 的 verticalScroll 承担多少。
+ */
+internal fun pickResultImageNaturalHeight(
+    displayWidth: Dp,
+    bitmap: Bitmap,
+    screenRect: Rect?,
+    layoutMeta: ScreenshotLayoutMeta?,
+    density: Density,
+    screenWidthPx: Int,
+    screenHeightPx: Int,
+): Dp? {
+    if (displayWidth <= 0.dp) return null
+    val hasScreenRect = screenRect != null && !screenRect.isEmpty
+    val (baseWidth, baseHeight) = if (hasScreenRect) {
+        val (widthPx, heightPx) = resolvePinImageDisplaySizePx(
+            bitmap = bitmap,
+            screenRect = screenRect,
+            layoutMeta = layoutMeta,
+            screenWidthPx = screenWidthPx,
+            screenHeightPx = screenHeightPx,
+        )
+        with(density) { widthPx.toDp() to heightPx.toDp() }
+    } else {
+        with(density) { bitmap.width.toDp() to bitmap.height.toDp() }
+    }
+    if (baseWidth <= 0.dp || baseHeight <= 0.dp) return null
+    return displayWidth * (baseHeight / baseWidth)
 }
 
 internal fun pickResultImageSectionReservedHeight(

@@ -1931,6 +1931,8 @@
     <string name="limit_intercept_length_desc">Current system API limit is 200 dp</string>
     <string name="side_gestures_handle_section">Handle layout</string>
     <string name="index_height">Letter index height</string>
+    <string name="index_vertical_position">Letter index position</string>
+    <string name="index_vertical_position_desc" formatted="false">0% = top, 50% = centered, 100% = bottom</string>
     <string name="hide_empty_index_letters">Hide empty letters</string>
     <string name="hide_empty_index_letters_desc">Do not show index letters that have no apps</string>
     <string name="apps_per_row">Apps per index row</string>
@@ -2210,6 +2212,25 @@
     <string name="holographic_settings_haptic_strong">Strong</string>
     <string name="holographic_hidden_apps_entry_desc">Hide apps from the holographic sphere</string>
     <string name="holographic_hidden_apps_desc">Hidden apps won\'t appear on the sphere. This does not affect the side index or other lists.</string>
+    <string name="holographic_apps_entry_title">Apps on the sphere</string>
+    <string name="holographic_apps_entry_desc">Pick the apps yourself — apps added here appear in this order</string>
+    <string name="holographic_apps_screen_desc">The mode decides which apps appear on the sphere. The selected list is shared between modes, so switching keeps your picks.</string>
+    <string name="holographic_app_mode_all">Allow all apps</string>
+    <string name="holographic_app_mode_all_desc">Every installed app appears on the sphere</string>
+    <string name="holographic_app_mode_selected">Allow selected apps only</string>
+    <string name="holographic_app_mode_selected_desc">Only the selected apps appear on the sphere</string>
+    <string name="holographic_app_mode_exclude">Exclude selected apps</string>
+    <string name="holographic_app_mode_exclude_desc">The selected apps stay off the sphere</string>
+    <string name="holographic_apps_entry_pick">Select apps</string>
+    <string name="holographic_apps_entry_pick_desc">Pick the apps to put on the sphere</string>
+    <string name="holographic_apps_section_selected">Selected (%1$d)</string>
+    <string name="holographic_apps_mode_section">Where the sphere gets its apps</string>
+    <string name="holographic_apps_section_count">Apps (%1$d selected / %2$d total)</string>
+    <string name="holographic_apps_select_all">Select all</string>
+    <string name="holographic_apps_deselect_all">Deselect all</string>
+    <string name="holographic_apps_allow_all_note">Currently "Allow all apps": the sphere shows every installed app and ignores the selections below.</string>
+    <string name="holographic_apps_empty">Nothing selected yet. Add apps below and the sphere will show them.</string>
+    <string name="holographic_no_selected_apps">The sphere has no apps yet. Pick some in Settings → Holographic launcher → Select apps, or switch the mode to Allow all apps.</string>
     <string name="gesture_action_task_switcher">Task switcher</string>
     <string name="gesture_action_back">Back</string>
     <string name="gesture_action_home">Home</string>
@@ -2710,6 +2731,8 @@
     <string name="quick_launcher_background_opacity_value">%1$d%%</string>
     <string name="quick_launcher_blur_strength">Blur strength</string>
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
+    <string name="quick_launcher_show_toolbar">Show bottom toolbar</string>
+    <string name="quick_launcher_show_toolbar_desc">When off, the +, − and panel-switch buttons stay hidden during normal use. Press and hold a blank spot on the panel to enter edit mode.</string>
     <string name="quick_launcher_add">Add shortcut</string>
     <string name="quick_launcher_shell_shortcuts_section">Shell panel shortcuts</string>
     <string name="quick_launcher_shell_shortcuts_empty">Add shortcuts in Extension → Shell command panel first</string>

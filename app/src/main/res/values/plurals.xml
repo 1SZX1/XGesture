@@ -164,6 +164,14 @@
         <item quantity="one">%d app hidden</item>
         <item quantity="other">%d apps hidden</item>
     </plurals>
+    <plurals name="holographic_apps_entry_count">
+        <item quantity="one">%d app added</item>
+        <item quantity="other">%d apps added</item>
+    </plurals>
+    <plurals name="holographic_apps_section_added">
+        <item quantity="one">Added (%d app)</item>
+        <item quantity="other">Added (%d apps)</item>
+    </plurals>
     <plurals name="quick_launcher_folder_items_count">
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>

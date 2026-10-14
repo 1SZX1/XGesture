@@ -8,6 +8,13 @@ data class QuickLauncherDisplaySettings(
     val iconSizeDp: Int = DEFAULT_ICON_SIZE_DP,
     val iconShape: Int = ICON_SHAPE_DEFAULT,
     val blurRadiusDp: Int = DEFAULT_BLUR_RADIUS_DP,
+    /**
+     * 是否显示面板底部那条操作栏（+ 添加 / − 编辑 / ⇄ 切面板）。
+     *
+     * 关掉后：普通使用态面板下方干净，进入编辑态只能走「设置 → 扩展中心 → 快速启动器」里的编辑器。
+     * 但**编辑态本身仍然强制显示**——否则用户在面板内进了编辑态就再也没有「✓」可以退出来。
+     */
+    val showToolbar: Boolean = true,
 ) {
     companion object {
         const val MIN_BACKGROUND_OPACITY_PERCENT = 0
@@ -66,6 +73,7 @@ data class QuickLauncherDisplaySettings(
                 blurRadiusDp = (prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_BLUR_RADIUS_DP]
                     ?: DEFAULT_BLUR_RADIUS_DP)
                     .coerceIn(MIN_BLUR_RADIUS_DP, MAX_BLUR_RADIUS_DP),
+                showToolbar = prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_SHOW_TOOLBAR] ?: true,
             )
         }
     }

@@ -506,6 +506,8 @@
     <string name="limit_intercept_length_desc">واجهة النظام الحالية محدودة بـ 200dp</string>
     <string name="side_gestures_handle_section">تخطيط مقابض اللمس</string>
     <string name="index_height">طول الفهرس الأبجدي</string>
+    <string name="index_vertical_position">موضع الفهرس الأبجدي</string>
+    <string name="index_vertical_position_desc" formatted="false">0% = أعلى، 50% = في الوسط، 100% = أسفل</string>
     <string name="hide_empty_index_letters">إخفاء الأحرف الفارغة</string>
     <string name="hide_empty_index_letters_desc">عدم عرض المجموعات التي لا تحتوي على تطبيقات في فهرس الحرف الجانبي</string>
     <string name="apps_per_row">عدد التطبيقات في كل صف</string>
@@ -843,6 +845,25 @@
     <string name="holographic_settings_haptic_strong">قوي</string>
     <string name="holographic_hidden_apps_entry_desc">إخفاء تطبيقات محددة من الكرة المجسمة</string>
     <string name="holographic_hidden_apps_desc">لن تظهر التطبيقات المخفية في الكرة المجسمة، لا تؤثر على قوائم أخرى مثل فهرس XGesture.</string>
+    <string name="holographic_apps_entry_title">تطبيقات الكرة</string>
+    <string name="holographic_apps_entry_desc">اختر التطبيقات التي تظهر على الكرة بنفسك</string>
+    <string name="holographic_apps_screen_desc">يحدد الوضع التطبيقات التي تظهر على الكرة. القائمة المحددة مشتركة بين الأوضاع، لذا لا تفقد اختياراتك عند التبديل.</string>
+    <string name="holographic_app_mode_all">السماح بكل التطبيقات</string>
+    <string name="holographic_app_mode_all_desc">تظهر كل التطبيقات المثبتة على الكرة</string>
+    <string name="holographic_app_mode_selected">السماح بالتطبيقات المحددة فقط</string>
+    <string name="holographic_app_mode_selected_desc">تظهر التطبيقات المحددة فقط على الكرة</string>
+    <string name="holographic_app_mode_exclude">استبعاد التطبيقات المحددة</string>
+    <string name="holographic_app_mode_exclude_desc">لا تظهر التطبيقات المحددة على الكرة</string>
+    <string name="holographic_apps_entry_pick">اختيار التطبيقات</string>
+    <string name="holographic_apps_entry_pick_desc">اختر التطبيقات التي تضعها على الكرة</string>
+    <string name="holographic_apps_section_selected">المحددة (%1$d)</string>
+    <string name="holographic_apps_mode_section">مصدر تطبيقات الكرة</string>
+    <string name="holographic_apps_section_count">قائمة التطبيقات (المحددة %1$d / الإجمالي %2$d)</string>
+    <string name="holographic_apps_select_all">تحديد الكل</string>
+    <string name="holographic_apps_deselect_all">إلغاء تحديد الكل</string>
+    <string name="holographic_apps_allow_all_note">الوضع الحالي «السماح بكل التطبيقات»: تعرض الكرة كل التطبيقات المثبتة ولا تعتمد على التحديد أدناه.</string>
+    <string name="holographic_apps_empty">لم يتم اختيار أي تطبيق بعد. أضف تطبيقات من الأسفل لتظهر على الكرة.</string>
+    <string name="holographic_no_selected_apps">لا توجد تطبيقات على الكرة. اختر بعضها من «الإعدادات ← مشغل هولوغرام ← اختيار التطبيقات» أو غيّر الوضع إلى «السماح بكل التطبيقات».</string>
     <string name="gesture_action_task_switcher">مبدل المهام</string>
     <string name="gesture_action_back">مفتاح الرجوع</string>
     <string name="gesture_action_home">الشاشة الرئيسية</string>
@@ -1574,6 +1595,8 @@
     <string name="quick_launcher_background_opacity_value">%1$d%%</string>
     <string name="quick_launcher_blur_strength">شدة الضبابية</string>
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
+    <string name="quick_launcher_show_toolbar">إظهار شريط الأدوات السفلي</string>
+    <string name="quick_launcher_show_toolbar_desc">عند الإيقاف لن تظهر أزرار + و − وتبديل اللوحة أثناء الاستخدام العادي. اضغط مطولًا على منطقة فارغة في اللوحة للدخول إلى وضع التعديل.</string>
     <string name="quick_launcher_items_section">العناصر السريعة</string>
     <string name="quick_launcher_page_indicator">الصفحة %1$d / %2$d</string>
     <string name="quick_launcher_page_previous">الصفحة السابقة</string>

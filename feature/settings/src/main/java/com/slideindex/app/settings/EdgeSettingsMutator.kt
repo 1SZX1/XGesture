@@ -449,6 +449,8 @@ class EdgeSettingsMutator @Inject constructor(
     }
 
     suspend fun setIndexHeightFraction(value: Float) = editor.edit { it[SettingsPreferenceKeys.INDEX_HEIGHT] = value }
+    suspend fun setIndexVerticalPositionFraction(value: Float) =
+        editor.edit { it[SettingsPreferenceKeys.INDEX_VERTICAL_POSITION] = value.coerceIn(0f, 1f) }
     suspend fun setHideEmptyIndexLetters(enabled: Boolean) =
         editor.edit { it[SettingsPreferenceKeys.HIDE_EMPTY_INDEX_LETTERS] = enabled }
     suspend fun setAppsPerRow(value: Int) = editor.edit { it[SettingsPreferenceKeys.APPS_PER_ROW] = value.coerceIn(2, 5) }

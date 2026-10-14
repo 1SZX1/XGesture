@@ -19,6 +19,8 @@ data class AppSettings(
     val serviceEnabled: Boolean = false,
     val edgeTrigger: EdgeTriggerSettings = EdgeTriggerSettings(),
     val indexHeightFraction: Float = 0.42f,
+    /** 字母索引条顶边位置比例：0 = 顶部、1 = 底部；0.5 即旧版的「垂直居中」。 */
+    val indexVerticalPositionFraction: Float = 0.5f,
     /** 为 true 时字母索引栏仅显示有应用的分组字母。 */
     val hideEmptyIndexLetters: Boolean = true,
     val appsPerRow: Int = 3,

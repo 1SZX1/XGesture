@@ -218,6 +218,11 @@ internal class QuickLauncherOverlayController(
     internal var quickLauncherExiting = false
     internal var quickLauncherOpeningGestureActive = false
     internal var quickLauncherToolbarTouchActive = false
+    /** 「长按面板空白处进入编辑态」的按下时刻；<= 0 表示当前没有按住空白区。 */
+    internal var quickLauncherBlankPressDownTime = 0L
+    internal var quickLauncherBlankLongPressRunnable: Runnable? = null
+    /** 本次手势已经被「长按空白进编辑」消费：松手时不能再当成"点空白关闭面板"。 */
+    internal var quickLauncherBlankLongPressConsumed = false
     /** -1 = outer edge, 0 = middle, 1 = inner edge; used for continuous edge auto-page. */
     internal var quickLauncherEdgePageZone = 0
     internal var quickLauncherEdgeAutoPageSeeded = false
@@ -295,6 +300,45 @@ internal class QuickLauncherOverlayController(
         folderLongPressArmed = false
         folderPressLocalIndex = -1
         folderPressDownTime = 0L
+    }
+
+    /**
+     * 非编辑态在**面板空白处**按下：起一个长按计时，到点就进编辑态。
+     *
+     * 空白处原本没有任何长按语义（短按松手是"关闭面板"，见 [QuickLauncherTouchHandler]），
+     * 所以这里不会和「长按图标 = 启动形态切换」「长按文件夹 = 展开」「编辑态长按 = 拖拽排序」
+     * 三处既有长按打架。时长沿用设置里的 `effectiveLongPressDurationMs()`，与其它长按一致。
+     */
+    fun scheduleBlankLongPress(eventTime: Long) {
+        cancelBlankLongPress()
+        if (quickLauncherPanelController.editMode) return
+        val holdMs = host.settings().effectiveLongPressDurationMs().toLong()
+        quickLauncherBlankPressDownTime = eventTime
+        val runnable = Runnable {
+            if (quickLauncherBlankPressDownTime <= 0L) return@Runnable
+            if (quickLauncherPanelController.editMode) return@Runnable
+            quickLauncherBlankLongPressConsumed = true
+            quickLauncherBlankPressDownTime = 0L
+            quickLauncherPanelController.setEditMode(true)
+            host.hapticConfirmLaunch()
+            host.invalidate()
+        }
+        quickLauncherBlankLongPressRunnable = runnable
+        host.postDelayed(runnable, holdMs)
+    }
+
+    fun cancelBlankLongPress() {
+        quickLauncherBlankLongPressRunnable?.let { host.removeCallbacks(it) }
+        quickLauncherBlankLongPressRunnable = null
+        quickLauncherBlankPressDownTime = 0L
+    }
+
+    /** 本次手势是否已被「长按空白进编辑」消费（松手时不能再当成点空白关闭面板）。 */
+    fun consumeBlankLongPress(): Boolean {
+        val consumed = quickLauncherBlankLongPressConsumed
+        quickLauncherBlankLongPressConsumed = false
+        cancelBlankLongPress()
+        return consumed
     }
 
     fun scheduleFolderLongPress(localIndex: Int, eventTime: Long) {
@@ -405,6 +449,7 @@ internal class QuickLauncherOverlayController(
         quickLauncherOpeningGestureActive = true
         quickLauncherEdgePageZone = 0
         quickLauncherEdgeAutoPageSeeded = false
+        cancelBlankLongPress()
         quickLauncherPanelController.ensureDefaultsPersisted(host.settings())
         renderer.prewarm(quickLauncherPrewarmOrder())
         quickLauncherAnchorRawY = quickLauncherAnchorRawY
@@ -461,6 +506,7 @@ internal class QuickLauncherOverlayController(
         quickLauncherLongPressRunnable = null
         quickLauncherLongPressIndex = -1
         quickLauncherLongPressArmed = false
+        cancelBlankLongPress()
         closeFolder()
         quickLauncherPanelController.reset()
         quickLauncherOverlayDialogHost.dismiss()

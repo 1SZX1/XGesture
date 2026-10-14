@@ -252,6 +252,8 @@ class SettingsRepository @Inject constructor(
     suspend fun updateBubbleStyle(style: BubbleStyle) = edge.updateBubbleStyle(style)
     suspend fun setGestureAngles(angles: GestureAngles) = edge.setGestureAngles(angles)
     suspend fun setIndexHeightFraction(value: Float) = edge.setIndexHeightFraction(value)
+    suspend fun setIndexVerticalPositionFraction(value: Float) =
+        edge.setIndexVerticalPositionFraction(value)
     suspend fun setHideEmptyIndexLetters(enabled: Boolean) = edge.setHideEmptyIndexLetters(enabled)
     suspend fun setAppsPerRow(value: Int) = edge.setAppsPerRow(value)
     suspend fun setQuickLauncherColumnsPerPage(value: Int) = edge.setQuickLauncherColumnsPerPage(value)
@@ -529,6 +531,18 @@ class SettingsRepository @Inject constructor(
 
     suspend fun removeHolographicHiddenApp(packageName: String) =
         overlay.removeHolographicHiddenApp(packageName)
+
+    suspend fun addHolographicLauncherApp(packageName: String) =
+        overlay.addHolographicLauncherApp(packageName)
+
+    suspend fun setHolographicAppMode(mode: HolographicAppMode) =
+        overlay.setHolographicAppMode(mode)
+
+    suspend fun setHolographicLauncherApps(packageNames: List<String>) =
+        overlay.setHolographicLauncherApps(packageNames)
+
+    suspend fun removeHolographicLauncherApp(packageName: String) =
+        overlay.removeHolographicLauncherApp(packageName)
 
     suspend fun setShellCommands(items: List<ShellCommand>) = overlay.setShellCommands(items)
     suspend fun setActivityShortcuts(items: List<com.slideindex.app.activity.ActivityShortcut>) =

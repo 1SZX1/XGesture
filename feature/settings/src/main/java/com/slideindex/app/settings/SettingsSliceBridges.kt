@@ -50,6 +50,7 @@ fun GestureSettings.toMinimalAppSettings(): AppSettings = AppSettings(
         keyboardTriggerNarrowPercentLandscape = keyboardTriggerNarrowPercentLandscape,
     ),
     indexHeightFraction = indexHeightFraction,
+    indexVerticalPositionFraction = indexVerticalPositionFraction,
     hideEmptyIndexLetters = hideEmptyIndexLetters,
     appsPerRow = appsPerRow,
     quickLauncherColumnsPerPage = quickLauncherColumnsPerPage,
