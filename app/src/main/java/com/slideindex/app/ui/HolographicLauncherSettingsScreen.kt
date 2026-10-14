@@ -38,8 +38,7 @@ fun HolographicLauncherSettingsScreen(
     onBlurDpChange: (Int) -> Unit,
     onDimPercentChange: (Int) -> Unit,
     onAppModeChange: (HolographicAppMode) -> Unit,
-    onOpenApps: () -> Unit,
-    onOpenHiddenApps: () -> Unit
+    onOpenApps: () -> Unit
 ) {
     val context = LocalContext.current
     var localSettings by remember { mutableStateOf(settings) }
@@ -211,48 +210,35 @@ fun HolographicLauncherSettingsScreen(
         )
         // 模式单选与应用列表放在同一个页面（「球面应用」页，版式照 Mishka 的「分应用代理」）：
         // 只有一个选中集合，「模式」决定它是白名单还是黑名单，因此不存在两个列表打架的情况。
-        // 这里只保留一个入口 + 「允许所有」档下历史遗留的隐藏应用。
+        // 旧的「隐藏应用」入口已删除 —— 它和「排除选中应用」是同一件事，
+        // 老数据由 `migrateHolographicHiddenAppsOnce` 一次性并入选中列表。
         groupedCardItems(
             keyPrefix = "holographic-apps",
-            items = buildList {
-                add(
-                    settingsCardScopeItem("sphere-apps") {
-                        val selectedCount = localSettings.selectedAppPackages.size
-                        SettingNavigationRow(
-                            icon = { label ->
-                                Icon(
-                                    HubLeadingIcons.holographicLauncher(outlined = true),
-                                    contentDescription = label,
-                                )
-                            },
-                            title = stringResource(R.string.holographic_apps_entry_title),
-                            subtitle = "${stringResource(localSettings.appMode.titleRes())} · " +
-                                if (selectedCount > 0) {
-                                    pluralStringResource(
-                                        R.plurals.holographic_apps_entry_count,
-                                        selectedCount,
-                                        selectedCount,
-                                    )
-                                } else {
-                                    stringResource(R.string.holographic_apps_entry_pick_desc)
-                                },
-                            onClick = onOpenApps
-                        )
-                    }
-                )
-                if (localSettings.appMode == HolographicAppMode.ALL) {
-                    add(
-                        settingsCardScopeItem("hidden-apps") {
-                            HiddenAppsEntryCard(
-                                hiddenCount = localSettings.hiddenAppPackages.size,
-                                titleRes = R.string.hidden_apps_title,
-                                descriptionRes = R.string.holographic_hidden_apps_entry_desc,
-                                onClick = onOpenHiddenApps
+            items = listOf(
+                settingsCardScopeItem("sphere-apps") {
+                    val selectedCount = localSettings.selectedAppPackages.size
+                    SettingNavigationRow(
+                        icon = { label ->
+                            Icon(
+                                HubLeadingIcons.holographicLauncher(outlined = true),
+                                contentDescription = label,
                             )
-                        }
+                        },
+                        title = stringResource(R.string.holographic_apps_entry_title),
+                        subtitle = "${stringResource(localSettings.appMode.titleRes())} · " +
+                            if (selectedCount > 0) {
+                                pluralStringResource(
+                                    R.plurals.holographic_apps_entry_count,
+                                    selectedCount,
+                                    selectedCount,
+                                )
+                            } else {
+                                stringResource(R.string.holographic_apps_entry_pick_desc)
+                            },
+                        onClick = onOpenApps
                     )
                 }
-            }
+            )
         )
     }
 }
@@ -261,20 +247,13 @@ fun HolographicLauncherSettingsScreen(
 fun SettingsCardScope.HolographicLauncherEntryCard(
     selectedAppCount: Int,
     appMode: HolographicAppMode,
-    hiddenAppCount: Int,
     enabled: Boolean,
     outlinedLeadingIcons: Boolean = false,
     onClick: () -> Unit
 ) {
     val subtitle = when {
-        appMode == HolographicAppMode.SELECTED_ONLY && selectedAppCount > 0 -> pluralStringResource(
+        selectedAppCount > 0 && appMode != HolographicAppMode.ALL -> pluralStringResource(
             R.plurals.holographic_apps_entry_count, selectedAppCount, selectedAppCount
-        )
-        appMode == HolographicAppMode.EXCLUDE_SELECTED && selectedAppCount > 0 -> stringResource(
-            R.string.holographic_app_mode_exclude
-        )
-        appMode == HolographicAppMode.ALL && hiddenAppCount > 0 -> pluralStringResource(
-            R.plurals.holographic_launcher_entry_summary_hidden, hiddenAppCount, hiddenAppCount
         )
         else -> stringResource(R.string.holographic_launcher_entry_desc)
     }

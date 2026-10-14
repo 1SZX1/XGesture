@@ -1,11 +1,10 @@
 package com.slideindex.app.ui.navigation
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.yukonga.miuix.kmp.nav.core.NavEntryBuilder
-import com.slideindex.app.R
-import com.slideindex.app.ui.HiddenAppsScreen
 import com.slideindex.app.ui.HolographicLauncherAppsScreen
 import com.slideindex.app.ui.HolographicLauncherSettingsScreen
 import com.slideindex.app.ui.viewmodel.ExtensionSettingsViewModel
@@ -15,6 +14,10 @@ fun NavEntryBuilder.holographicLauncherNavEntries(ctx: MainNavContext) {
         val viewModel: ExtensionSettingsViewModel = hiltViewModel()
         val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
         val holographicSettings = gestureSettings.holographicLauncher
+        // 旧「隐藏应用」黑名单 → 选中列表（+ 切到「排除选中应用」）。幂等：旧键清掉后即为空操作。
+        LaunchedEffect(Unit) {
+            viewModel.migrateHolographicHiddenApps()
+        }
         HolographicLauncherSettingsScreen(
             settings = holographicSettings,
             onBack = { ctx.navigateBackTo(AppNavKey.ExtensionHub) },
@@ -26,7 +29,6 @@ fun NavEntryBuilder.holographicLauncherNavEntries(ctx: MainNavContext) {
             onDimPercentChange = viewModel::setHolographicDimPercent,
             onAppModeChange = viewModel::setHolographicAppMode,
             onOpenApps = { ctx.navigate(AppNavKey.HolographicLauncherApps) },
-            onOpenHiddenApps = { ctx.navigate(AppNavKey.HolographicLauncherHiddenApps) },
         )
     }
 
@@ -42,19 +44,6 @@ fun NavEntryBuilder.holographicLauncherNavEntries(ctx: MainNavContext) {
             onAddApp = viewModel::addHolographicLauncherApp,
             onRemoveApp = viewModel::removeHolographicLauncherApp,
             onSetSelection = viewModel::setHolographicLauncherApps,
-        )
-    }
-
-    hiltEntry<AppNavKey.HolographicLauncherHiddenApps> {
-        val viewModel: ExtensionSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        HiddenAppsScreen(
-            hiddenPackages = gestureSettings.holographicLauncher.hiddenAppPackages,
-            onBack = { ctx.navigateBackTo(AppNavKey.HolographicLauncherSettings) },
-            onHideApp = viewModel::addHolographicHiddenApp,
-            onUnhideApp = viewModel::removeHolographicHiddenApp,
-            titleRes = R.string.hidden_apps_title,
-            descriptionRes = R.string.holographic_hidden_apps_desc,
         )
     }
 }

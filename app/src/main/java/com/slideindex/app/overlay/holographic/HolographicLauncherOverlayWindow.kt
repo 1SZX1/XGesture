@@ -135,8 +135,8 @@ object HolographicLauncherOverlayWindow {
     /**
      * 组装球面用的应用列表。
      *
-     * 三档模式决定怎么用**同一份**选中列表（见 `HolographicAppMode`）：
-     * - `ALL` → 全部已安装应用 − 遗留黑名单 `hiddenAppPackages`（老用户默认档，观感不变）；
+     * 两档模式决定怎么用**同一份**选中列表（见 `HolographicAppMode`）：
+     * - `ALL` → 全部已安装应用（自身除外）；
      * - `SELECTED_ONLY` → 只用选中列表，顺序即挑选顺序（球面按列表顺序铺点，顺序稳定用户才有肌肉记忆）；
      * - `EXCLUDE_SELECTED` → 全部已安装应用 − 选中列表。
      *
@@ -162,8 +162,7 @@ object HolographicLauncherOverlayWindow {
         val allSorted = appRepository.getCachedApps().sortedBy { it.pinyinKey }
 
         val apps: Sequence<AppInfo> = when (holographic.appMode) {
-            HolographicAppMode.ALL ->
-                allSorted.asSequence().filter { it.packageName !in holographic.hiddenAppPackages }
+            HolographicAppMode.ALL -> allSorted.asSequence()
 
             HolographicAppMode.SELECTED_ONLY ->
                 selectedPackages.asSequence().mapNotNull { packageName ->

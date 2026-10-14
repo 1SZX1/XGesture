@@ -1820,6 +1820,51 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.HOLOGRAPHIC_APP_MODE] = mode.id
     }
 
+    /**
+     * 一次性迁移：把旧的「隐藏应用」黑名单并进选中列表，并把模式切到「排除选中应用」。
+     *
+     * 为什么必须有这一步：旧的隐藏列表过去只在 `HolographicAppMode.ALL` 下生效，而那个入口
+     * 已经删掉了 —— 不搬的话老用户会卡在「应用仍然被隐藏、但再也改不了」的状态。
+     *
+     * 语义换算：旧可见集 = 全部应用 − hidden。新档位「排除选中应用」下
+     * 可见集 = 全部应用 − selected，所以 `selected = hidden` 即行为完全不变。
+     *
+     * 只搬一次（并清掉旧键）：`selectedAppPackages` 已有内容时说明用户已经在新 UI 里挑过，
+     * 此时以用户的新选择为准，不再用旧黑名单覆盖。
+     */
+    suspend fun migrateHolographicHiddenAppsOnce(
+        installedPackages: Collection<String>,
+    ): Boolean {
+        var migrated = false
+        editor.edit { prefs ->
+            val legacyHidden = prefs[SettingsPreferenceKeys.HOLOGRAPHIC_HIDDEN_APP_PACKAGES]
+            if (legacyHidden.isNullOrEmpty()) {
+                // 没有旧数据也要清掉键，避免它被备份/恢复带回来又"幽灵生效"。
+                prefs.remove(SettingsPreferenceKeys.HOLOGRAPHIC_HIDDEN_APP_PACKAGES)
+                return@edit
+            }
+            val currentSelected = HolographicLauncherAppPackagesCodec.decode(
+                prefs[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES]
+            )
+            prefs.remove(SettingsPreferenceKeys.HOLOGRAPHIC_HIDDEN_APP_PACKAGES)
+            if (currentSelected.isNotEmpty()) {
+                // 用户已在新 UI 挑过 → 旧黑名单作废，只清键。
+                return@edit
+            }
+            // 只保留仍然装着、且确实在启动器列表里的包，避免把已卸载的包写进选中列表。
+            val installed = installedPackages.toSet()
+            val next = HolographicLauncherAppPackagesCodec.normalize(
+                legacyHidden.filter { it in installed }
+            )
+            if (next.isEmpty()) return@edit
+            prefs[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES] =
+                HolographicLauncherAppPackagesCodec.encode(next)
+            prefs[SettingsPreferenceKeys.HOLOGRAPHIC_APP_MODE] = HolographicAppMode.EXCLUDE_SELECTED.id
+            migrated = true
+        }
+        return migrated
+    }
+
     /** 全息启动器：把某个应用加入选中列表（追加到末尾，保持用户挑选顺序）。 */
     suspend fun addHolographicLauncherApp(packageName: String) = editor.edit {
         val current = HolographicLauncherAppPackagesCodec.decode(

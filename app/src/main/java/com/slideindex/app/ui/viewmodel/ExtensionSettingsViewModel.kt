@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.shell.ShellCommand
 import com.slideindex.app.ui.feedback.UserMessageBus
+import com.slideindex.app.util.queryIntentActivitiesCompat
 import com.slideindex.app.widget.WidgetPanelPage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -46,6 +47,25 @@ class ExtensionSettingsViewModel @Inject constructor(
 ) : SettingsViewModel(settingsRepository, userMessageBus, context) {
     private val _folderDraft = MutableStateFlow<QuickLauncherFolderDraft?>(null)
     val folderDraft: StateFlow<QuickLauncherFolderDraft?> = _folderDraft.asStateFlow()
+
+    /**
+     * 全息启动器的旧「隐藏应用」迁移：把黑名单并进选中列表并切到「排除选中应用」。
+     *
+     * 由设置页进入时触发一次（幂等）。旧数据清空后这条路径自然变成空操作，
+     * 所以不需要额外的「已迁移」标记键。
+     */
+    fun migrateHolographicHiddenApps() = launchSettingsWrite {
+        runCatching {
+            val installed = withContext(Dispatchers.IO) {
+                val mainIntent = android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                appContext.packageManager
+                    .queryIntentActivitiesCompat(mainIntent, android.content.pm.PackageManager.MATCH_ALL)
+                    .map { it.activityInfo.packageName }
+            }
+            settingsRepository.migrateHolographicHiddenAppsOnce(installed)
+        }.map { }
+    }
 
     fun initFolderDraft(panelId: String) {
         val current = _folderDraft.value

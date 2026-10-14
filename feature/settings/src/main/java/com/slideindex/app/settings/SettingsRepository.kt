@@ -538,6 +538,13 @@ class SettingsRepository @Inject constructor(
     suspend fun setHolographicAppMode(mode: HolographicAppMode) =
         overlay.setHolographicAppMode(mode)
 
+    /**
+     * 一次性迁移：把旧的「隐藏应用」黑名单并进选中列表并切到「排除选中应用」。
+     * 返回 true 表示这次真的搬了（调用方可据此刷新一次界面）。
+     */
+    suspend fun migrateHolographicHiddenAppsOnce(installedPackages: Collection<String>): Boolean =
+        overlay.migrateHolographicHiddenAppsOnce(installedPackages)
+
     suspend fun setHolographicLauncherApps(packageNames: List<String>) =
         overlay.setHolographicLauncherApps(packageNames)
 

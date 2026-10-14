@@ -122,7 +122,6 @@ data class ExtensionHubSettings(
     val clipboardMonitoringCapture: ClipboardMonitoringCapture = ClipboardMonitoringCapture.LOGCAT,
     val clipboardLsposedWhitelist: Set<String> = setOf(CLIPBOARD_LSPOSED_SELF_PACKAGE),
     val privilegeMode: PrivilegeMode = PrivilegeMode.SHIZUKU,
-    val holographicHiddenAppCount: Int = 0,
     /** 全息启动器选中列表的条目数（0 = 该模式下没有挑任何应用）。 */
     val holographicAppCount: Int = 0,
     /** 全息启动器的应用来源模式，用于 Hub 卡片副标题。 */
@@ -146,7 +145,6 @@ data class ExtensionHubSettings(
             clipboardMonitoringCapture = settings.clipboardMonitoringCapture,
             clipboardLsposedWhitelist = settings.clipboardLsposedWhitelist,
             privilegeMode = settings.privilegeMode,
-            holographicHiddenAppCount = settings.holographicLauncher.hiddenAppPackages.size,
             holographicAppCount = settings.holographicLauncher.selectedAppPackages.size,
             holographicAppModeId = settings.holographicLauncher.appMode.id,
             fvRingLauncherConfiguredCount = settings.launcher.fvRingLauncherVertical.configuredCount(),

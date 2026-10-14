@@ -40,8 +40,6 @@ data class HolographicLauncherSettings(
      * 顺序有意义：球面按列表顺序用黄金角铺点，顺序稳定用户才能形成肌肉记忆。
      */
     val selectedAppPackages: List<String> = emptyList(),
-    /** 历史遗留的黑名单，只在 [HolographicAppMode.ALL] 下生效（保持老用户观感不变）。 */
-    val hiddenAppPackages: Set<String> = emptySet(),
     val backgroundStyle: Int = DEFAULT_BACKGROUND_STYLE,
     val blurDp: Int = DEFAULT_BLUR_DP,
     val dimPercent: Int = DEFAULT_DIM_PERCENT,
@@ -86,7 +84,6 @@ data class HolographicLauncherSettings(
             val selected = HolographicLauncherAppPackagesCodec.decode(
                 prefs[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES]
             )
-            val hidden = prefs[SettingsPreferenceKeys.HOLOGRAPHIC_HIDDEN_APP_PACKAGES] ?: emptySet()
             val backgroundStyle = prefs[SettingsPreferenceKeys.HOLOGRAPHIC_BACKGROUND_STYLE]
                 ?: DEFAULT_BACKGROUND_STYLE
             val blurDp = prefs[SettingsPreferenceKeys.HOLOGRAPHIC_BLUR_DP] ?: DEFAULT_BLUR_DP
@@ -97,7 +94,6 @@ data class HolographicLauncherSettings(
                 hapticLevel = haptic.coerceIn(0, 3),
                 appMode = appMode,
                 selectedAppPackages = selected,
-                hiddenAppPackages = hidden,
                 backgroundStyle = backgroundStyle.coerceIn(BACKGROUND_BLUR, BACKGROUND_WALLPAPER_BLUR),
                 blurDp = blurDp.coerceIn(MIN_BLUR_DP, MAX_BLUR_DP),
                 dimPercent = dimPercent.coerceIn(MIN_DIM_PERCENT, MAX_DIM_PERCENT),

@@ -126,7 +126,6 @@ fun ExtensionHubScreen(
                         HolographicLauncherEntryCard(
                             selectedAppCount = settings.holographicAppCount,
                             appMode = HolographicAppMode.fromId(settings.holographicAppModeId),
-                            hiddenAppCount = settings.holographicHiddenAppCount,
                             enabled = gestureActive,
                             outlinedLeadingIcons = true,
                             onClick = onOpenHolographicLauncher
