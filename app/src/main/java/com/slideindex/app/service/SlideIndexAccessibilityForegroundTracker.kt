@@ -2,6 +2,9 @@ package com.slideindex.app.service
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.inputmethod.InputMethodManager
 import android.view.accessibility.AccessibilityEvent
 import com.slideindex.app.overlay.EdgeOverlayHost
@@ -21,6 +24,19 @@ internal class SlideIndexAccessibilityForegroundTracker(
         private set
     var currClassName: String? = null
         private set
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** 上一次真正执行过窗口变更重活的时间戳（[SystemClock.uptimeMillis]）。 */
+    private var lastWindowChangeWorkAtMs = 0L
+
+    /** 冷却窗口内是否已排了一次尾随执行，保证事件风暴结束后仍以最终状态收口。 */
+    private var windowChangeWorkScheduled = false
+
+    private val coalescedWindowChangeWork = Runnable { runWindowChangeWork() }
+
+    /** 上一次真正读过 `service.windows` 判定锁屏的时间戳。 */
+    private var lastLockScreenWorkAtMs = 0L
 
     /** 系统已启用输入法的包名；输入法窗口不应进入“上一应用”历史。 */
     private val imePackages: Set<String> by lazy { detectImePackages() }
@@ -98,8 +114,36 @@ internal class SlideIndexAccessibilityForegroundTracker(
         } ?: false
     }.getOrDefault(false)
 
+    /**
+     * `TYPE_WINDOWS_CHANGED` 的处理入口。
+     *
+     * 这类事件由输入法弹收、Toast、弹窗、列表内容变化高频触发（真机上前台是第三方短视频页时
+     * 可持续到每秒几十条），而下面每一步都是跨进程或全窗口树遍历级别的开销：
+     * `onSyncLockScreen()` 要读一次 `service.windows`，`resolveHostPackage()` 在缓存失效时
+     * 还要再遍历两遍窗口树并取每个窗口的 `root`。逐条执行等于把主线程交给事件风暴。
+     *
+     * 因此这里做**前沿 + 尾随合并**：冷却窗口内的重复事件不再各自执行，只在窗口结束时补一次，
+     * 既把重活压到 ≤ [WINDOWS_CHANGED_COALESCE_MS] 一次，又保证最终状态一定会被处理到
+     * （不会像纯节流那样把最后一个事件丢掉、停在过期包名上）。
+     */
     fun handleWindowsChanged() {
-        onSyncLockScreen()
+        val now = SystemClock.uptimeMillis()
+        val elapsed = now - lastWindowChangeWorkAtMs
+        if (elapsed >= WINDOWS_CHANGED_COALESCE_MS) {
+            runWindowChangeWork()
+            return
+        }
+        if (windowChangeWorkScheduled) return
+        windowChangeWorkScheduled = true
+        mainHandler.postDelayed(coalescedWindowChangeWork, WINDOWS_CHANGED_COALESCE_MS - elapsed)
+    }
+
+    private fun runWindowChangeWork() {
+        mainHandler.removeCallbacks(coalescedWindowChangeWork)
+        windowChangeWorkScheduled = false
+        lastWindowChangeWorkAtMs = SystemClock.uptimeMillis()
+
+        syncLockScreenThrottled()
         val resolvedPackage = AccessibilityForegroundResolver.resolveHostPackage(service)
         if (resolvedPackage != null) {
             overlayHost()?.updateForegroundPackage(resolvedPackage)
@@ -116,6 +160,18 @@ internal class SlideIndexAccessibilityForegroundTracker(
                 com.slideindex.app.overlay.ForegroundActivityInspectorOverlayWindow.onForegroundPackageChangedFromWindowTree(activePkg)
             }
         }
+    }
+
+    /**
+     * 锁屏判定也要读 `service.windows`（见 `SlideIndexAccessibilityWatchdog.syncLockScreenState`），
+     * 所以按 [LOCK_SCREEN_WORK_TTL_MS] 节流。锁屏态不会在一帧内来回翻转，节流不影响正确性；
+     * 真正的硬边界（亮灭屏广播）走 `syncLockScreenState()`，不走这里。
+     */
+    private fun syncLockScreenThrottled() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastLockScreenWorkAtMs < LOCK_SCREEN_WORK_TTL_MS) return
+        lastLockScreenWorkAtMs = now
+        onSyncLockScreen()
     }
 
     fun launchPreviousApp(): Boolean {
@@ -197,6 +253,17 @@ internal class SlideIndexAccessibilityForegroundTracker(
             return true
         }
         return false
+    }
+
+    companion object {
+        /**
+         * `TYPE_WINDOWS_CHANGED` 的最短处理间隔。与无障碍配置里的 `notificationTimeout="100"`
+         * 同量级：即使系统把事件按 10 次/秒投递过来，重活也只按这个间隔跑一次。
+         */
+        private const val WINDOWS_CHANGED_COALESCE_MS = 200L
+
+        /** 锁屏判定（读 `service.windows`）的最短间隔。 */
+        private const val LOCK_SCREEN_WORK_TTL_MS = 500L
     }
 }
 
