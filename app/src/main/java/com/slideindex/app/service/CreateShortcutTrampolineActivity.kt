@@ -49,7 +49,7 @@ class CreateShortcutTrampolineActivity : ComponentActivity() {
         }
         pendingHostPackage = hostPackage
         runCatching {
-            createLauncher.launch(Intent().setClassName(hostPackage, hostClass))
+            createLauncher.launch(Intent(Intent.ACTION_CREATE_SHORTCUT).setClassName(hostPackage, hostClass))
         }.onFailure {
             pendingHostPackage = null
             finishWithResult(null)

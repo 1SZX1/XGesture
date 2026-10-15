@@ -256,7 +256,7 @@ object AppShortcutLoader {
     ) {
         val qualifiedName: String get() = "$packageName/$className"
 
-        fun createIntent(): Intent = Intent().setClassName(packageName, className)
+        fun createIntent(): Intent = Intent(Intent.ACTION_CREATE_SHORTCUT).setClassName(packageName, className)
     }
 
     data class CreatedShortcut(
