@@ -122,4 +122,32 @@ class FloatBallOverlayAnchorPolicyTest {
         assertEquals(48f, tiny.start)
         assertEquals(48f, tiny.endInclusive)
     }
+
+    /**
+     * 该侧一个触钮都没有时触发带是空矩形 (0,0,0,0)：照夹会把面板顶到屏幕最上沿，
+     * 所以必须退回"只按屏幕边距"。
+     */
+    @Test
+    fun `empty trigger band falls back to screen margins`() {
+        val empty = FloatBallOverlayAnchorPolicy.anchorRange(
+            anchorsAtTouchDown = false,
+            viewHeightPx = 2400f,
+            marginPx = 48f,
+            triggerTopPx = 0f,
+            triggerBottomPx = 0f,
+        )
+        assertEquals(48f, empty.start)
+        assertEquals(2352f, empty.endInclusive)
+        assertEquals(1200f, 1200f.coerceIn(empty))
+
+        val zeroHeightBand = FloatBallOverlayAnchorPolicy.anchorRange(
+            anchorsAtTouchDown = false,
+            viewHeightPx = 2400f,
+            marginPx = 48f,
+            triggerTopPx = 1200f,
+            triggerBottomPx = 1200f,
+        )
+        assertEquals(48f, zeroHeightBand.start)
+        assertEquals(2352f, zeroHeightBand.endInclusive)
+    }
 }

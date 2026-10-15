@@ -84,6 +84,33 @@ class QuickLauncherPanelLayoutEngineTest {
         assertEquals(384f, adjusted.right, 0.01f)
     }
 
+    /**
+     * 该侧一个触钮都没有时触发带是**零高**合成带（见 app 侧 `PanelTriggerBand`）：
+     * 面板贴触发侧那条边、锚点落在触发高度而不是屏幕顶端。
+     */
+    @Test
+    fun zeroHeightTriggerBand_keepsPanelOnTriggerSideAtFingerHeight() {
+        val leftHost = fakeHost(side = LEFT, trigger = RectF(0f, 600f, 24f, 600f))
+        val left = QuickLauncherPanelLayoutEngine.anchoredPanelRect(
+            host = leftHost,
+            panelWidth = 200f,
+            contentHeight = 300f,
+            anchorLocalY = 600f,
+        )
+        assertEquals(24f + leftHost.dp(8f), left.left, 0.01f)
+        assertEquals(600f - 150f, left.top, 0.01f)
+
+        val rightHost = fakeHost(side = RIGHT, trigger = RectF(1056f, 600f, 1080f, 600f))
+        val right = QuickLauncherPanelLayoutEngine.anchoredPanelRect(
+            host = rightHost,
+            panelWidth = 200f,
+            contentHeight = 300f,
+            anchorLocalY = 600f,
+        )
+        assertEquals(1056f - rightHost.dp(8f) - 200f, right.left, 0.01f)
+        assertEquals(600f - 150f, right.top, 0.01f)
+    }
+
     private fun fakeHost(
         side: PanelSide,
         viewWidth: Int = 1080,

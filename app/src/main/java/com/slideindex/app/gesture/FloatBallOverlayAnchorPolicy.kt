@@ -29,6 +29,9 @@ internal object FloatBallOverlayAnchorPolicy {
      * 默认沿用触钮区间：面板始终贴着触钮出现。命中按下位置策略时只保留屏幕边距约束——
      * 悬浮球可以停靠在触钮范围之外，夹进触钮区间会让面板离开手指按下的位置；
      * 面板本身仍会被 [com.slideindex.app.overlay.layout.QuickLauncherPanelLayoutEngine] 夹在屏幕内。
+     *
+     * **触发带为空**（该侧没有任何触钮，例如用角轮盘 / 悬浮球线条在无触钮的侧触发）时同样只保留
+     * 屏幕边距：空矩形的区间是 `0..0`，照夹会把面板顶到屏幕最上沿。
      */
     fun anchorRange(
         anchorsAtTouchDown: Boolean,
@@ -40,7 +43,7 @@ internal object FloatBallOverlayAnchorPolicy {
         if (!anchorsAtTouchDown) {
             val top = minOf(triggerTopPx, triggerBottomPx)
             val bottom = maxOf(triggerTopPx, triggerBottomPx)
-            return top..bottom
+            if (bottom > top) return top..bottom
         }
         val maxY = (viewHeightPx - marginPx).coerceAtLeast(marginPx)
         return marginPx..maxY

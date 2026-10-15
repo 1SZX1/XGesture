@@ -6,6 +6,7 @@ import android.os.Looper
 import android.view.WindowManager
 import android.util.Log
 import com.slideindex.app.data.AppRepository
+import com.slideindex.app.diagnostic.EdgeDiag
 import com.slideindex.app.launcher.QuickLauncherItem
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.runtimeTriggerHandles
@@ -112,6 +113,9 @@ class OverlayManager(
         if (controller == null) return
         val hasHandles = settings.runtimeTriggerHandles(side, metrics.isLandscape).isNotEmpty()
         if (!hasHandles) {
+            // 没有触钮的侧平时不留画布；只有"面板专用宿主正被面板使用"时才保留
+            //（角轮盘 / 悬浮球在这种侧弹出快速启动器、任务切换器就靠它）。
+            if (controller.holdsPanelHostInUse()) return
             controller.hideEdge()
             return
         }
@@ -569,6 +573,15 @@ class OverlayManager(
         topController?.resumeCaptureAfterPassthrough()
     }
 
+    /**
+     * 外部触发的边缘面板（快速启动器 / 任务切换器 / 索引 / 音量亮度条）。
+     *
+     * [panelSide] 是**用户触发的那一侧**。面板必须画在那一侧的浮层画布上，而画布平时只跟着触钮走：
+     * 该侧**没有任何触钮**时它没有画布（[ensureSideEdge] → `hideEdge`）。这正是"一个触钮都不开时
+     * 轮盘 / 悬浮球触发的面板不弹"的原因，所以这里在派发前先按需挂一扇面板专用宿主。
+     *
+     * [panelSide] 为 null 的入口（宏 / 全局快捷键等没有明确触发侧）沿用"谁的画布在就用谁"。
+     */
     fun dispatchExternalGestureAction(
         action: com.slideindex.app.gesture.GestureAction,
         anchorRawY: Float,
@@ -576,27 +589,39 @@ class OverlayManager(
     ): Boolean {
         if (!currentSettings.serviceEnabled) return false
         refreshTriggerVisibility()
-        val controller = controllerForPanelSide(panelSide)
-            ?.takeIf { it.overlayPresentation != null }
-            ?: return false
-        if (!controller.prepareExternalGestureDispatch()) return false
+        val controller = resolvePanelHostController(panelSide) ?: return false
+        if (!controller.prepareExternalGestureDispatch()) {
+            EdgeDiag.log("panel", "外部触发面板失败：prepareExternalGestureDispatch 被拦 side=${panelSide}")
+            return false
+        }
         val view = controller.overlayPresentation ?: return false
         return view.dispatchExternalAction(action, anchorRawY)
     }
 
-    private fun controllerForPanelSide(panelSide: PanelSide?): SideOverlayController? {
-        if (panelSide != null) {
-            return when (panelSide) {
-                PanelSide.LEFT -> leftController
-                PanelSide.RIGHT -> rightController
-                PanelSide.BOTTOM -> bottomController
-                PanelSide.TOP -> topController
-            }
+    private fun resolvePanelHostController(panelSide: PanelSide?): SideOverlayController? {
+        if (panelSide == null) {
+            return PANEL_HOST_FALLBACK_ORDER.asSequence()
+                .mapNotNull { controllerFor(it) }
+                .firstOrNull { it.overlayPresentation != null }
+                ?: run {
+                    EdgeDiag.log("panel", "外部触发面板失败：四侧都没有浮层画布（无触发侧）")
+                    null
+                }
         }
-        return leftController?.takeIf { it.overlayPresentation != null }
-            ?: rightController?.takeIf { it.overlayPresentation != null }
-            ?: bottomController?.takeIf { it.overlayPresentation != null }
-            ?: topController?.takeIf { it.overlayPresentation != null }
+        val controller = controllerFor(panelSide)
+        if (controller == null) {
+            EdgeDiag.log("panel", "外部触发面板失败：该侧没有控制器 side=$panelSide")
+            return null
+        }
+        if (controller.overlayPresentation != null) return controller
+        if (controller.ensurePanelHostForExternalPanel(OverlayScreenMetrics.snapshot(context)) &&
+            controller.overlayPresentation != null
+        ) {
+            EdgeDiag.log("panel", "外部触发面板：$panelSide 侧没有触钮 → 已按需挂面板专用宿主")
+            return controller
+        }
+        EdgeDiag.log("panel", "外部触发面板失败：$panelSide 侧无触钮且面板专用宿主挂不上")
+        return null
     }
 
     private fun onComposeOverlayDialogStateChanged() {
@@ -650,6 +675,14 @@ class OverlayManager(
     private companion object {
         private const val REFRESH_VISIBILITY_DEBOUNCE_MS = 150L
         private const val TAG = "OverlayManager"
+
+        /** 没有明确触发侧时，按这个顺序找"有画布的那一侧"。 */
+        private val PANEL_HOST_FALLBACK_ORDER = listOf(
+            PanelSide.LEFT,
+            PanelSide.RIGHT,
+            PanelSide.BOTTOM,
+            PanelSide.TOP,
+        )
     }
 
     private fun performClickPassthrough(rawX: Float, rawY: Float, onComplete: () -> Unit) {

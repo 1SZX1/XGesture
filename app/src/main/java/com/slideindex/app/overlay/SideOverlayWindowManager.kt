@@ -60,9 +60,14 @@ internal class SideOverlayWindowManager(
 
     internal fun purgeAllTrackedOverlayViews() {
         trackedWmViews.toList().forEach { view ->
+            // ⚠️ presentation 容器**不能**在这里顺手删：它的生命周期由 `presentationAttached` /
+            // [detachPresentationWindow] 管理。而"按需挂的面板专用宿主"（该侧没有触钮时用来承载
+            // 快速启动器/任务切换器的全屏窗）也登记在 trackedWmViews 里，被这里静默删掉的表现就是
+            // "挂窗日志全正常、屏幕上一个像素都没有"——真机查了很久就是这个。
+            if (view === presentationContainer) return@forEach
             runCatching { windowManager.removeView(view) }
+            trackedWmViews.remove(view)
         }
-        trackedWmViews.clear()
     }
 
     internal fun suspendCaptureTouchForPassthrough() {
@@ -182,7 +187,14 @@ internal class SideOverlayWindowManager(
     fun syncCaptureWindowLayout() {
         val presentation = presentationView ?: return
         if (ctrl.settings.triggerHandles(side).isEmpty()) {
-            detachAllCaptureWindows()
+            // 该侧没有触钮：只收触钮捕获窗与系统手势排除区。
+            // ⚠️ 必须**逐类收**，不能走 [detachAllCaptureWindows]：它会
+            // `purgeAllTrackedOverlayViews()`，把"面板专用宿主"（该侧没触钮时按需挂的全屏 presentation）
+            // 一起静默摘掉。而 `prepareExternalGestureDispatch()` 刚挂完宿主就会调到这里 ——
+            // 现象就是"面板日志、窗口状态全部正常，屏幕上什么都没有"。
+            detachTouchCaptureWindows()
+            renderer.detachAllTriggerVisualWindows()
+            detachAllExclusionWindows()
             return
         }
         syncCaptureWindows(

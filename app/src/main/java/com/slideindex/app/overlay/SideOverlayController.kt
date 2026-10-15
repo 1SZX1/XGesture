@@ -56,6 +56,18 @@ class SideOverlayController(
     internal val overlayPresentation: EdgeGestureOverlayView?
         get() = windowManager.presentationView
 
+    /**
+     * 面板专用宿主：该侧**没有触钮**时，为了承载面板而按需挂的一扇全屏画布。
+     *
+     * 面板（快速启动器 / 任务切换器 / 索引 / 音量亮度条）不是独立窗口，只能画在
+     * [EdgeGestureOverlayView] 这块画布上；而画布平时跟着触钮走（没触钮 → [hideEdge]）。
+     * 角轮盘 / 悬浮球在没有触钮的侧触发面板时，[ensurePanelHostForExternalPanel] 会把它置为 true，
+     * 于是那几道"空触钮就拆窗"的守卫放行；面板收起后由 [OverlayManager.ensureSideEdge] 收回。
+     *
+     * 它只影响"能不能有画布"：捕获窗与触钮绘制仍然按触钮数量走（没触钮就是 0 个捕获窗、什么都不画）。
+     */
+    private var panelOnlyHostRequested = false
+
     private var loadJob: Job? = null
 
     internal val density get() = context.resources.displayMetrics.density
@@ -86,12 +98,40 @@ class SideOverlayController(
         }
     }
 
+    /**
+     * 此刻允许存在 presentation 吗。
+     *
+     * 常规是"这一侧有触钮"；没有触钮时只有面板专用宿主（见 [panelOnlyHostRequested]）才放行，
+     * 否则这扇全屏窗没有任何用途，应该立刻收掉。
+     */
+    private fun canHoldPresentation(): Boolean =
+        settings.triggerHandles(side).isNotEmpty() || panelOnlyHostRequested
+
+    /** 面板专用宿主是否"真的在用"：请求过、且画布还在，并正在显示面板/手势。 */
+    fun holdsPanelHostInUse(): Boolean =
+        panelOnlyHostRequested &&
+            overlayPresentation?.keepsOverlayExpanded() == true
+
+    /**
+     * 该侧没有触钮时，按需挂一扇只承载面板的画布。
+     *
+     * @return true 表示画布已就绪，调用方可以接着 [prepareExternalGestureDispatch]。
+     */
+    fun ensurePanelHostForExternalPanel(metrics: ScreenMetricsSnapshot? = null): Boolean {
+        if (settings.triggerHandles(side).isNotEmpty()) return isEdgeInitialized()
+        panelOnlyHostRequested = true
+        if (overlayPresentation == null) {
+            showEdge(metrics ?: OverlayScreenMetrics.snapshot(context))
+        }
+        return overlayPresentation != null
+    }
+
     fun updateSettings(newSettings: AppSettings, metrics: ScreenMetricsSnapshot? = null) {
         val resolvedMetrics = metrics ?: OverlayScreenMetrics.snapshot(context)
         val effective = effectiveSettings(newSettings, resolvedMetrics)
         val hiddenChanged = effective.hiddenAppPackages != settings.hiddenAppPackages
         settings = effective
-        if (settings.triggerHandles(side).isEmpty()) {
+        if (!canHoldPresentation()) {
             hideEdge()
             return
         }
@@ -257,7 +297,7 @@ class SideOverlayController(
 
         screenWidthPx = resolvedMetrics.widthPx
         screenHeightPx = resolvedMetrics.heightPx
-        if (settings.triggerHandles(side).isEmpty()) {
+        if (!canHoldPresentation()) {
             hideEdge()
             return
         }
@@ -271,7 +311,7 @@ class SideOverlayController(
         windowManager.clearOverlayWindowBrightness()
         val existingPresentation = windowManager.presentationView
         if (existingPresentation != null) {
-            if (settings.triggerHandles(side).isEmpty()) {
+            if (!canHoldPresentation()) {
                 hideEdge()
                 return
             }
@@ -467,6 +507,8 @@ class SideOverlayController(
         windowManager.presentationParams = null
         windowManager.presentationAttached = false
         windowManager.edgeOverlayDetached = false
+        // 面板专用宿主也一并释放：下次要用再按需挂。
+        panelOnlyHostRequested = false
     }
 
     fun suspendCaptureForPassthrough() {

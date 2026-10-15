@@ -35,6 +35,14 @@ import com.slideindex.app.util.OverlayBrightnessControl
 private const val INTERACTION_IDLE_TIMEOUT_MS = 10_000L
 
 /**
+ * 外部触发面板时，合成触发带的横向厚度（dp）。
+ *
+ * 只决定"面板离屏幕边多远"（与触钮条的边宽同量级），不参与别的判定；
+ * 纵向高度恒为 0 = 锚点锁定在触发点那一行。
+ */
+private const val PANEL_TRIGGER_BAND_DP = 24f
+
+/**
  * 边缘手势 Overlay 编排层：触摸分发、会话生命周期与各面板 Controller 协调。
  */
 @SuppressLint("ViewConstructor") // Programmatically created overlay; not inflated from XML
@@ -85,6 +93,15 @@ class EdgeGestureOverlayView(
     private val panelContentRect = RectF()
     private val panelEnterAnimator = OverlayPanelEnterAnimator(side, ::dp) { invalidate() }
     private var edgeCaptureTouchActive = false
+
+    /**
+     * 本次外部触发（角轮盘 / 悬浮球 / 双贴边线条）的本地锚点高度。
+     *
+     * 该侧**没有任何触钮**时没有真实触发带（空心矩形），面板布局引擎会把锚点夹成 0，
+     * 面板就贴到屏幕最上沿了；有了它才能合成一条"贴本侧、纵向=触发点"的触发带。
+     */
+    private var externalPanelAnchorLocalY: Float? = null
+
     private val iconSizePx: Float get() = dp(44f)
 
     private val gestureSession = GestureSession(
@@ -281,10 +298,36 @@ class EdgeGestureOverlayView(
         invalidate()
     }
 
-    private fun activeTriggerZoneRect(): RectF = layoutCoordinator.activeTriggerZoneRect()
+    /**
+     * 面板布局引擎读的"触发带"。
+     *
+     * 常规就是本侧触钮的区间。**本侧没有任何触钮**时它是空矩形，而两个面板布局引擎都会把锚点
+     * `coerceIn(trigger.top, trigger.bottom)` = 夹成 0 → 面板贴到屏幕最上沿；这时改用按本次
+     * 触发点合成的窄带（贴本侧、纵向=触发那一行）。
+     */
+    private fun activeTriggerZoneRect(): RectF {
+        val base = layoutCoordinator.activeTriggerZoneRect()
+        if (!base.isEmpty) return base
+        val anchorLocalY = externalPanelAnchorLocalY ?: return base
+        val viewWidth = if (width > 0) width else resources.displayMetrics.widthPixels
+        val viewHeight = if (height > 0) height else resources.displayMetrics.heightPixels
+        return PanelTriggerBand.synthetic(
+            side = side,
+            anchorLocalY = anchorLocalY,
+            viewWidthPx = viewWidth,
+            viewHeightPx = viewHeight,
+            thicknessPx = dp(PANEL_TRIGGER_BAND_DP),
+        )
+    }
 
     private fun notifyOverlayLayoutIfNeeded() = layoutCoordinator.notifyOverlayLayoutIfNeeded()
 
+    /**
+     * 外部触发打开面板（边滑触钮之外的入口：角轮盘 / 悬浮球 / 双贴边线条 / 圆环条目）。
+     *
+     * 本侧可能**完全没触钮**（画布由 `OverlayManager` 按需挂成"面板专用宿主"），此时没有真实
+     * 触发带，必须记下触发高度让 [activeTriggerZoneRect] 合成一条，否则面板会跑到屏幕最上面。
+     */
     fun dispatchExternalAction(action: GestureAction, anchorRawY: Float): Boolean {
         layoutCoordinator.applyExpandedOverlayLayout()
         runAfterLayout {
@@ -296,6 +339,7 @@ class EdgeGestureOverlayView(
             val screenWidth = resources.displayMetrics.widthPixels.toFloat().coerceAtLeast(1f)
             val localX = if (width > 0) width / 2f else screenWidth / 2f
             val anchorRawX = if (width > 0) loc[0] + localX else screenWidth / 2f
+            externalPanelAnchorLocalY = localY
             when (action) {
                 is GestureAction.TaskSwitcher -> taskSwitcherController.setExternalAnchor(anchorRawY)
                 is GestureAction.QuickLauncher -> quickLauncherController.setAnchorRawY(anchorRawY)
@@ -330,6 +374,10 @@ class EdgeGestureOverlayView(
     var onPresentationTouchRequirementChanged: (() -> Unit)? = null
 
     private fun notifyPresentationTouchRequirementChanged() {
+        // 面板与手势都结束了：清掉外部触发的锚点（驻留面板仍在场时 panelMode != NONE，不会误清）。
+        if (gestureSession.panelMode() == OverlayPanelMode.NONE && !gestureSession.isActive()) {
+            externalPanelAnchorLocalY = null
+        }
         // 交互态变化时同步看门狗：按住才成立的状态要续租，退出交互态要撤销。
         interactionWatchdog.onStateChanged()
         onPresentationTouchRequirementChanged?.invoke()
