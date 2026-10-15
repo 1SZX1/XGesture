@@ -112,7 +112,8 @@ internal class FloatBallGestureHintWindow {
 
     fun update(
         action: GestureAction,
-        themeColorArgb: Int,
+        /** 主题强调色（见 `resolveAppAccentArgb`）：调用方解析好再传，窗口本身不认设置。 */
+        accentArgb: Int,
         fingerX: Float,
         fingerY: Float,
         dockSide: FloatBallSide,
@@ -131,7 +132,7 @@ internal class FloatBallGestureHintWindow {
             gapPx = gapPx
         )
         val layoutUnchanged = lastAppliedAction == action &&
-            lastAppliedTintArgb == themeColorArgb &&
+            lastAppliedTintArgb == accentArgb &&
             lastAppliedX == x &&
             lastAppliedY == y &&
             lastAppliedSizePx == hintSizePx &&
@@ -143,14 +144,14 @@ internal class FloatBallGestureHintWindow {
         if (iconState.value != icon) {
             iconState.value = icon
         }
-        if (tintArgbState.intValue != themeColorArgb) {
-            tintArgbState.intValue = themeColorArgb
+        if (tintArgbState.intValue != accentArgb) {
+            tintArgbState.intValue = accentArgb
         }
         if (!visibleState.value) {
             visibleState.value = true
         }
         lastAppliedAction = action
-        lastAppliedTintArgb = themeColorArgb
+        lastAppliedTintArgb = accentArgb
         lastAppliedX = x
         lastAppliedY = y
         lastAppliedSizePx = hintSizePx

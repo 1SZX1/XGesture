@@ -42,6 +42,7 @@ import com.slideindex.app.floatball.FloatBallGestureType
 import com.slideindex.app.settings.FloatBallPositionMode
 import com.slideindex.app.settings.FloatBallSide
 import com.slideindex.app.overlay.ringlauncher.RingLauncherOverlayWindow
+import com.slideindex.app.ui.miuix.theme.resolveAppAccentArgb
 import com.slideindex.app.util.PermissionHelper
 import kotlin.math.hypot
 import kotlin.math.max
@@ -1798,7 +1799,8 @@ object FloatBallOverlay {
         val density = metrics.density
         gestureHintWindow.update(
             action = action,
-            themeColorArgb = settings.themeColorArgb,
+            // 跟主题强调色走（不是 themeColorArgb 那个默认紫）：与球/线条保持一致。
+            accentArgb = resolveAppAccentArgb(view.context, settings),
             fingerX = dragSession.dragFingerX,
             fingerY = dragSession.dragFingerY,
             dockSide = effectiveActiveSide(settings),

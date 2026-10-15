@@ -33,7 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FloatingPointerDesign
-import com.slideindex.app.ui.theme.SlideIndexTheme
+import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
 import com.slideindex.app.util.HapticHelper
 import kotlin.math.hypot
 import kotlin.math.pow
@@ -54,7 +54,7 @@ internal fun FloatingPointerDisplay(
     settings: AppSettings,
     visible: Boolean
 ) {
-    SlideIndexTheme(settings = settings) {
+    OverlayAwareModuleTheme(settings = settings) {
         val presence by animateFloatAsState(
             targetValue = if (visible) 1f else 0f,
             animationSpec = tween(
@@ -63,7 +63,7 @@ internal fun FloatingPointerDisplay(
             ),
             label = "floatingPointerPresence"
         )
-        if (presence <= 0.001f && !visible) return@SlideIndexTheme
+        if (presence <= 0.001f && !visible) return@OverlayAwareModuleTheme
 
         val pointerX by session.pointerX
         val pointerY by session.pointerY

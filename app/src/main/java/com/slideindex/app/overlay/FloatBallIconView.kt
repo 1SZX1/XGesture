@@ -14,6 +14,7 @@ import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FloatBallPositionMode
 import com.slideindex.app.settings.FloatBallSide
 import com.slideindex.app.settings.FloatBallStyleType
+import com.slideindex.app.ui.miuix.theme.resolveAppAccentArgb
 import kotlin.math.roundToInt
 
 /**
@@ -172,7 +173,9 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         append('|')
         append(sizePx)
         append('|')
-        append(settings.themeColorArgb)
+        // ⚠️ 这里必须是**解析后的强调色**（含"自定义色开关 / 动态取色 / 色板 / 深浅"的影响），
+        // 不能只放 themeColorArgb：开关一翻而色值没变时，键不变 → 球不会重画 → 还是旧颜色。
+        append(resolveAppAccentArgb(context, settings))
         append('|')
         append(settings.floatBallOpacity)
         append('|')

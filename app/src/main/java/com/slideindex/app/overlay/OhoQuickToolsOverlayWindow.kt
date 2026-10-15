@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.di.OverlayDependencyAccess
-import com.slideindex.app.ui.theme.SlideIndexTheme
+import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
 import com.slideindex.app.util.HapticHelper
 import com.slideindex.app.util.PermissionHelper
 import com.slideindex.app.util.SystemGestureActions
@@ -272,7 +272,7 @@ object OhoQuickToolsOverlayWindow {
         onDismissOutside: () -> Unit,
         onEvent: (OhoPanelEvent) -> Unit
     ) {
-        SlideIndexTheme(settings = settings) {
+        OverlayAwareModuleTheme(settings = settings) {
             val density = LocalDensity.current
             val windowInfo = LocalWindowInfo.current
             val densityValue = density.density

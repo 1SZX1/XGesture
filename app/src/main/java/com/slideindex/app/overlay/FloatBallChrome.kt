@@ -43,7 +43,7 @@ import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FloatBallPositionMode
 import com.slideindex.app.settings.FloatBallSide
 import com.slideindex.app.settings.FloatBallStyleType
-import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
+import com.slideindex.app.ui.miuix.theme.rememberAppAccentColor
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -74,7 +74,7 @@ internal fun FloatBallLineChrome(
     val activeSide = sceneState.resolvedActiveSide(settings, dragActiveSideOverride)
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isCustom = settings.floatBallPositionMode == FloatBallPositionMode.CUSTOM
-    val lineColor = Color(settings.themeColorArgb)
+    val lineColor = rememberAppAccentColor(settings)
         .copy(alpha = settings.floatBallLineOpacity.coerceIn(0f, 1f))
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -220,7 +220,7 @@ internal fun FloatBallIdleBallChrome(
         // 「两侧都是线」：球侧空闲时同样呈现为边缘线，球只在拖动时浮现。
         FloatBallEdgeLineVisual(
             side = activeSide,
-            lineColor = Color(settings.themeColorArgb)
+            lineColor = rememberAppAccentColor(settings)
                 .copy(alpha = settings.floatBallLineOpacity.coerceIn(0f, 1f))
         )
         return
@@ -257,7 +257,7 @@ internal fun FloatBallIdleBallChrome(
 internal fun FloatBallIdleLineChrome(sceneState: FloatBallSceneState) {
     val settings by sceneState.settingsState
     val inactiveSide = FloatBallSide.opposite(FloatBallLayout.resolvedActiveSide(settings))
-    val lineColor = Color(settings.themeColorArgb)
+    val lineColor = rememberAppAccentColor(settings)
         .copy(alpha = settings.floatBallLineOpacity.coerceIn(0f, 1f))
     FloatBallEdgeLineVisual(side = inactiveSide, lineColor = lineColor)
 }

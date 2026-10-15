@@ -15,7 +15,7 @@ import com.slideindex.app.overlay.OverlayViewBackHandler
 import com.slideindex.app.overlay.OverlayWindowTypes
 import com.slideindex.app.overlay.PanelSide
 import com.slideindex.app.settings.AppSettings
-import com.slideindex.app.ui.theme.SlideIndexTheme
+import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
 import com.slideindex.app.util.PermissionHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -261,7 +261,7 @@ object QuickMenuOverlayWindow {
         if (host.isAttached) return true
         val current = session ?: return false
         val owner = host.ensureWindow(hostContext, focusable = true) {
-            SlideIndexTheme(current.settings) {
+            OverlayAwareModuleTheme(current.settings) {
                 QuickMenuPanel(
                     visible = current.visible.value,
                     page = current.page.value,

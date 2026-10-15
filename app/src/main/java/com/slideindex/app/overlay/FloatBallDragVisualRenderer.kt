@@ -14,6 +14,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FloatBallStyleType
+import com.slideindex.app.ui.miuix.theme.resolveAppAccentArgb
 import kotlin.math.roundToInt
 
 /**
@@ -51,19 +52,21 @@ internal object FloatBallDragVisualRenderer {
         val bitmap = createBitmap(sizePx, sizePx)
         val canvas = Canvas(bitmap)
         val alpha = settings.floatBallOpacity.coerceIn(0f, 1f)
+        // 悬浮球默认样式与各类兜底色都跟"主题强调色"走（不是 themeColorArgb 那个默认紫）。
+        val accentArgb = resolveAppAccentArgb(context, settings)
         when (settings.floatBallStyleType) {
-            FloatBallStyleType.DEFAULT -> drawDefault(canvas, sizePx, settings.themeColorArgb, alpha)
+            FloatBallStyleType.DEFAULT -> drawDefault(canvas, sizePx, accentArgb, alpha)
             FloatBallStyleType.ANIMATED_PLANE,
             FloatBallStyleType.ANIMATED_PULSE,
             FloatBallStyleType.ANIMATED_ORBIT,
             -> drawBuiltinAnim(canvas, sizePx, alpha, settings.floatBallStyleType)
             FloatBallStyleType.CUSTOM_IMAGE -> drawUri(
                 canvas, context, sizePx, alpha, settings.floatBallCustomImageUri,
-                fallbackArgb = settings.themeColorArgb
+                fallbackArgb = accentArgb
             )
             FloatBallStyleType.SLIDESHOW -> {
                 val uri = settings.floatBallSlideshowUris.firstOrNull().orEmpty()
-                drawUri(canvas, context, sizePx, alpha, uri, fallbackArgb = settings.themeColorArgb)
+                drawUri(canvas, context, sizePx, alpha, uri, fallbackArgb = accentArgb)
             }
             FloatBallStyleType.GIF -> {
                 val dragFrame = FloatBallGifDragSnapshot.copyForDrag(
@@ -76,7 +79,7 @@ internal object FloatBallDragVisualRenderer {
                 } else {
                     drawUri(
                         canvas, context, sizePx, alpha, settings.floatBallGifUri,
-                        fallbackArgb = settings.themeColorArgb
+                        fallbackArgb = accentArgb
                     )
                 }
             }
