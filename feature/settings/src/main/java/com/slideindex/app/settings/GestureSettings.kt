@@ -55,7 +55,7 @@ data class GestureSettings(
     val keyboardTriggerBehaviorLandscape: KeyboardTriggerBehavior = KeyboardTriggerBehavior.OVERLAY,
     val keyboardTriggerNarrowPercentPortrait: Int = KeyboardTriggerNarrowPercents.DEFAULT,
     val keyboardTriggerNarrowPercentLandscape: Int = KeyboardTriggerNarrowPercents.DEFAULT,
-    val indexHeightFraction: Float = 0.42f,
+    val indexHeightFraction: Float = 0.6f,
     val indexVerticalPositionFraction: Float = 0.5f,
     val hideEmptyIndexLetters: Boolean = true,
     val appsPerRow: Int = 3,

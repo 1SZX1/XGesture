@@ -195,7 +195,7 @@ internal object SettingsSnapshotReader {
                     ?: KeyboardTriggerNarrowPercents.DEFAULT,
             ),
             ),
-            indexHeightFraction = prefs[SettingsPreferenceKeys.INDEX_HEIGHT] ?: 0.42f,
+            indexHeightFraction = prefs[SettingsPreferenceKeys.INDEX_HEIGHT] ?: 0.6f,
             indexVerticalPositionFraction =
                 (prefs[SettingsPreferenceKeys.INDEX_VERTICAL_POSITION] ?: 0.5f).coerceIn(0f, 1f),
             hideEmptyIndexLetters = prefs[SettingsPreferenceKeys.HIDE_EMPTY_INDEX_LETTERS] ?: true,

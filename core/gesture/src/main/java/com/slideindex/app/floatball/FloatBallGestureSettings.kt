@@ -113,7 +113,8 @@ object FloatBallGestureCodec {
         raw.mapNotNull { decode(it) }.toMap()
 
     fun defaultActions(): Map<FloatBallGestureType, GestureAction> = mapOf(
-        FloatBallGestureType.SWIPE_UP_SHORT to GestureAction.None,
+        // 上滑（短）出厂动作：打开/收起快捷菜单（与「下滑（短）= 最近任务」对称的主手势）。
+        FloatBallGestureType.SWIPE_UP_SHORT to GestureAction.QuickMenu,
         FloatBallGestureType.SWIPE_DOWN_SHORT to GestureAction.Recents,
         FloatBallGestureType.SWIPE_DOWN_LONG to GestureAction.OpenNotifications,
         FloatBallGestureType.SWIPE_DOWN_RETURN to GestureAction.None,

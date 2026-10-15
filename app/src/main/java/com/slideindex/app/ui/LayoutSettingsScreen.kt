@@ -83,7 +83,8 @@ fun LayoutSettingsScreen(
                     MiuixSliderRow(
                         title = stringResource(R.string.index_height),
                         value = settings.indexHeightFraction,
-                        valueRange = 0.25f..0.65f,
+                        // 上限 75%：再长会挤掉索引栏的纵向行程（用户设定）。
+                        valueRange = 0.25f..0.75f,
                         enabled = serviceEnabled,
                         label = "",
                         formatLabel = { "${(it * 100).roundToInt()}%" },
