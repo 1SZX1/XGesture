@@ -54,6 +54,8 @@ import com.slideindex.app.service.WidgetPickerTrampoline
 import com.slideindex.app.service.StashClipboardTrampolineActivity
 import com.slideindex.app.ui.navigation.MainNavHost
 import com.slideindex.app.ui.navigation.NavPermissionStates
+import com.slideindex.app.ui.onboarding.OnboardingPracticeOverlay
+import com.slideindex.app.ui.onboarding.OnboardingPracticeSession
 import com.slideindex.app.update.UpdateAppForeground
 import com.slideindex.app.update.UpdateIntents
 import com.slideindex.app.util.AppLocaleApplier
@@ -195,6 +197,22 @@ class MainActivity : ComponentActivity() {
                                 deps.settingsRepository.setFreeWindowLayout(portrait, landscape)
                             }
                         },
+                    )
+                }
+                // 「关于 → 重看新手引导」：整屏盖住导航宿主，与开屏引导共用同一份内容。
+                if (OnboardingPracticeSession.isOpen) {
+                    OnboardingPracticeOverlay(
+                        settingsRepository = deps.settingsRepository,
+                        onPreviewTriggerBar = { active ->
+                            if (active) {
+                                overlayServiceController.startLayoutPreview(
+                                    com.slideindex.app.overlay.LayoutPreviewContent.TRIGGER_ONLY,
+                                )
+                            } else {
+                                overlayServiceController.stopLayoutPreview()
+                            }
+                        },
+                        onClose = { OnboardingPracticeSession.close() },
                     )
                 }
             }

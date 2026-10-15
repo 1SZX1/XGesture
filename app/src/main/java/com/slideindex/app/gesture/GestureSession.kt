@@ -853,6 +853,9 @@ class GestureSession(
     internal fun enterIndexMode(localX: Float, localY: Float) {
         sessionIndexMode = true
         sessionPanelMode = OverlayPanelMode.INDEX
+        // 「应用索引」有三条开启路径（持续触发的移动分发、松手分发、外部入口），
+        // 通知挂在这里才不会漏：引导靠它判断"用户自己滑出了索引"。
+        GesturePerformedEvents.notify(GestureAction.OpenIndex)
         callbacks.onSessionStart(OverlayPanelMode.INDEX)
         indexSession.updateSelection(localX, localY)
         callbacks.onRequestInvalidate()

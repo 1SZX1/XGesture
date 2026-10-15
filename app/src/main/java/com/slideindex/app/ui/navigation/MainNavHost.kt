@@ -310,6 +310,17 @@ fun MainNavHost(
             ModuleTheme(settings = overlayUiSettings.toModuleThemeSettings()) {
                 OnboardingScreen(
                     permissions = permissions,
+                    settingsRepository = deps.settingsRepository,
+                    // 引导里把"真实触钮"亮到屏幕上：只写文字，用户不知道触钮在屏幕哪一段。
+                    onPreviewTriggerBar = { active ->
+                        if (active) {
+                            activity.overlayServiceController.startLayoutPreview(
+                                com.slideindex.app.overlay.LayoutPreviewContent.TRIGGER_ONLY,
+                            )
+                        } else {
+                            activity.overlayServiceController.stopLayoutPreview()
+                        }
+                    },
                     onRequestOverlay = {
                         activity.startActivity(PermissionHelper.overlaySettingsIntent(activity))
                     },

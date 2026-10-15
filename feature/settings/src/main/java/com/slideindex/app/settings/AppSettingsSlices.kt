@@ -168,8 +168,11 @@ data class FloatingPointerSettings(
     /**
      * Continued edge handoff: on finger-up, click at pointer then dismiss the overlay.
      * Does not affect resident joystick tap-to-click.
+     *
+     * 默认关：新手拖出指针只是想"把指针拿出来用"，松手立刻在指针处点一下并关掉，
+     * 看起来就像"什么都没发生"，反而让人以为功能没生效。需要这个手势的人在设置里自己开。
      */
-    val floatingPointerReleaseClickAndDismiss: Boolean = true,
+    val floatingPointerReleaseClickAndDismiss: Boolean = false,
     /**
      * Continued edge handoff: dwell ~280ms on the pointer to enter element/region pick mode.
      */

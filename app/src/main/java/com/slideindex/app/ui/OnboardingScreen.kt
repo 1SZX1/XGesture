@@ -51,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,9 +80,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.slideindex.app.R
+import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.ui.icon.AppIconTheme
 import com.slideindex.app.ui.miuix.effect.BgEffectBackground
 import com.slideindex.app.ui.navigation.NavPermissionSnapshot
+import com.slideindex.app.ui.onboarding.OnboardingPracticeContent
+import com.slideindex.app.ui.onboarding.OnboardingPracticeController
 import com.slideindex.app.ui.theme.LocalAppDarkTheme
 import com.slideindex.app.util.PermissionHelper
 import kotlinx.coroutines.delay
@@ -100,11 +104,16 @@ private enum class OnboardingStep {
     WELCOME,
     DISCLAIMER,
     PERMISSIONS,
+
+    /** 权限之后的"上手两件事"：边缘触钮 → 悬浮指针、悬浮球取词。 */
+    PRACTICE,
 }
 
 @Composable
 fun OnboardingScreen(
     permissions: NavPermissionSnapshot,
+    settingsRepository: SettingsRepository,
+    onPreviewTriggerBar: (Boolean) -> Unit,
     onRequestOverlay: () -> Unit,
     onRequestAccessibility: () -> Unit,
     onRequestNotification: () -> Unit,
@@ -154,6 +163,8 @@ fun OnboardingScreen(
 
             OnboardingMainFlow(
                 permissions = permissions,
+                settingsRepository = settingsRepository,
+                onPreviewTriggerBar = onPreviewTriggerBar,
                 onRequestOverlay = onRequestOverlay,
                 onRequestAccessibility = onRequestAccessibility,
                 onRequestNotification = onRequestNotification,
@@ -166,6 +177,8 @@ fun OnboardingScreen(
 @Composable
 private fun OnboardingMainFlow(
     permissions: NavPermissionSnapshot,
+    settingsRepository: SettingsRepository,
+    onPreviewTriggerBar: (Boolean) -> Unit,
     onRequestOverlay: () -> Unit,
     onRequestAccessibility: () -> Unit,
     onRequestNotification: () -> Unit,
@@ -173,10 +186,25 @@ private fun OnboardingMainFlow(
 ) {
     var currentStep by remember { mutableStateOf(OnboardingStep.WELCOME) }
     var isDisclaimerAgreed by remember { mutableStateOf(false) }
+    val practiceScope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext
+    // 练习状态只活在这一次引导里（不落盘）：绑定与开关本身已经是持久设置，无需再存进度。
+    val practiceController = remember(settingsRepository, practiceScope) {
+        OnboardingPracticeController(
+            context = appContext,
+            settingsRepository = settingsRepository,
+            scope = practiceScope,
+            onPreviewTriggerBar = onPreviewTriggerBar,
+        )
+    }
+    DisposableEffect(practiceController) {
+        onDispose { practiceController.release() }
+    }
 
     // Intercept system back button: navigate backwards smoothly
     BackHandler(enabled = currentStep != OnboardingStep.WELCOME) {
         currentStep = when (currentStep) {
+            OnboardingStep.PRACTICE -> OnboardingStep.PERMISSIONS
             OnboardingStep.PERMISSIONS -> OnboardingStep.DISCLAIMER
             OnboardingStep.DISCLAIMER -> OnboardingStep.WELCOME
             OnboardingStep.WELCOME -> OnboardingStep.WELCOME
@@ -245,7 +273,56 @@ private fun OnboardingMainFlow(
                         onRequestAccessibility = onRequestAccessibility,
                         onRequestNotification = onRequestNotification,
                         onBack = { currentStep = OnboardingStep.DISCLAIMER },
-                        onComplete = onComplete,
+                        // 权限之后还有"上手两件事"，所以这里不再是"进入应用"。
+                        onComplete = { currentStep = OnboardingStep.PRACTICE },
+                    )
+                }
+
+                OnboardingStep.PRACTICE -> {
+                    OnboardingPracticeContent(
+                        controller = practiceController,
+                        onRequestAccessibility = onRequestAccessibility,
+                        bottomBar = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Button(
+                                    onClick = { currentStep = OnboardingStep.PERMISSIONS },
+                                    cornerRadius = 18.dp,
+                                    colors = ButtonDefaults.buttonColors(
+                                        color = MiuixTheme.colorScheme.surfaceVariant,
+                                        contentColor = MiuixTheme.colorScheme.onSurface,
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(50.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.onboarding_back),
+                                        style = MiuixTheme.textStyles.button,
+                                    )
+                                }
+
+                                Button(
+                                    onClick = {
+                                        practiceController.release()
+                                        onComplete()
+                                    },
+                                    cornerRadius = 18.dp,
+                                    colors = ButtonDefaults.buttonColorsPrimary(),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(50.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.onboarding_enter_app),
+                                        style = MiuixTheme.textStyles.button,
+                                        color = MiuixTheme.colorScheme.onPrimary,
+                                    )
+                                }
+                            }
+                        },
                     )
                 }
             }
@@ -763,7 +840,7 @@ private fun PermissionsScreenPage(
                         .height(50.dp),
                 ) {
                     Text(
-                        text = stringResource(R.string.onboarding_enter_app),
+                        text = stringResource(R.string.onboarding_next),
                         style = MiuixTheme.textStyles.button,
                         color = MiuixTheme.colorScheme.onPrimary,
                     )

@@ -705,6 +705,18 @@ class EdgeSettingsMutator @Inject constructor(
         prefs[SettingsPreferenceKeys.GESTURE_RULES] = GestureRuleCodec.encodeAll(current)
     }
 
+    /**
+     * 整体替换竖屏手势规则表。
+     *
+     * 存在的理由：槽位写入（[setSlotConfig] 等）只回写"它当次读到的规则"，而
+     * `SettingsSnapshotReader.readGestureRules` 一旦发现该键非空就**不再合并出厂默认**。
+     * 所以第一次落盘槽位之前，必须先把这张表补成"出厂默认 + 用户已有"的完整集合，
+     * 否则那一笔写入会把还没落盘过的出厂手势（短滑返回、下滑索引…）一并抹掉。
+     */
+    suspend fun setGestureRules(rules: List<GestureRule>) = editor.edit { prefs ->
+        prefs[SettingsPreferenceKeys.GESTURE_RULES] = GestureRuleCodec.encodeAll(rules)
+    }
+
     suspend fun setSlotAction(
         side: PanelSide,
         trigger: GestureTriggerType,

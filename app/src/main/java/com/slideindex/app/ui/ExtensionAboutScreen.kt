@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +84,7 @@ import com.slideindex.app.ui.miuix.MiuixBottomSheet
 import com.slideindex.app.ui.miuix.effect.BgEffectBackground
 import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.miuix.rememberMiuixBlurBackdrop
+import com.slideindex.app.ui.onboarding.OnboardingPracticeSession
 import com.slideindex.app.ui.settings.components.settingsCardScopeItem
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
 import com.slideindex.app.ui.theme.LocalAppDarkTheme
@@ -400,6 +402,16 @@ private fun AboutContent(
                                     val uri = (projectUrl + "/releases").toUri()
                                     context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                                 }
+                            )
+                        }
+                    )
+                    add(
+                        settingsCardScopeItem("replay-onboarding") {
+                            SettingNavigationRow(
+                                icon = { label -> Icon(Icons.Outlined.School, contentDescription = label) },
+                                title = stringResource(R.string.about_replay_onboarding_title),
+                                subtitle = stringResource(R.string.about_replay_onboarding_subtitle),
+                                onClick = { OnboardingPracticeSession.open() }
                             )
                         }
                     )

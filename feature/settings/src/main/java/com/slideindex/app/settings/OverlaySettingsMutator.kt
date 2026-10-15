@@ -347,7 +347,7 @@ class OverlaySettingsMutator @Inject constructor(
         prefs[SettingsPreferenceKeys.FLOATING_POINTER_IDLE_DELAY] = 3000
         prefs[SettingsPreferenceKeys.FLOATING_POINTER_CLICK_DISTANCE_THRESHOLD_DP] = 6f
         prefs[SettingsPreferenceKeys.FLOATING_POINTER_JOYSTICK_LONG_PRESS_ACTION] = QuickLauncherItemCodec.encodeActionPayload(GestureAction.OpenFloatingPointerRadialMenu)
-        prefs[SettingsPreferenceKeys.FLOATING_POINTER_RELEASE_CLICK_AND_DISMISS] = true
+        prefs[SettingsPreferenceKeys.FLOATING_POINTER_RELEASE_CLICK_AND_DISMISS] = false
         prefs[SettingsPreferenceKeys.FLOATING_POINTER_HOVER_ENTER_SELECT] = false
     }
 

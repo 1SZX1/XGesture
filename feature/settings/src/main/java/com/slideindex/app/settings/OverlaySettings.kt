@@ -60,7 +60,7 @@ data class OverlaySettings(
     val floatingPointerHideOnQuickSwipe: Boolean = true,
     val floatingPointerHideWhenIdle: Boolean = true,
     val floatingPointerIdleHideDelayMs: Int = 3000,
-    val floatingPointerReleaseClickAndDismiss: Boolean = true,
+    val floatingPointerReleaseClickAndDismiss: Boolean = false,
     val floatingPointerHoverEnterSelect: Boolean = false,
     val floatingPointerJoystickLongPressAction: GestureAction = GestureAction.OpenFloatingPointerRadialMenu,
     val floatingPointerRadialAlwaysVisible: Boolean = false,

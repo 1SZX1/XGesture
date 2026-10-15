@@ -236,6 +236,9 @@ internal fun GestureSession.handleClassifiedGesture(
 ) {
     val action = sessionSettings.actionFor(sessionSide, classification.trigger, sessionActiveHandleId)
 
+    // 引导等观察者要知道"用户真的做成了哪个手势"；纯通知，不影响下面的分发。
+    GesturePerformedEvents.notify(action)
+
     when (action) {
         is GestureAction.OpenIndex -> enterIndexMode(localX, localY)
 

@@ -315,6 +315,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setHideTriggerOnLauncher(enabled: Boolean) = edge.setHideTriggerOnLauncher(enabled)
     suspend fun upsertGestureRule(rule: GestureRule) = edge.upsertGestureRule(rule)
     suspend fun removeGestureRule(id: String) = edge.removeGestureRule(id)
+
+    /** 整体替换竖屏规则表；调用方负责把出厂默认补进 [rules]（见 EdgeSettingsMutator.setGestureRules）。 */
+    suspend fun setGestureRules(rules: List<GestureRule>) = edge.setGestureRules(rules)
     suspend fun setSlotAction(
         side: PanelSide,
         trigger: GestureTriggerType,
