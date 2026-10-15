@@ -151,9 +151,9 @@ class MainActivity : ComponentActivity() {
         )
         enableEdgeToEdge()
         refreshPermissionState()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            applyPredictiveBackEnabled(deps.settingsRepository.readSnapshot().predictiveBackEnabled)
-        }
+        // 预测性返回 flag 由 SlideIndexApp.onCreate 恒定写成 true（建窗之前），这里**不再写**：
+        // 写 `false` 会让系统退回注入 KEYCODE_BACK，而那条路到不了 Activity 的返回分发器，
+        // 边缘手势返回会彻底失效（§0.16.26 真机事故）。返回手势不允许被设置关掉。
 
         setContent {
             val initialIntentAction by currentIntentAction
@@ -368,6 +368,16 @@ class MainActivity : ComponentActivity() {
             ?.setExcludeFromRecents(hide)
     }
 
+    /**
+     * 现在**只有设置页那个开关**会调它，且只传 `true`（见 `HomeNavEntries`）。冷启动不调它：
+     * 预测性返回只靠 manifest 的 `android:enableOnBackInvokedCallback="true"`（通用做法）。
+     *
+     * ⚠️ 传 `false` 会让系统退回"兼容注入 KEYCODE_BACK"，而那条路在魅族 21 / Android 16 上到不了
+     * Activity 的返回分发器 → **边缘手势返回彻底失效**（§0.16.26）。
+     *
+     * 写法上必须"写完跟一次重建"，否则已经建好的窗口不会按新 flag 记账（真机实测：
+     * 开关一拨就恢复跟手，靠的就是这两下）。
+     */
     internal fun applyPredictiveBackEnabled(enabled: Boolean) {
         PredictiveBackHelper.applyEnabled(applicationInfo, enabled)
         FloatBallPickResultPanel.refreshBackHandlingIfShowing()

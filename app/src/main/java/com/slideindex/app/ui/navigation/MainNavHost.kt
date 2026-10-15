@@ -82,6 +82,9 @@ import com.slideindex.app.ui.compose.LocalAppDependencies
 import com.slideindex.app.ui.feedback.UserMessageSnackbarHost
 import com.slideindex.app.ui.miuix.theme.ModuleTheme
 import com.slideindex.app.ui.miuix.theme.toModuleThemeSettings
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.android.awaitFrame
@@ -258,15 +261,30 @@ fun MainNavHost(
         activity.applyHideFromRecents(rootSettings.hideFromRecents)
     }
 
-    val skipPredictiveBackRecreate = remember { mutableStateOf(true) }
-    LaunchedEffect(rootSettings.predictiveBackEnabled) {
-        activity.applyPredictiveBackEnabled(rootSettings.predictiveBackEnabled)
-        if (skipPredictiveBackRecreate.value) {
-            skipPredictiveBackRecreate.value = false
-        } else {
-            activity.recreateWithoutTransition()
-        }
-    }
+    // §0.16.26：这里**不再按设置写 flag**，而且这个 flag 现在只有**设置页开关**那一处会写
+    // （恒定 `true` + 重建）—— 冷启动一个字都不写，只靠 manifest 的
+    // `android:enableOnBackInvokedCallback="true"`，这是通用做法（单一事实来源、没有时序竞争）。
+    // 曾经按用户设置写，而默认值就是 false：那会让系统退回"兼容注入 KEYCODE_BACK"，那条注入路
+    // 在魅族 21 / Android 16 上到不了 Activity 的返回分发器 → 边缘手势返回彻底失效。
+    //
+    // §0.16.26 残留（真机日志）：每次成功返回之后，navigationevent 会把注册在窗口上的**动画回调注销**，
+    // 窗口于是退到 ViewRootImpl 的 compat 兜底（`mPriority=-1, mIsAnimationCallback=false`）—— 而那个
+    // 兜底在这台 ROM 上是坏的，"空档期"内的手势既不跟手也不返回。注销的判据是 `hasEnabledHandlers`：
+    // 本仓库的返回 handler 全是按页面条件挂的，根页时一个都不在 ⇒ 空档。
+    //
+    // 这里挂一个**永远 enabled 的兜底 handler** 占住那个判据（默认 priority = PRIORITY_OVERLAY = 0，
+    // 系统的"退出 App"兜底是 PRIORITY_DEFAULT = 1，所以只要本 handler 在，系统兜底不会被直接调）。
+    // ⚠️ 因此它**必须自己复刻根页的退出行为**，否则"主页按返回退不出 App"就是回归：
+    //   - 当前是根页（栈深 1）→ `finish()`，与系统原本的兜底等价；
+    //   - 子页 → 什么都不做，交给该页真正的返回 handler（它们同级但先注册，优先接）。
+    val rootBackFallbackState = rememberNavigationEventState(NavigationEventInfo.None)
+    NavigationBackHandler(
+        state = rootBackFallbackState,
+        isBackEnabled = true,
+        onBackCompleted = {
+            if (isRootDestination) activity.finish()
+        },
+    )
 
     val permissions = permissionStates.collect()
 

@@ -210,10 +210,12 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             onSwipeDismissEnabledChange = viewModel::setSwipeDismissEnabled,
             onPredictiveBackEnabledChange = { enabled ->
                 viewModel.setPredictiveBackEnabled(enabled)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    ctx.activity.applyPredictiveBackEnabled(enabled)
-                    ctx.activity.recreateWithoutTransition()
-                }
+                // ⚠️ 这里**只写 true、绝不写 false**：flag 写成 false 会让系统退回"兼容注入 KEYCODE_BACK"，
+                // 而那条路在真机上到不了 Activity 的返回分发器 → 边缘手势返回彻底失效（§0.16.26）。
+                // 但**写 true + 重建这一次不能省**：真机实测"开关一开、跟手就回来"靠的就是这两下
+                // （写完之后必须重建，新窗口才会按新 flag 记账）。
+                ctx.activity.applyPredictiveBackEnabled(true)
+                ctx.activity.recreateWithoutTransition()
             },
             onAppUiLanguageChange = { language ->
                 viewModel.setAppUiLanguage(language)

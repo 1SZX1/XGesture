@@ -140,6 +140,12 @@ class SlideIndexApp : Application(), androidx.work.Configuration.Provider {
         }
         if (AppProcess.isEngine) return
 
+        // 预测性返回（§0.16.26）：这里**故意不写** `enableOnBackInvokedCallback`。
+        // 通用做法就是"只靠 manifest 声明 true、运行时不碰它"——单一事实来源，没有时序竞争。
+        // 之前按用户设置写（默认 true）会把它写成 false，于是系统退回"兼容注入 KEYCODE_BACK"，
+        // 而那条注入路在魅族 21 / Android 16 上到不了 Activity 的返回分发器 → 边缘手势返回彻底失效。
+        // 现在唯一的写入点是设置页那个开关（恒定写 true + 重建），冷启动不写任何东西。
+
         // OCR 推理回到单进程：不再安装 binder 传输，引擎直接在调用方进程里推理
         // （省掉 AIDL 对位图的 Parcel 拷贝）。EngineOcrTransport / EngineOcrService
         // 保留但不再接管：以后若要重新拆进程，把 manifest 的 android:process 加回去即可。
