@@ -165,12 +165,16 @@ private fun HistoryFloatHandleTouch(
     val scope = rememberCoroutineScope()
     // 激活（被按住 / 拖动中）时轻微放大 + 提高不透明度。
     // ⚠️ 两个都保持 `State`，只交给绘制 lambda 去读 —— 动画帧只让那一层 draw 失效，不触发重组。
+    //
+    // §对比度修正：静止值从 0.72 提到 0.92。原来的 0.72 让条在"没被按住"（也就是绝大多数时间）
+    // 只有约 20% 不透明度 —— 那正是用户看到的"深色背景下完全看不见"。
+    // 现在两个值都在"看得见"的高位，按住只是更亮一点（按下反馈），不再承担可见性。
     val barWidth = animateDpAsState(
         targetValue = if (active) HANDLE_BAR_ACTIVE_WIDTH_DP.dp else HANDLE_BAR_WIDTH_DP.dp,
         label = "handleBarWidth",
     )
     val barAlpha = animateFloatAsState(
-        targetValue = if (active) 0.95f else 0.72f,
+        targetValue = if (active) HANDLE_BAR_ALPHA_ACTIVE else HANDLE_BAR_ALPHA_RESTING,
         label = "handleBarAlpha",
     )
     // 存下后的脉冲：设计稿 `.pip.pulse` = `pippulse 900ms`，35% 处 `translateX(-3px) scaleY(1.18)`。
@@ -202,17 +206,30 @@ private fun HistoryFloatHandleTouch(
     // 手势 lambda 被 `pointerInput(Unit)` 抓一次就不再更新，所以触觉对象也要走 updatedState。
     val latestHaptics = rememberUpdatedState(haptics)
     // 条的两个颜色（每帧都要算，但 `scheme` 变化很少，放组合里算一次即可）。
-    // alert（有待办未完成）= 整条主题色；否则是低透明度的 onSurface 细条。
-    val barColor = if (alert) scheme.primary else scheme.onSurface
-    val barFillAlpha = if (alert) 1f else 0.28f
-    // 内层"洗色"（原来那个 `Box` 的叠色）与边框色：都只在离散状态（alert / active）变化时变，
+    //
+    // ⚠️ §对比度修正（用户反馈"深色背景下完全看不见"）：**不要再用 `scheme.onSurface` 当条本体**。
+    //
+    // 老实现（`c8fee4e1` 之前）是"亮外壳 + 暗内芯"两层反色：外壳用 `surface`、内芯用 `onSurface`，
+    // 靠两层互相对冲，于是深浅壁纸上都有能看见的那一层。改成单层之后，条本体取了 `onSurface`
+    // —— 它在**浅色主题下是近黑**，再乘 0.28 × 0.72 ≈ **20% 不透明度**，等于直接消失。
+    // 把透明度调高也救不回来：颜色本身选错了，浓一点只是"浓一点的黑条"。
+    //
+    // 现在的判据是**固定偏亮 + 反色轮廓**，不看系统深色模式：
+    // - 深色壁纸 → 亮条自己浮出来；
+    // - 浅色壁纸 → 靠 1dp 近黑描边把边界交代清楚。
+    // `alert`（有待办未完成）**不再给条换颜色**（换成蓝条在深色壁纸上会和背景糊成一片，
+    // 而"显眼"正是这一档的全部目的）：它现在只影响下面那层 2% 的洗色，
+    // "有待办"这件事由**流光**来表达（那条光本来就是为它画的，见 §流光）。
+    val barColor = HANDLE_BAR_COLOR
+    // 静态 opacity 从 0.72 提到 0.92（见 [HANDLE_BAR_ALPHA_RESTING]）：条必须在没被按住时就看得见，
+    // "按住变亮"只是按下反馈，不能反过来依赖它。
+    val barFillAlpha = HANDLE_BAR_FILL_ALPHA
+    // 内层"洗色"（原来那个 `Box` 的叠色）与边框色：都只在离散状态（active）变化时变，
     // 所以按值传进绘制层即可（状态一变就会重建 modifier，绘制块跟着重跑）。
     val washColor = if (alert) scheme.onPrimary.copy(alpha = 0.10f) else scheme.onSurface.copy(alpha = 0.02f)
-    val borderColor = if (alert) {
-        scheme.primary.copy(alpha = 0.55f)
-    } else {
-        scheme.onSurface.copy(alpha = if (active) 0.24f else 0.12f)
-    }
+    // ⚠️ 描边是**刻意的反色**（近黑），与上面"固定偏亮"的条体配对 —— 这一对就是"任何底色上都看得见"
+    // 的全部依据，改颜色时两个要一起想。原来这里是比填充更淡的 `onSurface@0.12`（等于没有轮廓）。
+    val borderColor = HANDLE_BAR_OUTLINE_COLOR
     // ⚠️ `pointerInput(Unit)` 的 lambda 只在首帧装一次：`gravityEnd` 变化（拖到对侧）后
     // 它里面读到的还是旧值。所有手势判定都从这个 updatedState 现取。
     val gravityEndState = rememberUpdatedState(gravityEnd)
@@ -389,7 +406,10 @@ private fun HistoryFloatHandleTouch(
  * **clip 在条形状里**的（见下），所以它仍然需要 `barPath`，只是不 `drawPath` 而已。
  */
 internal fun Modifier.historyHandlePaint(
-    /** 条本体基色（alert = 主题色，否则 onSurface）；alpha 在绘制期乘上 [barAlpha] × [barFillAlpha]。 */
+    /**
+     * 条本体基色。**现在是恒定偏亮**（[HANDLE_BAR_COLOR]，见 :207 那组"对比度修正"注释），
+     * 不再随 alert / 深色模式变化；alpha 在绘制期乘上 [barAlpha] × [barFillAlpha]。
+     */
     barColor: Color,
     barFillAlpha: Float,
     /** 逐帧变化，**必须**在绘制 lambda 里读（只让这一层 draw 失效，不重组）。 */
@@ -739,6 +759,44 @@ internal const val HANDLE_BAR_HEIGHT_DP = 28
 /** 条边框宽度（原来 `BorderStroke(1.dp, …)`）。 */
 internal const val HANDLE_BAR_BORDER_DP = 1f
 
+// ── 条本体的"任何底色上都看得见"配色（§对比度修正）────────────────────────
+//
+// 背景：老实现（`c8fee4e1` 之前）是"亮外壳（`scheme.surface`）+ 暗内芯（`scheme.onSurface`）"
+// 两层反色，靠两层互相对冲，浅深壁纸上总有一层能看见。改成单层条之后取了 `onSurface`，
+// 于是浅色主题下条本体是**近黑**、再乘出约 20% 不透明度 → 深色壁纸上直接消失。
+//
+// 现在的做法（用户确认的方向）：**不看系统深色模式**，条本体的颜色固定。
+// - [HANDLE_BAR_COLOR] 固定偏亮 → 深色壁纸上自己浮出来；
+// - [HANDLE_BAR_OUTLINE_COLOR] 故意取反色（近黑） → 浅色/白色壁纸上靠这 1dp 交代边界。
+//
+// ⚠️ 这一对是"看得见"的全部依据，改一个必须同时想另一个。别改回 `scheme.onSurface`
+// （那等于把这次的回归再犯一遍）；也别用 `isSystemInDarkTheme()` 在半透明 overlay 窗里选色
+// —— 窗外是什么底色，进程根本判断不了。
+//
+// 数值取值：`0xFFF1F4F8` 只带一点点冷调（纯白在 9dp 宽上像贴了一条白胶带），
+// 与流光主带（`sat 0.12 / value 0.98`，约 `#F1FAFF`）同一档亮度——亮核扫到条上时不会"比条还亮"。
+private val HANDLE_BAR_COLOR = Color(0xFFF1F4F8)
+
+/** 条的 1dp 轮廓：近黑半透明。见上面那组注释（它和 [HANDLE_BAR_COLOR] 是一对）。 */
+private val HANDLE_BAR_OUTLINE_COLOR = Color(0x59000000)
+
+/**
+ * 静态透明度。0.92 = "一眼能看见"，同时留一点余地让 [HANDLE_BAR_ALPHA_ACTIVE] 的按下反馈可见。
+ *
+ * ⚠️ 别再往低调：这个值乘 [HANDLE_BAR_FILL_ALPHA] 就是条最终的实心程度，**静止态才是绝大多数时间**，
+ * "按住会变亮"救不了静止时的不可见（那正是上一次回归的成因）。
+ */
+private const val HANDLE_BAR_ALPHA_RESTING = 0.92f
+
+/** 按住 / 拖动中的透明度（1.0 = 实心，作为按下反馈）。 */
+private const val HANDLE_BAR_ALPHA_ACTIVE = 1.0f
+
+/**
+ * 填充的整体不透明度。**固定 1.0**：颜色本身已经定好了（偏亮 + 反色描边），
+ * 再叠一层 0.28 的"淡化"就是上次那个 bug 的来源。
+ */
+private const val HANDLE_BAR_FILL_ALPHA = 1.0f
+
 /** 条圆角（与原来 `RoundedCornerShape(5.dp)` 一致；绘制层是按形状手画的，所以要有这个常量）。 */
 internal const val HANDLE_BAR_CORNER_DP = 5
 
@@ -881,7 +939,10 @@ private const val HANDLE_GLOW_TRAIL_VALUE_STEP = 0.07f
  * 为什么要动条本体：原实现里"光"只能叠在 9dp 的条上，而条本体在 alert 态是**不透明主题色** ——
  * 光再亮也只是"蓝条上一条更亮的蓝"。掺一点白让**整条**都进入"通电"状态，
  * 观感才是"这条在发光"，而不是"蓝条上有层看不见的光"。
- * ⚠️ 只在有光时混：没提醒时这张条必须和改动前逐像素一致。
+ *
+ * ⚠️ 现在条本体已经是恒定偏亮（`HANDLE_BAR_COLOR`），这 14% 的掺白仍然留着：它让"有光"和"没光"
+ * 两态在条本身上也有区别（加上流光是双保险），而不是把可见性全押在流光那一层。
+ * ⚠️ 只在有光时混：没提醒时这张条必须和"没光"时的观感逐像素一致。
  */
 private const val HANDLE_GLOW_BAR_WHITEN = 0.14f
 
