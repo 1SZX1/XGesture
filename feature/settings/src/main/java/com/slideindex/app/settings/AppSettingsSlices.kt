@@ -365,8 +365,8 @@ data class ClipboardSettings(
     val clipboardHistoryFloatEnabledLandscape: Boolean = false,
     /** When true, the history float handle cannot be dragged vertically. */
     val clipboardHistoryFloatLockPosition: Boolean = true,
-    /** Width of the collapsed history float handle in dp (24–50). */
-    val clipboardHistoryFloatHandleWidthDp: Int = 32,
+    /** Which screen edge the history float handle sticks to (dragging it across the middle switches sides). */
+    val clipboardHistoryFloatHandleSide: HistoryFloatHandleSide = HistoryFloatHandleSide.DEFAULT,
     /** Saved handle top offset in px for portrait; [HistoryFloatHandlePosition.UNSET_POSITION] = default. */
     val clipboardHistoryFloatHandleYPortrait: Int = HistoryFloatHandlePosition.UNSET_POSITION,
     /** Saved handle top offset in px for landscape; [HistoryFloatHandlePosition.UNSET_POSITION] = default. */

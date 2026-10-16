@@ -86,6 +86,14 @@ fun SideGestureSlotConfigScreen(
 
     onBack: () -> Unit,
 
+    /**
+     * 非 null = 正在编辑「按应用分档」里的某个档（issue #26 v2）。
+     *
+     * 本页里的**应用轮播切换参数**与**指环槽位配置**都不在档快照里（全局设置），
+     * 档内一律隐藏 / 置灰并注明「全局设置，档内不适用」，绝不能在档里改到全局。
+     */
+    profileId: String? = null,
+
     onOpenActionPick: (GestureTriggerType) -> Unit,
 
     onOpenModePick: (GestureTriggerType) -> Unit,
@@ -111,6 +119,8 @@ fun SideGestureSlotConfigScreen(
     var selectedTrigger by rememberSaveable(trigger) { mutableStateOf(trigger) }
     val shortTierLabel = stringResource(R.string.side_gestures_direction_short_slot)
     val longTierLabel = stringResource(R.string.side_gestures_direction_long_slot)
+    // ⚠️ DSL 里的 `settingsLazyHint` 不是 @Composable，文案要在组合期先取好。
+    val profileGlobalOnlyHint = stringResource(R.string.gesture_app_profiles_global_only_hint)
 
     val selectedAction = settings.slotAction(configSide, selectedTrigger, handleId)
 
@@ -294,27 +304,38 @@ fun SideGestureSlotConfigScreen(
 
             )
 
-            groupedCardItems(
+            if (profileId != null) {
 
-                keyPrefix = "side-gesture-app-carousel",
+                settingsLazyHint(
+                    key = "slot-app-carousel-global-only",
+                    text = profileGlobalOnlyHint,
+                )
 
-                items = appCarouselSwitcherSettingsCardItems(
+            } else {
+
+                groupedCardItems(
 
                     keyPrefix = "side-gesture-app-carousel",
 
-                    local = localAppCarouselSettings,
+                    items = appCarouselSwitcherSettingsCardItems(
 
-                    onUpdate = { next ->
+                        keyPrefix = "side-gesture-app-carousel",
 
-                        localAppCarouselSettings = next
+                        local = localAppCarouselSettings,
 
-                        onAppCarouselSettingsChange(next)
+                        onUpdate = { next ->
 
-                    },
+                            localAppCarouselSettings = next
 
-                ),
+                            onAppCarouselSettingsChange(next)
 
-            )
+                        },
+
+                    ),
+
+                )
+
+            }
 
         }
 
@@ -360,7 +381,13 @@ fun SideGestureSlotConfigScreen(
 
                                 title = stringResource(R.string.fingertip_ring_config_title),
 
-                                subtitle = stringResource(R.string.fingertip_ring_config_desc),
+                                subtitle = if (profileId != null) {
+                                    stringResource(R.string.gesture_app_profiles_global_only_hint)
+                                } else {
+                                    stringResource(R.string.fingertip_ring_config_desc)
+                                },
+
+                                enabled = profileId == null,
 
                                 onClick = { onOpenFingertipRingConfig(selectedTrigger) },
 

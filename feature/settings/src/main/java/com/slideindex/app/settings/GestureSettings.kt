@@ -76,6 +76,10 @@ data class GestureSettings(
     val excludedAppScopes: Map<String, ExcludedAppScopes> = emptyMap(),
     val excludedAppDefaultScopes: ExcludedAppScopes = ExcludedAppScopes.ALL,
     val gestureRules: List<GestureRule> = emptyList(),
+    /** 侧滑手势「按应用分档」总开关，见 [AppSettings.independentAppGestureEnabled]。 */
+    val independentAppGestureEnabled: Boolean = false,
+    /** 包名 → 各档位（每档一整片触钮集合快照），见 [AppSettings.gestureProfiles]。 */
+    val gestureProfiles: List<GestureProfile> = emptyList(),
     val quickLauncherPanels: List<QuickLauncherPanel> = emptyList(),
     val quickLauncherDisplay: QuickLauncherDisplaySettings = QuickLauncherDisplaySettings(),
     val honeycombLauncher: List<QuickLauncherItem> = emptyList(),
@@ -165,6 +169,8 @@ data class GestureSettings(
             excludedAppScopes = settings.excludedAppScopes,
             excludedAppDefaultScopes = settings.excludedAppDefaultScopes,
             gestureRules = settings.gestureRules,
+            independentAppGestureEnabled = settings.independentAppGestureEnabled,
+            gestureProfiles = settings.gestureProfiles,
             quickLauncherPanels = settings.quickLauncherPanels,
             quickLauncherDisplay = settings.quickLauncherDisplay,
             honeycombLauncher = settings.honeycombLauncher,

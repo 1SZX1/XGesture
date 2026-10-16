@@ -3,6 +3,9 @@ package com.slideindex.app.ui
 import android.content.res.Configuration
 import androidx.activity.compose.LocalActivity
 import top.yukonga.miuix.kmp.basic.SmallTitle
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.IconButton
@@ -14,6 +17,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,13 +61,17 @@ import com.slideindex.app.overlay.PanelSide
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.actionFor
 import com.slideindex.app.settings.allTriggerHandles
+import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.miuix.miuixGroupedCardItem
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import com.slideindex.app.settings.gestureConfigSide
 import com.slideindex.app.settings.triggerCollectionEntries
 import com.slideindex.app.ui.settings.components.LazySettingsItem
+import com.slideindex.app.ui.settings.components.SettingNavigationRow
 import com.slideindex.app.ui.settings.components.SettingsCardScope
 import com.slideindex.app.ui.settings.components.settingsCardItems
+import com.slideindex.app.ui.settings.components.settingsCardScopeItem
+import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
 import com.slideindex.app.ui.settings.components.SwitchNavigationTrailingContent
 import kotlinx.coroutines.delay
 
@@ -74,11 +82,21 @@ private const val TRIGGER_ACTION_EXIT_MS = 180
 
 private data class PendingSideRemove(val side: PanelSide, val handleId: String)
 
+private data class PendingGroupRestore(val side: PanelSide, val handleId: String, val landscape: Boolean)
+
+/**
+ * 触钮集合页。
+ *
+ * [profileScope] 为 null = 全局（现有调用点一行不用改）；非 null = 「按应用分档」里某个档的
+ * **同构整页**（issue #26 v2）：档名当标题、页面顶部多出「绑定的应用 / 恢复为全局」，
+ * 每个触钮组行尾标「已覆盖 / 跟随全局」并可就地恢复该组，其余内容与全局完全一致。
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TriggerCollectionScreen(
     settings: AppSettings,
     serviceEnabled: Boolean,
+    profileScope: GestureProfileScopeUi? = null,
     initialManualLandscapeOverride: Boolean? = null,
     onEnsureLandscapeInitialized: () -> Unit = {},
     onCopyPortraitToLandscape: () -> Unit = {},
@@ -140,6 +158,8 @@ fun TriggerCollectionScreen(
     val displaySettings = if (landscapeMode) settings.forLandscapeEditing() else settings
     var sideExpanded by rememberSaveable { mutableStateOf(true) }
     var pendingRemove by remember { mutableStateOf<PendingSideRemove?>(null) }
+    var pendingGroupRestore by remember { mutableStateOf<PendingGroupRestore?>(null) }
+    var showRestoreProfileConfirm by remember { mutableStateOf(false) }
     var showCopyPortraitConfirm by remember { mutableStateOf(false) }
     val entries = displaySettings.triggerCollectionEntries()
     val bottomHandles = displaySettings.allTriggerHandles(PanelSide.BOTTOM)
@@ -155,12 +175,23 @@ fun TriggerCollectionScreen(
     val collectionDesc = stringResource(
         if (landscapeMode) R.string.trigger_collection_landscape_desc else R.string.trigger_collection_desc,
     )
-    val pageHint = "$collectionDesc\n$longPressRemoveHint"
+    // 档内页顶部醒目写明「这是独立副本」：不是"部分覆盖"，而是整档一份、不跟随全局。
+    val pageHint = listOfNotNull(
+        profileScope?.let { stringResource(R.string.gesture_app_profiles_not_following_global) },
+        collectionDesc,
+        longPressRemoveHint,
+    ).joinToString("\n")
+
+    val screenTitle = profileScope?.let {
+        stringResource(R.string.gesture_app_profiles_detail_title, it.profileName)
+    } ?: stringResource(
+        if (landscapeMode) R.string.trigger_collection_landscape_title else R.string.trigger_collection_title,
+    )
+    // ⚠️ DSL 里的 `settingsLazySmallTitle` 不是 @Composable，文案要在组合期先取好。
+    val profileBoundAppsTitle = stringResource(R.string.gesture_app_profiles_configured)
 
     SettingsScreenScaffold(
-        title = stringResource(
-            if (landscapeMode) R.string.trigger_collection_landscape_title else R.string.trigger_collection_title,
-        ),
+        title = screenTitle,
         pageHint = pageHint,
         onBack = onBack,
         actions = {
@@ -192,6 +223,52 @@ fun TriggerCollectionScreen(
             }
         },
     ) {
+        if (profileScope != null) {
+            settingsLazySmallTitle(
+                key = "profile-bound-apps-section",
+                title = profileBoundAppsTitle,
+            )
+            when {
+                profileScope.boundAppEntries.isEmpty() -> {
+                    managedAppListEmpty(key = "profile-bound-apps-empty") {
+                        stringResource(R.string.gesture_app_profiles_empty)
+                    }
+                }
+                else -> {
+                    managedAppPackageRows(
+                        keyPrefix = "profile-bound-apps",
+                        entries = profileScope.boundAppEntries,
+                        actionIcon = Icons.Default.Close,
+                        actionDescription = { stringResource(R.string.gesture_app_profiles_remove) },
+                        missingIcon = Icons.Default.Block,
+                        onAction = { entry -> profileScope.onUnbindApp(entry.packageName) },
+                    )
+                }
+            }
+            managedAppListAddRow(
+                key = "profile-bound-apps-add",
+                title = { stringResource(R.string.gesture_app_profiles_add) },
+                onClick = profileScope.onOpenBindApp,
+            )
+            groupedCardItems(
+                keyPrefix = "profile-restore-from-global",
+                items = listOf(
+                    settingsCardScopeItem("profile-restore-from-global-row") {
+                        SettingNavigationRow(
+                            icon = { label ->
+                                Icon(Icons.Default.Restore, contentDescription = label)
+                            },
+                            title = stringResource(R.string.gesture_app_profiles_restore_from_global),
+                            subtitle = stringResource(
+                                R.string.gesture_app_profiles_restore_from_global_desc,
+                            ),
+                            onClick = { showRestoreProfileConfirm = true },
+                        )
+                    },
+                ),
+            )
+        }
+
         LazySettingsItem(key = "trigger-side-section") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TriggerEntryList(
@@ -200,6 +277,11 @@ fun TriggerCollectionScreen(
                     settings = displaySettings,
                     serviceEnabled = serviceEnabled,
                     sideExpanded = sideExpanded,
+                    profileScope = profileScope,
+                    landscape = landscapeMode,
+                    onRequestRestoreGroup = { side, handleId ->
+                        pendingGroupRestore = PendingGroupRestore(side, handleId, landscapeMode)
+                    },
                     onToggleExpanded = { sideExpanded = !sideExpanded },
                     onOpenLeftTrigger = openLeftTrigger,
                     onOpenRightTrigger = openRightTrigger,
@@ -251,6 +333,16 @@ fun TriggerCollectionScreen(
                         handle = handle,
                         settings = displaySettings,
                         serviceEnabled = serviceEnabled,
+                        overrideBadge = profileOverrideBadge(
+                            scope = profileScope,
+                            side = PanelSide.BOTTOM,
+                            handleId = handle.id,
+                            landscape = landscapeMode,
+                            onRequestRestore = {
+                                pendingGroupRestore =
+                                    PendingGroupRestore(PanelSide.BOTTOM, handle.id, landscapeMode)
+                            },
+                        ),
                         onOpenTrigger = openBottomTrigger,
                         onRequestRemove = {
                             pendingRemove = PendingSideRemove(PanelSide.BOTTOM, handle.id)
@@ -285,6 +377,16 @@ fun TriggerCollectionScreen(
                         handle = handle,
                         settings = displaySettings,
                         serviceEnabled = serviceEnabled,
+                        overrideBadge = profileOverrideBadge(
+                            scope = profileScope,
+                            side = PanelSide.TOP,
+                            handleId = handle.id,
+                            landscape = landscapeMode,
+                            onRequestRestore = {
+                                pendingGroupRestore =
+                                    PendingGroupRestore(PanelSide.TOP, handle.id, landscapeMode)
+                            },
+                        ),
                         onOpenTrigger = openTopTrigger,
                         onRequestRemove = {
                             pendingRemove = PendingSideRemove(PanelSide.TOP, handle.id)
@@ -345,6 +447,74 @@ fun TriggerCollectionScreen(
             showCopyPortraitConfirm = false
         },
     )
+
+    val restoreTarget = pendingGroupRestore
+    MiuixConfirmDialog(
+        show = restoreTarget != null,
+        onDismissRequest = { pendingGroupRestore = null },
+        title = stringResource(R.string.gesture_app_profiles_restore_group_confirm_title),
+        message = stringResource(R.string.gesture_app_profiles_restore_group_confirm_message),
+        onConfirm = {
+            restoreTarget?.let { target ->
+                profileScope?.onRestoreGroupFromGlobal(target.side, target.handleId, target.landscape)
+            }
+        },
+    )
+
+    MiuixConfirmDialog(
+        show = showRestoreProfileConfirm,
+        onDismissRequest = { showRestoreProfileConfirm = false },
+        title = stringResource(R.string.gesture_app_profiles_restore_confirm_title),
+        message = stringResource(R.string.gesture_app_profiles_restore_confirm_message),
+        onConfirm = { profileScope?.onRestoreFromGlobal() },
+    )
+}
+
+/**
+ * 档内每个触钮组行尾的「已覆盖 / 跟随全局」。
+ *
+ * 已覆盖时它同时就是「该触钮组恢复为全局」的入口（点一下先确认，再把全局那一组写回本档）。
+ * 全局作用域（[scope] == null）返回 null，行尾什么都不加。
+ */
+@Composable
+private fun profileOverrideBadge(
+    scope: GestureProfileScopeUi?,
+    side: PanelSide,
+    handleId: String,
+    landscape: Boolean,
+    onRequestRestore: () -> Unit,
+): (@Composable () -> Unit)? {
+    if (scope == null) return null
+    return { TriggerProfileOverrideBadge(scope, side, handleId, landscape, onRequestRestore) }
+}
+
+@Composable
+private fun TriggerProfileOverrideBadge(
+    scope: GestureProfileScopeUi,
+    side: PanelSide,
+    handleId: String,
+    landscape: Boolean,
+    onRequestRestore: () -> Unit,
+) {
+    val overridden = scope.groupOverridden(side, handleId, landscape)
+    val label = if (overridden) {
+        stringResource(R.string.gesture_app_profiles_slot_overridden) + " · " +
+            stringResource(R.string.gesture_app_profiles_restore_group)
+    } else {
+        stringResource(R.string.gesture_app_profiles_slot_follow_global)
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
+        color = if (overridden) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = Modifier
+            .then(if (overridden) Modifier.clickable(onClick = onRequestRestore) else Modifier)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -358,6 +528,7 @@ private fun rememberTriggerEdgeHandleCard(
     onRequestRemove: () -> Unit,
     onTriggerHandleEnabledChange: (Boolean) -> Unit,
     allowRemoveDefault: Boolean = true,
+    overrideBadge: (@Composable () -> Unit)? = null,
 ) = settingsCardItems(handle.id, handle.enabled, settings) {
     TriggerEdgeHandleRow(
         side = side,
@@ -368,6 +539,7 @@ private fun rememberTriggerEdgeHandleCard(
         onRequestRemove = onRequestRemove,
         onTriggerHandleEnabledChange = onTriggerHandleEnabledChange,
         allowRemoveDefault = allowRemoveDefault,
+        overrideBadge = overrideBadge,
     )
 }
 
@@ -382,6 +554,7 @@ private fun SettingsCardScope.TriggerEdgeHandleRow(
     onRequestRemove: () -> Unit,
     onTriggerHandleEnabledChange: (Boolean) -> Unit,
     allowRemoveDefault: Boolean = true,
+    overrideBadge: (@Composable () -> Unit)? = null,
 ) {
     SettingSwitchNavigationRow(
         title = triggerCollectionHandleTitle(side, handle.id),
@@ -395,6 +568,7 @@ private fun SettingsCardScope.TriggerEdgeHandleRow(
         } else {
             null
         },
+        subtitleContent = overrideBadge,
     )
 }
 
@@ -406,6 +580,9 @@ private fun TriggerEntryList(
     settings: AppSettings,
     serviceEnabled: Boolean,
     sideExpanded: Boolean,
+    profileScope: GestureProfileScopeUi?,
+    landscape: Boolean,
+    onRequestRestoreGroup: (PanelSide, String) -> Unit,
     onToggleExpanded: () -> Unit,
     onOpenLeftTrigger: (handleId: String) -> Unit,
     onOpenRightTrigger: (handleId: String) -> Unit,
@@ -513,6 +690,15 @@ private fun TriggerEntryList(
                                 ),
                                 handleEnabled = left.enabled,
                                 enabled = serviceEnabled,
+                                overrideBadge = profileOverrideBadge(
+                                    scope = profileScope,
+                                    side = PanelSide.LEFT,
+                                    handleId = handleId,
+                                    landscape = landscape,
+                                    onRequestRestore = {
+                                        onRequestRestoreGroup(PanelSide.LEFT, handleId)
+                                    },
+                                ),
                                 onClick = { onOpenLeftTrigger(handleId) },
                                 onLongClick = if (serviceEnabled) {
                                     { onRequestRemoveSide(PanelSide.LEFT, handleId) }
@@ -539,6 +725,15 @@ private fun TriggerEntryList(
                                 ),
                                 handleEnabled = right.enabled,
                                 enabled = serviceEnabled,
+                                overrideBadge = profileOverrideBadge(
+                                    scope = profileScope,
+                                    side = PanelSide.RIGHT,
+                                    handleId = handleId,
+                                    landscape = landscape,
+                                    onRequestRestore = {
+                                        onRequestRestoreGroup(PanelSide.RIGHT, handleId)
+                                    },
+                                ),
                                 onClick = { onOpenRightTrigger(handleId) },
                                 onLongClick = if (serviceEnabled) {
                                     { onRequestRemoveSide(PanelSide.RIGHT, handleId) }
@@ -568,6 +763,7 @@ private fun TriggerSideRow(
     summary: String,
     handleEnabled: Boolean,
     enabled: Boolean,
+    overrideBadge: (@Composable () -> Unit)?,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
     onHandleEnabledChange: (Boolean) -> Unit,
@@ -605,6 +801,7 @@ private fun TriggerSideRow(
             ) {}
         },
         endActions = {
+            overrideBadge?.invoke()
             SwitchNavigationTrailingContent(
                 checked = handleEnabled,
                 enabled = enabled,

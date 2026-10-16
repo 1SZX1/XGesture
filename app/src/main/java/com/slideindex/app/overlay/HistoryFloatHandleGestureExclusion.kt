@@ -9,16 +9,18 @@ import androidx.core.view.ViewCompat
  *
  * 为什么不复用 [OverlayPanelSystemGestureExclusion]：那个工具
  * 1. 只构造**左侧** 48dp 矩形 + 底部导航条矩形（`Rect(0, 0, backEdgePx, height)`），
- *    **没有右缘矩形** —— 而把手在屏幕右侧，正好落在系统返回手势区里；
+ *    **没有右缘矩形** —— 而把手常常贴在屏幕右侧，正好落在系统返回手势区里；
  * 2. `updateExclusionRects` 是 private，重算只在 layout change / attach 时发生，
  *    外部没有手动刷新入口；重复 `attach()` 还会叠加 `OnLayoutChangeListener`。
  *
- * 而把手窗是 `WRAP_CONTENT` + `gravity = END|TOP`，**view 本身就是把手**，
+ * 而把手窗是 `WRAP_CONTENT` + `gravity = TOP or END/START`（左右都能贴，见
+ * `HistoryFloatHandleSide`）、`x = 0`，**view 本身就是把手**，
  * 所以排除区就是 view 自己的 bounds —— 用 view 本地坐标表达，系统会按 view
- * 当前的屏幕位置换算，**窗移动（改 `params.y`）后无需重算**。
+ * 当前的屏幕位置换算，**窗移动（改 `params.y`）或换边后无需重算**。
  *
- * 代价说明白：把手所在的那一小段右缘会失去系统返回手势，**其上下方照常可用**。
- * 这是"右缘放常驻物"必然要付的代价。
+ * 代价说明白：把手所在的那一小段外缘会失去系统返回手势，**其上下方照常可用**。
+ * 这是"贴边放常驻物"必然要付的代价；触摸区收窄到"竖条真实宽度"后这块代价也小了一个量级
+ * （旧实现是 48dp 见方，现在只有 14×48dp）。
  */
 internal object HistoryFloatHandleGestureExclusion {
 

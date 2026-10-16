@@ -102,6 +102,7 @@ object FloatBallStashPanel {
     fun beginDragReveal(
         context: android.content.Context,
         initialTab: StashPanelInitialTab = StashPanelInitialTab.Stash,
+        panelSide: PanelSide? = null,
     ): Boolean {
         if (sideHost.isShowing) return false
         HistoryPanelReveal.dragSession = true
@@ -118,7 +119,8 @@ object FloatBallStashPanel {
         requestedTabOrdinal.intValue = pendingInitialTab.ordinal
         val shown = sideHost.show(
             context = context,
-            initialGravityEnd = true,
+            // 贴左缘的把手从左边拉出面板（把手侧把当前侧别传进来）。
+            initialGravityEnd = panelSide.toStashPanelGravityEnd(),
             content = ::PanelContent,
             dragReveal = { HistoryPanelReveal.dragSession },
             // 窗口跟手：进度给宿主，由它换算成窗口左边缘坐标（窗口只有 78% 宽，见 §0.16.3）。

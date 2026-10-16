@@ -37,6 +37,7 @@ class SettingsRepository @Inject constructor(
     private val edge: EdgeSettingsMutator,
     private val overlay: OverlaySettingsMutator,
     private val shake: ShakeSettingsMutator,
+    private val gestureProfiles: GestureProfileSettingsMutator,
     private val message: MessageSettingsMutator,
     private val otp: OtpSettingsMutator,
 ) {
@@ -745,8 +746,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setClipboardHistoryFloatLockPosition(lock: Boolean) =
         overlay.setClipboardHistoryFloatLockPosition(lock)
 
-    suspend fun setClipboardHistoryFloatHandleWidthDp(widthDp: Int) =
-        overlay.setClipboardHistoryFloatHandleWidthDp(widthDp)
+    suspend fun setClipboardHistoryFloatHandleSide(side: HistoryFloatHandleSide) =
+        overlay.setClipboardHistoryFloatHandleSide(side)
 
     suspend fun setClipboardHistoryFloatHandleY(y: Int, landscape: Boolean) =
         overlay.setClipboardHistoryFloatHandleY(y, landscape)
@@ -1006,6 +1007,21 @@ class SettingsRepository @Inject constructor(
     suspend fun setBackTapAction(action: GestureAction) = shake.setBackTapAction(action)
     suspend fun addShakeBlacklistedApp(packageName: String) = shake.addShakeBlacklistedApp(packageName)
     suspend fun removeShakeBlacklistedApp(packageName: String) = shake.removeShakeBlacklistedApp(packageName)
+
+    // 侧滑手势「按应用分档」（GitHub issue #26）：档 = 一整片独立的触钮集合快照。
+    suspend fun setIndependentAppGestureEnabled(enabled: Boolean) =
+        gestureProfiles.setIndependentAppGestureEnabled(enabled)
+
+    suspend fun upsertGestureProfile(profile: GestureProfile) =
+        gestureProfiles.upsertGestureProfile(profile)
+
+    suspend fun updateGestureProfile(profile: GestureProfile) =
+        gestureProfiles.updateGestureProfile(profile)
+
+    suspend fun removeGestureProfile(id: String) = gestureProfiles.removeGestureProfile(id)
+
+    suspend fun setGestureProfileSnapshot(id: String, snapshot: GestureProfileSnapshot) =
+        gestureProfiles.setGestureProfileSnapshot(id, snapshot)
 
     suspend fun setCornerGestureEnabled(enabled: Boolean) = overlay.setCornerGestureEnabled(enabled)
     suspend fun setCornerGestureLeftEnabled(enabled: Boolean) = overlay.setCornerGestureLeftEnabled(enabled)

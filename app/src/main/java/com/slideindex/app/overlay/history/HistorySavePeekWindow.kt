@@ -47,7 +47,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 存下后的内容预览 peek（设计稿 `.peek`）：「只闪一下的事件，不是常驻物」。
  *
  * - 独立小窗，必须 `FLAG_NOT_TOUCHABLE`（否则会在把手上方挡点击）；
- * - 位置贴着把手左侧（设计稿 `right:58px` = 48dp 命中区 + 10dp 间距），纵向与把手居中；
+ * - 位置贴着把手的**内侧**（设计稿 `right:58px` = 48dp 命中区 + 10dp 间距；
+ *   触摸区收窄到 [HANDLE_TOUCH_WIDTH_DP] 后按新宽度算），纵向与把手居中；
+ * - 把手可以贴左/右缘（[setGravityEnd]），peek 与滑入方向一起镜像；
  * - 1.2 秒后自己消失（设计稿 `showPeek` 里的 `setTimeout(…, 1200)`）。
  *
  * 事件源是 [HistorySaveSignal]（由 `HistoryFloatService` 订阅）。
@@ -61,10 +63,19 @@ internal class HistorySavePeekWindow(
     private var layoutParams: WindowManager.LayoutParams? = null
     private val displayText = mutableStateOf<String?>(null)
     private val visible = mutableStateOf(false)
+
+    /** true = 把手贴右缘（peek 在其左侧、从右滑入）；false = 镜像。 */
+    private val gravityEnd = mutableStateOf(true)
     private var measuredSize = IntSize.Zero
     private var anchorCenterY = 0
     private val mainHandler = Handler(Looper.getMainLooper())
     private val hideRunnable = Runnable { hide() }
+
+    /** 把手换边时调它：位置与滑入方向都跟着镜像（不做"值没变就返回"，旋屏后屏宽变了要重算）。 */
+    fun setGravityEnd(end: Boolean) {
+        gravityEnd.value = end
+        applyPosition()
+    }
 
     /** [handleCenterY] = 把手在屏幕上的纵向中心（px）。 */
     fun show(savedText: String, handleCenterY: Int) {
@@ -122,6 +133,7 @@ internal class HistorySavePeekWindow(
                     HistorySavePeekContent(
                         visibleState = visible,
                         displayTextState = displayText,
+                        gravityEndState = gravityEnd,
                         onSized = { width, height ->
                             measuredSize = IntSize(width, height)
                             applyPosition()
@@ -157,7 +169,7 @@ internal class HistorySavePeekWindow(
         return true
     }
 
-    /** 右缘锚在把手左侧（设计稿 `right:58px`），纵向与把手居中。 */
+    /** 贴把手**内侧**（设计稿 `right:58px`），纵向压在屏幕 44% 处。 */
     private fun applyPosition() {
         val params = layoutParams ?: return
         val view = composeView ?: return
@@ -167,8 +179,13 @@ internal class HistorySavePeekWindow(
         }
         val screenWidthPx = context.resources.displayMetrics.widthPixels
         val density = context.resources.displayMetrics.density
-        val rightEdge = screenWidthPx - ((HANDLE_HIT_DP + PEEK_GAP_DP) * density).toInt()
-        params.x = (rightEdge - measuredSize.width).coerceAtLeast(0)
+        // 把手的屏幕足迹 = 触摸区宽度 + 一点间距（触摸区已经收到"竖条真实宽度"）。
+        val handleFootprintPx = ((HANDLE_TOUCH_WIDTH_DP + PEEK_GAP_DP) * density).toInt()
+        params.x = if (gravityEnd.value) {
+            (screenWidthPx - handleFootprintPx - measuredSize.width).coerceAtLeast(0)
+        } else {
+            handleFootprintPx
+        }
         // 设计稿 `.peek { top: 44% }`：纵向压在屏幕 44% 处（把手线附近），不是与把手精确居中。
         val topAt44 = (context.resources.displayMetrics.heightPixels * 0.44f).toInt()
         params.y = (topAt44 - measuredSize.height / 2)
@@ -182,7 +199,6 @@ internal class HistorySavePeekWindow(
         const val PEEK_DURATION_MS = 1_200L
         const val PEEK_ANIM_MS = 220L
         const val PEEK_MAX_CHARS = 18
-        const val HANDLE_HIT_DP = 48
         const val PEEK_GAP_DP = 10
     }
 }
@@ -191,24 +207,27 @@ internal class HistorySavePeekWindow(
 private fun HistorySavePeekContent(
     visibleState: MutableState<Boolean>,
     displayTextState: MutableState<String?>,
+    gravityEndState: MutableState<Boolean>,
     onSized: (Int, Int) -> Unit,
 ) {
     val visible by visibleState
     val text by displayTextState
     val density = LocalDensity.current
     val slidePx = with(density) { 8.dp.roundToPx() }
+    // 滑入/滑出方向跟着贴边侧走：贴右缘从右边滑进来，贴左缘从左滑进来。
+    val offsetX = if (gravityEndState.value) slidePx else -slidePx
     AnimatedVisibility(
         visible = visible,
         // 注：fade 的 spec 是 Float、slide 的是 IntOffset，不能共用一个变量。
         enter = fadeIn(tween(durationMillis = 200, easing = FastOutSlowInEasing)) +
             slideInHorizontally(
                 animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-                initialOffsetX = { slidePx },
+                initialOffsetX = { offsetX },
             ),
         exit = fadeOut(tween(durationMillis = 200, easing = FastOutSlowInEasing)) +
             slideOutHorizontally(
                 animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-                targetOffsetX = { slidePx },
+                targetOffsetX = { offsetX },
             ),
         modifier = Modifier.onSizeChanged { onSized(it.width, it.height) },
     ) {

@@ -43,7 +43,7 @@ object OverlayLocaleCoordinator {
         if (!settings.clipboardHistoryFloatEnabled) return
         HistoryFloatLifecycle.recreateForLocaleChange(
             context = appContext,
-            handleWidthDp = settings.clipboardHistoryFloatHandleWidthDp,
+            side = settings.clipboardHistoryFloatHandleSide,
             lockPosition = settings.clipboardHistoryFloatLockPosition,
             landscapeEnabled = settings.clipboardHistoryFloatEnabledLandscape,
         )

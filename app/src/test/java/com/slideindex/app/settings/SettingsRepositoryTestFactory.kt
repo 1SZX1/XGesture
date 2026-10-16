@@ -45,6 +45,7 @@ internal fun testSettingsRepository(context: Context): SettingsRepository = sync
         edge = EdgeSettingsMutator(editor, context),
         overlay = OverlaySettingsMutator(editor),
         shake = ShakeSettingsMutator(editor),
+        gestureProfiles = GestureProfileSettingsMutator(editor),
         message = MessageSettingsMutator(editor),
         otp = OtpSettingsMutator(editor),
     )

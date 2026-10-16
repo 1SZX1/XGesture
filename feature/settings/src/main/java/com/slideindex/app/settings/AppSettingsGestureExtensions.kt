@@ -176,6 +176,15 @@ private fun AppSettings.persistedGestureSlotCount(side: PanelSide, handleId: Str
     }
 }
 
+/**
+ * 一个 side 上所有可配置的槽位（短滑 / 组合 / 悬停 / 点击长按 / 长滑），去重后的稳定顺序。
+ *
+ * 「按应用分档」编辑页要列出全部槽位行，用这一份而不是自己拼列表，避免两个地方各维护一套、
+ * 新增触发类型时只改一处。
+ */
+fun sideGestureSlotTriggersForConfig(): List<GestureTriggerType> =
+    sideGestureSlotTriggers().distinct()
+
 internal fun sideGestureSlotTriggers(): List<GestureTriggerType> =
     GestureTriggerType.shortDistanceEntries() +
         GestureTriggerType.compoundGestureEntries() +
@@ -344,6 +353,13 @@ fun AppSettings.shortcutGesturesConfiguredCount(): Int =
             it.trigger == GestureTriggerType.SHORT_SWIPE_IN
     }
 
+/**
+ * 该槽位最终生效的规则：同槽位自定义规则（按 priority 取最大）→ 出厂默认。
+ *
+ * ⚠️ 「按应用分档」**不在这里**判别：档是一片完整的触钮集合快照，运行时先把它贴到全局之上
+ * （`AppSettings.withActiveGestureProfile`），再走本函数 —— 于是档内动作、触发模式、触钮几何、
+ * 横屏那套全都自动生效，手势引擎一行都不用改。
+ */
 fun AppSettings.effectiveRule(
     side: PanelSide,
     trigger: GestureTriggerType,
@@ -378,6 +394,7 @@ fun AppSettings.effectiveRule(
         .firstOrNull { it.trigger == trigger && it.action.isEffective() }
 }
 
+/** 运行时/UI 通用读取：该槽位最终生效的动作。 */
 fun AppSettings.actionFor(
     side: PanelSide,
     trigger: GestureTriggerType,

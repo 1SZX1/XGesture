@@ -43,6 +43,13 @@ object GestureActionPermissionAuditor {
         }
 
         settings.gestureRules.filter { it.enabled }.forEach { add(it.action) }
+        // 侧滑手势「按应用分档」：每档是一整片独立快照，档内的规则同样要能审计到权限。
+        if (settings.independentAppGestureEnabled) {
+            settings.gestureProfiles.forEach { profile ->
+                profile.snapshot.gestureRules.filter { it.enabled }.forEach { add(it.action) }
+                profile.snapshot.gestureRulesLandscape.filter { it.enabled }.forEach { add(it.action) }
+            }
+        }
         settings.floatBallGestureActions.values.forEach(::add)
 
         val shake = settings.shakeGestureSettings

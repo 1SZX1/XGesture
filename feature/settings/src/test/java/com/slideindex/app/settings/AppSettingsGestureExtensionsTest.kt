@@ -26,8 +26,10 @@ class AppSettingsGestureExtensionsTest {
             GestureAction.Back,
             settings.slotAction(PanelSide.LEFT, GestureTriggerType.SHORT_SWIPE_IN),
         )
+        // ⚠️ 短上滑的出厂默认是 **QuickMenu**（打开/收起快捷菜单），见 `SideGestureDefaults.rulesFor`
+        // 的第 4 条；这里原来断言 `OpenIndex`（那是"长上滑"的默认），是默认值改动后遗留的过期期望。
         assertEquals(
-            GestureAction.OpenIndex,
+            GestureAction.QuickMenu,
             settings.slotAction(PanelSide.LEFT, GestureTriggerType.SHORT_SWIPE_UP),
         )
     }

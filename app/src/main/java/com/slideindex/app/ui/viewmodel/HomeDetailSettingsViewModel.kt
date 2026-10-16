@@ -32,6 +32,14 @@ import com.slideindex.app.settings.withRemovedTriggerHandle
 import com.slideindex.app.settings.withRemovedTriggerHandleLayoutOnly
 import com.slideindex.app.settings.withSlotConfigSynced
 import com.slideindex.app.settings.withTriggerAlignOppositeGestures
+import com.slideindex.app.settings.GestureProfile
+import com.slideindex.app.settings.GestureProfileSnapshot
+import com.slideindex.app.settings.extractGestureProfileSnapshot
+import com.slideindex.app.settings.gestureProfileById
+import com.slideindex.app.settings.materializeGestureProfile
+import com.slideindex.app.settings.removeGestureProfile
+import com.slideindex.app.settings.upsertGestureProfile
+import com.slideindex.app.settings.withGestureProfileSnapshotApplied
 import com.slideindex.app.settings.forLandscapeEditing
 import com.slideindex.app.settings.forLandscapeHandleEditing
 import com.slideindex.app.settings.mergeLandscapeEdits
@@ -53,6 +61,9 @@ class HomeDetailSettingsViewModel @Inject constructor(
 ) : SettingsViewModel(settingsRepository, userMessageBus, context) {
     private val triggerDesignWriteMutex = Mutex()
     private val landscapeInitMutex = Mutex()
+
+    /** 档内编辑串行化：每笔都是"读整份 → 改一处 → 整片写回"，并发会互相覆盖。 */
+    private val gestureProfileWriteMutex = Mutex()
 
     private fun landscapeEditing(): Boolean = TriggerSettingsLandscapeSession.active
 
@@ -555,5 +566,77 @@ class HomeDetailSettingsViewModel @Inject constructor(
 
     fun setAppCarouselSwitcherSettings(settings: AppCarouselSwitcherSettings) = launchSettingsWrite {
         settingsRepository.setAppCarouselSwitcherSettings(settings)
+    }
+
+    // 侧滑手势「按应用分档」（issue #26 v2）：一个档 = 一整套独立触钮集合。
+
+    fun setIndependentAppGestureEnabled(enabled: Boolean) = launchSettingsWrite {
+        settingsRepository.setIndependentAppGestureEnabled(enabled)
+    }
+
+    /** 新建 / 覆盖一个档（按 id 覆盖）。建档时调用方负责把当时的全局整片复制进 [profile]。 */
+    fun upsertGestureProfile(profile: GestureProfile) = launchOptimisticSettingsWrite(
+        optimisticUpdate = { settings -> settings.upsertGestureProfile(profile) },
+    ) {
+        settingsRepository.upsertGestureProfile(profile)
+    }
+
+    /** 改名 / 增删绑定的 App（整档替换）。 */
+    fun updateGestureProfile(profile: GestureProfile) = launchOptimisticSettingsWrite(
+        optimisticUpdate = { settings -> settings.upsertGestureProfile(profile) },
+    ) {
+        settingsRepository.updateGestureProfile(profile)
+    }
+
+    fun removeGestureProfile(id: String) = launchOptimisticSettingsWrite(
+        optimisticUpdate = { settings -> settings.removeGestureProfile(id) },
+    ) {
+        settingsRepository.removeGestureProfile(id)
+    }
+
+    fun setGestureProfileSnapshot(id: String, snapshot: GestureProfileSnapshot) = launchSettingsWrite {
+        settingsRepository.setGestureProfileSnapshot(id, snapshot)
+    }
+
+    /**
+     * **档内编辑的唯一写入口**：把 [transform]（与全局路径同一批纯函数）作用在
+     * 「全局 + 该档那一片」的副本上，再整片写回该档。
+     *
+     * 与全局方法的区别只有两处：读之前先 `materializeGestureProfile`，写的时候把整片快照交回档。
+     * 横屏编辑态（[TriggerSettingsLandscapeSession]）的口径与全局完全一致：
+     * 先把横屏字段映射到主字段、改完再 [mergeLandscapeEdits] 写回横屏字段。
+     */
+    fun editGestureProfile(
+        profileId: String,
+        optimistic: Boolean = false,
+        transform: (AppSettings) -> AppSettings,
+    ) {
+        /** 档不存在（已被删）时返回 null：调用方原样返回设置，不做任何写入。 */
+        fun nextSnapshot(settings: AppSettings): GestureProfileSnapshot? {
+            if (settings.gestureProfileById(profileId) == null) return null
+            val base = settings.materializeGestureProfile(profileId)
+            val edited = transform(landscapeWorking(base))
+            return mergeLandscapeOptimistic(base, edited).extractGestureProfileSnapshot()
+        }
+
+        val applyTo: (AppSettings) -> AppSettings = { settings ->
+            nextSnapshot(settings)?.let { settings.withGestureProfileSnapshotApplied(profileId, it) }
+                ?: settings
+        }
+        val persist: suspend () -> Result<Unit> = {
+            gestureProfileWriteMutex.withLock {
+                val snapshot = nextSnapshot(settingsRepository.settings.first())
+                if (snapshot == null) {
+                    Result.success(Unit)
+                } else {
+                    settingsRepository.setGestureProfileSnapshot(profileId, snapshot)
+                }
+            }
+        }
+        if (optimistic) {
+            launchOptimisticSettingsWrite(optimisticUpdate = applyTo, block = persist)
+        } else {
+            launchSettingsWrite(block = persist)
+        }
     }
 }

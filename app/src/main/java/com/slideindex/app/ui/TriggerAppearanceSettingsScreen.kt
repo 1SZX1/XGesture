@@ -77,7 +77,16 @@ fun TriggerAppearanceSettingsScreen(
     onShortSwipeDistancePreviewChange: (Float) -> Unit = {},
     onLongSwipeDistancePreviewChange: (Float) -> Unit = {},
     onTriggerLayoutPreviewStop: () -> Unit = {},
+    /**
+     * 非 null = 正在编辑「按应用分档」里的某个档（issue #26 v2）。
+     *
+     * 本页里 [AppSettings.interceptSystemBackGesture] / [AppSettings.limitMaxInterceptLength]
+     * 与"系统返回冲突"提示都**不在档快照里**（系统级、按全局生效，见 `GestureProfileSnapshot`
+     * 的注释），档内一律隐藏并注明「全局设置，档内不适用」，绝不能在档里改到全局。
+     */
+    profileId: String? = null,
 ) {
+    val profileScoped = profileId != null
     val pairIndex = settings.triggerCollectionEntries().indexOfFirst { it.handleId == handleId }.let {
         if (it >= 0) it + 1 else 1
     }
@@ -88,7 +97,7 @@ fun TriggerAppearanceSettingsScreen(
     val maxHandleWidth = side.maxTriggerEdgeWidthDp()
     val pairSuffix = if (pairCount > 1) " · $pairIndex" else ""
     val context = LocalContext.current
-    val showBackGestureConflict = side == PanelSide.LEFT &&
+    val showBackGestureConflict = !profileScoped && side == PanelSide.LEFT &&
         SystemBackGestureConflictHelper.hasPotentialConflict(settings, context)
 
     TriggerHandlePreviewLifecycle(
@@ -257,28 +266,54 @@ fun TriggerAppearanceSettingsScreen(
                             )
                         },
                     )
-                    add(
-                        settingsCardScopeItem("intercept-back") {
-                            SettingSwitchRow(
-                                title = stringResource(R.string.intercept_system_back),
-                                subtitle = stringResource(R.string.intercept_system_back_desc),
-                                checked = settings.interceptSystemBackGesture,
-                                enabled = serviceEnabled,
-                                onCheckedChange = onInterceptBackChange,
-                            )
-                        },
-                    )
-                    add(
-                        settingsCardScopeItem("limit-intercept-length") {
-                            SettingSwitchRow(
-                                title = stringResource(R.string.limit_intercept_length),
-                                subtitle = stringResource(R.string.limit_intercept_length_desc),
-                                checked = settings.limitMaxInterceptLength,
-                                enabled = serviceEnabled && settings.interceptSystemBackGesture,
-                                onCheckedChange = onLimitInterceptLengthChange,
-                            )
-                        },
-                    )
+                    if (profileScoped) {
+                        // 系统返回拦截是 LSPosed 输入层的事，按全局生效且不进档快照：档内只提示、不给改。
+                        add(
+                            settingsCardScopeItem("global-only-back-gesture") {
+                                SettingSwitchRow(
+                                    title = stringResource(R.string.intercept_system_back),
+                                    subtitle = stringResource(R.string.gesture_app_profiles_global_only_hint),
+                                    checked = settings.interceptSystemBackGesture,
+                                    enabled = false,
+                                    onCheckedChange = {},
+                                )
+                            },
+                        )
+                        add(
+                            settingsCardScopeItem("global-only-limit-intercept-length") {
+                                SettingSwitchRow(
+                                    title = stringResource(R.string.limit_intercept_length),
+                                    subtitle = stringResource(R.string.gesture_app_profiles_global_only_hint),
+                                    checked = settings.limitMaxInterceptLength,
+                                    enabled = false,
+                                    onCheckedChange = {},
+                                )
+                            },
+                        )
+                    } else {
+                        add(
+                            settingsCardScopeItem("intercept-back") {
+                                SettingSwitchRow(
+                                    title = stringResource(R.string.intercept_system_back),
+                                    subtitle = stringResource(R.string.intercept_system_back_desc),
+                                    checked = settings.interceptSystemBackGesture,
+                                    enabled = serviceEnabled,
+                                    onCheckedChange = onInterceptBackChange,
+                                )
+                            },
+                        )
+                        add(
+                            settingsCardScopeItem("limit-intercept-length") {
+                                SettingSwitchRow(
+                                    title = stringResource(R.string.limit_intercept_length),
+                                    subtitle = stringResource(R.string.limit_intercept_length_desc),
+                                    checked = settings.limitMaxInterceptLength,
+                                    enabled = serviceEnabled && settings.interceptSystemBackGesture,
+                                    onCheckedChange = onLimitInterceptLengthChange,
+                                )
+                            },
+                        )
+                    }
                 }
             },
         )

@@ -10,6 +10,7 @@ import com.slideindex.app.clipboard.ClipboardWriter
 import com.slideindex.app.clipboard.hasImageContent
 import com.slideindex.app.clipboard.resolvedContentBlocks
 import com.slideindex.app.overlay.FloatBallStashPanel
+import com.slideindex.app.overlay.PanelSide
 import com.slideindex.app.overlay.StashPanelInitialTab
 import com.slideindex.app.overlay.FloatBallTextPick
 import com.slideindex.app.overlay.ScreenPinManager
@@ -246,14 +247,15 @@ object StashCoordinator {
         }
     }
 
-    fun openStashPanel(context: Context) {
-        FloatBallStashPanel.show(context)
+    fun openStashPanel(context: Context, panelSide: PanelSide? = null) {
+        FloatBallStashPanel.show(context, panelSide = panelSide)
     }
 
-    fun openClipboardPanel(context: Context) {
+    fun openClipboardPanel(context: Context, panelSide: PanelSide? = null) {
         FloatBallStashPanel.show(
             context = context,
-            initialTab = StashPanelInitialTab.Clipboard
+            initialTab = StashPanelInitialTab.Clipboard,
+            panelSide = panelSide,
         )
     }
 
@@ -282,8 +284,11 @@ object StashCoordinator {
      * false 的情况：面板本来就开着、或侧栏窗没挂上（无障碍服务没开）——
      * 此时把手的手势要退回原来的"拖过阈值就打开"逻辑。
      */
-    fun beginHandleReveal(context: Context, initialTab: StashPanelInitialTab): Boolean =
-        FloatBallStashPanel.beginDragReveal(context, initialTab)
+    fun beginHandleReveal(
+        context: Context,
+        initialTab: StashPanelInitialTab,
+        panelSide: PanelSide? = null,
+    ): Boolean = FloatBallStashPanel.beginDragReveal(context, initialTab, panelSide)
 
     /** 跟手拉出：松手（[commit] = 过半就归位，否则弹回）。 */
     fun endHandleReveal(commit: Boolean) {

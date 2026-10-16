@@ -2,7 +2,7 @@ package com.slideindex.app.service
 
 import android.content.Context
 import android.content.Intent
-import com.slideindex.app.settings.HistoryFloatHandleWidth
+import com.slideindex.app.settings.HistoryFloatHandleSide
 import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.util.PermissionHelper
 import kotlinx.coroutines.flow.first
@@ -15,7 +15,7 @@ object HistoryFloatLifecycle {
         if (settings.clipboardHistoryFloatEnabled && PermissionHelper.canDrawOverlays(appContext)) {
             start(
                 context = appContext,
-                handleWidthDp = settings.clipboardHistoryFloatHandleWidthDp,
+                side = settings.clipboardHistoryFloatHandleSide,
                 lockPosition = settings.clipboardHistoryFloatLockPosition,
                 landscapeEnabled = settings.clipboardHistoryFloatEnabledLandscape
             )
@@ -26,7 +26,7 @@ object HistoryFloatLifecycle {
 
     fun start(
         context: Context,
-        handleWidthDp: Int = HistoryFloatHandleWidth.DEFAULT_DP,
+        side: HistoryFloatHandleSide = HistoryFloatHandleSide.DEFAULT,
         lockPosition: Boolean = true,
         landscapeEnabled: Boolean = false
     ) {
@@ -34,7 +34,7 @@ object HistoryFloatLifecycle {
         val appContext = context.applicationContext
         appContext.startService(
             Intent(appContext, HistoryFloatService::class.java).apply {
-                putExtra(HistoryFloatService.EXTRA_HANDLE_WIDTH_DP, HistoryFloatHandleWidth.coerce(handleWidthDp))
+                putExtra(HistoryFloatService.EXTRA_HANDLE_SIDE, side.storageKey)
                 putExtra(HistoryFloatService.EXTRA_LOCK_POSITION, lockPosition)
                 putExtra(HistoryFloatService.EXTRA_LANDSCAPE_ENABLED, landscapeEnabled)
             }
@@ -48,7 +48,7 @@ object HistoryFloatLifecycle {
     /** 应用内语言变更后重建浮窗，使 Compose 使用新 Configuration。 */
     fun recreateForLocaleChange(
         context: Context,
-        handleWidthDp: Int = HistoryFloatHandleWidth.DEFAULT_DP,
+        side: HistoryFloatHandleSide = HistoryFloatHandleSide.DEFAULT,
         lockPosition: Boolean = true,
         landscapeEnabled: Boolean = false,
     ) {
@@ -56,7 +56,7 @@ object HistoryFloatLifecycle {
         stop(appContext)
         start(
             context = appContext,
-            handleWidthDp = handleWidthDp,
+            side = side,
             lockPosition = lockPosition,
             landscapeEnabled = landscapeEnabled,
         )
@@ -64,15 +64,15 @@ object HistoryFloatLifecycle {
 
     fun applyRuntimeConfig(
         context: Context,
-        handleWidthDp: Int,
+        side: HistoryFloatHandleSide,
         lockPosition: Boolean,
         landscapeEnabled: Boolean
     ) {
         val appContext = context.applicationContext
         appContext.startService(
             Intent(appContext, HistoryFloatService::class.java).apply {
-                action = HistoryFloatService.ACTION_SET_HANDLE_WIDTH
-                putExtra(HistoryFloatService.EXTRA_HANDLE_WIDTH_DP, HistoryFloatHandleWidth.coerce(handleWidthDp))
+                action = HistoryFloatService.ACTION_SET_HANDLE_SIDE
+                putExtra(HistoryFloatService.EXTRA_HANDLE_SIDE, side.storageKey)
             }
         )
         appContext.startService(

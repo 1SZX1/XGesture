@@ -26,6 +26,7 @@ import com.slideindex.app.gesture.SlotPickerKind
 import com.slideindex.app.gesture.InwardCompoundBranch
 import com.slideindex.app.gesture.directionFamily
 import com.slideindex.app.gesture.TriggerHandleDesign
+import com.slideindex.app.gesture.TriggerRectanglePresetLogic
 import com.slideindex.app.gesture.preferredTriggerMode
 import com.slideindex.app.gesture.supportsAction
 import com.slideindex.app.launcher.QuickLauncherPanelDefaults
@@ -44,12 +45,28 @@ import com.slideindex.app.settings.defaultTriggerModeFor
 import com.slideindex.app.settings.descRes
 import com.slideindex.app.settings.displayTriggerMode
 import com.slideindex.app.settings.slotTriggerMode
-import com.slideindex.app.settings.forLandscapeEditing
 import com.slideindex.app.settings.gestureConfigSide
 import com.slideindex.app.settings.resolvedFreeWindowMode
 import com.slideindex.app.settings.resolvedLaunchPolicy
 import com.slideindex.app.settings.titleRes
 import com.slideindex.app.settings.toMinimalAppSettings
+import com.slideindex.app.settings.triggerHandle
+import com.slideindex.app.settings.withAddedBottomTriggerHandle
+import com.slideindex.app.settings.withAddedTopTriggerHandle
+import com.slideindex.app.settings.withAddedTriggerHandlePair
+import com.slideindex.app.settings.withDefaultTriggerModeSynced
+import com.slideindex.app.settings.withGestureSlotsMirroredFromSide
+import com.slideindex.app.settings.withRemovedTriggerHandle
+import com.slideindex.app.settings.withSlotConfigSynced
+import com.slideindex.app.settings.withSyncedTriggerHandle
+import com.slideindex.app.settings.withSyncedTriggerHandleDesignState
+import com.slideindex.app.settings.withTriggerAlignOppositeDesign
+import com.slideindex.app.settings.withTriggerAlignOppositeGestures
+import com.slideindex.app.settings.withTriggerAlignOppositeSide
+import com.slideindex.app.settings.withUpdatedTriggerHandle
+import com.slideindex.app.settings.withUpdatedTriggerHandleDistances
+import com.slideindex.app.settings.withUpdatedTriggerHandleEdgeWidth
+import com.slideindex.app.settings.withUpdatedTriggerHandleEnabled
 import com.slideindex.app.ui.InteractionAppearanceSettingsScreen
 import com.slideindex.app.ui.AppKeepAliveSettingsScreen
 import com.slideindex.app.ui.PrivilegeModeSettingsScreen
@@ -94,6 +111,7 @@ import com.slideindex.app.ui.requestPermissionForAdjustAction
 import com.slideindex.app.ui.settings.components.settingsCardScopeItem
 import com.slideindex.app.ui.trigger.TriggerLandscapeOrientationEffect
 import com.slideindex.app.ui.trigger.TriggerSettingsLandscapeSession
+import com.slideindex.app.ui.viewmodel.ExtensionSettingsViewModel
 import com.slideindex.app.ui.viewmodel.HomeDetailSettingsViewModel
 import com.slideindex.app.ui.viewmodel.HomeViewModel
 import com.slideindex.app.ui.viewmodel.KeepAliveSettingsViewModel
@@ -154,6 +172,8 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             onOpenPreviousAppBlacklist = { ctx.navigate(AppNavKey.HomePreviousAppBlacklist) },
             onOpenInteractionAppearanceSettings = { ctx.navigate(AppNavKey.HomeInteractionAppearance) },
             onOpenTriggerCollection = { ctx.navigate(AppNavKey.HomeTriggerCollection) },
+            onOpenGestureAppProfiles = { ctx.navigate(AppNavKey.HomeGestureAppProfiles) },
+            gestureAppProfileCount = appSettings.gestureProfiles.size,
             onOpenCornerWheel = { ctx.navigate(AppNavKey.HomeCornerGesture) },
             onOpenGestureAngle = { ctx.navigate(AppNavKey.HomeGestureAngle) },
             onOpenSystemBackGestureWidth = { ctx.navigate(AppNavKey.HomeSystemBackGestureWidth) },
@@ -391,6 +411,8 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
         HomeTriggerCollectionRoute(ctx, initialManualLandscapeOverride = true)
     }
 
+    gestureAppProfileNavEntries(ctx)
+
     hiltEntry<AppNavKey.HomeCornerGesture> {
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
         val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
@@ -586,14 +608,10 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestures> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
-        val collectionBackKey = AppNavKey.HomeTriggerCollection
         SideGestureSettingsScreen(
             side = side,
             handleId = key.handleId,
@@ -601,7 +619,7 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             serviceEnabled = true,
             onBack = {
                 ctx.stopTriggerPreview()
-                ctx.navigateBackTo(collectionBackKey)
+                ctx.navigateBackTo(triggerScope.collectionKey)
             },
             onPreviewStart = {
                 ctx.startFocusedTriggerPreview(side, key.handleId)
@@ -610,13 +628,19 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                 ctx.releaseFocusedTriggerPreview()
             },
             onOpenAppearanceSettings = {
-                ctx.navigate(AppNavKey.HomeSideGesturesAppearance(key.side, key.handleId))
+                ctx.navigate(
+                    AppNavKey.HomeSideGesturesAppearance(key.side, key.handleId, key.profileId),
+                )
             },
             onOpenDesignSettings = {
-                ctx.navigate(AppNavKey.HomeSideGesturesDesign(key.side, key.handleId))
+                ctx.navigate(
+                    AppNavKey.HomeSideGesturesDesign(key.side, key.handleId, key.profileId),
+                )
             },
             onOpenDefaultModePick = {
-                ctx.navigate(AppNavKey.HomeSideGesturesDefaultMode(key.side, key.handleId))
+                ctx.navigate(
+                    AppNavKey.HomeSideGesturesDefaultMode(key.side, key.handleId, key.profileId),
+                )
             },
             onOpenSlotConfig = { trigger ->
                 ctx.navigate(
@@ -624,69 +648,107 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                         side = key.side,
                         handleId = key.handleId,
                         triggerId = trigger.id,
+                        profileId = key.profileId,
                     ),
                 )
             },
             onAlignOppositeGesturesChange = { enabled, mirrorSourceSide ->
                 if (enabled && mirrorSourceSide != null) {
-                    viewModel.setTriggerAlignOppositeGestures(key.handleId, mirrorSourceSide, true)
+                    triggerScope.mutate(
+                        optimistic = true,
+                        global = {
+                            viewModel.setTriggerAlignOppositeGestures(
+                                key.handleId,
+                                mirrorSourceSide,
+                                true,
+                            )
+                        },
+                    ) { working ->
+                        var updated = working.withTriggerAlignOppositeGestures(key.handleId, true)
+                        if (mirrorSourceSide.isHorizontalEdge) {
+                            // 镜像本身已包含"把该侧默认触发模式同步过去"，与 EdgeSettingsMutator 一致。
+                            updated = updated.withGestureSlotsMirroredFromSide(
+                                mirrorSourceSide,
+                                key.handleId,
+                            )
+                        }
+                        updated
+                    }
                 } else if (!enabled) {
-                    viewModel.setTriggerAlignOppositeGestures(key.handleId, side, false)
+                    triggerScope.mutate(
+                        optimistic = true,
+                        global = {
+                            viewModel.setTriggerAlignOppositeGestures(key.handleId, side, false)
+                        },
+                    ) { it.withTriggerAlignOppositeGestures(key.handleId, false) }
                 }
             },
-            onSwipeHoverDurationChange = viewModel::setSwipeHoverDurationMs,
+            onSwipeHoverDurationChange = { value ->
+                triggerScope.mutate(
+                    global = { viewModel.setSwipeHoverDurationMs(value) },
+                ) { it.withSwipeHoverDurationMs(value) }
+            },
         )
     }
 
     hiltEntry<AppNavKey.HomeSideGesturesDefaultMode> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
+        val gesturesKey = AppNavKey.HomeSideGestures(key.side, key.handleId, key.profileId)
         SideGestureTriggerModePickerScreen(
             title = ctx.activity.getString(com.slideindex.app.R.string.default_trigger_mode),
             current = settings.defaultTriggerModeFor(configSide),
             action = GestureAction.None,
             trigger = GestureTriggerType.SHORT_SWIPE_IN,
             includeDefaultOption = false,
-            onBack = { ctx.navigateBackTo(AppNavKey.HomeSideGestures(key.side, key.handleId)) },
+            onBack = { ctx.navigateBackTo(gesturesKey) },
             onSelect = { mode ->
-                viewModel.setDefaultTriggerMode(side, mode, key.handleId)
-                ctx.navigateBackTo(AppNavKey.HomeSideGestures(key.side, key.handleId))
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = { viewModel.setDefaultTriggerMode(side, mode, key.handleId) },
+                ) { it.withDefaultTriggerModeSynced(side, mode, key.handleId) }
+                ctx.navigateBackTo(gesturesKey)
             },
         )
     }
 
     hiltEntry<AppNavKey.HomeSideGestureSlotConfig> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
-        val gesturesKey = AppNavKey.HomeSideGestures(key.side, key.handleId)
+        val gesturesKey = AppNavKey.HomeSideGestures(key.side, key.handleId, key.profileId)
         SideGestureSlotConfigScreen(
             side = side,
             handleId = key.handleId,
             trigger = trigger,
             settings = settings,
+            profileId = key.profileId,
             onBack = { ctx.navigateBackTo(gesturesKey) },
             onOpenActionPick = { tierTrigger ->
                 ctx.navigate(
-                    AppNavKey.HomeSideGestureSlotActionPick(key.side, key.handleId, tierTrigger.id),
+                    AppNavKey.HomeSideGestureSlotActionPick(
+                        key.side,
+                        key.handleId,
+                        tierTrigger.id,
+                        key.profileId,
+                    ),
                 )
             },
             onOpenModePick = { tierTrigger ->
                 ctx.navigate(
-                    AppNavKey.HomeSideGestureSlotModePick(key.side, key.handleId, tierTrigger.id),
+                    AppNavKey.HomeSideGestureSlotModePick(
+                        key.side,
+                        key.handleId,
+                        tierTrigger.id,
+                        key.profileId,
+                    ),
                 )
             },
             onOpenShellCommand = { tierTrigger, command ->
@@ -696,6 +758,7 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                         handleId = key.handleId,
                         triggerId = tierTrigger.id,
                         initialCommand = command,
+                        profileId = key.profileId,
                     ),
                 )
             },
@@ -706,6 +769,7 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                         handleId = key.handleId,
                         triggerId = tierTrigger.id,
                         panelId = panelId,
+                        profileId = key.profileId,
                     ),
                 )
             },
@@ -715,10 +779,15 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                         side = key.side,
                         handleId = key.handleId,
                         triggerId = tierTrigger.id,
+                        profileId = key.profileId,
                     ),
                 )
             },
-            onTriggerDoubleTapIntervalChange = viewModel::setTriggerDoubleTapIntervalMs,
+            onTriggerDoubleTapIntervalChange = { value ->
+                triggerScope.mutate(
+                    global = { viewModel.setTriggerDoubleTapIntervalMs(value) },
+                ) { it.withTriggerDoubleTapIntervalMs(value) }
+            },
             appCarouselSettings = settings.appCarouselSwitcher,
             onAppCarouselSettingsChange = viewModel::setAppCarouselSwitcherSettings,
         )
@@ -726,34 +795,45 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotQuickLauncherPanel> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
-        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(key.side, key.handleId, key.triggerId)
+        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         QuickLauncherPanelPickScreen(
             settings = settings,
             currentPanelId = key.panelId,
             onBack = { ctx.navigateBackTo(slotConfigKey) },
             onSelect = { panel ->
-                viewModel.setSlotConfig(
-                    side,
-                    trigger,
-                    GestureAction.QuickLauncher(panel.id),
-                    settings.slotTriggerMode(configSide, trigger, key.handleId),
-                    key.handleId,
-                )
+                val action = GestureAction.QuickLauncher(panel.id)
+                val mode = settings.slotTriggerMode(configSide, trigger, key.handleId)
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = { viewModel.setSlotConfig(side, trigger, action, mode, key.handleId) },
+                ) { it.withSlotConfigSynced(side, trigger, action, mode, key.handleId) }
                 ctx.navigateBackTo(slotConfigKey)
             },
         )
     }
 
+    /*
+     * 指环的槽位动作（`fingertipRingSlotActions` / 半径 / 图标尺寸 / 槽位数）**不在档快照里**：
+     * 它们是全局设置。所以档内那四页一律不可达——槽位配置页里对应的入口在档内被置灰并注明
+     * 「全局设置，档内不适用」（见 `SideGestureSlotConfigScreen`）；这里再兜一道，万一被走到
+     * 就直接退回触钮集合页，绝不在档内改到全局。
+     */
     hiltEntry<AppNavKey.HomeSideGestureFingertipRing> { key ->
+        if (key.profileId != null) {
+            GestureProfileGlobalOnlyRedirect(ctx, key.profileId)
+            return@hiltEntry
+        }
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
         val appSettings by viewModel.settings.collectAsStateWithLifecycle()
         FingertipRingSettingsScreen(
@@ -801,6 +881,10 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
     }
 
     hiltEntry<AppNavKey.HomeSideGestureFingertipRingSlotActionPick> { key ->
+        if (key.profileId != null) {
+            GestureProfileGlobalOnlyRedirect(ctx, key.profileId)
+            return@hiltEntry
+        }
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
         val appSettings by viewModel.settings.collectAsStateWithLifecycle()
         val returnKey = AppNavKey.HomeSideGestureFingertipRing(key.side, key.handleId, key.triggerId)
@@ -836,6 +920,10 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
     }
 
     hiltEntry<AppNavKey.HomeSideGestureFingertipRingShellCommand> { key ->
+        if (key.profileId != null) {
+            GestureProfileGlobalOnlyRedirect(ctx, key.profileId)
+            return@hiltEntry
+        }
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
         val appSettings by viewModel.settings.collectAsStateWithLifecycle()
         val returnKey = AppNavKey.HomeSideGestureFingertipRing(key.side, key.handleId, key.triggerId)
@@ -851,6 +939,10 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
     }
 
     hiltEntry<AppNavKey.HomeSideGestureFingertipRingSwipeConfig> { key ->
+        if (key.profileId != null) {
+            GestureProfileGlobalOnlyRedirect(ctx, key.profileId)
+            return@hiltEntry
+        }
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
         val appSettings by viewModel.settings.collectAsStateWithLifecycle()
         val returnKey = AppNavKey.HomeSideGestureFingertipRing(key.side, key.handleId, key.triggerId)
@@ -874,17 +966,19 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotActionPick> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val context = LocalContext.current
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
-        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(key.side, key.handleId, key.triggerId)
+        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         val currentAction = settings.slotAction(configSide, trigger, key.handleId)
         val storedMode = settings.slotTriggerMode(configSide, trigger, key.handleId)
         val resolvedMode = settings.displayTriggerMode(configSide, trigger, key.handleId)
@@ -909,13 +1003,40 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                 } else {
                     storedMode
                 }
-                viewModel.setSlotConfig(side, trigger, resolved, mode, key.handleId)
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = { viewModel.setSlotConfig(side, trigger, resolved, mode, key.handleId) },
+                ) { it.withSlotConfigSynced(side, trigger, resolved, mode, key.handleId) }
                 ctx.navigateBackTo(slotConfigKey)
             },
-            onOpenMyShortcuts = { ctx.navigate(AppNavKey.HomeSideGestureSlotMyShortcuts(key.side, key.handleId, key.triggerId)) },
-            onOpenPresetShortcuts = { ctx.navigate(AppNavKey.HomeSideGestureSlotPresetShortcuts(key.side, key.handleId, key.triggerId)) },
-            onOpenPickApp = { ctx.navigate(AppNavKey.HomeSideGestureSlotPickApp(key.side, key.handleId, key.triggerId)) },
-            onOpenExecuteShellCommand = { cmd -> ctx.navigate(AppNavKey.HomeSideGestureSlotShellCommand(key.side, key.handleId, key.triggerId, cmd)) },
+            onOpenMyShortcuts = {
+                ctx.navigate(
+                    AppNavKey.HomeSideGestureSlotMyShortcuts(
+                        key.side, key.handleId, key.triggerId, key.profileId,
+                    ),
+                )
+            },
+            onOpenPresetShortcuts = {
+                ctx.navigate(
+                    AppNavKey.HomeSideGestureSlotPresetShortcuts(
+                        key.side, key.handleId, key.triggerId, key.profileId,
+                    ),
+                )
+            },
+            onOpenPickApp = {
+                ctx.navigate(
+                    AppNavKey.HomeSideGestureSlotPickApp(
+                        key.side, key.handleId, key.triggerId, key.profileId,
+                    ),
+                )
+            },
+            onOpenExecuteShellCommand = { cmd ->
+                ctx.navigate(
+                    AppNavKey.HomeSideGestureSlotShellCommand(
+                        key.side, key.handleId, key.triggerId, cmd, key.profileId,
+                    ),
+                )
+            },
             onOpenSimulateKeyEvent = { keyEvent ->
                 ctx.navigate(
                     AppNavKey.HomeSideGestureSlotSimulateKeyEvent(
@@ -925,6 +1046,7 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                         keyEvent.keyCode,
                         keyEvent.keyName,
                         keyEvent.isLongPress,
+                        key.profileId,
                     ),
                 )
             },
@@ -933,24 +1055,37 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotMyShortcuts> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
         val currentAction = settings.slotAction(configSide, trigger, key.handleId)
         val storedMode = settings.slotTriggerMode(configSide, trigger, key.handleId)
         val resolvedMode = settings.displayTriggerMode(configSide, trigger, key.handleId)
-        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(key.side, key.handleId, key.triggerId)
-        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(key.side, key.handleId, key.triggerId)
+        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
+        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         MyShortcutsFolderScreen(
             activityShortcuts = settings.activityShortcuts,
             onBack = { ctx.navigateBackTo(returnKey) },
-            onBrowseNewShortcut = { ctx.navigate(AppNavKey.HomeSideGestureSlotPickApp(key.side, key.handleId, key.triggerId)) },
+            onBrowseNewShortcut = {
+                ctx.navigate(
+                    AppNavKey.HomeSideGestureSlotPickApp(
+                        key.side, key.handleId, key.triggerId, key.profileId,
+                    ),
+                )
+            },
             currentAction = currentAction,
             onSelectRadio = { action ->
                 val mode = if (!resolvedMode.supportsAction(action, trigger)) {
@@ -958,7 +1093,10 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                 } else {
                     storedMode
                 }
-                viewModel.setSlotConfig(side, trigger, action, mode, key.handleId)
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = { viewModel.setSlotConfig(side, trigger, action, mode, key.handleId) },
+                ) { it.withSlotConfigSynced(side, trigger, action, mode, key.handleId) }
                 ctx.navigateBackTo(slotConfigKey)
             },
         )
@@ -966,20 +1104,27 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotPresetShortcuts> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
         val currentAction = settings.slotAction(configSide, trigger, key.handleId)
         val storedMode = settings.slotTriggerMode(configSide, trigger, key.handleId)
         val resolvedMode = settings.displayTriggerMode(configSide, trigger, key.handleId)
-        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(key.side, key.handleId, key.triggerId)
-        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(key.side, key.handleId, key.triggerId)
+        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
+        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         PresetShortcutsFolderScreen(
             onBack = { ctx.navigateBackTo(returnKey) },
             currentAction = currentAction,
@@ -989,14 +1134,22 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                 } else {
                     storedMode
                 }
-                viewModel.setSlotConfig(side, trigger, action, mode, key.handleId)
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = { viewModel.setSlotConfig(side, trigger, action, mode, key.handleId) },
+                ) { it.withSlotConfigSynced(side, trigger, action, mode, key.handleId) }
                 ctx.navigateBackTo(slotConfigKey)
             },
         )
     }
 
     hiltEntry<AppNavKey.HomeSideGestureSlotPickApp> { key ->
-        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(key.side, key.handleId, key.triggerId)
+        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         ActivityShortcutPickAppScreen(
             onBack = { ctx.navigateBackTo(returnKey) },
             onSelectApp = { app ->
@@ -1006,6 +1159,7 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                         handleId = key.handleId,
                         triggerId = key.triggerId,
                         packageName = app.packageName,
+                        profileId = key.profileId,
                     ),
                 )
             },
@@ -1014,17 +1168,19 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotPickActivity> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
         val storedMode = settings.slotTriggerMode(configSide, trigger, key.handleId)
         val resolvedMode = settings.displayTriggerMode(configSide, trigger, key.handleId)
-        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(key.side, key.handleId, key.triggerId)
+        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         ActivityShortcutPickActivityScreen(
             packageName = key.packageName,
             onBack = { ctx.backStack.removeLastOrNull() },
@@ -1038,7 +1194,10 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                 } else {
                     storedMode
                 }
-                viewModel.setSlotConfig(side, trigger, action, mode, key.handleId)
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = { viewModel.setSlotConfig(side, trigger, action, mode, key.handleId) },
+                ) { it.withSlotConfigSynced(side, trigger, action, mode, key.handleId) }
                 ctx.navigateBackTo(slotConfigKey)
             },
         )
@@ -1046,16 +1205,18 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotModePick> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
-        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(key.side, key.handleId, key.triggerId)
+        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         val currentAction = settings.slotAction(configSide, trigger, key.handleId)
         SideGestureTriggerModePickerScreen(
             title = ctx.activity.getString(com.slideindex.app.R.string.slot_pick_trigger_mode),
@@ -1066,13 +1227,14 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             includeDefaultOption = true,
             onBack = { ctx.navigateBackTo(slotConfigKey) },
             onSelect = { mode ->
-                viewModel.setSlotConfig(
-                    side,
-                    trigger,
-                    currentAction,
-                    mode,
-                    key.handleId,
-                )
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = {
+                        viewModel.setSlotConfig(side, trigger, currentAction, mode, key.handleId)
+                    },
+                ) {
+                    it.withSlotConfigSynced(side, trigger, currentAction, mode, key.handleId)
+                }
                 ctx.navigateBackTo(slotConfigKey)
             },
         )
@@ -1080,29 +1242,29 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotShellCommand> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
-        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(key.side, key.handleId, key.triggerId)
+        val slotConfigKey = AppNavKey.HomeSideGestureSlotConfig(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         val storedMode = settings.slotTriggerMode(configSide, trigger, key.handleId)
         GestureExecuteShellCommandScreen(
             initialCommand = key.initialCommand,
             shellCommands = settings.shellCommands,
             onBack = { ctx.backStack.removeLastOrNull() },
             onConfirm = { command ->
-                viewModel.setSlotConfig(
-                    side,
-                    trigger,
-                    GestureAction.ExecuteShellCommand(command),
-                    storedMode,
-                    key.handleId,
-                )
+                val action = GestureAction.ExecuteShellCommand(command)
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = { viewModel.setSlotConfig(side, trigger, action, storedMode, key.handleId) },
+                ) { it.withSlotConfigSynced(side, trigger, action, storedMode, key.handleId) }
                 ctx.navigateBackTo(slotConfigKey)
             },
         )
@@ -1110,16 +1272,18 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGestureSlotSimulateKeyEvent> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
         val configSide = settings.gestureConfigSide(side, key.handleId)
         val trigger = GestureTriggerType.fromId(key.triggerId) ?: GestureTriggerType.SHORT_SWIPE_IN
-        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(key.side, key.handleId, key.triggerId)
+        val returnKey = AppNavKey.HomeSideGestureSlotActionPick(
+            key.side,
+            key.handleId,
+            key.triggerId,
+            key.profileId,
+        )
         val storedMode = settings.slotTriggerMode(configSide, trigger, key.handleId)
         GestureSimulateKeyEventScreen(
             initialAction = GestureAction.SimulateKeyEvent(
@@ -1129,13 +1293,14 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             ),
             onBack = { ctx.backStack.removeLastOrNull() },
             onConfirm = { keyEventAction ->
-                viewModel.setSlotConfig(
-                    side,
-                    trigger,
-                    keyEventAction,
-                    storedMode,
-                    key.handleId,
-                )
+                triggerScope.mutate(
+                    optimistic = true,
+                    global = {
+                        viewModel.setSlotConfig(side, trigger, keyEventAction, storedMode, key.handleId)
+                    },
+                ) {
+                    it.withSlotConfigSynced(side, trigger, keyEventAction, storedMode, key.handleId)
+                }
                 ctx.navigateBackTo(returnKey)
             },
         )
@@ -1160,33 +1325,60 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGesturesAppearance> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
+        val gesturesKey = AppNavKey.HomeSideGestures(key.side, key.handleId, key.profileId)
         TriggerAppearanceSettingsScreen(
             side = side,
             handleId = key.handleId,
             settings = settings,
             serviceEnabled = true,
-            onBack = {
-                ctx.navigateBackTo(AppNavKey.HomeSideGestures(key.side, key.handleId))
-            },
+            profileId = key.profileId,
+            onBack = { ctx.navigateBackTo(gesturesKey) },
             onShortSwipeDistanceChange = { value ->
-                viewModel.setShortSwipeDistanceDp(side, key.handleId, value)
+                triggerScope.mutate(
+                    global = { viewModel.setShortSwipeDistanceDp(side, key.handleId, value) },
+                ) { it.withUpdatedTriggerHandleDistances(side, key.handleId, shortSwipeDistanceDp = value) }
             },
             onLongSwipeDistanceChange = { value ->
-                viewModel.setLongSwipeDistanceDp(side, key.handleId, value)
+                triggerScope.mutate(
+                    global = { viewModel.setLongSwipeDistanceDp(side, key.handleId, value) },
+                ) { it.withUpdatedTriggerHandleDistances(side, key.handleId, longSwipeDistanceDp = value) }
             },
             onEdgeWidthChange = { value ->
-                viewModel.setTriggerEdgeWidthDp(side, key.handleId, value)
+                triggerScope.mutate(
+                    global = { viewModel.setTriggerEdgeWidthDp(side, key.handleId, value) },
+                ) { it.withUpdatedTriggerHandleEdgeWidth(side, key.handleId, value) }
                 ctx.refreshFocusedTriggerPreview(side, key.handleId)
             },
             onTriggerVerticalRangeChange = { handleId, top, bottom ->
-                viewModel.setTriggerVerticalRange(side, handleId, top, bottom)
+                triggerScope.mutate(
+                    global = { viewModel.setTriggerVerticalRange(side, handleId, top, bottom) },
+                ) { working ->
+                    // 与 EdgeSettingsMutator.setTriggerVerticalRange 同规则：先夹取交换，左右对齐时镜像到对侧。
+                    val newTop = top.coerceIn(0f, 1f)
+                    val newBottom = bottom.coerceIn(0f, 1f)
+                    val start = minOf(newTop, newBottom)
+                    val height = maxOf(newTop, newBottom) - start
+                    val sourceHandle = working.triggerHandle(side, handleId)
+                    var updated = working.withUpdatedTriggerHandle(side, handleId, start, height)
+                    if (side.isHorizontalEdge && sourceHandle?.alignOppositeSide != false) {
+                        val otherSide = side.opposite()
+                        if (otherSide.isHorizontalEdge &&
+                            updated.triggerHandle(otherSide, handleId) != null
+                        ) {
+                            updated = updated.withUpdatedTriggerHandle(
+                                otherSide,
+                                handleId,
+                                start,
+                                height,
+                            )
+                        }
+                    }
+                    updated
+                }
             },
             onEdgeWidthPreviewChange = { value ->
                 ctx.previewTriggerHandleEdgeWidth(side, key.handleId, value)
@@ -1211,7 +1403,33 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             // 松手只提交，不当场撤掉临时值：写入是异步的，立刻撤会先回到旧值再跳新值。
             onTriggerLayoutPreviewStop = { ctx.commitTriggerHandleLayoutPreview() },
             onAlignHandlesChange = { enabled ->
-                viewModel.setTriggerAlignOppositeSide(key.handleId, side, enabled)
+                triggerScope.mutate(
+                    global = { viewModel.setTriggerAlignOppositeSide(key.handleId, side, enabled) },
+                ) { working ->
+                    var updated = working.withTriggerAlignOppositeSide(key.handleId, enabled)
+                    if (enabled && side.isHorizontalEdge) {
+                        val source = updated.triggerHandle(side, key.handleId)
+                        if (source != null) {
+                            val otherSide = side.opposite()
+                            if (otherSide.isHorizontalEdge &&
+                                updated.triggerHandle(otherSide, key.handleId) != null
+                            ) {
+                                updated = updated.withUpdatedTriggerHandle(
+                                    side = otherSide,
+                                    handleId = key.handleId,
+                                    topFraction = source.topFraction,
+                                    heightFraction = source.heightFraction,
+                                )
+                                updated = updated.withSyncedTriggerHandle(
+                                    sourceSide = side,
+                                    handleId = key.handleId,
+                                    handle = source,
+                                )
+                            }
+                        }
+                    }
+                    updated
+                }
                 ctx.refreshFocusedTriggerPreview(side, key.handleId)
             },
             onInterceptBackChange = viewModel::setInterceptSystemBackGesture,
@@ -1241,28 +1459,84 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.HomeSideGesturesDesign> { key ->
         val viewModel: HomeDetailSettingsViewModel = hiltViewModel()
-        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
-        val landscapeEditing = TriggerSettingsLandscapeSession.active
-        val settings = gestureSettings.toMinimalAppSettings().let { base ->
-            if (landscapeEditing) base.forLandscapeEditing() else base
-        }
-        TriggerLandscapeOrientationEffect(landscapeEditing)
+        val triggerScope = rememberTriggerEditScope(viewModel, key.profileId)
+        val settings = triggerScope.settings
+        TriggerLandscapeOrientationEffect(triggerScope.landscapeEditing)
         val side = key.side.toPanelSide()
+        val gesturesKey = AppNavKey.HomeSideGestures(key.side, key.handleId, key.profileId)
         TriggerDesignSettingsScreen(
             side = side,
             handleId = key.handleId,
             settings = settings,
             serviceEnabled = true,
-            onBack = {
-                ctx.navigateBackTo(AppNavKey.HomeSideGestures(key.side, key.handleId))
+            onBack = { ctx.navigateBackTo(gesturesKey) },
+            onDesignChange = { design ->
+                triggerScope.mutate(
+                    global = { viewModel.setTriggerHandleDesign(side, key.handleId, design) },
+                ) { working ->
+                    // 与 EdgeSettingsMutator.setTriggerHandleDesign 同规则：先过矩形预设逻辑再同步对侧。
+                    val sourceHandle = working.triggerHandle(side, key.handleId)
+                    if (sourceHandle == null) {
+                        working
+                    } else {
+                        working.withSyncedTriggerHandleDesignState(
+                            sourceSide = side,
+                            handleId = key.handleId,
+                            sourceHandle = TriggerRectanglePresetLogic.updateDesign(sourceHandle, design),
+                        )
+                    }
+                }
             },
-            onDesignChange = { design -> viewModel.setTriggerHandleDesign(side, key.handleId, design) },
-            onPresetApply = { preset -> viewModel.applyTriggerDesignPreset(side, key.handleId, preset) },
+            onPresetApply = { preset ->
+                triggerScope.mutate(
+                    global = { viewModel.applyTriggerDesignPreset(side, key.handleId, preset) },
+                ) { working ->
+                    val sourceHandle = working.triggerHandle(side, key.handleId)
+                    if (sourceHandle == null) {
+                        working
+                    } else {
+                        working.withSyncedTriggerHandleDesignState(
+                            sourceSide = side,
+                            handleId = key.handleId,
+                            sourceHandle = TriggerRectanglePresetLogic.switchPreset(sourceHandle, preset),
+                        )
+                    }
+                }
+            },
             onAlignOppositeDesignChange = { enabled ->
-                viewModel.setTriggerAlignOppositeDesign(key.handleId, side, enabled)
+                triggerScope.mutate(
+                    global = { viewModel.setTriggerAlignOppositeDesign(key.handleId, side, enabled) },
+                ) { working ->
+                    var updated = working.withTriggerAlignOppositeDesign(key.handleId, enabled)
+                    if (enabled) {
+                        val source = updated.triggerHandle(side, key.handleId)
+                        if (source != null) {
+                            updated = updated.withSyncedTriggerHandleDesignState(
+                                sourceSide = side,
+                                handleId = key.handleId,
+                                sourceHandle = source,
+                            )
+                        }
+                    }
+                    updated
+                }
             },
             onResetDefaults = {
-                viewModel.setTriggerHandleDesign(side, key.handleId, TriggerHandleDesign())
+                val design = TriggerHandleDesign()
+                triggerScope.mutate(
+                    global = { viewModel.setTriggerHandleDesign(side, key.handleId, design) },
+                ) { working ->
+                    val sourceHandle = working.triggerHandle(side, key.handleId)
+                    if (sourceHandle == null) {
+                        working
+                    } else {
+                        working.withSyncedTriggerHandleDesignState(
+                            sourceSide = side,
+                            handleId = key.handleId,
+                            sourceHandle = TriggerRectanglePresetLogic.updateDesign(sourceHandle, design),
+                        )
+                    }
+                }
             },
             onPreviewStart = {
                 ctx.startTriggerDesignPreview(side, key.handleId)

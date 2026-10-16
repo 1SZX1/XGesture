@@ -19,7 +19,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -33,7 +34,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
 import kotlin.math.abs
@@ -62,22 +63,32 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 剪贴板历史边缘把手：点击/左滑/长按打开 [com.slideindex.app.overlay.FloatBallStashPanel]。
+ * 剪贴板历史边缘把手（**触摸窗**里的那一层）：点击/左滑/长按打开
+ * [com.slideindex.app.overlay.FloatBallStashPanel]。
  *
- * 形态按设计稿（`ui_demo_capsule.html`）：
- * - **视觉** 9×28dp、圆角 5dp、距屏幕右缘 3dp（原设计稿 12dp → 6dp → 3dp，用户两次要求"减半"）
- * - **命中区** 48×48dp（Android 最小触摸目标）
- * - 有待办未完成时**整条变色**（不出数字、不加宽）+ 一道"科幻 AI 风"流光
+ * ## 形态（本次按用户反馈改过两处）
+ *
+ * - **视觉** 9×28dp、圆角 5dp、距屏幕外缘 3dp（原设计稿 12dp → 6dp → 3dp，用户两次要求"减半"）。
+ * - **触摸区** = 条贴外缘那一点 + 朝屏幕内侧补出的一条命中带（[HANDLE_TOUCH_WIDTH_DP] = 3 + 11 + 10 = 24dp 宽
+ *   × [HANDLE_BOX_DP] 高）。旧实现是 **48dp 方块**（Android 最小触摸目标），于是"条只有 9dp、
+ *   手指却能点到条左边 36dp"——用户反馈的"单击就呼出、调到最窄也误触"根因就在这；
+ *   而当时的"竖条宽度"设置**根本没接进几何**（读进 Service 就没人再用），所以怎么调都没用。
+ *   现在设置项已删掉，触摸区改成 24dp：误触面积只有旧实现的一半，同时不像"只有条本身"那样按不中
+ *   （内侧命中带的取值理由见 [HANDLE_TOUCH_INNER_BAND_DP]）。
+ * - **提醒流光**画在**另一个不可触摸的窗**里（[HistoryHandleGlowWindow]）：触摸区收窄后，
+ *   原来"往条左侧铺满 48dp"的光会被裁掉，拆窗既保住观感，又不让那块面积吃掉任何触摸。
+ * - 有待办未完成时**整条变色**（不出数字、不加宽）+ 一道"科幻 AI 风"流光。
+ * - **可贴左缘**：由 [gravityEnd] 决定条往哪边靠；拖动越中线换边见 [onSwitchSide]。
  *
  * §流光（用户："没啥存在感" → 要有存在感的科幻 AI 风）：光是**自己画**的（`drawWithCache`
- * 里 bloom + 过曝主带 + 递减拖尾），不是叠一层 `Box` 做 `translationX`。原实现只有一条
- * 单色淡带在 9dp 的条里平移，既没有拖尾也没有溢出条外，所以在真机上"看不出来"。
- * 条本身的**尺寸/位置/圆角/配色规则一个都没动**，只换了"光"的算法。
+ * 里 bloom + 过曝主带 + 递减拖尾），不是叠一层 `Box` 做 `translationX`。
  */
 @Composable
 fun HistoryFloatContent(
     handleVisible: Boolean,
     handleAlert: Boolean,
+    /** true = 贴屏幕右缘（条靠窗右缘、向内滑是往左）；false = 贴左缘（镜像）。 */
+    gravityEnd: Boolean,
     onOpenPanel: () -> Unit,
     onMoveHandle: (Float) -> Unit,
     onMoveHandleEnd: () -> Unit = {},
@@ -85,44 +96,38 @@ fun HistoryFloatContent(
     onRevealEnd: (Boolean) -> Unit = {},
     /** 长按把手：就地记一条（弹出输入槽）。默认退回"打开面板"。 */
     onQuickNote: () -> Unit = onOpenPanel,
+    /** 纵向拖动中横向越过屏幕中线、松手 → 换到对侧贴边。 */
+    onSwitchSide: () -> Unit = {},
+    /**
+     * 「现在该不该有流光」这条判定的**唯一出处**就是本 composable（它手上有
+     * `handleVisible` / 是否按着 / 有无未处理提醒）。流光窗（另一个 window）拿不到这些状态，
+     * 所以由这里往上报，Service 再决定那个窗的可见性。
+     */
+    onGlowActiveChange: (Boolean) -> Unit = {},
 ) {
     // 「刚存下」信号（面板存下一条 → 把手脉冲一下，设计稿 `.pip.pulse`）。
     // 读它 = 订阅：`HistorySaveSignal` 的属性是 Compose 状态。
     val saveCount = HistorySaveSignal.saveCount
     val haptics = rememberHistoryHaptics()
-    // 被按住 / 拖动中：把手轻微放大 + 提高不透明度（手柄自身的手感反馈）。
-    // 状态提到这一层，是因为流光也要读它（拖动时不画，见 glowActive）。
+    // 被按住 / 拖动中：把手轻微放大 + 提高不透明度（手柄自身的手感反馈），同时也压掉流光。
     var active by remember { mutableStateOf(false) }
     // 「已提醒但用户还没划掉/完成」→ 科幻流光。
-    // ⚠️ 这个面板状态由别人维护（`StashReminderPendingState`），这里**只读**，不建也不改这个文件。
-    // 用 `derivedStateOf` 把三个闸门合成一个 Boolean：它只在真正切换时让 Compose 失效，
-    // 所以"无提醒"的常驻状态下是**零动画、零重绘**的。
-    // ⚠️ 这个 Boolean 同时也是**动画的总开关**：唯一那一个 `animateFloat` 挂在
-    // `HistoryHandleGlowSweep` 里，而它只在 `glowActive == true` 时进组合
-    // （`rememberInfiniteTransition` 位于 if 内）—— 没有提醒时既没有动画时钟，
-    // 也没有 `drawWithCache` 的光层 block，整条把手回到"一次画完就不动"的最省电形态。
+    // ⚠️ 这个面板状态由别人维护（`StashReminderPendingState`），这里**只读**，不建也不改那个文件。
+    // 用 `derivedStateOf` 把三个闸门合成一个 Boolean：它只在真正切换时让 Compose 失效。
     val glowActive by remember {
         derivedStateOf {
-            // 1) 有未处理的提醒；2) 窗口可见（服务在隐藏时会直接 return，这是兜底）；
-            // 3) 没在拖动/按住（跟手时优先给手感和跟手，不叠动画）。
-            // ⚠️ 给后来的排查者（"用户实测看不到流光"那次复盘）：**常态下这三条都成立**
-            // —— 服务里的 `handleVisible` 初值是 true、全工程没有任何地方把它写成 false
-            // （把手窗和面板是两个窗口，面板打开并不会藏把手），`active` 只在拖动/双击那 0.5s 为 true。
-            // 所以"看不到光"如果发生，最大嫌疑是 `hasPending` 压根没被点起来
-            // （它只在「提醒通知发出」/「面板可见时刷新」这两条路径上被写），而不是这里被挡住。
+            // 1) 有未处理的提醒；2) 窗口可见；3) 没在拖动/按住。
             StashReminderPendingState.hasPending.value && handleVisible && !active
         }
     }
-    // 流光的唯一动画时钟：**只在 `glowActive` 时进组合**。
-    // `State<Float>` 可以这样建、再交给下面的绘制层去读，这正是"把逐帧读取推到绘制阶段"
-    // 的关键 —— 状态读取在绘制 lambda 里，就不会每帧重组这个 composable。
-    val glowPhase = if (glowActive) HistoryHandleGlowSweep() else null
+    // 上报给 Service（流光窗的开关）。`LaunchedEffect` 只在值变化时跑，不会每帧扰动。
+    LaunchedEffect(glowActive) { onGlowActiveChange(glowActive) }
     OverlayAwareModuleTheme {
         if (handleVisible) {
-            HistoryFloatHandle(
+            HistoryFloatHandleTouch(
+                gravityEnd = gravityEnd,
                 alert = handleAlert,
                 glowActive = glowActive,
-                glowPhase = glowPhase,
                 active = active,
                 onActiveChange = { active = it },
                 saveCount = saveCount,
@@ -133,21 +138,17 @@ fun HistoryFloatContent(
                 onRevealStart = onRevealStart,
                 onRevealEnd = onRevealEnd,
                 onQuickNote = onQuickNote,
+                onSwitchSide = onSwitchSide,
             )
         }
     }
 }
 
 @Composable
-private fun HistoryFloatHandle(
+private fun HistoryFloatHandleTouch(
+    gravityEnd: Boolean,
     alert: Boolean,
-    /** true = 播放科幻流光（已提醒未处理 + 可见 + 未拖动）。 */
     glowActive: Boolean,
-    /**
-     * 流光的唯一动画进度（0→1 扫一遍）。**只有 [glowActive] 为 true 时才非 null**；
-     * null 表示"当前不该有光"，绘制层直接跳过所有光相关的 draw call。
-     */
-    glowPhase: State<Float>?,
     active: Boolean,
     onActiveChange: (Boolean) -> Unit,
     saveCount: Int,
@@ -158,14 +159,17 @@ private fun HistoryFloatHandle(
     onRevealStart: () -> Boolean = { false },
     onRevealEnd: (Boolean) -> Unit = {},
     onQuickNote: () -> Unit,
+    onSwitchSide: () -> Unit,
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // 激活（被按住 / 拖动中）时轻微放大 + 提高不透明度。
-    val barWidth by animateDpAsState(
-        targetValue = if (active) 11.dp else 9.dp,
+    // ⚠️ 两个都保持 `State`，只交给绘制 lambda 去读 —— 动画帧只让那一层 draw 失效，不触发重组。
+    val barWidth = animateDpAsState(
+        targetValue = if (active) HANDLE_BAR_ACTIVE_WIDTH_DP.dp else HANDLE_BAR_WIDTH_DP.dp,
         label = "handleBarWidth",
     )
-    val barAlpha by animateFloatAsState(
+    val barAlpha = animateFloatAsState(
         targetValue = if (active) 0.95f else 0.72f,
         label = "handleBarAlpha",
     )
@@ -186,10 +190,14 @@ private fun HistoryFloatHandle(
         )
     }
     val scheme = MiuixTheme.colorScheme
-    // 拉满 = 面板宽度（px）。用屏幕宽度而不是 LocalWindowInfo.containerSize —— 把手窗只有 48dp 宽，
+    // 跟手拉满 = 面板宽度（px）。用屏幕宽度而不是 LocalWindowInfo.containerSize —— 触摸窗只有 14dp 宽，
     // containerSize 是把手自己，不是屏幕。
     val revealDistanceState = rememberUpdatedState(
-        historyPanelRevealDistancePx(LocalContext.current),
+        historyPanelRevealDistancePx(context),
+    )
+    // 「换边」判定用的屏幕中线（px）。同 reveal 距离一样按 LocalContext 重新取，配置变更后不会用旧值。
+    val screenHalfWidthState = rememberUpdatedState(
+        context.resources.displayMetrics.widthPixels / 2f,
     )
     // 手势 lambda 被 `pointerInput(Unit)` 抓一次就不再更新，所以触觉对象也要走 updatedState。
     val latestHaptics = rememberUpdatedState(haptics)
@@ -197,25 +205,37 @@ private fun HistoryFloatHandle(
     // alert（有待办未完成）= 整条主题色；否则是低透明度的 onSurface 细条。
     val barColor = if (alert) scheme.primary else scheme.onSurface
     val barFillAlpha = if (alert) 1f else 0.28f
-    val barBorderColor = if (alert) {
+    // 内层"洗色"（原来那个 `Box` 的叠色）与边框色：都只在离散状态（alert / active）变化时变，
+    // 所以按值传进绘制层即可（状态一变就会重建 modifier，绘制块跟着重跑）。
+    val washColor = if (alert) scheme.onPrimary.copy(alpha = 0.10f) else scheme.onSurface.copy(alpha = 0.02f)
+    val borderColor = if (alert) {
         scheme.primary.copy(alpha = 0.55f)
     } else {
         scheme.onSurface.copy(alpha = if (active) 0.24f else 0.12f)
     }
-    // ── 相位桥 + 诊断计数器 ──
-    // `glowPhase` 是**动画状态**，若只在绘制 lambda 里读，它的逐帧推进要依赖
-    // "绘制阶段也观察快照读取"这条机制；实测出现过"标记在画、但条内永远纯蓝"的现象，
-    // 与"`t` 没有逐帧推进（恒为初值 0 → 主带中心落在条右侧外）"完全吻合。
-    // `rememberGlowObservedPhase` 把相位**提升为组合期可观察的状态**，能同时满足两件事：
-    // 1) 让"动画是否在推进"变成可探测的（探针能读到真实变化的 t / draw 次数）；
-    // 2) 万一绘制期的观察真的没生效，这里也能自愈（镜像状态变化 → 重组 → 重绘）。
-    // 对性能的影响：只在 `glowActive` 为 true 期间、每个动画帧触发一次**这一个** composable
-    // 的重组（不是整个把手树），符合"只在 hasPending 时跑"的既有 gate。
-    val glowObserved = glowPhase?.let { rememberGlowObservedPhase(it) }
-
+    // ⚠️ `pointerInput(Unit)` 的 lambda 只在首帧装一次：`gravityEnd` 变化（拖到对侧）后
+    // 它里面读到的还是旧值。所有手势判定都从这个 updatedState 现取。
+    val gravityEndState = rememberUpdatedState(gravityEnd)
+    // 触摸区几何：宽度 = 条（按住时最宽 11dp）+ 外缘间距 3dp；高度仍是 48dp（纵向留给拖动/长按）。
+    // 条在窗内**贴外缘**：右缘时靠右（gap 在右），左缘时靠左。
     Box(
         modifier = Modifier
-            .size(HANDLE_HIT_DP.dp)
+            .width(HANDLE_TOUCH_WIDTH_DP.dp)
+            .height(HANDLE_BOX_DP.dp)
+            .historyHandlePaint(
+                barColor = barColor,
+                barFillAlpha = barFillAlpha,
+                barAlpha = barAlpha,
+                washColor = washColor,
+                borderColor = borderColor,
+                accent = scheme.primary,
+                glowActive = glowActive,
+                barWidth = barWidth,
+                glowObserved = null,
+                drawBar = true,
+                drawGlow = false,
+                gravityEnd = gravityEnd,
+            )
             .pointerInput(Unit) {
                 // Compose 的 touch slop（一般 8dp）。下面"跟手进度"要把它补回来，理由见拖动回调里的注释。
                 // 它是 [PointerInputScope] 自带的属性，不用（也不该）在组合期读 `LocalViewConfiguration` ——
@@ -223,17 +243,29 @@ private fun HistoryFloatHandle(
                 val dragSlopPx = viewConfiguration.touchSlop
                 var totalX = 0f
                 var totalY = 0f
+                // 「朝屏幕内侧」的位移（右缘把手 = 往左，左缘把手 = 往右）。
+                // 所有阈值/进度都只用它，镜像就只需要改这一个符号。
+                // ⚠️ 每次都现取 `gravityEnd`（拖到对侧后 `pointerInput(Unit)` 不会重装本 lambda）。
+                fun inwardOf(x: Float): Float = x * if (gravityEndState.value) -1f else 1f
                 // 前 8dp 锁定主方向（设计稿注释：横向=拉出面板，纵向=挪位置）。
                 var axis: DragAxis? = null
                 var revealing = false
                 var crossedHalf = false
+                // 越过屏幕中线（= 用户想把把手拖到对侧）只震一次，来回挪不会反复震。
+                var middleTicked = false
                 // 拖动到底或中途被系统手势（边缘返回）抢走都会走收尾：
                 // 之前只处理 onDragEnd，被抢走时 onDragCancel 不打开面板 → 「拖动打不开」。
                 val finishDrag = {
+                    val inwardX = inwardOf(totalX)
+                    val crossedMiddle = inwardX >= screenHalfWidthState.value
                     if (revealing) {
                         val commit = HistoryPanelReveal.dragProgress >= REVEAL_COMMIT_FRACTION
                         onRevealEnd(commit)
-                    } else if (totalX <= OPEN_DRAG_THRESHOLD_X) {
+                    } else if (crossedMiddle) {
+                        // 「上下拖动换位置时拖到对侧」：纵向拖动中越过屏幕中线、松手 → 吸附到对侧边缘。
+                        // 放在"拖过阈值就开面板"**之前**：拖了半个屏幕显然不是想开面板。
+                        onSwitchSide()
+                    } else if (inwardX >= -OPEN_DRAG_THRESHOLD_X) {
                         // 没走到跟手（轴锁定前就松手 / 面板已在显示）：沿用原来的"拖过阈值就开"。
                         onOpenPanel()
                     }
@@ -246,6 +278,7 @@ private fun HistoryFloatHandle(
                         axis = null
                         revealing = false
                         crossedHalf = false
+                        middleTicked = false
                         onActiveChange(true)
                     },
                     onDragEnd = {
@@ -266,6 +299,7 @@ private fun HistoryFloatHandle(
                     change.consume()
                     totalX += dragAmount.x
                     totalY += dragAmount.y
+                    val inwardX = inwardOf(totalX)
                     if (axis == null) {
                         val lockedX = abs(totalX) >= HANDLE_AXIS_LOCK_PX
                         val lockedY = abs(totalY) >= HANDLE_AXIS_LOCK_PX
@@ -275,8 +309,8 @@ private fun HistoryFloatHandle(
                     }
                     when (axis) {
                         DragAxis.HORIZONTAL, null -> {
-                            // 跟手拉出：第一次真的往左拖时才把面板窗叫出来（面板从屏幕外开始跟着手指走）。
-                            if (!revealing && totalX < -HANDLE_AXIS_LOCK_PX) {
+                            // 跟手拉出：第一次真的往内侧拖时才把面板窗叫出来（面板从屏幕外开始跟着手指走）。
+                            if (!revealing && inwardX > HANDLE_AXIS_LOCK_PX) {
                                 revealing = onRevealStart()
                             }
                             if (revealing) {
@@ -286,11 +320,12 @@ private fun HistoryFloatHandle(
                                 // 的那几 px（`overSlop`），slop 本身（≈8dp）没有任何回调带上它 —— 不补的话，
                                 // 面板前缘从第一帧起就少走 8dp 的手指位移（面板行程 = 手指 × 130dp→面板宽度
                                 // ≈ 2.5×，所以是少走约 20dp），表现就是"开头一小段完全不动，之后才跟手"。
-                                // 这里把 slop 补回来（`totalX` 往左拖是负数，越拖越小）。
+                                // 这里把 slop 补回来（`inwardX` 越往内侧越大）。
                                 // ⚠️ 补偿只加在**进度换算**里，绝不动 `totalX`：它还兼着"松手兜底要不要开面板"
-                                // （`totalX <= OPEN_DRAG_THRESHOLD_X`）与轴锁定，改了它会让竖直挪把手也误开面板。
+                                // （`inwardX >= -OPEN_DRAG_THRESHOLD_X`）与轴锁定、以及"换边"判定，
+                                // 改了它会让竖直挪把手也误开面板 / 误换边。
                                 HistoryPanelReveal.dragProgress =
-                                    ((-totalX + dragSlopPx) / distance).coerceIn(0f, 1f)
+                                    ((inwardX + dragSlopPx) / distance).coerceIn(0f, 1f)
                                 // 过半轻震（与跟手阈值同一个手感点）。
                                 val half = HistoryPanelReveal.dragProgress >= REVEAL_COMMIT_FRACTION
                                 if (half != crossedHalf) {
@@ -299,7 +334,15 @@ private fun HistoryFloatHandle(
                                 }
                             }
                         }
-                        DragAxis.VERTICAL -> onMoveHandle(dragAmount.y)
+                        DragAxis.VERTICAL -> {
+                            onMoveHandle(dragAmount.y)
+                            // 纵向挪位置时越过中线 → 轻震一次（"松手就会贴到那边"的预告）。
+                            // 只在没在拉面板时才提示，否则横向拉出也会震。
+                            if (!revealing && !middleTicked && inwardX >= screenHalfWidthState.value) {
+                                middleTicked = true
+                                latestHaptics.value.tick()
+                            }
+                        }
                     }
                 }
             }
@@ -327,215 +370,252 @@ private fun HistoryFloatHandle(
             // 所以脉冲每帧变化**不会重组**这个 composable，只重画这一层。
             .graphicsLayer {
                 scaleY = 1f + HANDLE_PULSE_SCALE_Y * pulse.value
-                translationX = -HANDLE_PULSE_SHIFT_DP.dp.toPx() * pulse.value
-            }
-            // 「光」全部画在这一层里，而不是再叠一层子 composable：
-            // - 原来那条亮带是 `Surface` 的**子节点**，而 Material3 的 Surface 会把自己 clip 到
-            //   形状内，于是光最多只能在 9dp 的条里走 —— 这正是"没啥存在感"的根因之一；
-            // - 现在 bloom（外溢柔光）/过曝主带/拖尾都由同一个 draw scope 画，顺序可控；
-            //   光的绘制范围就是 48dp 的命中区，溢出量另有 [HANDLE_GLOW_BLOOM_LIMIT_RATIO]
-            //   夹住（只让光往条**左侧**漏，右侧留给屏幕边缘/系统手势区）。
-            // 性能：`drawWithCache` 的 block 只在**尺寸或光/配色状态变化**时重跑，
-            // 逐帧变化的是 `phase`（唯一那个 `animateFloat`）、`pulse`、`barAlpha`、`barWidth`，
-            // 它们全都在绘制 lambda 里读 —— 所以"每帧"只重绘这一层小区域，
-            // 既不重组也不重绘别的东西。
-            .drawWithCache {
-                val barHeightPx = HANDLE_BAR_HEIGHT_DP.dp.toPx()
-                val cornerPx = HANDLE_BAR_CORNER_DP.dp.toPx()
-                val borderWidthPx = HANDLE_BAR_BORDER_DP.dp.toPx()
-                // 辉光笔：Compose 的 `Paint` **没有 `maskFilter` 属性**（它的 API 只有
-                // color/alpha/isAntiAlias/style/strokeWidth/blendMode/shader/colorFilter/pathEffect），
-                // 所以模糊滤镜只能设在**平台**画笔上；而拿平台画笔的两条老路都不能走：
-                // - `Compose Paint.asFrameworkPaint()` 在本仓库（deprecated 当错误）会直接编不过；
-                // - `import android.graphics.Paint` 会与 Compose 的同名类撞（本文件本来就只 import 后者）。
-                // 因此这里用**全限定名**就地构造平台画笔（不动任何现有 import）。
-                // 代价是它不能传给 Compose 的 `Canvas.drawRoundRect`（那个只收 Compose Paint），
-                // 所以下面改走平台画布 `canvas.nativeCanvas.drawRoundRect(...)`（见 drawIntoCanvas 处）。
-                val bloomPaint = android.graphics.Paint().apply {
-                    isAntiAlias = true
-                    maskFilter = BlurMaskFilter(
-                        HANDLE_GLOW_BLOOM_RADIUS_DP.dp.toPx(),
-                        BlurMaskFilter.Blur.NORMAL,
+                // 脉冲是"往屏幕内侧弹一下"：右缘把手往左、左缘把手往右。
+                translationX = (if (gravityEnd) -1f else 1f) * HANDLE_PULSE_SHIFT_DP.dp.toPx() * pulse.value
+            },
+    )
+}
+
+/**
+ * 条本体（与流光）的绘制。**两个窗共用这一段**：
+ *
+ * - 触摸窗（[HistoryFloatContent]，宽 [HANDLE_TOUCH_WIDTH_DP]）：`drawBar = true, drawGlow = false`
+ *   —— 与"没提醒"时的老路径**逐像素一致**（画条 + 描边），这也是[glowActive] 掺白生效的那一层。
+ * - 流光窗（[HistoryHandleGlowWindow]，宽 [HANDLE_BOX_DP]）：`drawBar = false, drawGlow = true`
+ *   —— 只画光；条的位置/尺寸仍按同一套几何算（窗外缘对齐屏幕外缘 → 条在两窗里落在同一屏幕位置），
+ *   所以"光从条里漏出来"这件事和拆窗之前完全一样。
+ *
+ * ⚠️ 为什么不让它们各画各的条：拆窗之后条本体只该画一次。流光窗里那段主带是
+ * **clip 在条形状里**的（见下），所以它仍然需要 `barPath`，只是不 `drawPath` 而已。
+ */
+internal fun Modifier.historyHandlePaint(
+    /** 条本体基色（alert = 主题色，否则 onSurface）；alpha 在绘制期乘上 [barAlpha] × [barFillAlpha]。 */
+    barColor: Color,
+    barFillAlpha: Float,
+    /** 逐帧变化，**必须**在绘制 lambda 里读（只让这一层 draw 失效，不重组）。 */
+    barAlpha: State<Float>,
+    /** 内层洗色（原来是叠在条上的那个 `Box`）。 */
+    washColor: Color,
+    borderColor: Color,
+    /** 光的颜色全从它推出来（不许新增颜色资源）。 */
+    accent: Color,
+    glowActive: Boolean,
+    barWidth: State<Dp>,
+    glowObserved: State<Float>?,
+    drawBar: Boolean,
+    drawGlow: Boolean,
+    /** true = 贴右缘（条靠窗右缘、光往左漏）；false = 贴左缘（整体镜像）。 */
+    gravityEnd: Boolean,
+): Modifier = this.drawWithCache {
+    val barHeightPx = HANDLE_BAR_HEIGHT_DP.dp.toPx()
+    val cornerPx = HANDLE_BAR_CORNER_DP.dp.toPx()
+    val borderWidthPx = HANDLE_BAR_BORDER_DP.dp.toPx()
+    val gapPx = HANDLE_EDGE_GAP_DP.dp.toPx()
+    // 辉光笔：Compose 的 `Paint` **没有 `maskFilter` 属性**（它的 API 只有
+    // color/alpha/isAntiAlias/style/strokeWidth/blendMode/shader/colorFilter/pathEffect），
+    // 所以模糊滤镜只能设在**平台**画笔上；而拿平台画笔的两条老路都不能走：
+    // - `Compose Paint.asFrameworkPaint()` 在本仓库（deprecated 当错误）会直接编不过；
+    // - `import android.graphics.Paint` 会与 Compose 的同名类撞（本文件本来就只 import 后者）。
+    // 因此这里用**全限定名**就地构造平台画笔（不动任何现有 import）。
+    // 代价是它不能传给 Compose 的 `Canvas.drawRoundRect`（那个只收 Compose Paint），
+    // 所以下面改走平台画布 `canvas.nativeCanvas.drawRoundRect(...)`（见 drawIntoCanvas 处）。
+    val bloomPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        maskFilter = BlurMaskFilter(
+            HANDLE_GLOW_BLOOM_RADIUS_DP.dp.toPx(),
+            BlurMaskFilter.Blur.NORMAL,
+        )
+    }
+    // 条本体两个颜色在这里算一次（`barAlpha` 逐帧会变，所以只缓存不透明前的基色）。
+    // 原实现是 `Surface(color = 基色@barAlpha)` + 里面再叠一个"洗色"`Box`
+    // （alert 时 `onPrimary@10%`，否则 `onSurface@2%`）。
+    // 这里**照原样分两层画**（基色 + 洗色），而不是用 `compositeOver` 合成一个颜色：
+    // 合成要把"元素的 alpha × 两次叠色的 alpha"算对才能跟前一版像素一致，
+    // 而这一步没有任何收益（反正都是同一次 draw 里的两个 drawPath），不值得冒险。
+    val barBaseColor = barColor
+    // 有光时条本体要往白里混的**目标色**（[HANDLE_GLOW_BAR_WHITEN]，≈14%）：让"整条在发光"，
+    // 而不是"蓝条上叠了一层看不见的光"。
+    // ⚠️ 这个混合**必须在绘制 lambda 里做**（`lerp(…, …, if (glowActive) W else 0f)`）：
+    //    `glowActive` 若在这个 `drawWithCache` 的 block 里读，就不会形成对它的依赖，
+    //    状态翻转时这一层不会失效 → 条体永远不亮（哪怕光已经该画了）。
+    val litWhiteWeight = if (glowActive) HANDLE_GLOW_BAR_WHITEN else 0f
+    // 光的颜色全从主题色 accent 推出来（不许新增颜色资源）。
+    val coreColor = glowCore(accent)
+    // 拖尾的渐变色也只算一次：`i` 决定色相漂移量，逐帧要变的只有位置/透明度。
+    val bandColors = List(HANDLE_GLOW_BAND_COUNT) { i ->
+        glowBand(accent, i)
+    }
+    onDrawWithContent {
+        // 条矩形每帧重算：`barWidth` 是按住时的"变宽"动画（9→11dp），
+        // 所以它也算逐帧状态。几何放这里算的代价可以忽略（几个 dp→px 换算），
+        // 换来的是条本体与光**永远用同一套几何**，不会出现"条变宽了、光还按 9dp 走"。
+        val barWidthPx = barWidth.value.toPx()
+        // 条贴**外缘**：右缘窗 = 条靠右（gap 在右），左缘窗 = 条靠左（gap 在左）。
+        val barLeft = if (gravityEnd) size.width - gapPx - barWidthPx else gapPx
+        val barTop = (size.height - barHeightPx) / 2f
+        val barRect = Rect(barLeft, barTop, barLeft + barWidthPx, barTop + barHeightPx)
+        val barPath = Path().apply {
+            addRoundRect(RoundRect(barRect, CornerRadius(cornerPx, cornerPx)))
+        }
+        if (drawBar) {
+            // ① 条本体（原来的 Surface 背景 + 内层洗色，颜色/圆角/尺寸全不变；
+            //    `litWhiteWeight` 由绘制阶段的 `glowActive` 决定，没光时权重为 0 → 与改动前一致）。
+            //    边框挪到**最后**画，否则会被光盖住、条失去清晰轮廓。
+            // ⚠️ `barAlpha` 逐帧会变，所以在绘制 lambda 里乘。
+            val lit = lerp(barBaseColor.copy(alpha = barAlpha.value * barFillAlpha), Color.White, litWhiteWeight)
+            drawPath(barPath, lit)
+            drawPath(barPath, washColor)
+        }
+        if (!drawGlow) {
+            // 没光的一侧（触摸窗）仍要把边框补上，然后收工。
+            drawPath(barPath, borderColor, style = Stroke(width = borderWidthPx))
+            return@onDrawWithContent
+        }
+        // ② 光。`glowPhase == null` 就是"当前不该有光"（没提醒 / 在拖动 / 不可见）：
+        // 这时不但不建动画时钟，连一次 draw call 都不多发。
+        // ⚠️ `glowObserved.value` 在这里读 = 在**绘制阶段**读动画状态：
+        // 每帧只让这一层 draw 失效（invalidate），不触发重组，也不重绘别处。
+        val t = glowObserved?.value ?: return@onDrawWithContent
+        val beatRaw = glowBeat(t)
+        // ⚠️ 防御性兜底（**不是修法**，修法在 [glowBeat] 的单位换算）：
+        // 万一呼吸函数将来又被改出"恒 0 / 负数"，这里把它夹回 [GLOW_BEAT_MIN, 1]，
+        // 至少保证"光还在，只是不呼吸"，而不是整条光以 alpha 0 画出去（
+        // 那种情况在真机上和"完全没实现"长得一模一样，极难排查）。
+        val beat = beatRaw.coerceIn(GLOW_BEAT_MIN, 1f)
+        // 主带位置（px）：中心从"条外侧缘再往外 1.5 条宽"走到"条内侧缘再往内 1.5 条宽"，
+        // 起止都在条外 → 一个周期里能看清"进来 → 经过 → 离开"，才有扫过的速度感。
+        // 右缘把手：从屏幕外往里扫（bandX 递减）；左缘把手：镜像成从外往里扫（递增）。
+        val travel = barWidthPx * (1f + 2f * HANDLE_GLOW_TRAVEL_SCALE)
+        val bandX = if (gravityEnd) {
+            barRect.right + barWidthPx * HANDLE_GLOW_TRAVEL_SCALE - travel * t
+        } else {
+            barRect.left - barWidthPx * HANDLE_GLOW_TRAVEL_SCALE + travel * t
+        }
+        // ③ 条内"过曝主带 + 递减拖尾"（clip 在条形状里，不会糊到条外）。
+        //    扫动靠每帧重算几何（`bandX`），不是 `translationX`。
+        //
+        //    §体验修正（真机验证之后）：**主带不再用"两端透明"的渐变**。
+        //    原来那条 `linearGradient(Transparent, 色, Transparent)` 跨 2.6 条宽，
+        //    于是在 9dp 的条上，条内每一像素拿到的都是"锥形的中间值 + 蓝色条体混色"
+        //    → 真机上就是"看不见"。现在改成：**不透明近白实心块 + 两端各 2.5dp 短渐隐**，
+        //    也就是"一节发白的光块扫过蓝条"。
+        clipPath(barPath) {
+            for (i in 0 until HANDLE_GLOW_BAND_COUNT) {
+                val f = i.toFloat()
+                // 拖尾在主带的**后面**（沿扫动反方向） = 光整体从屏幕外扫进来。
+                val center = if (gravityEnd) {
+                    bandX + f * barWidthPx * HANDLE_GLOW_SPACING_SCALE
+                } else {
+                    bandX - f * barWidthPx * HANDLE_GLOW_SPACING_SCALE
+                }
+                // 间距与 alpha 都递减（`pow`），产生"扫过去"的速度感；
+                // 亮度统一乘 `beat` 做呼吸；`coerceIn` 只是防御。
+                // 拖尾 alpha 现在也拉满（0.85^i → 0.85 / 0.72，再乘 beat ≥ 0.75 → 最暗 ≥0.54），
+                // 满足"余晖也要看得见（≥0.5）"：主带 1.0 仍是最亮的一层，层次不会被抹平。
+                val bandAlpha = (HANDLE_GLOW_CORE_ALPHA * HANDLE_GLOW_TRAIL_DECAY.pow(f) * beat)
+                    .coerceIn(0f, 1f)
+                // 主带更宽、拖尾更窄：宽的亮核 + 细的余晖，层次才拉得开。
+                val half = barWidthPx * if (i == 0) {
+                    HANDLE_GLOW_CORE_HALF_SCALE
+                } else {
+                    HANDLE_GLOW_TRAIL_HALF_SCALE
+                }
+                val bandTop = barRect.top
+                val bandHeight = barRect.height
+                if (i == 0) {
+                    // 主带：实心近白圆角块（**alpha 1.0 × beat**，没有锥形衰减），
+                    // 只有两个端头各 [HANDLE_GLOW_CORE_FADE_DP] 做短渐隐。
+                    drawRoundRect(
+                        color = coreColor,
+                        topLeft = Offset(center - half, bandTop),
+                        size = Size(half * 2f, bandHeight),
+                        cornerRadius = CornerRadius(cornerPx, cornerPx),
+                        alpha = bandAlpha,
+                    )
+                    val fadePx = HANDLE_GLOW_CORE_FADE_DP.dp.toPx()
+                    // 左端渐隐：从"中心色"渐到透明（start 用核心色 → end 透明）。
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(coreColor, Color.Transparent),
+                            start = Offset(center - half, barRect.center.y),
+                            end = Offset(center - half + fadePx, barRect.center.y),
+                        ),
+                        topLeft = Offset(center - half, bandTop),
+                        size = Size(fadePx, bandHeight),
+                        alpha = bandAlpha,
+                    )
+                    // 右端渐隐：透明 → 中心色。
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color.Transparent, coreColor),
+                            start = Offset(center + half - fadePx, barRect.center.y),
+                            end = Offset(center + half, barRect.center.y),
+                        ),
+                        topLeft = Offset(center + half - fadePx, bandTop),
+                        size = Size(fadePx, bandHeight),
+                        alpha = bandAlpha,
+                    )
+                } else {
+                    // 拖尾：保留色相渐变（青 → 品红），但**只在两端各留一点柔边**
+                    //（渐变跨 2 倍渐隐宽度、中间是实色），这样它是"一条有色的余晖"，
+                    // 而不是"两端透明的一片雾"。
+                    val fadePx = barWidthPx * HANDLE_GLOW_TRAIL_FADE_SCALE
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color.Transparent, bandColors[i], bandColors[i], Color.Transparent),
+                            start = Offset(center - half, barRect.center.y),
+                            end = Offset(center + half, barRect.center.y),
+                        ),
+                        topLeft = Offset(center - half, bandTop),
+                        size = Size(half * 2f, bandHeight),
+                        alpha = bandAlpha,
                     )
                 }
-                // 条本体两个颜色在这里算一次（`barAlpha` 逐帧会变，所以只缓存不透明前的基色）。
-                // 原实现是 `Surface(color = 基色@barAlpha)` + 里面再叠一个"洗色"`Box`
-                // （alert 时 `onPrimary@10%`，否则 `onSurface@2%`）。
-                // 这里**照原样分两层画**（基色 + 洗色），而不是用 `compositeOver` 合成一个颜色：
-                // 合成要把"元素的 alpha × 两次叠色的 alpha"算对才能跟前一版像素一致，
-                // 而这一步没有任何收益（反正都是同一次 draw 里的两个 drawPath），不值得冒险。
-                val washColor = if (alert) scheme.onPrimary.copy(alpha = 0.10f) else scheme.onSurface.copy(alpha = 0.02f)
-                val barBaseColor = barColor.copy(alpha = barAlpha * barFillAlpha)
-                // 有光时条本体要往白里混的**目标色**（[HANDLE_GLOW_BAR_WHITEN]，≈14%）：让"整条在发光"，
-                // 而不是"蓝条上叠了一层看不见的光"。
-                // ⚠️ 这个混合**必须在绘制 lambda 里做**（`lerp(…, …, if (glowActive) W else 0f)`）：
-                //    `glowActive` 若在这个 `drawWithCache` 的 block 里读，就不会形成对它的依赖，
-                //    状态翻转时这一层不会失效 → 条体永远不亮（哪怕光已经该画了）。
-                val litWhiteWeight = if (glowActive) HANDLE_GLOW_BAR_WHITEN else 0f
-                // 光的颜色全从主题色 accent 推出来（不许新增颜色资源）。
-                val coreColor = glowCore(scheme.primary)
-                // 拖尾的渐变色也只算一次：`i` 决定色相漂移量，逐帧要变的只有位置/透明度。
-                val bandColors = List(HANDLE_GLOW_BAND_COUNT) { i ->
-                    glowBand(scheme.primary, i)
-                }
-                onDrawWithContent {
-                    // 条矩形每帧重算：`barWidth` 是按住时的"变宽"动画（9→11dp），
-                    // 所以它也算逐帧状态。几何放这里算的代价可以忽略（几个 dp→px 换算），
-                    // 换来的是条本体与光**永远用同一套几何**，不会出现"条变宽了、光还按 9dp 走"。
-                    val barWidthPx = barWidth.toPx()
-                    val barLeft = size.width - HANDLE_EDGE_GAP_DP.dp.toPx() - barWidthPx
-                    val barTop = (size.height - barHeightPx) / 2f
-                    val barRect = Rect(barLeft, barTop, barLeft + barWidthPx, barTop + barHeightPx)
-                    val barPath = Path().apply {
-                        addRoundRect(RoundRect(barRect, CornerRadius(cornerPx, cornerPx)))
-                    }
-                    // ① 条本体（原来的 Surface 背景 + 内层洗色，颜色/圆角/尺寸全不变；
-                    //    `litWhiteWeight` 由绘制阶段的 `glowActive` 决定，没光时权重为 0 → 与改动前一致）。
-                    //    边框挪到**最后**画（见 ⑤），否则会被光盖住、条失去清晰轮廓。
-                    drawPath(barPath, lerp(barBaseColor, Color.White, litWhiteWeight))
-                    drawPath(barPath, washColor)
-                    // ② 光。`glowPhase == null` 就是"当前不该有光"（没提醒 / 在拖动 / 不可见）：
-                    // 这时不但不建动画时钟，连一次 draw call 都不多发。
-                    // ⚠️ `glowPhase.value` 在这里读 = 在**绘制阶段**读动画状态：
-                    // 每帧只让这一层 draw 失效（invalidate），不触发重组，也不重绘别处。
-                    val t = glowObserved?.value ?: run {
-                        // 没光的时候仍要把边框补上（上面把边框挪到最后了）。
-                        drawPath(barPath, barBorderColor, style = Stroke(width = borderWidthPx))
-                        return@onDrawWithContent
-                    }
-                    val beatRaw = glowBeat(t)
-                    // ⚠️ 防御性兜底（**不是修法**，修法在 [glowBeat] 的单位换算）：
-                    // 万一呼吸函数将来又被改出"恒 0 / 负数"，这里把它夹回 [GLOW_BEAT_MIN, 1]，
-                    // 至少保证"光还在，只是不呼吸"，而不是整条光以 alpha 0 画出去（
-                    // 那种情况在真机上和"完全没实现"长得一模一样，极难排查）。
-                    val beat = beatRaw.coerceIn(GLOW_BEAT_MIN, 1f)
-                    // 主带位置（px）：中心从"条左缘往左 1.5 条宽"走到"条右缘往右 1.5 条宽"，
-                    // 起止都在条外 → 一个周期里能看清"进来 → 经过 → 离开"，才有扫过的速度感。
-                    val travel = barWidthPx * (1f + 2f * HANDLE_GLOW_TRAVEL_SCALE)
-                    val bandX = barRect.right + barWidthPx * HANDLE_GLOW_TRAVEL_SCALE -
-                        travel * t
-                    // ③ 条内"过曝主带 + 递减拖尾"（clip 在条形状里，不会糊到条外）。
-                    //    扫动靠每帧重算几何（`bandX`），不是 `translationX`。
-                    //
-                    //    §体验修正（真机验证之后）：**主带不再用"两端透明"的渐变**。
-                    //    原来那条 `linearGradient(Transparent, 色, Transparent)` 跨 2.6 条宽，
-                    //    于是在 9dp 的条上，条内每一像素拿到的都是"锥形的中间值 + 蓝色条体混色"
-                    //    → 真机上就是"看不见"。现在改成：**不透明近白实心块 + 两端各 2.5dp 短渐隐**，
-                    //    也就是"一节发白的光块扫过蓝条"。
-                    clipPath(barPath) {
-                        for (i in 0 until HANDLE_GLOW_BAND_COUNT) {
-                            val f = i.toFloat()
-                            // 拖尾在主带的**右边** = 光整体从右往左扫（"从屏幕外扫进来"）。
-                            val center = bandX + f * barWidthPx * HANDLE_GLOW_SPACING_SCALE
-                            // 间距与 alpha 都递减（`pow`），产生"扫过去"的速度感；
-                            // 亮度统一乘 `beat` 做呼吸；`coerceIn` 只是防御。
-                            // 拖尾 alpha 现在也拉满（0.85^i → 0.85 / 0.72，再乘 beat ≥ 0.75 → 最暗 ≥0.54），
-                            // 满足"余晖也要看得见（≥0.5）"：主带 1.0 仍是最亮的一层，层次不会被抹平。
-                            val bandAlpha = (HANDLE_GLOW_CORE_ALPHA * HANDLE_GLOW_TRAIL_DECAY.pow(f) * beat)
-                                .coerceIn(0f, 1f)
-                            // 主带更宽、拖尾更窄：宽的亮核 + 细的余晖，层次才拉得开。
-                            val half = barWidthPx * if (i == 0) {
-                                HANDLE_GLOW_CORE_HALF_SCALE
-                            } else {
-                                HANDLE_GLOW_TRAIL_HALF_SCALE
-                            }
-                            val bandTop = barRect.top
-                            val bandHeight = barRect.height
-                            if (i == 0) {
-                                // 主带：实心近白圆角块（**alpha 1.0 × beat**，没有锥形衰减），
-                                // 只有两个端头各 [HANDLE_GLOW_CORE_FADE_DP] 做短渐隐。
-                                drawRoundRect(
-                                    color = coreColor,
-                                    topLeft = Offset(center - half, bandTop),
-                                    size = Size(half * 2f, bandHeight),
-                                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                                    alpha = bandAlpha,
-                                )
-                                val fadePx = HANDLE_GLOW_CORE_FADE_DP.dp.toPx()
-                                // 左端渐隐：从"中心色"渐到透明（start 用核心色 → end 透明）。
-                                drawRect(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(coreColor, Color.Transparent),
-                                        start = Offset(center - half, barRect.center.y),
-                                        end = Offset(center - half + fadePx, barRect.center.y),
-                                    ),
-                                    topLeft = Offset(center - half, bandTop),
-                                    size = Size(fadePx, bandHeight),
-                                    alpha = bandAlpha,
-                                )
-                                // 右端渐隐：透明 → 中心色。
-                                drawRect(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(Color.Transparent, coreColor),
-                                        start = Offset(center + half - fadePx, barRect.center.y),
-                                        end = Offset(center + half, barRect.center.y),
-                                    ),
-                                    topLeft = Offset(center + half - fadePx, bandTop),
-                                    size = Size(fadePx, bandHeight),
-                                    alpha = bandAlpha,
-                                )
-                            } else {
-                                // 拖尾：保留色相渐变（青 → 品红），但**只在两端各留一点柔边**
-                                //（渐变跨 2 倍渐隐宽度、中间是实色），这样它是"一条有色的余晖"，
-                                // 而不是"两端透明的一片雾"。
-                                val fadePx = barWidthPx * HANDLE_GLOW_TRAIL_FADE_SCALE
-                                drawRect(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(Color.Transparent, bandColors[i], bandColors[i], Color.Transparent),
-                                        start = Offset(center - half, barRect.center.y),
-                                        end = Offset(center + half, barRect.center.y),
-                                    ),
-                                    topLeft = Offset(center - half, bandTop),
-                                    size = Size(half * 2f, bandHeight),
-                                    alpha = bandAlpha,
-                                )
-                            }
-                        }
-                    }
-                    // ④ 外层辉光（bloom）：**画在条本体之上**，而且不只是沿条宽、还往**上下左右**外扩
-                    //    —— 这是"光漏出 9dp 的条"的关键，也是上一版"看不见"的主因：
-                    //    上一版 bloom 只比条宽一点、纵向完全不外扩，于是它基本整块躺在条里，
-                    //    再被 0.72 alpha 的条本体盖住 → 条外什么都没剩下。
-                    //    现在三层由大到小叠（外层淡、内层亮），配合 9dp 模糊形成柔和光环。
-                    //    ⚠️ 右边界仍然夹在条的右缘：条距屏幕右缘只有 3dp，光只能往左（和上下）走。
-                    val springX = HANDLE_HIT_DP.dp.toPx() * HANDLE_GLOW_BLOOM_LIMIT_RATIO
-                    val bloomTop = (barRect.top - barWidthPx * HANDLE_GLOW_BLOOM_SPILL_SCALE)
-                        .coerceAtLeast(0f)
-                    val bloomBottom = (barRect.bottom + barWidthPx * HANDLE_GLOW_BLOOM_SPILL_SCALE)
-                        .coerceAtMost(size.height)
-                    val bloomAlphaBase = HANDLE_GLOW_BLOOM_ALPHA * beat
-                    drawIntoCanvas { canvas ->
-                        // ⚠️ 走平台画布：`nativeCanvas` 是 `androidx.compose.ui.graphics.Canvas` 上的
-                        // 扩展属性（`AndroidCanvas_androidKt.getNativeCanvas`，已 import），
-                        // 只有它的 `drawRoundRect(l, t, r, b, rx, ry, Paint)` 收平台画笔；
-                        // Compose 的 `Canvas.drawRoundRect` 只收 Compose `Paint`（会类型不符）。
-                        // ⚠️ `bloomPaint` 是**平台**画笔，`color` 是 ARGB Int，所以要 `toArgb()`；
-                        // 别改回 Compose `Paint` —— 那支笔没有 `maskFilter`，模糊会失效。
-                        val native = canvas.nativeCanvas
-                        for (j in HANDLE_GLOW_BLOOM_LAYER_SCALES.indices.reversed()) {
-                            bloomPaint.color = coreColor.copy(
-                                alpha = (bloomAlphaBase * HANDLE_GLOW_BLOOM_LAYER_ALPHAS[j])
-                                    .coerceIn(0f, 1f),
-                            ).toArgb()
-                            val half = barWidthPx * HANDLE_GLOW_BLOOM_LAYER_SCALES[j]
-                            native.drawRoundRect(
-                                (bandX - half).coerceAtLeast(springX), bloomTop,
-                                (bandX + half).coerceAtMost(barRect.right), bloomBottom,
-                                cornerPx, cornerPx, bloomPaint,
-                            )
-                        }
-                    }
-                    // ⑤ 最后补 1dp 边框：让"发光"的条仍然有清楚轮廓，也不会被光糊掉边界。
-                    drawPath(barPath, barBorderColor, style = Stroke(width = borderWidthPx))
-                }
-            },
-        contentAlignment = Alignment.CenterEnd,
-    ) {
-        // 唯一的动画时钟：只在"该有光"时才进组合（`rememberInfiniteTransition` 在 if 内），
-        // 没提醒 / 拖动中 / 窗口不可见时它整个不存在 —— 真的一帧都不跑。
-        if (glowActive) {
-            HistoryHandleGlowSweep()
+            }
         }
+        // ④ 外层辉光（bloom）：**画在条本体之上**，而且不只是沿条宽、还往**上下左右**外扩
+        //    —— 这是"光漏出 9dp 的条"的关键，也是上一版"看不见"的主因：
+        //    上一版 bloom 只比条宽一点、纵向完全不外扩，于是它基本整块躺在条里，
+        //    再被 0.72 alpha 的条本体盖住 → 条外什么都没剩下。
+        //    现在三层由大到小叠（外层淡、内层亮），配合 9dp 模糊形成柔和光环。
+        //    ⚠️ 外缘那一侧仍然夹在条的**外缘**：条距屏幕外缘只有 3dp（见 [HANDLE_EDGE_GAP_DP]），
+        //    光绝对不能再往外走（那已经进了系统侧滑/返回的手势区），只能朝屏幕内侧漏。
+        val springX = HANDLE_BOX_DP.dp.toPx() * HANDLE_GLOW_BLOOM_LIMIT_RATIO
+        val bloomTop = (barRect.top - barWidthPx * HANDLE_GLOW_BLOOM_SPILL_SCALE)
+            .coerceAtLeast(0f)
+        val bloomBottom = (barRect.bottom + barWidthPx * HANDLE_GLOW_BLOOM_SPILL_SCALE)
+            .coerceAtMost(size.height)
+        val bloomAlphaBase = HANDLE_GLOW_BLOOM_ALPHA * beat
+        drawIntoCanvas { canvas ->
+            // ⚠️ 走平台画布：`nativeCanvas` 是 `androidx.compose.ui.graphics.Canvas` 上的
+            // 扩展属性（`AndroidCanvas_androidKt.getNativeCanvas`，已 import），
+            // 只有它的 `drawRoundRect(l, t, r, b, rx, ry, Paint)` 收平台画笔；
+            // Compose 的 `Canvas.drawRoundRect` 只收 Compose `Paint`（会类型不符）。
+            // ⚠️ `bloomPaint` 是**平台**画笔，`color` 是 ARGB Int，所以要 `toArgb()`；
+            // 别改回 Compose `Paint` —— 那支笔没有 `maskFilter`，模糊会失效。
+            val native = canvas.nativeCanvas
+            for (j in HANDLE_GLOW_BLOOM_LAYER_SCALES.indices.reversed()) {
+                bloomPaint.color = coreColor.copy(
+                    alpha = (bloomAlphaBase * HANDLE_GLOW_BLOOM_LAYER_ALPHAS[j])
+                        .coerceIn(0f, 1f),
+                ).toArgb()
+                val half = barWidthPx * HANDLE_GLOW_BLOOM_LAYER_SCALES[j]
+                // 内侧边界夹在 springX（= 离窗外缘 1.9dp），外侧边界夹在条的外缘 —— 方向随贴边侧镜像。
+                val left = if (gravityEnd) {
+                    (bandX - half).coerceAtLeast(springX)
+                } else {
+                    (bandX - half).coerceAtLeast(barRect.left)
+                }
+                val right = if (gravityEnd) {
+                    (bandX + half).coerceAtMost(barRect.right)
+                } else {
+                    (bandX + half).coerceAtMost(size.width - springX)
+                }
+                native.drawRoundRect(left, bloomTop, right, bloomBottom, cornerPx, cornerPx, bloomPaint)
+            }
+        }
+        // ⑤ 最后补 1dp 边框：让"发光"的条仍然有清楚轮廓，也不会被光糊掉边界。
+        drawPath(barPath, borderColor, style = Stroke(width = borderWidthPx))
     }
 }
 
@@ -544,18 +624,19 @@ private fun HistoryFloatHandle(
  *
  * 为什么做成"只吐一个 `State<Float>` 的 @Composable"：
  * 它唯一的产物就是返回的 `State<Float>`，而 `State` 可以在 `if` 里创建、
- * 再由 `if` 外层 `HistoryFloatHandle` 的 `drawWithCache` 绘制 lambda 去读 ——
- * 读取点在**绘制阶段**，所以每帧只让那一层 draw 失效（`invalidate`），
- * **不重组**把手、也不重绘别的节点。它自己**不画任何像素**（没有 UI）。
- * 反过来，如果把这个 `rememberInfiniteTransition` 提到 `if` 外面，
- * "没有提醒"的常驻状态下就会有一个永远跑着的动画时钟 —— 那是本次改动明确要避免的。
+ * 再由 `drawWithCache` 的绘制 lambda 去读 —— 读取点在**绘制阶段**，
+ * 所以每帧只让那一层 draw 失效（`invalidate`），**不重组**、也不重绘别的节点。
+ * 它自己**不画任何像素**（没有 UI）。反过来，把这个 `rememberInfiniteTransition` 提到 `if` 外面，
+ * "没有提醒"的常驻状态下就会有一个永远跑着的动画时钟 —— 那是明确要避免的。
  *
  * 为什么亮度包络不另开一个动画：需求要"2s 亮 / 1s 暗"，但**再开一个无限动画**就多一个时钟；
- * 这里直接用同一个 `phase` 当呼吸的相位、且周期与扫描周期**不同频**（见 [glowBeat]），
- * 既有呼吸感又不会和扫光同频僵硬。
+ * 这里直接用同一个 `phase` 当呼吸的相位、且周期与扫描周期**不同频**（见 [glowBeat]）。
+ *
+ * ⚠️ 拆分后它跑在**流光窗**（[HistoryHandleGlowWindow]）里：那个窗只在"该有光"时可见，
+ * 所以"没提醒就零动画"这条约束依旧成立。
  */
 @Composable
-private fun HistoryHandleGlowSweep(): State<Float> {
+internal fun HistoryHandleGlowSweep(): State<Float> {
     val transition = rememberInfiniteTransition(label = "handleGlow")
     return transition.animateFloat(
         initialValue = 0f,
@@ -580,11 +661,11 @@ private fun HistoryHandleGlowSweep(): State<Float> {
  * 这个 float state 是**在组合期/效果期被读**的 → 镜像一变就重组 → 重绘必定发生。
  * 相当于"自建帧循环"把相位推给绘制层，而不是指望绘制期的快照观察。
  *
- * 代价：`glowActive` 期间**每动画帧触发一次这个 composable 的重组**（不是整棵把手树），
+ * 代价：`glowActive` 期间**每动画帧触发一次这个 composable 的重组**（只有流光那一层），
  * 且仅在"有未处理提醒"时发生 —— 与既有的性能 gate 一致。
  */
 @Composable
-private fun rememberGlowObservedPhase(source: State<Float>): State<Float> {
+internal fun rememberGlowObservedPhase(source: State<Float>): State<Float> {
     val mirror = remember { mutableFloatStateOf(source.value) }
     LaunchedEffect(source) {
         while (true) {
@@ -594,7 +675,7 @@ private fun rememberGlowObservedPhase(source: State<Float>): State<Float> {
     return mirror
 }
 
-/** 向左拖动超过这个距离就认为用户想拉出收纳面板（未进入跟手时的兜底判定）。 */
+/** 朝屏幕内侧拖动超过这个距离就认为用户想拉出收纳面板（未进入跟手时的兜底判定）。 */
 private const val OPEN_DRAG_THRESHOLD_X = -20f
 
 /** 前这么多 dp 内锁定主方向：横向 = 跟手拉出面板，纵向 = 挪把手（设计稿注释同款）。 */
@@ -606,35 +687,63 @@ private const val REVEAL_COMMIT_FRACTION = 0.5f
 /** 拖动的主方向。 */
 private enum class DragAxis { HORIZONTAL, VERTICAL }
 
-/** 命中区边长（Android 最小触摸目标）。 */
-private const val HANDLE_HIT_DP = 48
-
 /**
- * 视觉条距**屏幕右缘**的距离（也是它"贴右边"的唯一决定因素）。
+ * 视觉条距**屏幕外缘**的距离（也是它"贴边"的唯一决定因素）。
  *
- * 为什么这个常量就等于"到屏幕右缘的距离"：
- * - 把手窗是 `WRAP_CONTENT`（内容宽 = [HANDLE_HIT_DP] 的命中区）、
- *   `gravity = TOP or START`、`x = 0`（见 `HistoryFloatService.applyHandlePosition`）；
- * - 命中区里条是 `contentAlignment = CenterEnd` + `padding(end = 本值)`，
- *   绘制层也用 `barLeft = size.width - 本值 - 条宽` 定位；
- * - 于是"屏幕右缘 − 条右缘"= 本值。**只动间距**，条宽/高/圆角/命中区都没动
- *   （条宽另有 `HistoryFloatHandleWidth` 设置项，那条线本次没碰）。
+ * 为什么这个常量就等于"到屏幕外缘的距离"：
+ * - 把手窗是 `WRAP_CONTENT`（内容宽 = 触摸区宽度）、`x = 0`（见 `HistoryFloatService.applyHandleGravity`）、
+ *   `gravity = TOP or END/START`，所以窗的外缘就是屏幕外缘；
+ * - 命中区里条是贴外缘画的（绘制层按 `size.width − gap − 条宽` 定位，见 [historyHandlePaint]）；
+ * - 于是"屏幕外缘 − 条外缘"= 本值。**只动间距**，条宽/高/圆角都没动。
  *
  * §间距三次收紧（用户反馈"间距太大"，两次都要求"减半"）：
  * **12dp（原设计稿）→ 6dp → 3dp**。
  *
  * ⚠️ 3dp 的风险（用户明确要求减半 → 仍按 3dp 实现，但真机上要留意）：
- * 从屏幕右缘往里滑是系统的返回/侧滑手势区（各家 ROM 大约 20–24dp），
- * 条现在几乎贴着右缘，条本身大半落在手势区里，手指落在条右侧时可能被系统抢走
- * （单击仍能命中，因为 48dp 命中区一直延伸到左边）。
- * 本次"光"也刻意只往**条左侧**溢出（见 [HANDLE_GLOW_BLOOM_LIMIT_RATIO]），
- * 就是为了不把光画到 3dp 之外的屏幕边缘手势区上。
+ * 从屏幕外缘往里滑是系统的返回/侧滑手势区（各家 ROM 大约 20–24dp），
+ * 条现在几乎贴着外缘，条本身大半落在手势区里，手指落在条外侧时可能被系统抢走
+ * （单击仍能命中，因为触摸区一直延伸到条内侧）。把手窗自己申报了手势排除区
+ * （`HistoryFloatHandleGestureExclusion`），代价是把手所在的那一小段外缘失去系统返回手势。
  */
-private const val HANDLE_EDGE_GAP_DP = 3
+internal const val HANDLE_EDGE_GAP_DP = 3
 
-// ───────────────────────── 科幻流光（§流光）参数 ─────────────────────────
+/**
+ * 触摸窗的尺寸（本文件就是这一层）。
+ *
+ * - 高 [HANDLE_BOX_DP]：纵向留给"上下拖动换位置"和长按，**没有**缩到条高（28dp 太难按）。
+ * - 宽 [HANDLE_TOUCH_WIDTH_DP] = **条贴外缘占的那一点 + 内侧补出来的一条命中带**。
+ *   条本身只占 `[HANDLE_EDGE_GAP_DP] + 条宽`（静止 3+9=12dp、按住 3+11=14dp），
+ *   剩下 [HANDLE_TOUCH_INNER_BAND_DP]（10dp）是**看不见的、朝屏幕内侧**的命中带。
+ *
+ * ⚠️ 这个"内侧命中带"是**手感与误触的折中参数**，别再走两个极端：
+ * - 早先的实现是 **48dp 见方**（Android 最小触摸目标）：条左边 36dp 都能点中 →
+ *   用户反馈"单击就呼出、妨碍别的 App"（issue #25）；
+ * - 后来收成"只有条本身"（14dp 宽，内侧余量 2dp）：误触没了，但**手指按不中**
+ *   （条只有 9dp，静止时命中区几乎等于条宽）。
+ * 现在 24dp = 条（最宽 14dp）+ 内侧 10dp：误触面积只有旧实现的一半，同时留出可点的余量。
+ * 只朝**屏幕内侧**加宽：外侧那 3dp 之外就是系统侧滑/返回手势区，绝不往外扩。
+ */
+internal const val HANDLE_BOX_DP = 48
+internal const val HANDLE_BAR_WIDTH_DP = 9
+internal const val HANDLE_BAR_ACTIVE_WIDTH_DP = 11
+internal const val HANDLE_TOUCH_INNER_BAND_DP = 10
+internal const val HANDLE_TOUCH_WIDTH_DP =
+    HANDLE_EDGE_GAP_DP + HANDLE_BAR_ACTIVE_WIDTH_DP + HANDLE_TOUCH_INNER_BAND_DP
+
+/**
+ * 条高（原来直接写死在 `size(width, height = 28.dp)` 里，绘制层要按它算矩形）。
+ * 流光窗里条的位置/尺寸也按它算，所以两窗必须共用同一个值。
+ */
+internal const val HANDLE_BAR_HEIGHT_DP = 28
+
+/** 条边框宽度（原来 `BorderStroke(1.dp, …)`）。 */
+internal const val HANDLE_BAR_BORDER_DP = 1f
+
+/** 条圆角（与原来 `RoundedCornerShape(5.dp)` 一致；绘制层是按形状手画的，所以要有这个常量）。 */
+internal const val HANDLE_BAR_CORNER_DP = 5
+
+// ── 流光参数（一眼参数表；真机上调观感只改这里）────────────────────────────
 //
-// 一眼参数表（真机上调观感只改这里）：
 // - 速度：HANDLE_GLOW_PERIOD_MS = 2600ms 扫一遍
 // - 呼吸：同一个 phase 复用，约 1200ms 一个"拍"（700ms 亮 / 500ms 暗）——
 //   周期以"圈"为单位记在 [GLOW_BEAT_PERIOD_SWEEPS]，故意和扫描周期**不同频**
@@ -697,21 +806,21 @@ private const val HANDLE_GLOW_CORE_ALPHA = 1.0f
 
 /**
  * 外层辉光的不透明度峰值（同样乘 `beat`），再按 [HANDLE_GLOW_BLOOM_LAYER_ALPHAS] 逐层递减。
- * 配 9dp 模糊 + 大幅左溢 + 纵向外扩，让条左侧有一圈**一眼能看见**的光环。
+ * 配 9dp 模糊 + 大幅内溢 + 纵向外扩，让条**朝屏幕内侧**那一面有一圈**一眼能看见**的光环。
  */
 private const val HANDLE_GLOW_BLOOM_ALPHA = 1.0f
 
-/** 辉光的模糊半径（越大越柔、越"光晕"）。9dp 在 48dp 命中区里仍然收得住，不会糊成一团。 */
+/** 辉光的模糊半径（越大越柔、越"光晕"）。9dp 在 48dp 的流光窗里仍然收得住，不会糊成一团。 */
 private const val HANDLE_GLOW_BLOOM_RADIUS_DP = 9f
 
 /**
  * 辉光的层宽（以条宽为单位，从内到外）。三层叠出"细芯 → 亮晕 → 大范围柔光"。
  *
  * 关键：**最外层要比条宽大得多**（3.2 × 9dp ≈ 29dp），这样无论主带在条内哪个位置，
- * 光晕都必然从条的左缘漏出去一大截 —— 这是"存在感"的唯一来源，
- * 因为条的右侧只剩 3dp（见 [HANDLE_EDGE_GAP_DP]），光只能往左走。
- * ⚠️ 外层 3.2 已接近窗口左缘的余量上限（见 [HANDLE_GLOW_BLOOM_LIMIT_RATIO] 的几何），
- * 再放大就会被 `coerceAtLeast(springX)` 夹住、变成硬边光块。
+ * 光晕都必然从条的内侧漏出去一大截 —— 这是"存在感"的唯一来源，
+ * 因为条的外侧只剩 3dp（见 [HANDLE_EDGE_GAP_DP]），光只能往内侧走。
+ * ⚠️ 外层 3.2 已接近窗口内侧缘的余量上限（见 [HANDLE_GLOW_BLOOM_LIMIT_RATIO] 的几何），
+ * 再放大就会被 `coerceAtLeast/coerceAtMost(springX)` 夹住、变成硬边光块。
  */
 private val HANDLE_GLOW_BLOOM_LAYER_SCALES = floatArrayOf(0.9f, 1.8f, 3.2f)
 
@@ -722,31 +831,22 @@ private val HANDLE_GLOW_BLOOM_LAYER_ALPHAS = floatArrayOf(1.0f, 0.55f, 0.35f)
  * 辉光往条**上下**外扩多少（以条宽为单位）。
  *
  * 只沿条宽方向扩张的话，整块光晕会基本躺在条里、再被条本体盖掉 —— 条外什么都看不见。
- * 1.7 让光环比条高出一大截（约 28dp + 2×15dp），横向又只往左，于是形成一个
- * 明显偏向左侧的大光斑，"光从条里漏出来"这件事才看得见。
+ * 1.7 让光环比条高出一大截（约 28dp + 2×15dp），横向又只往屏幕内侧，于是形成一个
+ * 明显偏向内侧的大光斑，"光从条里漏出来"这件事才看得见。
  */
 private const val HANDLE_GLOW_BLOOM_SPILL_SCALE = 1.7f
 
 /**
- * 辉光允许"往条的左侧"溢出多远（以命中区宽度为单位的**左边界**）。
+ * 辉光允许"往条内侧"溢出多远（以流光窗宽度为单位的**内边界**）。
  *
- * ⚠️ 这是安全性参数，不是审美参数。把手窗是 `WRAP_CONTENT`（内容宽 = 48dp 命中区）
- * 且 `gravity = TOP or START`、`x = 0`，所以命中区的右缘就贴屏幕右缘，
- * 条距屏幕右缘只有 [HANDLE_EDGE_GAP_DP]（= 3dp）。
- * 也就是说条的**右侧**只剩 3dp 就到屏幕边缘（再往外就是系统侧滑/返回的手势区），
- * 光绝对不能往右边溢。所以 bloom 的右边界被夹在条的右缘，只让光从条**左侧**漏出去。
- * 0.04 这个比例 ≈ 左边界不越过 x = 1.9dp（离左窗缘还有约 1.9dp 余量）。
+ * ⚠️ 这是安全性参数，不是审美参数。把手窗是 `WRAP_CONTENT`（内容宽 = 触摸区宽度）
+ * 且 `x = 0`、`gravity = TOP or END/START`，所以触摸区的外缘就贴屏幕外缘，
+ * 条距屏幕外缘只有 [HANDLE_EDGE_GAP_DP]（= 3dp）。
+ * 也就是说条的**外侧**只剩 3dp 就到屏幕边缘（再往外就是系统侧滑/返回的手势区），
+ * 光绝对不能往外溢。所以 bloom 的外边界被夹在条的外缘，只让光从条**内侧**漏出去。
+ * 0.04 这个比例 ≈ 内边界不越过 x = windowWidth − 1.9dp。
  */
 private const val HANDLE_GLOW_BLOOM_LIMIT_RATIO = 0.04f
-
-/** 条圆角（与原来 `RoundedCornerShape(5.dp)` 一致；绘制层是按形状手画的，所以要有这个常量）。 */
-private const val HANDLE_BAR_CORNER_DP = 5
-
-/** 条高：原来直接写死在 `size(width, height = 28.dp)` 里，绘制层要按它算矩形。 */
-private const val HANDLE_BAR_HEIGHT_DP = 28
-
-/** 条边框宽度（原来 `BorderStroke(1.dp, …)`）。 */
-private const val HANDLE_BAR_BORDER_DP = 1f
 
 /**
  * 主带（近白亮核）的色相/饱和度/亮度目标。

@@ -19,7 +19,6 @@ import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
@@ -31,9 +30,11 @@ import com.slideindex.app.overlay.HistoryFloatHandleGestureExclusion
 import com.slideindex.app.overlay.OverlayCompose
 import com.slideindex.app.overlay.OverlayComposeOwner
 import com.slideindex.app.overlay.OverlayWindowTypes
+import com.slideindex.app.overlay.PanelSide
 import com.slideindex.app.overlay.StashPanelInitialTab
 import com.slideindex.app.overlay.history.HistoryFloatContent
 import com.slideindex.app.overlay.history.HistoryHandleCaptureVisibility
+import com.slideindex.app.overlay.history.HistoryHandleGlowWindow
 import com.slideindex.app.overlay.history.HistoryNoteSlotWindow
 import com.slideindex.app.overlay.history.HistoryPanelTab
 import com.slideindex.app.overlay.history.HistorySavePeekWindow
@@ -41,7 +42,7 @@ import com.slideindex.app.overlay.history.HistorySaveSignal
 import com.slideindex.app.overlay.history.StashPanelTabMemory
 import com.slideindex.app.overlay.history.StashReminderPendingState
 import com.slideindex.app.settings.HistoryFloatHandlePosition
-import com.slideindex.app.settings.HistoryFloatHandleWidth
+import com.slideindex.app.settings.HistoryFloatHandleSide
 import com.slideindex.app.settings.StashPanelHandleOpenTab
 import com.slideindex.app.stash.StashAccess
 import com.slideindex.app.stash.StashCoordinator
@@ -61,7 +62,17 @@ class HistoryFloatService : Service() {
     private var composeView: ComposeView? = null
     private var composeOwner: OverlayComposeOwner? = null
     private var handleVisible by mutableStateOf(true)
-    private var handleWidth by mutableIntStateOf(HistoryFloatHandleWidth.DEFAULT_DP)
+    /**
+     * 把手贴哪一侧。
+     *
+     * ⚠️ 必须是 Compose 状态：它既是窗口 `gravity` 的输入，也是把手内容（条往哪边靠、
+     * 手势朝哪个方向算）的参数；普通 `var` 改了不会让已经挂上的窗重组。
+     */
+    private var handleSide by mutableStateOf(HistoryFloatHandleSide.DEFAULT)
+    /** 把手内容上报的"现在该不该有流光"（见 `HistoryFloatContent.onGlowActiveChange`）。 */
+    private var glowShouldBeActive = false
+    /** 提醒流光窗（懒创建：没提醒就不建窗、也没有动画时钟）。 */
+    private var glowWindow: HistoryHandleGlowWindow? = null
     private var lockLoc = true
     private var landscapeEnabled = false
     private var positionY = 0
@@ -144,16 +155,28 @@ class HistoryFloatService : Service() {
                 HistoryFloatContent(
                     handleVisible = handleVisible,
                     handleAlert = handleAlert,
+                    gravityEnd = handleSide == HistoryFloatHandleSide.RIGHT,
                     onOpenPanel = { openPanelFromHandle() },
                     onMoveHandle = { moveHandle(it) },
                     onMoveHandleEnd = { persistHandlePosition() },
                     // 跟手拉出：横向拖过阈值 → 面板窗从屏幕外开始跟着手指走（见 HistoryPanelReveal）。
                     onRevealStart = {
-                        StashCoordinator.beginHandleReveal(this@HistoryFloatService, resolveHandleOpenTab())
+                        StashCoordinator.beginHandleReveal(
+                            context = this@HistoryFloatService,
+                            initialTab = resolveHandleOpenTab(),
+                            panelSide = panelSide(),
+                        )
                     },
                     onRevealEnd = { commit -> StashCoordinator.endHandleReveal(commit) },
                     // 长按 = 就地记一条（设计稿 `.slot`），不再只是"打开面板"。
                     onQuickNote = { showNoteSlot() },
+                    // 纵向拖动中越过屏幕中线、松手 → 吸附到对侧（侧别落盘，重启后仍是这一侧）。
+                    onSwitchSide = { setHandleSide(handleSide.opposite, persist = true) },
+                    // 流光窗是另一个 window，拿不到"有没有提醒/在不在拖动"；由把手内容上报。
+                    onGlowActiveChange = { active ->
+                        glowShouldBeActive = active
+                        applyGlowVisibility()
+                    },
                 )
             }
         }
@@ -179,10 +202,10 @@ class HistoryFloatService : Service() {
                 lockLoc = intent.getBooleanExtra(EXTRA_LOCK_POSITION, lockLoc)
                 return START_STICKY
             }
-            ACTION_SET_HANDLE_WIDTH -> {
-                handleWidth = intent.getIntExtra(
-                    EXTRA_HANDLE_WIDTH_DP,
-                    HistoryFloatHandleWidth.DEFAULT_DP
+            ACTION_SET_HANDLE_SIDE -> {
+                setHandleSide(
+                    side = HistoryFloatHandleSide.fromStorageKey(intent.getStringExtra(EXTRA_HANDLE_SIDE)),
+                    persist = false,
                 )
                 return START_STICKY
             }
@@ -192,7 +215,10 @@ class HistoryFloatService : Service() {
                 return START_STICKY
             }
         }
-        handleWidth = intent?.getIntExtra(EXTRA_HANDLE_WIDTH_DP, handleWidth) ?: handleWidth
+        // 没有带着侧别来的调用（例如只是"起来显示一下"）**保持当前侧**，不要被默认值顶掉。
+        intent?.getStringExtra(EXTRA_HANDLE_SIDE)?.let { raw ->
+            handleSide = HistoryFloatHandleSide.fromStorageKey(raw)
+        }
         lockLoc = intent?.getBooleanExtra(EXTRA_LOCK_POSITION, lockLoc) ?: lockLoc
         landscapeEnabled = intent?.getBooleanExtra(EXTRA_LANDSCAPE_ENABLED, landscapeEnabled) ?: landscapeEnabled
         showFloatWindow()
@@ -209,6 +235,8 @@ class HistoryFloatService : Service() {
         slotWindow = null
         peekWindow?.destroy()
         peekWindow = null
+        glowWindow?.destroy()
+        glowWindow = null
         if (viewAdded) {
             composeView?.let { runCatching { windowManager.removeView(it) } }
             viewAdded = false
@@ -240,13 +268,14 @@ class HistoryFloatService : Service() {
         mainParams.width = LayoutParams.WRAP_CONTENT
         mainParams.height = LayoutParams.WRAP_CONTENT
         mainParams.flags = BASE_WINDOW_FLAGS
-        mainParams.gravity = Gravity.END or Gravity.TOP
+        applyHandleGravity()
         OverlayWindowTypes.ensureNoBrightnessOverride(mainParams)
         applyHandlePosition()
         windowManager.addView(view, mainParams)
         viewAdded = true
-        // 把手落在右侧 48dp 系统返回手势区里，必须为**自己这块足迹**申请排除区，
+        // 把手落在贴边那一侧的系统返回手势区里，必须为**自己这块足迹**申请排除区，
         // 否则用户想从把手位置返回时会滑不动（其上下方的返回手势照常可用）。
+        // 触摸区已经收窄到"竖条真实宽度"（见 `HANDLE_TOUCH_WIDTH_DP`），这块代价也随之变小。
         HistoryFloatHandleGestureExclusion.attach(view)
         view.post {
             if (!viewAdded) return@post
@@ -285,8 +314,78 @@ class HistoryFloatService : Service() {
             screenHeightPx = screenHeightPx(),
             handleHeightPx = estimateHandleHeightPx()
         )
-        mainParams.x = 0
+        applyHandleGravity()
         mainParams.y = positionY
+        glowWindow?.moveTo(positionY)
+    }
+
+    /**
+     * 贴边侧 → 窗口 `gravity` + `x`。
+     *
+     * `x` 恒为 0：贴右缘用 `Gravity.RIGHT`、贴左缘用 `Gravity.LEFT`，窗的外缘就落在屏幕外缘上
+     * （条的"距外缘 3dp"由绘制层负责，见 `HANDLE_EDGE_GAP_DP`）。
+     * 换边时**只改这两个字段**就能让整条把手镜像过去，不需要重建窗口。
+     *
+     * ⚠️ 这里刻意用**绝对**的 `LEFT/RIGHT` 而不是 `START/END`：侧别是"屏幕左右"这个物理概念
+     * （拖动越中线换边、条的绘制方向、面板从哪边滑出全都是屏幕坐标），
+     * 用 `END` 在 RTL 语言下会翻到左边，导致"存的是 right、画的是左"这种自相矛盾的状态。
+     */
+    private fun applyHandleGravity() {
+        val end = handleSide == HistoryFloatHandleSide.RIGHT
+        mainParams.gravity = Gravity.TOP or if (end) Gravity.RIGHT else Gravity.LEFT
+        mainParams.x = 0
+        glowWindow?.setGravityEnd(end)
+    }
+
+    /**
+     * 换到指定一侧（拖过屏幕中线松手时调）。
+     *
+     * [persist] = true 时把侧别写进设置（重启/换语言重建后仍是这一侧）；设置页主动下发时为 false，
+     * 避免"设置写 → 服务再写回设置"的回路。
+     */
+    private fun setHandleSide(side: HistoryFloatHandleSide, persist: Boolean) {
+        if (handleSide == side) return
+        handleSide = side
+        if (viewAdded) {
+            // ⚠️ **不要**在这里调 `applyHandlePosition()`：它会用"已落盘的 Y"覆盖 `positionY`，
+            // 而换边总是在一次纵向拖动结束时发生（拖到对侧的 Y 还没落盘）——
+            // 那样用户刚拖上去的把手会被弹回原位。只换 gravity/x，Y 原样保留；
+            // 落盘由紧随其后的 `onMoveHandleEnd` → `persistHandlePosition()` 负责。
+            applyHandleGravity()
+            composeView?.let { runCatching { windowManager.updateViewLayout(it, mainParams) } }
+        }
+        // 贴着把手的那两个小窗也要跟着换边（它们按屏幕左右缘定位）。
+        val end = side == HistoryFloatHandleSide.RIGHT
+        peekWindow?.setGravityEnd(end)
+        slotWindow?.setGravityEnd(end)
+        if (persist) {
+            deps.applicationScope.launch {
+                deps.settingsRepository.setClipboardHistoryFloatHandleSide(side)
+            }
+        }
+    }
+
+    /**
+     * 流光窗的可见性 = 把手内容上报的"该有光" **且** 把手没被全屏/横屏/息屏/截图藏起来。
+     *
+     * 没光时只隐藏（`View.GONE`）、**不建窗**；真的要有光了才懒创建那个窗 —— 于是"没提醒"
+     * 的常驻状态既没有多余的窗，也没有任何动画时钟。
+     */
+    private fun applyGlowVisibility() {
+        val hidden = hiddenForFullscreen || hiddenForLandscape || hiddenForScreenOff ||
+            HistoryHandleCaptureVisibility.isSuppressed
+        val active = glowShouldBeActive && !hidden
+        if (!active && glowWindow == null) return
+        val window = glowWindow ?: if (active) {
+            HistoryHandleGlowWindow(this, windowManager).also {
+                it.setGravityEnd(handleSide == HistoryFloatHandleSide.RIGHT)
+                it.moveTo(positionY)
+                glowWindow = it
+            }
+        } else {
+            null
+        }
+        window?.setGlowActive(active)
     }
 
     private fun moveHandle(dy: Float) {
@@ -302,6 +401,7 @@ class HistoryFloatService : Service() {
         mainParams.x = 0
         mainParams.y = positionY
         windowManager.updateViewLayout(view, mainParams)
+        glowWindow?.moveTo(positionY)
     }
 
     private fun persistHandlePosition() {
@@ -333,11 +433,16 @@ class HistoryFloatService : Service() {
 
     private fun openPanelFromHandle() {
         val context = applicationContext
+        val side = panelSide()
         when (resolveHandleOpenTab()) {
-            StashPanelInitialTab.Stash -> StashCoordinator.openStashPanel(context)
-            StashPanelInitialTab.Clipboard -> StashCoordinator.openClipboardPanel(context)
+            StashPanelInitialTab.Stash -> StashCoordinator.openStashPanel(context, side)
+            StashPanelInitialTab.Clipboard -> StashCoordinator.openClipboardPanel(context, side)
         }
     }
+
+    /** 把手当前贴边的侧别 → 侧栏面板的侧别（面板从哪一边滑出来）。 */
+    private fun panelSide(): PanelSide =
+        if (handleSide == HistoryFloatHandleSide.RIGHT) PanelSide.RIGHT else PanelSide.LEFT
 
     /** 把手纵向中心（px）：peek 与输入槽都贴着它对齐。 */
     private fun handleCenterY(): Int = positionY + estimateHandleHeightPx() / 2
@@ -345,13 +450,17 @@ class HistoryFloatService : Service() {
     /** 长按把手：弹出就地输入槽（懒创建窗口）。 */
     private fun showNoteSlot() {
         val window = slotWindow ?: HistoryNoteSlotWindow(this, windowManager).also {
+            it.setGravityEnd(handleSide == HistoryFloatHandleSide.RIGHT)
             slotWindow = it
         }
         window.show(handleCenterY())
     }
 
     private fun ensurePeekWindow(): HistorySavePeekWindow =
-        peekWindow ?: HistorySavePeekWindow(this, windowManager).also { peekWindow = it }
+        peekWindow ?: HistorySavePeekWindow(this, windowManager).also {
+            it.setGravityEnd(handleSide == HistoryFloatHandleSide.RIGHT)
+            peekWindow = it
+        }
 
     /**
      * 有待办未完成 → 把手变色。
@@ -512,11 +621,12 @@ class HistoryFloatService : Service() {
         }
         view.alpha = if (hidden) 0f else 1f
         view.visibility = View.VISIBLE
-        // 把手藏起来时，贴在它旁边的两个小窗（预览 / 输入槽）也要收掉。
+        // 把手藏起来时，贴在它旁边的两个小窗（预览 / 输入槽）与流光窗也要收掉。
         if (hidden) {
             peekWindow?.hide()
             slotWindow?.hide()
         }
+        applyGlowVisibility()
     }
 
     private fun isSystemFullscreen(): Boolean {
@@ -541,9 +651,9 @@ class HistoryFloatService : Service() {
         private const val TAG = "HistoryFloatService"
 
         const val ACTION_LOCK_POSITION = "com.slideindex.app.history_float.LOCK_POSITION"
-        const val ACTION_SET_HANDLE_WIDTH = "com.slideindex.app.history_float.SET_HANDLE_WIDTH"
+        const val ACTION_SET_HANDLE_SIDE = "com.slideindex.app.history_float.SET_HANDLE_SIDE"
         const val ACTION_SET_LANDSCAPE_ENABLED = "com.slideindex.app.history_float.SET_LANDSCAPE_ENABLED"
-        const val EXTRA_HANDLE_WIDTH_DP = "handle_width_dp"
+        const val EXTRA_HANDLE_SIDE = "handle_side"
         const val EXTRA_LOCK_POSITION = "lock_position"
         const val EXTRA_LANDSCAPE_ENABLED = "landscape_enabled"
 

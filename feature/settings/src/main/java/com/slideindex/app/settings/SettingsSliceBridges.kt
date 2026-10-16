@@ -85,6 +85,8 @@ fun GestureSettings.toMinimalAppSettings(): AppSettings = AppSettings(
         appLaunchPolicyId = appLaunchPolicyId,
         longPressLaunchDurationMs = longPressLaunchDurationMs,
     ),
+    independentAppGestureEnabled = independentAppGestureEnabled,
+    gestureProfiles = gestureProfiles,
     widgetPanel = WidgetPanelSettings(
         widgetPanelPages = widgetPanelPages,
         widgetPanelWidthFraction = widgetPanelWidthFraction,
@@ -245,7 +247,7 @@ fun OverlaySettings.toMinimalAppSettings(): AppSettings = AppSettings(
         clipboardHistoryFloatEnabled = clipboardHistoryFloatEnabled,
         clipboardHistoryFloatEnabledLandscape = clipboardHistoryFloatEnabledLandscape,
         clipboardHistoryFloatLockPosition = clipboardHistoryFloatLockPosition,
-        clipboardHistoryFloatHandleWidthDp = clipboardHistoryFloatHandleWidthDp,
+        clipboardHistoryFloatHandleSide = clipboardHistoryFloatHandleSide,
         clipboardHistoryFloatHandleYPortrait = clipboardHistoryFloatHandleYPortrait,
         clipboardHistoryFloatHandleYLandscape = clipboardHistoryFloatHandleYLandscape,
         clipboardFloatEnabled = clipboardFloatEnabled,

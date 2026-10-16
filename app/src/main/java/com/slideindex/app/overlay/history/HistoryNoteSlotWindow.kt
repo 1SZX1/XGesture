@@ -84,6 +84,15 @@ internal class HistoryNoteSlotWindow(
     private var layoutParams: WindowManager.LayoutParams? = null
     private var backHandler: OverlayViewBackHandler? = null
     private val open = mutableStateOf(false)
+
+    /** true = 把手贴右缘（输入槽靠右边缘、往左长出来）；false = 镜像。 */
+    private val gravityEnd = mutableStateOf(true)
+
+    /** 把手换边时调它：输入槽贴着新的一侧弹出（不做"值没变就返回"，旋屏后屏宽变了要重算）。 */
+    fun setGravityEnd(end: Boolean) {
+        gravityEnd.value = end
+        applyPosition()
+    }
     /** 每次打开 +1：已经开着时再按长按，也要能把焦点重新拉回输入框。 */
     private val focusEpoch = mutableIntStateOf(0)
     private var measuredSize = IntSize.Zero
@@ -214,7 +223,7 @@ internal class HistoryNoteSlotWindow(
         }
     }
 
-    /** 右缘锚在屏幕右侧 10dp（设计稿 `right:10px`），纵向与把手居中。 */
+    /** 贴着把手那一侧的外缘（设计稿 `right:10px`），纵向与把手居中。 */
     private fun applyPosition() {
         val params = layoutParams ?: return
         val view = composeView ?: return
@@ -224,15 +233,21 @@ internal class HistoryNoteSlotWindow(
         }
         val screenWidthPx = context.resources.displayMetrics.widthPixels
         val density = context.resources.displayMetrics.density
-        params.x = (screenWidthPx - measuredSize.width - (SLOT_RIGHT_MARGIN_DP * density).toInt())
-            .coerceAtLeast(0)
+        val marginPx = (SLOT_EDGE_MARGIN_DP * density).toInt()
+        // 窗是 WRAP_CONTENT + gravity START，所以"宽度动画 72→300px"会自然朝屏幕内侧长：
+        // 贴右缘时 x 随宽度往前推（往左长），贴左缘时 x 固定在 margin（往右长）。
+        params.x = if (gravityEnd.value) {
+            (screenWidthPx - measuredSize.width - marginPx).coerceAtLeast(0)
+        } else {
+            marginPx
+        }
         params.y = (anchorCenterY - measuredSize.height / 2).coerceAtLeast(0)
         runCatching { windowManager.updateViewLayout(view, params) }
     }
 
     private companion object {
         const val TAG = "HistoryNoteSlot"
-        const val SLOT_RIGHT_MARGIN_DP = 10
+        const val SLOT_EDGE_MARGIN_DP = 10
         const val SLOT_FOCUS_DELAY_MS = 150L
         const val SLOT_HIDE_DELAY_MS = 220L
     }

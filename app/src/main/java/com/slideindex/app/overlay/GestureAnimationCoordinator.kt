@@ -18,8 +18,8 @@ import com.slideindex.app.overlay.animation.GestureAnimationState
 
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.GestureHintStyle
-import com.slideindex.app.settings.actionFor
 import com.slideindex.app.settings.gestureHintStyle
+import com.slideindex.app.settings.actionFor
 
 import kotlin.math.abs
 

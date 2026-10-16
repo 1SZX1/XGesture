@@ -58,6 +58,8 @@ fun MainScreen(
     onOpenPreviousAppBlacklist: () -> Unit,
     onOpenInteractionAppearanceSettings: () -> Unit,
     onOpenTriggerCollection: () -> Unit,
+    onOpenGestureAppProfiles: () -> Unit = {},
+    gestureAppProfileCount: Int = 0,
     onOpenCornerWheel: () -> Unit,
     onOpenGestureAngle: () -> Unit,
     onOpenSystemBackGestureWidth: () -> Unit,
@@ -243,6 +245,27 @@ fun MainScreen(
                             title = stringResource(R.string.trigger_collection_title),
                             subtitle = stringResource(R.string.trigger_collection_desc),
                             onClick = onOpenTriggerCollection,
+                            )
+                        }
+                    },
+                )
+                add(
+                    settingsCardItem("gesture-app-profiles") {
+                        SettingsCardScopeContent {
+                            SettingNavigationRow(
+                                icon = { label ->
+                                    Icon(HomeLeadingIcons.triggerCollection(true), contentDescription = label)
+                                },
+                                title = stringResource(R.string.gesture_app_profiles_title),
+                                subtitle = if (gestureAppProfileCount > 0) {
+                                    stringResource(
+                                        R.string.gesture_app_profiles_entry_count,
+                                        gestureAppProfileCount,
+                                    )
+                                } else {
+                                    stringResource(R.string.gesture_app_profiles_desc)
+                                },
+                                onClick = onOpenGestureAppProfiles,
                             )
                         }
                     },

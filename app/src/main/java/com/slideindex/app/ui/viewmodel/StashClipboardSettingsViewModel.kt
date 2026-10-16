@@ -12,7 +12,6 @@ import com.slideindex.app.settings.ClipboardMonitoringMode
 import com.slideindex.app.settings.ClipboardMonitoringCapture
 import com.slideindex.app.settings.ClipboardMonitoringChannel
 import com.slideindex.app.settings.ClipboardOverlayScale
-import com.slideindex.app.settings.HistoryFloatHandleWidth
 import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.settings.StashPanelHandleOpenTab
 import com.slideindex.app.settings.StashPanelWidthMode
@@ -115,29 +114,8 @@ class StashClipboardSettingsViewModel @Inject constructor(
             if (result.isSuccess) {
                 HistoryFloatLifecycle.applyRuntimeConfig(
                     context = appContext,
-                    handleWidthDp = settingsRepository.readSnapshot().clipboardHistoryFloatHandleWidthDp,
+                    side = settingsRepository.readSnapshot().clipboardHistoryFloatHandleSide,
                     lockPosition = lock,
-                    landscapeEnabled = settingsRepository.readSnapshot().clipboardHistoryFloatEnabledLandscape,
-                )
-            }
-        }
-    }
-
-    fun setClipboardHistoryFloatHandleWidthDp(widthDp: Int) = launchOptimisticSettingsWrite(
-        optimisticUpdate = {
-            it.copy(
-                clipboard = it.clipboard.copy(
-                    clipboardHistoryFloatHandleWidthDp = HistoryFloatHandleWidth.coerce(widthDp),
-                ),
-            )
-        },
-    ) {
-        settingsRepository.setClipboardHistoryFloatHandleWidthDp(widthDp).also { result ->
-            if (result.isSuccess) {
-                HistoryFloatLifecycle.applyRuntimeConfig(
-                    context = appContext,
-                    handleWidthDp = widthDp,
-                    lockPosition = settingsRepository.readSnapshot().clipboardHistoryFloatLockPosition,
                     landscapeEnabled = settingsRepository.readSnapshot().clipboardHistoryFloatEnabledLandscape,
                 )
             }
@@ -151,7 +129,7 @@ class StashClipboardSettingsViewModel @Inject constructor(
             if (result.isSuccess) {
                 HistoryFloatLifecycle.applyRuntimeConfig(
                     context = appContext,
-                    handleWidthDp = settingsRepository.readSnapshot().clipboardHistoryFloatHandleWidthDp,
+                    side = settingsRepository.readSnapshot().clipboardHistoryFloatHandleSide,
                     lockPosition = settingsRepository.readSnapshot().clipboardHistoryFloatLockPosition,
                     landscapeEnabled = enabled,
                 )

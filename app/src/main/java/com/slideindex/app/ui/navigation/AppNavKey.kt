@@ -20,68 +20,94 @@ sealed interface AppNavKey : NavKey {
     @Serializable data object HomeFreeWindow : AppNavKey
     @Serializable data object HomeFreeWindowLaunchPolicy : AppNavKey
     @Serializable data object HomeFreeWindowMode : AppNavKey
+    /**
+     * 侧滑触钮集合与档内触钮集合的路由。
+     *
+     * [profileId]：null = 正在编**全局**（既有调用点一行都不用改）；非 null = 正在编「按应用分档」
+     * 里的某个档位（issue #26 v2）。两种作用域共用同一批页面与同一套读写逻辑，只是读的来源
+     * （全局设置 / `materializeGestureProfile`）与写的目的地（全局仓库 / 该档整片快照）不同。
+     */
     @Serializable data object HomeTriggerCollection : AppNavKey
     @Serializable data object HomeTriggerCollectionLandscape : AppNavKey
-    @Serializable data class HomeSideGestures(val side: String, val handleId: String) : AppNavKey
-    @Serializable data class HomeSideGesturesDefaultMode(val side: String, val handleId: String) : AppNavKey
+    @Serializable data class HomeSideGestures(
+        val side: String,
+        val handleId: String,
+        val profileId: String? = null,
+    ) : AppNavKey
+    @Serializable data class HomeSideGesturesDefaultMode(
+        val side: String,
+        val handleId: String,
+        val profileId: String? = null,
+    ) : AppNavKey
     @Serializable data class HomeSideGestureSlotConfig(
         val side: String,
         val handleId: String,
         val triggerId: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotActionPick(
         val side: String,
         val handleId: String,
         val triggerId: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotMyShortcuts(
         val side: String,
         val handleId: String,
         val triggerId: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotPresetShortcuts(
         val side: String,
         val handleId: String,
         val triggerId: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotPickApp(
         val side: String,
         val handleId: String,
         val triggerId: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotPickActivity(
         val side: String,
         val handleId: String,
         val triggerId: Int,
         val packageName: String,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotModePick(
         val side: String,
         val handleId: String,
         val triggerId: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotQuickLauncherPanel(
         val side: String,
         val handleId: String,
         val triggerId: Int,
         val panelId: String = "",
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotShellCommand(
         val side: String,
         val handleId: String,
         val triggerId: Int,
         val initialCommand: String = "",
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureFingertipRing(
         val side: String,
         val handleId: String,
         val triggerId: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureFingertipRingSlotActionPick(
         val side: String,
         val handleId: String,
         val triggerId: Int,
         val slotIndex: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureFingertipRingShellCommand(
         val side: String,
@@ -89,12 +115,14 @@ sealed interface AppNavKey : NavKey {
         val triggerId: Int,
         val slotIndex: Int,
         val initialCommand: String = "",
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureFingertipRingSwipeConfig(
         val side: String,
         val handleId: String,
         val triggerId: Int,
         val slotIndex: Int,
+        val profileId: String? = null,
     ) : AppNavKey
     @Serializable data class HomeSideGestureSlotSimulateKeyEvent(
         val side: String,
@@ -103,9 +131,24 @@ sealed interface AppNavKey : NavKey {
         val initialKeyCode: Int = 82,
         val initialKeyName: String = "",
         val initialIsLongPress: Boolean = false,
+        val profileId: String? = null,
     ) : AppNavKey
-    @Serializable data class HomeSideGesturesAppearance(val side: String, val handleId: String) : AppNavKey
-    @Serializable data class HomeSideGesturesDesign(val side: String, val handleId: String) : AppNavKey
+    @Serializable data class HomeSideGesturesAppearance(
+        val side: String,
+        val handleId: String,
+        val profileId: String? = null,
+    ) : AppNavKey
+    @Serializable data class HomeSideGesturesDesign(
+        val side: String,
+        val handleId: String,
+        val profileId: String? = null,
+    ) : AppNavKey
+
+    // 侧滑手势「按应用分档」（issue #26 v2）：档管理页 / 档内触钮集合页 / 档内绑定应用。
+    // 档内更深的路由见上面那批带 profileId 的触钮 key（页面完全复用全局那套）。
+    @Serializable data object HomeGestureAppProfiles : AppNavKey
+    @Serializable data class HomeGestureAppProfileDetail(val profileId: String) : AppNavKey
+    @Serializable data class HomeGestureAppProfileBind(val profileId: String) : AppNavKey
     @Serializable data object HomeGestureAngle : AppNavKey
     @Serializable data object HomeSystemBackGestureWidth : AppNavKey
     @Serializable data object HomeAnimationStyleSelect : AppNavKey

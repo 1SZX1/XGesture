@@ -406,6 +406,14 @@ internal object SettingsPreferenceKeys {
     val OTP_RECORD_PLAIN_SMS_LIMIT = intPreferencesKey("otp_record_plain_sms_limit")
     val OTP_RECORD_APP_NOTIFY_LIMIT = intPreferencesKey("otp_record_app_notify_limit")
     val OTP_BLOCKED_PACKAGES = stringSetPreferencesKey("otp_blocked_packages")
+    /**
+     * 侧滑手势「按应用分档」：总开关 + 各档（每档一整片触钮集合快照）。
+     *
+     * 键名以 `gesture_` 开头：`SettingsBackupPreview.mapPreferenceKeyToDomain` 按前缀归档，
+     * 因此这两个键会自动落进 `EDGE_GESTURES` 域，不需要改映射表。
+     */
+    val GESTURE_PROFILES = stringSetPreferencesKey("gesture_profiles")
+    val INDEPENDENT_APP_GESTURE_ENABLED = booleanPreferencesKey("gesture_independent_app_enabled")
     val SHAKE_GESTURES_ENABLED = booleanPreferencesKey("shake_gestures_enabled")
     val SHAKE_GESTURE_ACTIONS = stringSetPreferencesKey("shake_gesture_actions")
     val SHAKE_MENU_ACTIONS = stringSetPreferencesKey("shake_menu_actions")
@@ -617,7 +625,7 @@ internal object SettingsPreferenceKeys {
     val CLIPBOARD_HISTORY_FLOAT_ENABLED_LANDSCAPE =
         booleanPreferencesKey("clipboard_history_float_enabled_landscape")
     val CLIPBOARD_HISTORY_FLOAT_LOCK_POSITION = booleanPreferencesKey("clipboard_history_float_lock_position")
-    val CLIPBOARD_HISTORY_FLOAT_HANDLE_WIDTH_DP = intPreferencesKey("clipboard_history_float_handle_width_dp")
+    val CLIPBOARD_HISTORY_FLOAT_HANDLE_SIDE = stringPreferencesKey("clipboard_history_float_handle_side")
     val CLIPBOARD_HISTORY_FLOAT_HANDLE_Y_PORTRAIT =
         intPreferencesKey("clipboard_history_float_handle_y_portrait")
     val CLIPBOARD_HISTORY_FLOAT_HANDLE_Y_LANDSCAPE =

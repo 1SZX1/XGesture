@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -164,6 +165,85 @@ class SettingsMutatorsTest {
 
         repository.removePerAppShakeConfig("com.example.app")
         assertFalse("com.example.app" in awaitSettings { "com.example.app" !in it.shakeGestureSettings.perAppActions }.shakeGestureSettings.perAppActions)
+    }
+
+    @Test
+    fun gestureProfile_createEditAndRemoveRoundTrip() = runBlocking {
+        repository.setIndependentAppGestureEnabled(true)
+        assertTrue(
+            awaitSettings { it.independentAppGestureEnabled }.independentAppGestureEnabled,
+        )
+
+        // 建档：整份复制全局（这里只断言"复制到了当前全局的动作规则"这一条关键语义）。
+        val globalRules = awaitSettings { it.gestureRules.isNotEmpty() }.gestureRules
+        val profileId = GestureProfile.newId()
+        repository.upsertGestureProfile(
+            GestureProfile(
+                id = profileId,
+                name = "游戏",
+                packageNames = setOf("com.example.game"),
+                snapshot = GestureProfileSnapshot.from(
+                    awaitSettings { true },
+                ),
+            ),
+        )
+        val created = awaitSettings { it.gestureProfiles.any { p -> p.id == profileId } }
+            .gestureProfiles.first { it.id == profileId }
+        assertEquals("游戏", created.name)
+        assertEquals(setOf("com.example.game"), created.packageNames)
+        assertEquals(globalRules.size, created.snapshot.gestureRules.size)
+
+        // 档内改一个槽位动作：整片写回，动作真的落库。
+        // 用 SHORT_SWIPE_IN（出厂默认 = Back，一定存在于规则表里；双击那档出厂是没有规则的）。
+        val targetTrigger = GestureTriggerType.SHORT_SWIPE_IN
+        val editedRules = created.snapshot.gestureRules.map { rule ->
+            if (rule.side == PanelSide.LEFT && rule.trigger == targetTrigger) {
+                rule.copy(action = GestureAction.Home)
+            } else {
+                rule
+            }
+        }
+        repository.setGestureProfileSnapshot(
+            id = profileId,
+            snapshot = created.snapshot.copy(gestureRules = editedRules),
+        )
+        val reloaded = awaitSettings {
+            it.gestureProfiles.firstOrNull { p -> p.id == profileId }
+                ?.snapshot?.gestureRules
+                ?.any { r -> r.side == PanelSide.LEFT && r.trigger == targetTrigger && r.action == GestureAction.Home } == true
+        }.gestureProfiles.first { it.id == profileId }
+        assertEquals(
+            GestureAction.Home,
+            reloaded.snapshot.gestureRules.first {
+                it.side == PanelSide.LEFT && it.trigger == targetTrigger
+            }.action,
+        )
+
+        // 前台命中档 ⇄ 没命中，`withActiveGestureProfile` 必须给出两份不同的有效设置。
+        val settings = awaitSettings { it.gestureProfiles.any { p -> p.id == profileId } }
+        assertEquals(
+            GestureAction.Home,
+            settings.withActiveGestureProfile("com.example.game")
+                .actionFor(PanelSide.LEFT, targetTrigger),
+        )
+        assertEquals(
+            GestureAction.Back,
+            settings.withActiveGestureProfile("com.other.app")
+                .actionFor(PanelSide.LEFT, targetTrigger),
+        )
+        // 总开关关掉 = 一律走全局（档还在）。
+        assertEquals(
+            GestureAction.Back,
+            settings.copy(independentAppGestureEnabled = false)
+                .withActiveGestureProfile("com.example.game")
+                .actionFor(PanelSide.LEFT, targetTrigger),
+        )
+
+        repository.removeGestureProfile(profileId)
+        assertFalse(
+            awaitSettings { it.gestureProfiles.none { p -> p.id == profileId } }
+                .gestureProfiles.any { it.id == profileId },
+        )
     }
 
     @Test
@@ -367,6 +447,7 @@ internal fun testSettingsRepository(context: Context): SettingsRepository = sync
         edge = EdgeSettingsMutator(editor, context),
         overlay = OverlaySettingsMutator(editor),
         shake = ShakeSettingsMutator(editor),
+        gestureProfiles = GestureProfileSettingsMutator(editor),
         message = MessageSettingsMutator(editor),
         otp = OtpSettingsMutator(editor),
     )

@@ -6,12 +6,16 @@ package com.slideindex.app.overlay
  */
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.view.MotionEvent
 import com.slideindex.app.di.AppDependencies
 import com.slideindex.app.diagnostic.EdgeDiag
 import com.slideindex.app.gesture.GestureAnglesPreviewStore
 import com.slideindex.app.monitoring.OverlayPerformanceMonitorBinding
 import com.slideindex.app.settings.AppSettings
+import com.slideindex.app.settings.GestureProfileCatalog
+import com.slideindex.app.settings.withActiveGestureProfile
 import android.util.Log
 import com.slideindex.app.overlay.corner.CornerGestureHost
 import com.slideindex.app.service.OverlayService
@@ -44,6 +48,9 @@ class EdgeOverlayHost(
     private var previewActive = false
     private var previewContent: LayoutPreviewContent = LayoutPreviewContent.TRIGGER_ONLY
     private var previewFocus: LayoutPreviewFocus? = null
+    /** 当前已生效的「按应用分档」档 id：换档才重排，同一个档反复回调不做事。 */
+    private var appliedProfileId: String? = null
+    private val profileSettleHandler = Handler(Looper.getMainLooper())
     private var displayRotationMonitor: OverlayDisplayRotationMonitor? = null
     private var triggerHealJob: Job? = null
     /** 宿主被显式 stop 后不再自动重建；租约兜底拆卸不属于此列。 */
@@ -136,7 +143,10 @@ class EdgeOverlayHost(
                         return@collectLatest
                     }
                     ensureStarted()
+                    // 「按应用分档」：把前台命中的那一档贴到全局之上（没命中就是原样）。
+                    appliedProfileId = activeGestureProfileId(settings)
                     val effectiveSettings = settings
+                        .withActiveGestureProfile(OverlayService.foregroundPackage)
                         .withGestureAnglesPreview()
                         .withOverlayLayoutPreview()
                     floatBallController?.apply(effectiveSettings)
@@ -199,6 +209,8 @@ class EdgeOverlayHost(
         runCatching { overlayManager?.destroy() }
         overlayManager = null
         OverlayService.foregroundPackage = null
+        appliedProfileId = null
+        profileSettleHandler.removeCallbacks(leaveProfileRunnable)
         previewActive = false
     }
 
@@ -252,6 +264,7 @@ class EdgeOverlayHost(
     fun setGestureAnglesPreview(angles: com.slideindex.app.gesture.GestureAngles?) {
         GestureAnglesPreviewStore.current = angles
         val settings = deps.settingsRepository.readSnapshot()
+            .withActiveGestureProfile(OverlayService.foregroundPackage)
             .withGestureAnglesPreview()
             .withOverlayLayoutPreview()
         overlayManager?.applySettings(settings)
@@ -265,6 +278,7 @@ class EdgeOverlayHost(
         }
         Log.i(TAG, "applyServiceEnabledImmediate: enabled=$enabled")
         val settings = deps.settingsRepository.readSnapshot()
+            .withActiveGestureProfile(OverlayService.foregroundPackage)
             .copy(serviceEnabled = enabled)
             .withGestureAnglesPreview()
             .withOverlayLayoutPreview()
@@ -303,10 +317,63 @@ class EdgeOverlayHost(
         OverlayService.foregroundPackage = packageName
         overlayManager?.updateForegroundPackage(packageName)
         refreshOverlaySuppression()
+        // 前台换 App = 可能换档：命中档立刻生效，离开档迟滞一下（见 syncActiveGestureProfile）。
+        syncActiveGestureProfile()
+    }
+
+    /** 当前前台命中的档 id（没命中/总开关关 = null）。 */
+    private fun activeGestureProfileId(settings: AppSettings = deps.settingsRepository.readSnapshot()): String? =
+        GestureProfileCatalog.profileIdOfPackage(
+            profiles = settings.gestureProfiles,
+            enabled = settings.independentAppGestureEnabled,
+            foregroundPackage = OverlayService.foregroundPackage,
+        )
+
+    /**
+     * 前台 App 变化后同步「按应用分档」。
+     *
+     * - **进入**某个档：立刻生效（用户确实切到了那个 App，晚一点用户就会看到触钮没变）；
+     * - **离开**档：迟滞 [PROFILE_SETTLE_MS] 再落回全局 —— 拉通知栏、弹键盘、Activity 过渡态的
+     *   一瞬间前台包名会闪成 SystemUI/输入法，不迟滞的话触钮会跟着来回重排（肉眼可见的跳）。
+     */
+    private fun syncActiveGestureProfile() {
+        val target = activeGestureProfileId()
+        if (target == appliedProfileId) {
+            profileSettleHandler.removeCallbacks(leaveProfileRunnable)
+            return
+        }
+        profileSettleHandler.removeCallbacks(leaveProfileRunnable)
+        if (target != null) {
+            appliedProfileId = target
+            applyEffectiveGestureSettings()
+        } else {
+            profileSettleHandler.postDelayed(leaveProfileRunnable, PROFILE_SETTLE_MS)
+        }
+    }
+
+    /** 离开档的迟滞到点：真的落回全局。 */
+    private val leaveProfileRunnable = Runnable {
+        if (appliedProfileId == null) return@Runnable
+        appliedProfileId = null
+        applyEffectiveGestureSettings()
+    }
+
+    /** 把"全局 + 当前档"那一份重新下发给浮层（触钮几何/外观/动作与横屏那套都会跟着走）。 */
+    private fun applyEffectiveGestureSettings() {
+        if (!PermissionHelper.isAccessibilityServiceEnabled(context)) return
+        ensureStarted()
+        val settings = deps.settingsRepository.readSnapshot()
+            .withActiveGestureProfile(OverlayService.foregroundPackage)
+            .withGestureAnglesPreview()
+            .withOverlayLayoutPreview()
+        floatBallController?.apply(settings)
+        overlayManager?.applySettings(settings)
+        cornerGestureHost?.applySettings(settings)
     }
 
     fun refreshOverlaySuppression() {
         val settings = deps.settingsRepository.readSnapshot()
+            .withActiveGestureProfile(OverlayService.foregroundPackage)
             .withGestureAnglesPreview()
             .withOverlayLayoutPreview()
         cornerGestureHost?.refreshSuppression()
@@ -380,6 +447,7 @@ class EdgeOverlayHost(
         if (!PermissionHelper.isAccessibilityServiceEnabled(context)) return
         ensureStarted()
         val settings = deps.settingsRepository.readSnapshot()
+            .withActiveGestureProfile(OverlayService.foregroundPackage)
             .withGestureAnglesPreview()
             .withOverlayLayoutPreview()
         overlayManager?.applySettings(settings)
@@ -477,5 +545,8 @@ class EdgeOverlayHost(
 
         /** 触钮自愈巡检间隔：足够快（用户几乎察觉不到）又足够便宜。 */
         const val TRIGGER_HEAL_INTERVAL_MS = 12_000L
+
+        /** 离开「按应用分档」的迟滞：拉通知栏/弹键盘/过渡态的前台抖动短于此值时不动触钮。 */
+        const val PROFILE_SETTLE_MS = 400L
     }
 }

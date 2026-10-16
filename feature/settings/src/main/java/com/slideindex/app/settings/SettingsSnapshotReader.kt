@@ -580,8 +580,8 @@ internal object SettingsSnapshotReader {
                 prefs[SettingsPreferenceKeys.CLIPBOARD_HISTORY_FLOAT_ENABLED_LANDSCAPE] ?: false,
             clipboardHistoryFloatLockPosition =
                 prefs[SettingsPreferenceKeys.CLIPBOARD_HISTORY_FLOAT_LOCK_POSITION] ?: true,
-            clipboardHistoryFloatHandleWidthDp = HistoryFloatHandleWidth.coerce(
-                prefs[SettingsPreferenceKeys.CLIPBOARD_HISTORY_FLOAT_HANDLE_WIDTH_DP] ?: 32,
+            clipboardHistoryFloatHandleSide = HistoryFloatHandleSide.fromStorageKey(
+                prefs[SettingsPreferenceKeys.CLIPBOARD_HISTORY_FLOAT_HANDLE_SIDE],
             ),
             clipboardHistoryFloatHandleYPortrait =
                 prefs[SettingsPreferenceKeys.CLIPBOARD_HISTORY_FLOAT_HANDLE_Y_PORTRAIT]
@@ -676,6 +676,9 @@ internal object SettingsSnapshotReader {
             overlayBlur = OverlayBlurSettings(
                 overlayBlurEnabled = prefs[SettingsPreferenceKeys.OVERLAY_BLUR_ENABLED] ?: true,
             ),
+            independentAppGestureEnabled =
+                prefs[SettingsPreferenceKeys.INDEPENDENT_APP_GESTURE_ENABLED] ?: false,
+            gestureProfiles = readGestureProfiles(prefs),
             defaultImageViewerPackage = prefs[SettingsPreferenceKeys.DEFAULT_IMAGE_VIEWER_PACKAGE],
             imageEditorDelayDeleteEnabled = prefs[SettingsPreferenceKeys.IMAGE_EDITOR_DELAY_DELETE_ENABLED] ?: false,
             searchPanel = SearchPanelSettings(
@@ -1182,6 +1185,10 @@ internal object SettingsSnapshotReader {
         val decoded = GestureRuleCodec.decodeAll(raw)
         return if (decoded.isEmpty()) SideGestureDefaults.defaultRules() else decoded
     }
+
+    /** 侧滑手势「按应用分档」：缺键 = 一个档都没建。 */
+    fun readGestureProfiles(prefs: Preferences): List<GestureProfile> =
+        GestureProfileCodec.decodeAll(prefs[SettingsPreferenceKeys.GESTURE_PROFILES] ?: emptySet())
 
     private fun readGestureRulesLandscape(prefs: Preferences): List<GestureRule> {
         val raw = prefs[SettingsPreferenceKeys.GESTURE_RULES_LANDSCAPE]

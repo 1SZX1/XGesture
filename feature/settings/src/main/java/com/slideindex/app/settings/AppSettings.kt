@@ -85,6 +85,19 @@ data class AppSettings(
     val imageEditorDelayDeleteEnabled: Boolean = false,
     val searchPanel: SearchPanelSettings = SearchPanelSettings(),
     val overlayBlur: OverlayBlurSettings = OverlayBlurSettings(),
+    /**
+     * 侧滑手势「按应用分档」总开关。
+     *
+     * 只有它为 true 且能拿到前台包名时，[gestureProfiles] 才会参与解析
+     * （见 `AppSettings.withActiveGestureProfile`）。
+     */
+    val independentAppGestureEnabled: Boolean = false,
+    /**
+     * 各档位：每档一份**独立**的触钮集合快照（建档时整份复制全局，之后不跟随）。
+     *
+     * 一个 App 最多属于一个档；前台命中哪一档，运行时就把哪一档那一片"贴"到全局之上。
+     */
+    val gestureProfiles: List<GestureProfile> = emptyList(),
 ) {
     /** 当前底栏样式的生效模糊半径（派生，不落盘）。 */
     val bottomNavBlurRadiusDp: Float
@@ -341,7 +354,7 @@ data class AppSettings(
     val clipboardHistoryFloatEnabled get() = clipboard.clipboardHistoryFloatEnabled
     val clipboardHistoryFloatEnabledLandscape get() = clipboard.clipboardHistoryFloatEnabledLandscape
     val clipboardHistoryFloatLockPosition get() = clipboard.clipboardHistoryFloatLockPosition
-    val clipboardHistoryFloatHandleWidthDp get() = clipboard.clipboardHistoryFloatHandleWidthDp
+    val clipboardHistoryFloatHandleSide get() = clipboard.clipboardHistoryFloatHandleSide
     val clipboardHistoryFloatHandleYPortrait get() = clipboard.clipboardHistoryFloatHandleYPortrait
     val clipboardHistoryFloatHandleYLandscape get() = clipboard.clipboardHistoryFloatHandleYLandscape
     val clipboardFloatEnabled get() = clipboard.clipboardFloatEnabled

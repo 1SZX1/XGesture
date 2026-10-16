@@ -32,7 +32,6 @@ import com.slideindex.app.settings.ClipboardHistoryCapacity
 import com.slideindex.app.settings.ClipboardMonitoringMode
 import com.slideindex.app.settings.ClipboardOverlayScale
 import com.slideindex.app.settings.ExtensionHubSettings
-import com.slideindex.app.settings.HistoryFloatHandleWidth
 import com.slideindex.app.settings.StashPanelHandleOpenTab
 import com.slideindex.app.settings.StashPanelWidthMode
 import com.slideindex.app.settings.toMinimalAppSettings
@@ -412,7 +411,6 @@ fun StashPanelSettingsScreen(
     onClipboardHistoryFloatEnabledChange: (Boolean) -> Unit,
     onClipboardHistoryFloatEnabledLandscapeChange: (Boolean) -> Unit,
     onClipboardHistoryFloatLockPositionChange: (Boolean) -> Unit,
-    onClipboardHistoryFloatHandleWidthChange: (Int) -> Unit,
     onStashPanelHandleOpenTabChange: (StashPanelHandleOpenTab) -> Unit,
     onStashPanelWidthModeChange: (StashPanelWidthMode) -> Unit,
     onOpenOverlayPermission: () -> Unit,
@@ -421,10 +419,6 @@ fun StashPanelSettingsScreen(
     val overlayPermissionGranted = PermissionHelper.canDrawOverlays(context)
     val floatSectionTitle = stringResource(R.string.clipboard_history_float_section)
     val floatOverlayHint = stringResource(R.string.clipboard_history_float_overlay_permission_hint)
-    val handleWidthPresets = HistoryFloatHandleWidth.presets
-    val handleWidthIndex = handleWidthPresets.indexOf(settings.clipboardHistoryFloatHandleWidthDp).let {
-        if (it >= 0) it else handleWidthPresets.indexOf(HistoryFloatHandleWidth.DEFAULT_DP).coerceAtLeast(0)
-    }
     // 「指示条打开面板先显示哪个页签」：三档固定顺序（记住上次 / 闪念 / 剪贴板），照枚举声明顺序渲染。
     val handleOpenTabEntries = StashPanelHandleOpenTab.entries
     val handleOpenTabLabels = handleOpenTabEntries.map { tab ->
@@ -498,14 +492,6 @@ fun StashPanelSettingsScreen(
                                 checked = settings.clipboardHistoryFloatLockPosition,
                                 enabled = true,
                                 onCheckedChange = onClipboardHistoryFloatLockPositionChange,
-                            )
-                            SettingDropdownRow(
-                                title = stringResource(R.string.clipboard_history_float_handle_width_title),
-                                items = handleWidthPresets.map { "${it}dp" },
-                                selectedIndex = handleWidthIndex,
-                                onSelectedIndexChange = {
-                                    onClipboardHistoryFloatHandleWidthChange(handleWidthPresets[it])
-                                },
                             )
                             // 点指示条 / 从指示条横向拉出，两条路都按这一档走（长按=就地记一条不受影响）。
                             SettingDropdownRow(
