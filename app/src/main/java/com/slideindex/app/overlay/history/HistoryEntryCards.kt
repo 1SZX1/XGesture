@@ -225,6 +225,8 @@ internal fun HistoryClipboardEntryCard(
                     haptics.confirm()
                     onCopy()
                 },
+                // 与剪贴板卡同一套规则：行首图标的字形要跟正文左缘对齐（见 HistoryActsOffsetX）。
+                modifier = Modifier.offset(x = -HistoryActsOffsetX),
             )
             HistoryCardActionIcon(
                 icon = Icons.Outlined.Archive,
@@ -233,6 +235,7 @@ internal fun HistoryClipboardEntryCard(
                     haptics.confirm()
                     onStash()
                 },
+                modifier = Modifier.offset(x = -HistoryActsOffsetX),
             )
             Spacer(modifier = Modifier.weight(1f))
             HistoryCardOverflowMenu(

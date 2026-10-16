@@ -210,10 +210,13 @@ internal object HistoryEasing {
 }
 
 /**
- * `.item .box .acts { margin-left: -(48-22)/2 = -13px }`：让第一个图标的**字形**左缘和正文的 14dp 对齐。
+ * `.item .box .acts { margin-left: -(宽-22)/2 }`：让第一个图标的**字形**左缘和正文的 14dp 对齐。
  *
  * ⚠️ Compose 的 `padding` 不接受负值（`IllegalArgumentException: Padding must be non-negative`，
- * 这一条真机上直接闪退过）。所以这里存的是**正的 13dp**，用 `Modifier.offset(x = -HistoryActsOffsetX)`
+ * 这一条真机上直接闪退过）。所以这里存的是**正的**偏移量，用 `Modifier.offset(x = -HistoryActsOffsetX)`
  * 加在**行首那几个图标**上；行尾的 ⋮ 不动（CSS 的负 margin 只让整行往左变宽，右端仍在原处）。
+ *
+ * 数值 = (命中区宽 - 字形宽) / 2 = (40 - 22) / 2 = **9dp**（[CARD_ACTION_HIT_WIDTH_DP] 收窄后同步改，
+ * 否则字形会比正文多缩进几个 dp）。
  */
-internal val HistoryActsOffsetX: Dp = 13.dp
+internal val HistoryActsOffsetX: Dp = 9.dp

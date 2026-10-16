@@ -36,6 +36,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -78,8 +79,6 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.icon.extended.More
-import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @Composable
 internal fun HistoryImagePagerSection(
@@ -545,7 +544,7 @@ internal fun HistoryCardActionIcon(
     val on = tint != null
     Box(
         modifier = modifier
-            .size(CARD_ACTION_HIT_DP.dp)
+            .size(width = CARD_ACTION_HIT_WIDTH_DP.dp, height = CARD_ACTION_HIT_DP.dp)
             .clip(RoundedCornerShape(HistoryRadii.sm))
             .alpha(if (on) 1f else 0.84f)
             .clickable(
@@ -566,6 +565,14 @@ internal fun HistoryCardActionIcon(
 
 /** 操作行命中区边长（Android 最小触摸目标）。 */
 internal const val CARD_ACTION_HIT_DP = 48
+
+/**
+ * 操作行命中区**宽度**：比 48 窄。
+ *
+ * 48dp 方块 + 22dp 字形时，两个相邻按钮的**字形之间**要隔 26dp，真机上看着"散"；
+ * 收窄到 40dp 后是 18dp。高度仍是 48dp（纵向不受影响）。
+ */
+internal const val CARD_ACTION_HIT_WIDTH_DP = 40
 
 /** 操作行图标字形边长（设计稿 22dp）。 */
 internal const val CARD_ACTION_GLYPH_DP = 22
@@ -621,7 +628,7 @@ internal fun HistoryCardOverflowMenu(
             modifier = Modifier.size(CARD_ACTION_HIT_DP.dp),
         ) {
             top.yukonga.miuix.kmp.basic.Icon(
-                imageVector = MiuixIcons.Medium.More,
+                imageVector = Icons.Default.MoreVert,
                 contentDescription = contentDescription,
                 modifier = Modifier.size(CARD_ACTION_GLYPH_DP.dp),
                 tint = scheme.onBackground,
