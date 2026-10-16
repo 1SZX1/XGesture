@@ -12,6 +12,55 @@ Release pages are published with the English notes first, then the Chinese ones.
 notes follow the system language: `notesEn` is shown to non-Chinese locales and `notes` to
 Chinese ones, each falling back to the other when a version is missing.
 
+## [1.42.0] - 2026-10-16
+
+### Added
+- New per-app gesture profiles: each app keeps its own full set of edge triggers, copied from the global set when the profile is created and no longer following it
+- New "Restore from global" for a whole profile, which copies the current global set again
+- New edge handle docking to either side: drag it up or down to move it, and drag past the middle of the screen to snap to the other side
+- New three-card onboarding guide: one card each for gestures, edge triggers and the floating ball, shown as the fourth welcome step and replayable from the about page
+- New hands-on practice in the guide: the real triggers light up on screen with a "hold here" marker and each step is ticked off once performed
+- New action picker opens on the action already bound to the gesture and pulses it three times
+- New long press on the edge handle opens the full editor window, with the same block editor, images, voice, tags and reminders as the panel
+- New "Starred" filter in ideas: starring a card files it under Starred and unstarring removes it
+- New long press on a quick slot in the expand panel shows a small bar for "Open in freeform / full screen" and "Edit mode"
+- New "Show bottom action bar" switch for the quick launcher, and a long press on empty panel space enters edit mode
+- New "Alphabet index position" slider: continuously adjustable, with five dots marking the quarters of its travel
+- New vertical scrolling for images in the pick panel when the image is taller than the viewport
+
+### Changed
+- The floating ball, edge lines, gesture hints and quick menu now follow the app accent colour, so by default they match the blue of the main UI
+- A short swipe up on the floating ball opens the quick menu by default; the alphabet index length defaults to 60% with a 75% maximum
+- The holographic launcher now uses one app selection list with three modes (allow all, only selected, exclude selected); the duplicate "Hidden apps" entry is gone and existing settings are folded into the selection
+- "Tap on release" for the floating pointer now defaults to off
+- The edge handle touch area is narrowed to 24 dp and the unused "Bar width" setting is gone
+- Profile pages are titled "Profile · <app>" and only the whole profile can be restored from global
+- Profile rows and the "Add app" row now have 12 dp of space between them
+- The pick panel body grows with its content, so picking a few characters no longer fills the screen
+- Bottom and top trigger titles read "Bottom trigger · group N" instead of a random identifier
+- The idea card buttons for copy, star and done are optically balanced and the ⋮ menu lines up with the right edge of the text
+- Icons inside buttons use the Miuix set (Medium weight), with fill versus outline still marking state
+- Accessibility event subscriptions and window change handling are trimmed, roughly halving idle CPU use
+
+### Fixed
+- Fix the quick launcher, task switcher, app index, volume and brightness doing nothing when opened from the corner wheel or the floating ball on a side with no triggers
+- Fix the quick launcher panel list in floating ball gestures showing only one panel
+- Fix edge gesture back failing after the predictive back setting was turned off
+- Fix landscape triggers in a profile not staying deleted and an emptied side growing back
+- Fix the first binding of a gesture wiping factory gestures such as short swipe back and swipe down for the app index
+- Fix the gesture master switch still being off on a fresh install when the guide is opened
+- Fix third-party apps reporting "Widget ID was not passed" when creating a shortcut
+- Fix a binding showing as saved and then reverting to unconfigured
+- Fix copy from the pick and search panels giving no feedback
+- Fix white text on a white background in the quick tools panel on a light theme with window blur off
+- Fix the pick panel body filling the screen first and then shrinking back
+- Fix the edge handle being invisible on dark wallpapers
+- Fix the app index position snapping to five fixed values instead of moving continuously
+- Fix the clipboard overlay pin button not showing whether the window was pinned
+- Fix onboarding buttons being greyed out while accessibility reconnects, the unbound row showing an initial value instead of the gesture to be bound, and trigger names not telling short from long distance
+- Fix the gesture angle reset button using a history and recent icon
+- Fix the left edge of the leading buttons on idea cards differing from clipboard cards
+
 ## [1.41.0] - 2026-10-13
 
 ### Added
