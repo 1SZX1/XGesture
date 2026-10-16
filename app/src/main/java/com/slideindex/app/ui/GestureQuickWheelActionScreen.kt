@@ -43,6 +43,8 @@ import com.slideindex.app.ui.settings.components.settingsGroupedCardItems
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 「快捷轮盘」动作的参数配置页（在动作绑定处以 Dialog 形式弹出）。
@@ -148,7 +150,7 @@ fun GestureQuickWheelActionScreen(
                 },
             ) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = MiuixIcons.Medium.Ok,
                     contentDescription = stringResource(R.string.confirm),
                 )
             }

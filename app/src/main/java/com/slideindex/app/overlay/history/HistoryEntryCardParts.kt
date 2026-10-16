@@ -36,7 +36,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -79,6 +78,8 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @Composable
 internal fun HistoryImagePagerSection(
@@ -620,7 +621,7 @@ internal fun HistoryCardOverflowMenu(
             modifier = Modifier.size(CARD_ACTION_HIT_DP.dp),
         ) {
             top.yukonga.miuix.kmp.basic.Icon(
-                imageVector = Icons.Default.MoreVert,
+                imageVector = MiuixIcons.Medium.More,
                 contentDescription = contentDescription,
                 modifier = Modifier.size(CARD_ACTION_GLYPH_DP.dp),
                 tint = scheme.onBackground,

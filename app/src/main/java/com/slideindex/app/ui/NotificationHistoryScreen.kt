@@ -2,7 +2,6 @@ package com.slideindex.app.ui
 
 import com.slideindex.app.ui.viewmodel.NotificationHistoryViewModel
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import com.slideindex.app.ui.miuix.MiuixConfirmDialog
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
@@ -54,6 +53,7 @@ import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import top.yukonga.miuix.kmp.icon.extended.Tune
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.More
 
 private data class NotificationHistoryQuery(
     val items: List<NotificationHistoryItem>,
@@ -228,7 +228,7 @@ fun NotificationHistoryScreen(
             }
             OverlayIconDropdownMenu(entry = moreMenuEntry) {
                 Icon(
-                    Icons.Default.MoreVert,
+                    MiuixIcons.Medium.More,
                     contentDescription = stringResource(R.string.notification_filter_more_menu),
                     tint = MiuixTheme.colorScheme.onBackground,
                 )

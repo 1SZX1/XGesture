@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.History
 import com.slideindex.app.ui.HomeLeadingIcons
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -66,6 +64,9 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.extended.Recent
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -117,7 +118,7 @@ fun GestureAngleSettingsScreen(
                     )
                 }
             ) {
-                Icon(Icons.Default.History, contentDescription = stringResource(R.string.gesture_angle_reset))
+                Icon(MiuixIcons.Medium.Recent, contentDescription = stringResource(R.string.gesture_angle_reset))
             }
             IconButton(
                 enabled = !saving,
@@ -134,7 +135,7 @@ fun GestureAngleSettingsScreen(
                     }
                 }
             ) {
-                Icon(Icons.Default.Check, contentDescription = stringResource(R.string.gesture_angle_save))
+                Icon(MiuixIcons.Medium.Ok, contentDescription = stringResource(R.string.gesture_angle_save))
             }
         }
     ) {

@@ -50,7 +50,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Person
@@ -1400,7 +1399,7 @@ fun SearchPanelScreen(
                                                             RoundedCornerShape(50),
                                                         ),
                                                 ) {
-                                                    Icon(Icons.Default.Close, contentDescription = null)
+                                                    Icon(MiuixIcons.Medium.Close, contentDescription = null)
                                                 }
                                             }
                                         }

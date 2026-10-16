@@ -42,14 +42,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.ViewHeadline
 import androidx.compose.material3.CircularProgressIndicator
@@ -127,6 +124,9 @@ import top.yukonga.miuix.kmp.icon.extended.Home
 import top.yukonga.miuix.kmp.icon.extended.Pin
 import top.yukonga.miuix.kmp.icon.extended.Remove
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.ExpandLess
+import top.yukonga.miuix.kmp.icon.extended.Tune
+import top.yukonga.miuix.kmp.icon.extended.Unpin
 
 enum class ClipboardFloatDisplayMode {
     Chip,
@@ -341,7 +341,9 @@ private fun ClipboardFloatExpandedChrome(
             ) {
                 IconButton(onClick = onTogglePin, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = if (pinned) MiuixIcons.Medium.Pin else MiuixIcons.Regular.Pin,
+                        // 已钉住时换成「取消钉住」（Unpin），点一下就知道能取消；
+                        // 之前只换粗细（Medium/Regular）差别太细，看着像没变。
+                        imageVector = if (pinned) MiuixIcons.Medium.Unpin else MiuixIcons.Medium.Pin,
                         contentDescription = stringResource(R.string.clipboard_float_keep_visible),
                         modifier = Modifier.size(18.dp)
                     )
@@ -351,7 +353,7 @@ private fun ClipboardFloatExpandedChrome(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Tune,
+                        imageVector = MiuixIcons.Medium.Tune,
                         contentDescription = stringResource(R.string.clipboard_float_opacity_title),
                         tint = if (showAlphaSlider || panelAlpha < 0.99f) scheme.primary else scheme.onSurface,
                         modifier = Modifier.size(18.dp)
@@ -729,7 +731,7 @@ private fun ClipboardFloatSingleLineRow(
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
-                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            imageVector = if (expanded) MiuixIcons.Medium.ExpandLess else Icons.Default.KeyboardArrowDown,
                             contentDescription = null,
                             tint = scheme.onSurfaceVariantSummary,
                             modifier = Modifier.size(16.dp)
@@ -1214,7 +1216,7 @@ private fun ClipboardFloatSearchFieldStrip(
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = MiuixIcons.Medium.Close,
                         contentDescription = stringResource(R.string.search_clear),
                         tint = scheme.onSurfaceVariantSummary,
                         modifier = Modifier.size(16.dp)

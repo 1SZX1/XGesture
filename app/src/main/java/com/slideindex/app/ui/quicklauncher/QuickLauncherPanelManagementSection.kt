@@ -8,11 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +44,9 @@ import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import com.slideindex.app.ui.miuix.MiuixInsetCardComponentMargin
 import com.slideindex.app.ui.miuix.MiuixTabSettingsCard
+import top.yukonga.miuix.kmp.icon.extended.Add
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,14 +180,14 @@ fun QuickLauncherPanelManagementSection(
                     },
                 ) {
                     Icon(
-                        Icons.Default.Add,
+                        MiuixIcons.Medium.Add,
                         contentDescription = stringResource(R.string.quick_launcher_panel_add),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 OverlayIconDropdownMenu(entry = panelMenuEntry) {
                     MiuixIcon(
-                        Icons.Default.MoreVert,
+                        MiuixIcons.Medium.More,
                         contentDescription = renameLabel,
                         tint = MiuixTheme.colorScheme.onBackground,
                     )

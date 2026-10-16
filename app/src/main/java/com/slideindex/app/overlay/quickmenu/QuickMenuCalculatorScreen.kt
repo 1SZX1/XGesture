@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +40,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.slideindex.app.search.calculator.CalculatorUtils
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 「快捷菜单」的计算器页：**正经计算器键盘**（照 QuickDash 的 `QuickCalculatorScreen` 的布局来做）。
@@ -682,7 +683,7 @@ internal fun QuickMenuCalculatorScreen() {
                             modifier = Modifier.size(32.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.ContentCopy,
+                                imageVector = MiuixIcons.Medium.Copy,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                             )

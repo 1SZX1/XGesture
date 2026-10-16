@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -46,6 +45,8 @@ import com.slideindex.app.notification.NotificationFilterRule
 import com.slideindex.app.notification.NotificationHistoryItem
 import com.slideindex.app.otp.OtpClipboardHelper
 import com.slideindex.app.ui.Md3PickerAppLeading
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -223,7 +224,7 @@ internal fun NotificationHistoryRow(
                                 modifier = Modifier.size(32.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ContentCopy,
+                                    imageVector = MiuixIcons.Medium.Copy,
                                     contentDescription = stringResource(R.string.otp_copy_action),
                                     modifier = Modifier.size(18.dp),
                                     tint = MiuixTheme.colorScheme.onSurfaceSecondary,
@@ -249,7 +250,7 @@ internal fun NotificationHistoryRow(
                                 modifier = Modifier.size(32.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ContentCopy,
+                                    imageVector = MiuixIcons.Medium.Copy,
                                     contentDescription = stringResource(R.string.notification_history_menu_copy_channel_id),
                                     modifier = Modifier.size(18.dp),
                                     tint = MiuixTheme.colorScheme.onSurfaceSecondary,

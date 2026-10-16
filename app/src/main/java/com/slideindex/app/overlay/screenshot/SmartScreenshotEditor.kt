@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CropSquare
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.FilledTonalIconButton
@@ -394,7 +394,7 @@ fun SmartScreenshotEditor(
                 contentDescription = "Save",
                 onClick = onSave
             ) {
-                Icon(Icons.Default.Save, contentDescription = null)
+                Icon(Icons.Outlined.Save, contentDescription = null)
             }
             ToolIconButton(
                 enabled = bottomToolbarEnabled,

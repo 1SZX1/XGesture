@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -191,7 +190,7 @@ fun DiagnosticLogDetailScreen(
                 enabled = !detail.loading && detail.text.isNotBlank(),
             ) {
                 Icon(
-                    imageVector = Icons.Default.Share,
+                    imageVector = MiuixIcons.Medium.Share,
                     contentDescription = stringResource(R.string.diagnostic_log_share),
                 )
             }
