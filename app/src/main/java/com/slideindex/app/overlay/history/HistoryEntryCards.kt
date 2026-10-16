@@ -7,14 +7,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.runtime.Composable
@@ -242,7 +242,7 @@ internal fun HistoryClipboardEntryCard(
                         add(
                             HistoryCardMenuAction(
                                 label = pinLabel,
-                                icon = Icons.Default.PushPin,
+                                icon = Icons.Outlined.PushPin,
                                 onClick = {
                                     haptics.tick()
                                     when {
@@ -260,7 +260,7 @@ internal fun HistoryClipboardEntryCard(
                         add(
                             HistoryCardMenuAction(
                                 label = shareLabel,
-                                icon = Icons.Default.Share,
+                                icon = Icons.Outlined.Share,
                                 onClick = {
                                     haptics.tick()
                                     FloatBallTextPick.shareScreenshot(context, selectedBitmap)
@@ -284,7 +284,7 @@ internal fun HistoryClipboardEntryCard(
                         add(
                             HistoryCardMenuAction(
                                 label = shareLabel,
-                                icon = Icons.Default.Share,
+                                icon = Icons.Outlined.Share,
                                 onClick = {
                                     haptics.tick()
                                     FloatBallTextPick.shareText(context, bodyText)
@@ -295,7 +295,7 @@ internal fun HistoryClipboardEntryCard(
                     add(
                         HistoryCardMenuAction(
                             label = deleteLabel,
-                            icon = Icons.Default.Delete,
+                            icon = Icons.Outlined.Delete,
                             onClick = onDelete,
                             iconTint = MiuixTheme.colorScheme.error,
                             destructive = true,
@@ -645,7 +645,7 @@ internal fun HistoryStashEntryCard(
                     add(
                         HistoryCardMenuAction(
                             label = pinLabel,
-                            icon = Icons.Default.PushPin,
+                            icon = Icons.Outlined.PushPin,
                             onClick = {
                                 haptics.tick()
                                 onPin()
@@ -655,7 +655,7 @@ internal fun HistoryStashEntryCard(
                     add(
                         HistoryCardMenuAction(
                             label = shareLabel,
-                            icon = Icons.Default.Share,
+                            icon = Icons.Outlined.Share,
                             onClick = {
                                 haptics.tick()
                                 shareEntry()
@@ -680,7 +680,7 @@ internal fun HistoryStashEntryCard(
                     add(
                         HistoryCardMenuAction(
                             label = deleteLabel,
-                            icon = Icons.Default.Delete,
+                            icon = Icons.Outlined.Delete,
                             onClick = {
                                 haptics.confirm()
                                 onDelete()
