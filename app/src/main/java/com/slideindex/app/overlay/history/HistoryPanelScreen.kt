@@ -346,6 +346,7 @@ internal fun HistoryPanelScreen(
     val availableTags by viewModel.availableTags.collectAsStateWithLifecycle()
     val selectedTags by viewModel.selectedTags.collectAsStateWithLifecycle()
     val tagMatchAll by viewModel.tagMatchAll.collectAsStateWithLifecycle()
+    val onlyStarred by viewModel.onlyStarred.collectAsStateWithLifecycle()
     val stashMeta by viewModel.stashMeta.collectAsStateWithLifecycle()
     // 标签名 -> 颜色：卡片底部的标签 chip 与筛选行用的是同一份定义。
     val tagColors = remember(availableTags) { availableTags.associate { it.name to it.colorArgb } }
@@ -1371,10 +1372,12 @@ internal fun HistoryPanelScreen(
                                 tags = availableTags,
                                 selectedTags = selectedTags,
                                 matchAll = tagMatchAll,
+                                onlyStarred = onlyStarred,
                                 onTagToggled = viewModel::toggleTagFilter,
                                 onMatchAllChange = viewModel::setTagMatchAll,
                                 onClearSelection = viewModel::clearTagFilter,
                                 onManageTags = openTagManager,
+                                onStarredToggled = viewModel::toggleStarredFilter,
                             )
                             HistoryPanelTab.Clipboard -> HistoryClipboardFilterChips(
                                 selected = clipboardFilter,
@@ -1411,6 +1414,7 @@ internal fun HistoryPanelScreen(
                                 searchQuery = stashSearchQuery,
                                 selectedTags = selectedTags,
                                 tagMatchAll = tagMatchAll,
+                                onlyStarred = onlyStarred,
                                 meta = stashMeta,
                                 nowMs = reminderClockMs,
                                 tagColors = tagColors,
@@ -1944,6 +1948,8 @@ private fun HistoryStashTabBody(
     selectedTags: Set<String>,
     /** 多标签匹配方式：true = 同时含全部（AND，默认），false = 含任一（OR）。 */
     tagMatchAll: Boolean,
+    /** 「收藏」筛选是否开启（内置标签：只看已加星标）。只用于空态文案。 */
+    onlyStarred: Boolean,
     meta: com.slideindex.app.stash.StashMetaStore,
     /**
      * 卡片那行 ⏰ 的"现在"（§0.16.15）。由宿主每 2 秒推进一次（只在"还有未来提醒"时），
@@ -2038,6 +2044,14 @@ private fun HistoryStashTabBody(
                     hint = stringResource(R.string.stash_empty_search_hint),
                     actionLabel = stringResource(R.string.stash_empty_search_action),
                     onAction = onClearSearch,
+                    modifier = emptyModifier,
+                )
+                // 「收藏」开着却筛不出东西：说清是"还没有加星标的条目"，出口仍是清除筛选。
+                onlyStarred -> HistoryEmptyState(
+                    title = stringResource(R.string.stash_empty_starred_title),
+                    hint = stringResource(R.string.stash_empty_tag_hint),
+                    actionLabel = stringResource(R.string.stash_tag_filter_clear),
+                    onAction = onClearTagFilter,
                     modifier = emptyModifier,
                 )
                 selectedTags.size >= 2 -> HistoryEmptyState(

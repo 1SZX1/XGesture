@@ -57,12 +57,15 @@ import top.yukonga.miuix.kmp.basic.Text
 internal fun HistoryTagChips(
     tags: List<StashTag>,
     selectedTags: Set<String>,
-    /** 「同时 / 任一」开关当前值：true = 同时含全部（AND，默认）。 */
+    /** 多标签匹配方式当前值：true = 同时含全部（AND，默认）。 */
     matchAll: Boolean,
+    /** 「收藏」筛选是否开启（内置标签：只看已加星标）。 */
+    onlyStarred: Boolean,
     onTagToggled: (String) -> Unit,
     onMatchAllChange: (Boolean) -> Unit,
     onClearSelection: () -> Unit,
     onManageTags: () -> Unit,
+    onStarredToggled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     FlowRow(
@@ -74,8 +77,16 @@ internal fun HistoryTagChips(
         HistoryChip(
             label = stringResource(R.string.stash_tag_filter_all),
             dotColor = null,
-            selected = selectedTags.isEmpty(),
+            selected = selectedTags.isEmpty() && !onlyStarred,
             onClick = onClearSelection,
+        )
+        // 「收藏」= **内置标签**：加星标 = 自动进这里，取消星标 = 自动移出；与标签筛选 AND 叠加。
+        // 排在「全部」之后、各标签之前，位置固定，不随用户自建标签增减而跑掉。
+        HistoryChip(
+            label = stringResource(R.string.stash_tag_filter_starred),
+            dotColor = null,
+            selected = onlyStarred,
+            onClick = onStarredToggled,
         )
         tags.forEach { tag ->
             HistoryChip(
@@ -92,8 +103,8 @@ internal fun HistoryTagChips(
             selected = false,
             onClick = onManageTags,
         )
-        // 选中 ≥1：一键清空的出口。`ghost` 让它比标签胶囊弱一档（它是动作，不是筛选状态）。
-        if (selectedTags.isNotEmpty()) {
+        // 选中 ≥1（含只开了「收藏」）：一键清空的出口。`ghost` 让它比标签胶囊弱一档（它是动作，不是筛选状态）。
+        if (selectedTags.isNotEmpty() || onlyStarred) {
             HistoryChip(
                 label = stringResource(R.string.stash_tag_filter_clear),
                 dotColor = null,

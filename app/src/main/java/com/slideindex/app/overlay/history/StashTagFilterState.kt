@@ -37,6 +37,19 @@ internal object StashTagFilterState {
      */
     val matchAll = mutableStateOf(true)
 
+    /**
+     * 「收藏」筛选：只看**已加星标**的条目。
+     *
+     * 语义上它就是一枚"内置标签"：卡片加星标 = 自动进「收藏」，取消星标 = 自动移出；
+     * 与标签筛选是 **AND 叠加**（"工作标签 + 已星标"），互不排斥。点「全部」/「清除」时一起复位。
+     */
+    val onlyStarred = mutableStateOf(false)
+
+    /** 点「收藏」= 切换只看已星标。 */
+    fun toggleStarred() {
+        onlyStarred.value = !onlyStarred.value
+    }
+
     /** 点标签 = 切换选中；再点已选中的 = 取消（需求 1）。 */
     fun toggleTag(name: String) {
         val current = selectedTags.value
@@ -46,6 +59,7 @@ internal object StashTagFilterState {
     /** 一键清空选中（「清除」胶囊 / 「全部」胶囊 / 存下新条目后的收尾都走它）。 */
     fun clear() {
         selectedTags.value = emptySet()
+        onlyStarred.value = false
     }
 
     /** 切「全部（AND）/ 任一（OR）」。 */

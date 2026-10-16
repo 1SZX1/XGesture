@@ -225,6 +225,8 @@ internal fun HistoryClipboardEntryCard(
                     haptics.confirm()
                     onCopy()
                 },
+                // 光学配平：两张纸的字形线细、空隙多，22dp 时看着比旁边的大 → 收到 20dp。
+                glyphSize = 20.dp,
                 // 与剪贴板卡同一套规则：行首图标的字形要跟正文左缘对齐（见 HistoryActsOffsetX）。
                 modifier = Modifier.offset(x = -HistoryActsOffsetX),
             )
@@ -586,6 +588,8 @@ internal fun HistoryStashEntryCard(
                     // 统一给，卡片这里不再重复震 —— 否则同一次点击会震两下。
                     onClick = { onSetDone(!done) },
                     tint = if (done) MiuixTheme.colorScheme.primary else null,
+                    // 光学配平：圆圈勾是"细线+空心"，22dp 时看着偏小 → 放大到 24dp。
+                    glyphSize = 24.dp,
                     modifier = Modifier.offset(x = -HistoryActsOffsetX),
                 )
             } else {
@@ -596,6 +600,8 @@ internal fun HistoryStashEntryCard(
                     ),
                     onClick = onToggleStar,
                     tint = if (entry.starred) MiuixTheme.colorScheme.primary else null,
+                    // 光学配平：五角星尖角细、视觉质量集中在中间，22dp 时明显比旁边"复制"小 → 放大到 24dp。
+                    glyphSize = 24.dp,
                     modifier = Modifier.offset(x = -HistoryActsOffsetX),
                 )
             }
@@ -606,6 +612,8 @@ internal fun HistoryStashEntryCard(
                     haptics.confirm()
                     onCopy()
                 },
+                // 光学配平：同闪念卡的复制按钮，收到 20dp。
+                glyphSize = 20.dp,
                 modifier = Modifier.offset(x = -HistoryActsOffsetX),
             )
             Spacer(modifier = Modifier.weight(1f))

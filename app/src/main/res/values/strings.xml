@@ -3486,6 +3486,8 @@ Questions: open a GitHub Issue on the project repository.</string>
     <string name="floating_panel_title">Side panel</string>
     <string name="stash_panel_tab">Ideas</string>
     <string name="stash_tag_filter_all">All</string>
+    <string name="stash_tag_filter_starred">Starred</string>
+    <string name="stash_empty_starred_title">No starred entries yet</string>
     <string name="stash_tag_filter_any">Any</string>
     <string name="stash_tag_filter_match_all">Match all</string>
     <string name="stash_tag_filter_clear">Clear</string>

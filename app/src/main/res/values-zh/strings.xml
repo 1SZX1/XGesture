@@ -3514,6 +3514,8 @@
     <string name="floating_panel_title">侧边面板</string>
     <string name="stash_panel_tab">闪念</string>
     <string name="stash_tag_filter_all">全部</string>
+    <string name="stash_tag_filter_starred">收藏</string>
+    <string name="stash_empty_starred_title">还没有收藏</string>
     <string name="stash_tag_filter_any">任一</string>
     <string name="stash_tag_filter_match_all">同时</string>
     <string name="stash_tag_filter_clear">清除</string>

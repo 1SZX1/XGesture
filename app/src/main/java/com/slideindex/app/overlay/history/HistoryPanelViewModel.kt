@@ -76,6 +76,15 @@ class HistoryPanelViewModel(
                 StashTagFilterState.matchAll.value,
             )
 
+    /** 「收藏」筛选：只看已加星标（内置标签语义，与标签筛选 AND 叠加）。同样活在单例里。 */
+    val onlyStarred: StateFlow<Boolean> =
+        snapshotFlow { StashTagFilterState.onlyStarred.value }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                StashTagFilterState.onlyStarred.value,
+            )
+
     /** 元数据（标签定义 / 标签绑定 / 完成态 / 追加内容 / 来源）。见 `StashMetaRepository`。 */
     private val metaStore: StateFlow<StashMetaStore> =
         metaRepository?.store ?: MutableStateFlow(StashMetaStore())
@@ -94,17 +103,33 @@ class HistoryPanelViewModel(
 
     private val _debouncedStashSearchQuery = MutableStateFlow("")
 
+    /**
+     * 三个筛选条件（标签集合 + 同时/任一 + 收藏）打包。
+     *
+     * 为什么要打包：`combine` 的带类型重载只到 **5 个源**，而下面要同时观察
+     * entries / 搜索词 / 三个筛选条件 / meta = 6 个，所以把这三个先合成一个。
+     */
+    private val stashFilterCriteria = combine(
+        selectedTags,
+        tagMatchAll,
+        onlyStarred,
+    ) { tags, matchAll, starredOnly ->
+        Triple(tags, matchAll, starredOnly)
+    }
+
     val filteredStashEntries: StateFlow<List<StashEntry>> = combine(
         stashEntries,
         _debouncedStashSearchQuery,
-        selectedTags,
-        tagMatchAll,
+        stashFilterCriteria,
         metaStore,
-    ) { entries, query, tags, matchAll, meta ->
+    ) { entries, query, criteria, meta ->
+        val (tags, matchAll, starredOnly) = criteria
+        // 「收藏」与标签/搜索都是 AND：加星标只看这一条，其余谓词照旧生效。
+        val starredOk: (StashEntry) -> Boolean = { !starredOnly || it.starred }
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
             // 没在搜索：标签筛选生效（空集 = 「全部」，谓词退化成"恒真"，与改动前一字不差）。
-            entries.filter { it.matchesTagFilter(tags, matchAll, meta) }
+            entries.filter { starredOk(it) && it.matchesTagFilter(tags, matchAll, meta) }
         } else {
             // 搜索 **∧** 标签筛选（两者都生效，都是 AND）：搜索框负责文字 / 标签名命中，
             // 标签再叠一层。
@@ -115,7 +140,8 @@ class HistoryPanelViewModel(
             // P0 验收标准原本也写着"标签筛选与搜索条件叠加"）。配套文案见
             // `R.string.stash_empty_search_hint`（四套 locale 都写的是"搜索会与标签筛选同时生效"）。
             entries.filter {
-                it.matchesQuery(trimmed, meta.tagsOf(it.id)) &&
+                starredOk(it) &&
+                    it.matchesQuery(trimmed, meta.tagsOf(it.id)) &&
                     it.matchesTagFilter(tags, matchAll, meta)
             }
         }
@@ -269,6 +295,11 @@ class HistoryPanelViewModel(
     /** 「全部 / 任一」开关：true = 同时含全部（AND，默认），false = 含任一（OR）。 */
     fun setTagMatchAll(matchAll: Boolean) {
         StashTagFilterState.setMatchAll(matchAll)
+    }
+
+    /** 点「收藏」= 切换"只看已星标"。 */
+    fun toggleStarredFilter() {
+        StashTagFilterState.toggleStarred()
     }
 
     fun setClipboardFilter(filter: ClipboardHistoryFilter) {

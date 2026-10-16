@@ -3421,6 +3421,8 @@
     <string name="floating_panel_title">サイドパネル</string>
     <string name="stash_panel_tab">ひらめき</string>
     <string name="stash_tag_filter_all">すべて</string>
+    <string name="stash_tag_filter_starred">お気に入り</string>
+    <string name="stash_empty_starred_title">お気に入りはまだありません</string>
     <string name="stash_tag_filter_any">いずれか</string>
     <string name="stash_tag_filter_match_all">同時</string>
     <string name="stash_tag_filter_clear">クリア</string>

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -67,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.slideindex.app.clipboard.ClipboardBlockKind
@@ -537,6 +539,12 @@ internal fun HistoryCardActionIcon(
     onClick: () -> Unit,
     tint: Color? = null,
     modifier: Modifier = Modifier,
+    /**
+     * 字形边长。默认 [CARD_ACTION_GLYPH_DP]（22dp）；**光学配平**用：
+     * 细线/空隙多的字形（复制）调小，实心或尖角细的字形（星标、完成圆圈）调大，
+     * 同一行里几个图标才不会"一大一小"。
+     */
+    glyphSize: Dp = CARD_ACTION_GLYPH_DP.dp,
 ) {
     val theme = historyTheme()
     // 设计稿 `.acts button { width:48px; height:48px; border-radius: var(--r-sm); opacity:.84 }`
@@ -557,7 +565,7 @@ internal fun HistoryCardActionIcon(
         top.yukonga.miuix.kmp.basic.Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(CARD_ACTION_GLYPH_DP.dp),
+            modifier = Modifier.size(glyphSize),
             tint = tint ?: theme.text,
         )
     }
@@ -625,7 +633,11 @@ internal fun HistoryCardOverflowMenu(
     Box {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(CARD_ACTION_HIT_DP.dp),
+            // 与行首图标同一套口径：命中区宽 40dp + 字形右移 [HistoryActsOffsetX]，
+            // 让 ⋮ 的**字形右缘**与正文右缘对齐（48dp 方块居中时会比正文多缩进 13dp）。
+            modifier = Modifier
+                .size(width = CARD_ACTION_HIT_WIDTH_DP.dp, height = CARD_ACTION_HIT_DP.dp)
+                .offset(x = HistoryActsOffsetX),
         ) {
             top.yukonga.miuix.kmp.basic.Icon(
                 imageVector = Icons.Default.MoreVert,
