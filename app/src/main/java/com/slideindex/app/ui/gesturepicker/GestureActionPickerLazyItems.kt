@@ -96,6 +96,8 @@ fun LazyListScope.actionPickerActionItems(
     onOpenOpenLink: () -> Unit = {},
     onOpenSimulateKeyEvent: (() -> Unit)? = null,
     onOpenQuickWheel: (() -> Unit)? = null,
+    /** 定位到"当前已绑定动作"之后闪一下的强度（0..1），只作用在当前那一行上。 */
+    highlightPulse: Float = 0f,
 ) {
     if (filtered.isEmpty()) {
         item(key = "actions-empty") {
@@ -132,6 +134,7 @@ fun LazyListScope.actionPickerActionItems(
                     segmentCount = section.actions.size,
                     subtitle = linkSubtitle,
                     onOpenConfig = onOpenOpenLink,
+                    highlightPulse = if (current is GestureAction.OpenLink) highlightPulse else 0f,
                 )
             } else if (action.type == GestureActionType.EXECUTE_SHELL_COMMAND) {
                 val shellSubtitle = if (
@@ -151,6 +154,7 @@ fun LazyListScope.actionPickerActionItems(
                         requestPermissionForAdjustAction(context, action)
                         onOpenExecuteShellCommand()
                     },
+                    highlightPulse = if (current is GestureAction.ExecuteShellCommand) highlightPulse else 0f,
                 )
             } else if (action.type == GestureActionType.SIMULATE_KEY_EVENT && onOpenSimulateKeyEvent != null) {
                 val keySubtitle = if (current is GestureAction.SimulateKeyEvent) {
@@ -167,6 +171,7 @@ fun LazyListScope.actionPickerActionItems(
                         requestPermissionForAdjustAction(context, action)
                         onOpenSimulateKeyEvent()
                     },
+                    highlightPulse = if (current is GestureAction.SimulateKeyEvent) highlightPulse else 0f,
                 )
             } else if (action.type == GestureActionType.QUICK_WHEEL && onOpenQuickWheel != null) {
                 // 快捷轮盘要先选「哪个轮盘 + 以什么形态呼出」，所以点它是打开配置而不是直接选中；
@@ -178,6 +183,7 @@ fun LazyListScope.actionPickerActionItems(
                     subtitle = gestureActionDescription(action),
                     selected = current is GestureAction.QuickWheel,
                     onOpenConfig = onOpenQuickWheel,
+                    highlightPulse = highlightPulse,
                 )
             } else {
                 ActionPickerActionRow(
@@ -194,6 +200,7 @@ fun LazyListScope.actionPickerActionItems(
                         requestPermissionForAdjustAction(context, action)
                         onSelect(action)
                     },
+                    highlightPulse = highlightPulse,
                 )
             }
         }
@@ -204,6 +211,8 @@ fun LazyListScope.actionPickerAppItems(
     filtered: List<AppInfo>,
     current: GestureAction,
     onSelect: (AppInfo) -> Unit,
+    /** 定位到"当前已绑定应用"之后闪一下的强度（0..1），只作用在当前那一行上。 */
+    highlightPulse: Float = 0f,
 ) {
     items(filtered.size, key = { filtered[it].packageName }) { index ->
         val app = filtered[index]
@@ -216,6 +225,7 @@ fun LazyListScope.actionPickerAppItems(
             selected = selected,
             windowMode = if (selected) currentApp.windowMode else LaunchWindowMode.FOLLOW_GLOBAL,
             onSelect = onSelect,
+            highlightPulse = highlightPulse,
         )
     }
 }
@@ -263,4 +273,84 @@ fun LazyListScope.actionPickerShortcutItems(
         onCreateHostClick = onCreateHostClick,
         shortcutRowContent = shortcutRowContent,
     )
+}
+
+/**
+ * 当前已绑定的动作属于哪一页 —— 打开选择器时据此预选标签页，
+ * 不要让人每次都从第 0 页开始翻。
+ */
+internal fun GestureAction.pickerTab(): ActionPickerTab = when (this) {
+    is GestureAction.LaunchApp -> ActionPickerTab.APPS
+    is GestureAction.LaunchShortcut -> ActionPickerTab.SHORTCUTS
+    else -> ActionPickerTab.ACTIONS
+}
+
+/**
+ * 当前已绑定的动作在「动作」页里的**扁平下标**（把每个分组的标题行也算进去）。
+ *
+ * ⚠️ 必须与 [actionPickerActionItems] 的排布逐行对齐：每个分组 = 1 行标题 + N 行动作。
+ * 找不到就返回 null（比如「打开应用 / 启动快捷方式」根本不在这一页、或该项已下架），
+ * 调用方回落到列表顶部。
+ */
+internal fun actionPickerIndexOfCurrent(
+    filtered: List<GestureAction>,
+    current: GestureAction,
+): Int? {
+    if (current.type == GestureActionType.LAUNCH_APP ||
+        current.type == GestureActionType.LAUNCH_SHORTCUT ||
+        current.type == GestureActionType.NONE
+    ) {
+        return null
+    }
+    var index = 0
+    for (section in GestureActionCatalog.groupIntoSections(filtered)) {
+        val offset = section.actions.indexOfFirst { it.type == current.type }
+        if (offset >= 0) return index + 1 + offset // +1 = 本分组那行标题
+        index += 1 + section.actions.size
+    }
+    return null
+}
+
+/**
+ * 当前已绑定的快捷方式在「快捷方式」页里的**扁平下标**（把标题行 / 应用分组行 / 分组间占位都算进去）。
+ *
+ * ⚠️ 必须与这三段的实际排布逐行对齐（改了任何一段都要同步改这里）：
+ * 1. [shortcutFolderCardsSection]（搜索为空时）：固定两张卡 = 2 行；
+ * 2. [activityShortcutPickerRadioSection]（搜索非空且有自定义快捷方式时）：1 行标题 + n 行 + 1 行「浏览」；
+ * 3. [systemShortcutCatalogItems]：可选「创建快捷方式」标题 + n 行 + 占位，然后「启动快捷方式」标题 +
+ *    每个应用（1 行分组 + m 行 + 1 行占位）。
+ *
+ * 加载中 / 该项已不在目录里时返回 null，调用方回落到顶部。
+ */
+internal fun actionPickerShortcutIndexOfCurrent(
+    filtered: FilteredShortcutCatalog,
+    activityShortcuts: List<ActivityShortcut>,
+    searchQuery: String,
+    loading: Boolean,
+    current: GestureAction,
+): Int? {
+    if (loading) return null
+    val launch = current as? GestureAction.LaunchShortcut ?: return null
+    var index = 0
+    if (searchQuery.isBlank()) {
+        index += 2
+    } else if (activityShortcuts.isNotEmpty()) {
+        index += activityShortcuts.size + 2
+    }
+    if (filtered.createHosts.isNotEmpty()) {
+        index += 1 + filtered.createHosts.size + 1
+    }
+    if (filtered.groups.isEmpty()) return null
+    index += 1 // 「启动快捷方式」标题
+    for (group in filtered.groups) {
+        index += 1 // 该应用的分组行
+        for (shortcut in group.shortcuts) {
+            if (shortcutToLaunchShortcut(shortcut, group.app.packageName).payloadKey == launch.payloadKey) {
+                return index
+            }
+            index += 1
+        }
+        index += 1 // 分组间占位
+    }
+    return null
 }

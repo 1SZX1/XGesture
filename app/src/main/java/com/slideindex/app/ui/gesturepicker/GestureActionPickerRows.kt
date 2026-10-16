@@ -39,6 +39,7 @@ internal fun ActionPickerOpenLinkRow(
     segmentCount: Int,
     subtitle: String?,
     onOpenConfig: () -> Unit,
+    highlightPulse: Float = 0f,
 ) {
     val label = gestureActionLabel(action)
     Md3PickerListRow(
@@ -47,6 +48,7 @@ internal fun ActionPickerOpenLinkRow(
         title = label,
         subtitle = subtitle,
         selected = false,
+        highlightPulse = highlightPulse,
         onClick = onOpenConfig,
         leadingContent = {
             Md3PickerIconLeading(
@@ -70,6 +72,7 @@ internal fun ActionPickerQuickWheelRow(
     subtitle: String?,
     selected: Boolean,
     onOpenConfig: () -> Unit,
+    highlightPulse: Float = 0f,
 ) {
     val label = gestureActionLabel(action)
     Md3PickerListRow(
@@ -78,6 +81,7 @@ internal fun ActionPickerQuickWheelRow(
         title = label,
         subtitle = subtitle,
         selected = selected,
+        highlightPulse = if (selected) highlightPulse else 0f,
         onClick = onOpenConfig,
         leadingContent = {
             Md3PickerIconLeading(
@@ -96,6 +100,7 @@ internal fun ActionPickerExecuteShellCommandRow(
     segmentCount: Int,
     subtitle: String?,
     onOpenConfig: () -> Unit,
+    highlightPulse: Float = 0f,
 ) {
     val label = gestureActionLabel(action)
     Md3PickerListRow(
@@ -104,6 +109,7 @@ internal fun ActionPickerExecuteShellCommandRow(
         title = label,
         subtitle = subtitle,
         selected = false,
+        highlightPulse = highlightPulse,
         onClick = onOpenConfig,
         leadingContent = {
             Md3PickerIconLeading(
@@ -122,6 +128,7 @@ internal fun ActionPickerSimulateKeyEventRow(
     segmentCount: Int,
     subtitle: String?,
     onOpenConfig: () -> Unit,
+    highlightPulse: Float = 0f,
 ) {
     val label = androidx.compose.ui.res.stringResource(com.slideindex.app.R.string.gesture_action_simulate_key_event)
     Md3PickerListRow(
@@ -130,6 +137,7 @@ internal fun ActionPickerSimulateKeyEventRow(
         title = label,
         subtitle = subtitle,
         selected = false,
+        highlightPulse = highlightPulse,
         onClick = onOpenConfig,
         leadingContent = {
             Md3PickerIconLeading(
@@ -148,6 +156,7 @@ internal fun ActionPickerActionRow(
     segmentCount: Int,
     selected: Boolean,
     onClick: () -> Unit,
+    highlightPulse: Float = 0f,
 ) {
     val label = gestureActionLabel(action)
     Md3PickerListRow(
@@ -156,6 +165,7 @@ internal fun ActionPickerActionRow(
         title = label,
         subtitle = gestureActionDescription(action),
         selected = selected,
+        highlightPulse = if (selected) highlightPulse else 0f,
         onClick = onClick,
         leadingContent = {
             Md3PickerIconLeading(
@@ -175,6 +185,7 @@ internal fun ActionPickerAppRow(
     selected: Boolean,
     windowMode: LaunchWindowMode,
     onSelect: (AppInfo) -> Unit,
+    highlightPulse: Float = 0f,
 ) {
     val modeLabel = if (selected && !windowMode.followsGlobalPolicy) {
         stringResource(launchWindowModeTitleRes(windowMode))
@@ -187,6 +198,7 @@ internal fun ActionPickerAppRow(
         title = app.label,
         subtitle = modeLabel ?: app.packageName,
         selected = selected,
+        highlightPulse = if (selected) highlightPulse else 0f,
         onClick = { onSelect(app) },
         leadingContent = { Md3PickerAppLeading(app) },
         trailingMode = PickerTrailingMode.Radio,
@@ -252,6 +264,7 @@ internal fun ActionPickerShortcutRow(
     segmentCount: Int,
     current: GestureAction,
     onSelect: (GestureAction) -> Unit,
+    highlightPulse: Float = 0f,
 ) {
     val action = shortcutToLaunchShortcut(shortcut, packageName)
     val selected = current is GestureAction.LaunchShortcut && current.payloadKey == action.payloadKey
@@ -261,6 +274,7 @@ internal fun ActionPickerShortcutRow(
         title = shortcut.label,
         subtitle = shortcut.targetComponent?.takeIf { it.isNotBlank() },
         selected = selected,
+        highlightPulse = if (selected) highlightPulse else 0f,
         onClick = { onSelect(action) },
         leadingContent = {
             Md3PickerAppShortcutLeading(
@@ -273,7 +287,7 @@ internal fun ActionPickerShortcutRow(
     )
 }
 
-private fun shortcutToLaunchShortcut(
+internal fun shortcutToLaunchShortcut(
     shortcut: TaskSwitcherMenuItem,
     packageName: String,
 ): GestureAction.LaunchShortcut {

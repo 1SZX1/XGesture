@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -102,6 +103,8 @@ fun SettingsLazyScreenScaffold(
     userScrollEnabled: Boolean = true,
     /** 悬浮按钮需要预留的底部空间，见 [com.slideindex.app.ui.miuix.MiuixSettingsFabInset]。 */
     fabInset: androidx.compose.ui.unit.Dp = 0.dp,
+    /** 外部持有的滚动状态（例如「打开时定位到当前已绑定的那一项」需要给出初始下标）。 */
+    listState: LazyListState? = null,
     content: LazyListScope.() -> Unit,
 ) {
     MiuixListScaffold(
@@ -116,6 +119,7 @@ fun SettingsLazyScreenScaffold(
         bottomContent = bottomContent,
         userScrollEnabled = userScrollEnabled,
         fabInset = fabInset,
+        listState = listState,
     ) {
         content()
     }

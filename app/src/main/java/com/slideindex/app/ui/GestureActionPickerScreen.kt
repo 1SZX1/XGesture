@@ -3,7 +3,11 @@ package com.slideindex.app.ui
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +38,9 @@ import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.gesturepicker.ActionPickerTab
 import com.slideindex.app.ui.gesturepicker.actionPickerActionItems
 import com.slideindex.app.ui.gesturepicker.actionPickerAppItems
+import com.slideindex.app.ui.gesturepicker.actionPickerIndexOfCurrent
+import com.slideindex.app.ui.gesturepicker.actionPickerShortcutIndexOfCurrent
+import com.slideindex.app.ui.gesturepicker.pickerTab
 import com.slideindex.app.ui.gesturepicker.ActionPickerShortcutRow
 import com.slideindex.app.ui.gesturepicker.actionPickerShortcutItems
 import com.slideindex.app.ui.gesturepicker.GestureLaunchWindowModeDialog
@@ -52,6 +59,12 @@ import com.slideindex.app.util.AppShortcutLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** 定位到位后目标行"亮"一下的时长（毫秒）。 */
+private const val HighlightPulseOnMs = 130
+
+/** 两次闪烁之间的间隔时长（毫秒）。 */
+private const val HighlightPulseOffMs = 110
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GestureActionPickerScreen(
@@ -69,7 +82,8 @@ fun GestureActionPickerScreen(
     pinNoneAtTop: Boolean = true,
     catalogPolicy: ActionPickerCatalogPolicy,
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // 打开时先落在「当前已绑定动作」所属的那一页，而不是永远从第 0 页开始。
+    var selectedTab by remember { mutableIntStateOf(current.pickerTab().ordinal) }
     var searchQuery by remember { mutableStateOf("") }
     var searchExpanded by remember { mutableStateOf(false) }
     val searchFocusRequester = remember { FocusRequester() }
@@ -135,6 +149,70 @@ fun GestureActionPickerScreen(
         filterShortcutCatalog(loadedCatalog.catalog, searchQuery)
     }
     val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
+
+    // 「重新点进来选动作」时直接停在已绑定的那一项上，省掉从顶部一路滑。
+    //
+    // ⚠️ 本页没有 pageHint / subtitle，`MiuixListScaffold` 不会往列表前面插任何行
+    // （见 `settingsPageHeaderItems`），所以下标可以直接用；将来若给本页加了 pageHint，
+    // 这里的下标要跟着加上那几行。
+    val pickerTargetItemIndex = remember(
+        current,
+        filteredActions,
+        filteredApps,
+        filteredShortcuts,
+        loadedCatalog.loading,
+        activityShortcuts,
+        searchQuery,
+    ) {
+        when (current.pickerTab()) {
+            ActionPickerTab.ACTIONS -> actionPickerIndexOfCurrent(filteredActions, current)
+            ActionPickerTab.APPS -> (current as? GestureAction.LaunchApp)
+                ?.let { app -> filteredApps.indexOfFirst { it.packageName == app.packageName } }
+                ?.takeIf { it >= 0 }
+            ActionPickerTab.SHORTCUTS -> actionPickerShortcutIndexOfCurrent(
+                filtered = filteredShortcuts,
+                activityShortcuts = activityShortcuts,
+                searchQuery = searchQuery,
+                loading = loadedCatalog.loading,
+                current = current,
+            )
+        }
+    }
+    // 往上多留一行（自己的分组标题 / 上一项），别让目标贴着顶栏。
+    // `rememberLazyListState` 只在首次组合读这个初值，之后用户怎么滚都不会被拽回去。
+    val pickerListState = rememberLazyListState(
+        initialFirstVisibleItemIndex = (pickerTargetItemIndex?.minus(1) ?: 0).coerceAtLeast(0),
+    )
+    // 应用 / 快捷方式目录是**异步到货**的：首帧 `filteredApps` / `filteredShortcuts` 还是空的，
+    // 上面那个初值只能是 0，等列表到货后 `rememberLazyListState` 也不会再读初值 ——
+    // 所以下标第一次变得可用时补一次定位。只在用户还没拖过列表时补，且只补一次。
+    var pickerRevealApplied by remember { mutableStateOf(false) }
+    var pickerUserScrolled by remember { mutableStateOf(false) }
+    // ⚠️ 判"用户滚过"必须看**拖拽交互**，不能看 `firstVisibleItemIndex != 0`：
+    // 动作页的目录是同步的，首帧 `initialFirstVisibleItemIndex` 就把它定位好了，
+    // 用下标判断会把这种情况误当成"用户滚过了"，于是那一页永远不会闪。
+    // 程序化的 `scrollToItem` 不会发 DragInteraction，所以这里也不会误判自己。
+    LaunchedEffect(pickerListState) {
+        pickerListState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) pickerUserScrolled = true
+        }
+    }
+    // 定位到位后让目标那一行的卡片闪几下，帮眼睛找到它（只闪 3 下，不循环）。
+    val pickerHighlightPulse = remember { Animatable(0f) }
+    LaunchedEffect(pickerTargetItemIndex) {
+        val target = pickerTargetItemIndex ?: return@LaunchedEffect
+        if (pickerRevealApplied || pickerUserScrolled) return@LaunchedEffect
+        pickerRevealApplied = true
+        // 同步就绪的 tab 首帧已经在这个位置了，再滚一次是幂等的（不会抖）。
+        pickerListState.scrollToItem((target - 1).coerceAtLeast(0))
+        // 先滚到位再闪（瞬时滚 + 闪），时序确定：不会出现"还在滚动时已经闪完了"。
+        // 动画时长遵循系统的"动画时长缩放"，关掉动画时自动跳过。
+        repeat(3) {
+            pickerHighlightPulse.animateTo(1f, tween(HighlightPulseOnMs))
+            pickerHighlightPulse.animateTo(0f, tween(HighlightPulseOffMs))
+        }
+        pickerHighlightPulse.snapTo(0f)
+    }
     var pendingCreateHost by remember { mutableStateOf<AppShortcutLoader.CreateShortcutHost?>(null) }
     val createLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -169,6 +247,7 @@ fun GestureActionPickerScreen(
             title = stringResource(R.string.slot_pick_action),
             onBack = handleBack,
             modifier = Modifier.fillMaxSize(),
+            listState = pickerListState,
             actions = {
                 MiuixExpandableSearchIconAction(
                     expanded = searchExpanded,
@@ -213,14 +292,16 @@ fun GestureActionPickerScreen(
                                 current as? GestureAction.SimulateKeyEvent ?: GestureAction.SimulateKeyEvent()
                             )
                         },
-                        onOpenQuickWheel = { quickWheelConfigVisible = true }
+                        onOpenQuickWheel = { quickWheelConfigVisible = true },
+                        highlightPulse = pickerHighlightPulse.value,
                     )
                 }
                 ActionPickerTab.APPS -> {
                     actionPickerAppItems(
                         filtered = filteredApps,
                         current = current,
-                        onSelect = { app -> pendingLaunchApp = app }
+                        onSelect = { app -> pendingLaunchApp = app },
+                        highlightPulse = pickerHighlightPulse.value,
                     )
                 }
                 ActionPickerTab.SHORTCUTS -> {
@@ -248,7 +329,8 @@ fun GestureActionPickerScreen(
                                 segmentIndex = segmentIndex,
                                 segmentCount = segmentCount,
                                 current = current,
-                                onSelect = safeSelect
+                                onSelect = safeSelect,
+                                highlightPulse = pickerHighlightPulse.value,
                             )
                         }
                     )

@@ -2,6 +2,7 @@
 
 package com.slideindex.app.ui
 
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -145,6 +147,9 @@ fun Md3PickerSectionHeader(title: String, modifier: Modifier = Modifier) {
     )
 }
 
+/** 闪烁时卡片底色最多往 primary 方向拉多少（再大就开始压文字的对比度了）。 */
+private const val HighlightPulseMaxTint = 0.22f
+
 @Composable
 fun Md3PickerListRow(
     segmentIndex: Int,
@@ -161,10 +166,26 @@ fun Md3PickerListRow(
     trailingIconDescription: String? = null,
     onTrailingClick: (() -> Unit)? = null,
     enabled: Boolean = true,
+    /**
+     * 「定位到已绑定的那一项」时的闪烁强度（0..1，由调用方用 `Animatable` 驱动）。
+     *
+     * 只是把卡片底色往 primary 方向拉一点 —— 比加阴影便宜得多（LazyColumn 里每帧重算 elevation
+     * 开销明显），而且深浅色主题下都看得见。默认 0 = 完全不参与，其它调用点零影响。
+     */
+    highlightPulse: Float = 0f,
 ) {
     val cardModifier = modifier.miuixGroupedCardItem(
         index = segmentIndex,
         count = segmentCount,
+        color = if (highlightPulse > 0f) {
+            lerp(
+                MiuixTheme.colorScheme.surfaceContainer,
+                MiuixTheme.colorScheme.primary,
+                (highlightPulse * HighlightPulseMaxTint).coerceIn(0f, HighlightPulseMaxTint),
+            )
+        } else {
+            MiuixTheme.colorScheme.surfaceContainer
+        },
     )
     val summaryText = subtitle?.takeIf { supportingContent == null }
     val bottomAction: (@Composable () -> Unit)? = supportingContent?.let { extra ->
