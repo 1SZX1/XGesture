@@ -254,7 +254,7 @@ fun MainScreen(
                         SettingsCardScopeContent {
                             SettingNavigationRow(
                                 icon = { label ->
-                                    Icon(HomeLeadingIcons.triggerCollection(true), contentDescription = label)
+                                    Icon(HomeLeadingIcons.gestureAppProfiles(true), contentDescription = label)
                                 },
                                 title = stringResource(R.string.gesture_app_profiles_title),
                                 subtitle = if (gestureAppProfileCount > 0) {

@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.group
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
@@ -446,6 +447,127 @@ internal object HomeCustomIcons {
         lineTo(11f, 10.5f)
         moveTo(19f, 6.5f)
         lineTo(19f, 10.5f)
+      }
+    }.build()
+  }
+
+  /**
+   * Material **Symbols** 版 `dashboard_customize`（九宫格 + 铅笔）——首页「按应用分档」用。
+   *
+   * ⚠️ 为什么自绘：androidx `material-icons-extended` 属于**旧 Material Icons** 体系，
+   * 里面同名的 `DashboardCustomize` 画的是"九宫格 + **加号**"；Google 迁移到 Symbols 时把这个
+   * 图标重画成了铅笔版。这里按 Symbols 的 960×960 原始路径搬过来。
+   *
+   * ⚠️ 坐标：Symbols 的 `viewBox="0 -960 960 960"` **只是把视口原点移到了 y=-960，y 方向仍然向下**，
+   * 所以这里只需把整条路径**平移 +960**（`group(translationY = 960f)`）。**不要**用 `scaleY = -1`
+   * 去"翻转 y 轴"——那会把图标整个上下镜像（踩过这个坑）。
+   * `Z` 之后的相对 `m` 已换算成绝对坐标，免得依赖 close() 之后当前点的语义差异。
+   */
+  val DashboardCustomizeOutlined: ImageVector by lazy {
+    ImageVector.Builder(
+      name = "DashboardCustomizeOutlined",
+      defaultWidth = 24.dp,
+      defaultHeight = 24.dp,
+      viewportWidth = 960f,
+      viewportHeight = 960f
+    ).apply {
+      group(translationY = 960f) {
+        path(fill = SolidColor(Color.Black)) {
+          // 九个圆点（这里只画 6 个，右下三个位置让给铅笔）
+          moveTo(183.5f, -183.5f)
+          quadTo(160f, -207f, 160f, -240f)
+          reflectiveQuadToRelative(23.5f, -56.5f)
+          quadTo(207f, -320f, 240f, -320f)
+          reflectiveQuadToRelative(56.5f, 23.5f)
+          quadTo(320f, -273f, 320f, -240f)
+          reflectiveQuadToRelative(-23.5f, 56.5f)
+          quadTo(273f, -160f, 240f, -160f)
+          reflectiveQuadToRelative(-56.5f, -23.5f)
+          close()
+          moveTo(183.5f, -423.5f)
+          quadTo(160f, -447f, 160f, -480f)
+          reflectiveQuadToRelative(23.5f, -56.5f)
+          quadTo(207f, -560f, 240f, -560f)
+          reflectiveQuadToRelative(56.5f, 23.5f)
+          quadTo(320f, -513f, 320f, -480f)
+          reflectiveQuadToRelative(-23.5f, 56.5f)
+          quadTo(273f, -400f, 240f, -400f)
+          reflectiveQuadToRelative(-56.5f, -23.5f)
+          close()
+          moveTo(183.5f, -663.5f)
+          quadTo(160f, -687f, 160f, -720f)
+          reflectiveQuadToRelative(23.5f, -56.5f)
+          quadTo(207f, -800f, 240f, -800f)
+          reflectiveQuadToRelative(56.5f, 23.5f)
+          quadTo(320f, -753f, 320f, -720f)
+          reflectiveQuadToRelative(-23.5f, 56.5f)
+          quadTo(273f, -640f, 240f, -640f)
+          reflectiveQuadToRelative(-56.5f, -23.5f)
+          close()
+          moveTo(423.5f, -663.5f)
+          quadTo(400f, -687f, 400f, -720f)
+          reflectiveQuadToRelative(23.5f, -56.5f)
+          quadTo(447f, -800f, 480f, -800f)
+          reflectiveQuadToRelative(56.5f, 23.5f)
+          quadTo(560f, -753f, 560f, -720f)
+          reflectiveQuadToRelative(-23.5f, 56.5f)
+          quadTo(513f, -640f, 480f, -640f)
+          reflectiveQuadToRelative(-56.5f, -23.5f)
+          close()
+          moveTo(663.5f, -663.5f)
+          quadTo(640f, -687f, 640f, -720f)
+          reflectiveQuadToRelative(23.5f, -56.5f)
+          quadTo(687f, -800f, 720f, -800f)
+          reflectiveQuadToRelative(56.5f, 23.5f)
+          quadTo(800f, -753f, 800f, -720f)
+          reflectiveQuadToRelative(-23.5f, 56.5f)
+          quadTo(753f, -640f, 720f, -640f)
+          reflectiveQuadToRelative(-56.5f, -23.5f)
+          close()
+          moveTo(423.5f, -423.5f)
+          quadTo(400f, -447f, 400f, -480f)
+          reflectiveQuadToRelative(23.5f, -56.5f)
+          quadTo(447f, -560f, 480f, -560f)
+          reflectiveQuadToRelative(56.5f, 23.5f)
+          quadTo(560f, -513f, 560f, -480f)
+          reflectiveQuadToRelative(-23.5f, 56.5f)
+          quadTo(513f, -400f, 480f, -400f)
+          reflectiveQuadToRelative(-56.5f, -23.5f)
+          close()
+          // 铅笔（右下）
+          moveTo(520f, -160f)
+          verticalLineToRelative(-123f)
+          lineToRelative(221f, -220f)
+          quadToRelative(9f, -9f, 20f, -13f)
+          reflectiveQuadToRelative(22f, -4f)
+          quadToRelative(12f, 0f, 23f, 4.5f)
+          reflectiveQuadToRelative(20f, 13.5f)
+          lineToRelative(37f, 37f)
+          quadToRelative(8f, 9f, 12.5f, 20f)
+          reflectiveQuadToRelative(4.5f, 22f)
+          quadToRelative(0f, 11f, -4f, 22.5f)
+          reflectiveQuadTo(863f, -380f)
+          lineTo(643f, -160f)
+          horizontalLineTo(520f)
+          close()
+          moveTo(820f, -423f)
+          lineToRelative(-37f, -37f)
+          lineToRelative(37f, 37f)
+          close()
+          moveTo(580f, -220f)
+          horizontalLineToRelative(38f)
+          lineToRelative(121f, -122f)
+          lineToRelative(-18f, -19f)
+          lineToRelative(-19f, -18f)
+          lineToRelative(-122f, 121f)
+          verticalLineToRelative(38f)
+          close()
+          moveTo(721f, -361f)
+          lineToRelative(-19f, -18f)
+          lineToRelative(37f, 37f)
+          lineToRelative(-18f, -19f)
+          close()
+        }
       }
     }.build()
   }

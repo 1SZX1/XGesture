@@ -97,6 +97,13 @@ fun GestureAppProfilesScreen(
                         R.string.gesture_app_profiles_bound_count,
                         profile.packageNames.size,
                     ),
+                    // 与首页那一行同一个图标：从入口到每档形成同一个视觉锚点。
+                    startAction = {
+                        Icon(
+                            imageVector = HomeLeadingIcons.gestureAppProfiles(true),
+                            contentDescription = null,
+                        )
+                    },
                     onClick = { onOpenProfile(profile.id) },
                     endActions = {
                         IconButton(onClick = { deleteTarget = profile }) {

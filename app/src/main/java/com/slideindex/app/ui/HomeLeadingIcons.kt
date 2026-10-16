@@ -52,6 +52,16 @@ internal object HomeLeadingIcons {
     fun cornerWheel(outlined: Boolean) = HomeCustomIcons.CornerWheel
     fun triggerCollection(outlined: Boolean) =
         homeLeadingIcon(outlined, Icons.Default.TouchApp, Icons.Outlined.TouchApp)
+
+    /**
+     * 「按应用分档」。
+     *
+     * ⚠️ 不能和 [triggerCollection] 共用一个图标：两行在同一张卡里相邻，图标一样就分不出谁是谁
+     * （用户提过）。也不能用 androidx 的 `Icons.*.DashboardCustomize`——旧 Material Icons 里那个
+     * 画的是"九宫格 + 加号"，而用户要的是 Material Symbols 新版"九宫格 + 铅笔"，所以自绘见
+     * [HomeCustomIcons.DashboardCustomizeOutlined]。
+     */
+    fun gestureAppProfiles(outlined: Boolean) = HomeCustomIcons.DashboardCustomizeOutlined
     fun floatBall(outlined: Boolean) =
         homeLeadingIcon(outlined, Icons.Default.RadioButtonChecked, Icons.Outlined.Circle)
     fun gestureAngle(outlined: Boolean) = homeLeadingIcon(outlined, Icons.Default.Tune, Icons.Outlined.Tune)
