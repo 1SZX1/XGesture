@@ -17,7 +17,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,8 +80,6 @@ private const val TRIGGER_ACTION_ENTER_MS = 220
 private const val TRIGGER_ACTION_EXIT_MS = 180
 
 private data class PendingSideRemove(val side: PanelSide, val handleId: String)
-
-private data class PendingGroupRestore(val side: PanelSide, val handleId: String, val landscape: Boolean)
 
 /**
  * 触钮集合页。
@@ -158,7 +155,6 @@ fun TriggerCollectionScreen(
     val displaySettings = if (landscapeMode) settings.forLandscapeEditing() else settings
     var sideExpanded by rememberSaveable { mutableStateOf(true) }
     var pendingRemove by remember { mutableStateOf<PendingSideRemove?>(null) }
-    var pendingGroupRestore by remember { mutableStateOf<PendingGroupRestore?>(null) }
     var showRestoreProfileConfirm by remember { mutableStateOf(false) }
     var showCopyPortraitConfirm by remember { mutableStateOf(false) }
     val entries = displaySettings.triggerCollectionEntries()
@@ -245,6 +241,13 @@ fun TriggerCollectionScreen(
                     )
                 }
             }
+            if (profileScope.boundAppEntries.isNotEmpty()) {
+                // 「已绑定应用」卡与「添加应用」卡之间补 12dp：两张独立圆角卡零间距贴在一起会出现
+                // "双圆角掐腰"的观感（`managedAppPackageRows` / `managedAppListAddRow` 自身都不带上边距）。
+                LazySettingsItem(key = "profile-bound-apps-gap") {
+                    Box(Modifier.fillMaxWidth().padding(top = 12.dp))
+                }
+            }
             managedAppListAddRow(
                 key = "profile-bound-apps-add",
                 title = { stringResource(R.string.gesture_app_profiles_add) },
@@ -279,9 +282,6 @@ fun TriggerCollectionScreen(
                     sideExpanded = sideExpanded,
                     profileScope = profileScope,
                     landscape = landscapeMode,
-                    onRequestRestoreGroup = { side, handleId ->
-                        pendingGroupRestore = PendingGroupRestore(side, handleId, landscapeMode)
-                    },
                     onToggleExpanded = { sideExpanded = !sideExpanded },
                     onOpenLeftTrigger = openLeftTrigger,
                     onOpenRightTrigger = openRightTrigger,
@@ -327,10 +327,12 @@ fun TriggerCollectionScreen(
                 SmallTitle(
                     text = stringResource(R.string.trigger_collection_bottom),
                 )
-                bottomHandles.forEach { handle ->
+                bottomHandles.forEachIndexed { index, handle ->
                     val edgeCard = rememberTriggerEdgeHandleCard(
                         side = PanelSide.BOTTOM,
                         handle = handle,
+                        handleIndex = index,
+                        handleCount = bottomHandles.size,
                         settings = displaySettings,
                         serviceEnabled = serviceEnabled,
                         overrideBadge = profileOverrideBadge(
@@ -338,10 +340,6 @@ fun TriggerCollectionScreen(
                             side = PanelSide.BOTTOM,
                             handleId = handle.id,
                             landscape = landscapeMode,
-                            onRequestRestore = {
-                                pendingGroupRestore =
-                                    PendingGroupRestore(PanelSide.BOTTOM, handle.id, landscapeMode)
-                            },
                         ),
                         onOpenTrigger = openBottomTrigger,
                         onRequestRemove = {
@@ -371,10 +369,12 @@ fun TriggerCollectionScreen(
                 SmallTitle(
                     text = stringResource(R.string.trigger_collection_top),
                 )
-                topHandles.forEach { handle ->
+                topHandles.forEachIndexed { index, handle ->
                     val edgeCard = rememberTriggerEdgeHandleCard(
                         side = PanelSide.TOP,
                         handle = handle,
+                        handleIndex = index,
+                        handleCount = topHandles.size,
                         settings = displaySettings,
                         serviceEnabled = serviceEnabled,
                         overrideBadge = profileOverrideBadge(
@@ -382,10 +382,6 @@ fun TriggerCollectionScreen(
                             side = PanelSide.TOP,
                             handleId = handle.id,
                             landscape = landscapeMode,
-                            onRequestRestore = {
-                                pendingGroupRestore =
-                                    PendingGroupRestore(PanelSide.TOP, handle.id, landscapeMode)
-                            },
                         ),
                         onOpenTrigger = openTopTrigger,
                         onRequestRemove = {
@@ -448,19 +444,6 @@ fun TriggerCollectionScreen(
         },
     )
 
-    val restoreTarget = pendingGroupRestore
-    MiuixConfirmDialog(
-        show = restoreTarget != null,
-        onDismissRequest = { pendingGroupRestore = null },
-        title = stringResource(R.string.gesture_app_profiles_restore_group_confirm_title),
-        message = stringResource(R.string.gesture_app_profiles_restore_group_confirm_message),
-        onConfirm = {
-            restoreTarget?.let { target ->
-                profileScope?.onRestoreGroupFromGlobal(target.side, target.handleId, target.landscape)
-            }
-        },
-    )
-
     MiuixConfirmDialog(
         show = showRestoreProfileConfirm,
         onDismissRequest = { showRestoreProfileConfirm = false },
@@ -471,10 +454,11 @@ fun TriggerCollectionScreen(
 }
 
 /**
- * 档内每个触钮组行尾的「已覆盖 / 跟随全局」。
+ * 档内每个触钮组行尾的「已覆盖 / 跟随全局」——**纯只读徽标**。
  *
- * 已覆盖时它同时就是「该触钮组恢复为全局」的入口（点一下先确认，再把全局那一组写回本档）。
- * 全局作用域（[scope] == null）返回 null，行尾什么都不加。
+ * 恢复入口只有档页顶部那一个「恢复为全局」（整档重抄全局）：早先这里点一下"恢复该组"是不可靠的
+ * （触钮几何在存储里按侧一份数组，恢复一组会把同侧别的组一起冲掉、还会凭空多出/少掉触钮），
+ * 所以整块去掉。全局作用域（[scope] == null）返回 null，行尾什么都不加。
  */
 @Composable
 private fun profileOverrideBadge(
@@ -482,10 +466,9 @@ private fun profileOverrideBadge(
     side: PanelSide,
     handleId: String,
     landscape: Boolean,
-    onRequestRestore: () -> Unit,
 ): (@Composable () -> Unit)? {
     if (scope == null) return null
-    return { TriggerProfileOverrideBadge(scope, side, handleId, landscape, onRequestRestore) }
+    return { TriggerProfileOverrideBadge(scope, side, handleId, landscape) }
 }
 
 @Composable
@@ -494,26 +477,23 @@ private fun TriggerProfileOverrideBadge(
     side: PanelSide,
     handleId: String,
     landscape: Boolean,
-    onRequestRestore: () -> Unit,
 ) {
     val overridden = scope.groupOverridden(side, handleId, landscape)
-    val label = if (overridden) {
-        stringResource(R.string.gesture_app_profiles_slot_overridden) + " · " +
-            stringResource(R.string.gesture_app_profiles_restore_group)
-    } else {
-        stringResource(R.string.gesture_app_profiles_slot_follow_global)
-    }
     Text(
-        text = label,
+        text = stringResource(
+            if (overridden) {
+                R.string.gesture_app_profiles_slot_overridden
+            } else {
+                R.string.gesture_app_profiles_slot_follow_global
+            },
+        ),
         style = MaterialTheme.typography.labelMedium,
         color = if (overridden) {
             MaterialTheme.colorScheme.primary
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        modifier = Modifier
-            .then(if (overridden) Modifier.clickable(onClick = onRequestRestore) else Modifier)
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
     )
 }
 
@@ -522,6 +502,9 @@ private fun TriggerProfileOverrideBadge(
 private fun rememberTriggerEdgeHandleCard(
     side: PanelSide,
     handle: TriggerHandle,
+    /** 该侧触钮列表里的序号 / 总数：底部与顶部靠它显示「底部触钮 · 第 2 组」而不是内部 id。 */
+    handleIndex: Int,
+    handleCount: Int,
     settings: AppSettings,
     serviceEnabled: Boolean,
     onOpenTrigger: (String) -> Unit,
@@ -533,6 +516,8 @@ private fun rememberTriggerEdgeHandleCard(
     TriggerEdgeHandleRow(
         side = side,
         handle = handle,
+        handleIndex = handleIndex,
+        handleCount = handleCount,
         settings = settings,
         serviceEnabled = serviceEnabled,
         onOpenTrigger = onOpenTrigger,
@@ -548,6 +533,8 @@ private fun rememberTriggerEdgeHandleCard(
 private fun SettingsCardScope.TriggerEdgeHandleRow(
     side: PanelSide,
     handle: TriggerHandle,
+    handleIndex: Int,
+    handleCount: Int,
     settings: AppSettings,
     serviceEnabled: Boolean,
     onOpenTrigger: (String) -> Unit,
@@ -557,7 +544,7 @@ private fun SettingsCardScope.TriggerEdgeHandleRow(
     overrideBadge: (@Composable () -> Unit)? = null,
 ) {
     SettingSwitchNavigationRow(
-        title = triggerCollectionHandleTitle(side, handle.id),
+        title = triggerCollectionHandleTitle(side, handle.id, handleIndex, handleCount),
         subtitle = triggerHandleActionSummary(settings, side, handle.id),
         checked = handle.enabled,
         enabled = serviceEnabled,
@@ -582,7 +569,6 @@ private fun TriggerEntryList(
     sideExpanded: Boolean,
     profileScope: GestureProfileScopeUi?,
     landscape: Boolean,
-    onRequestRestoreGroup: (PanelSide, String) -> Unit,
     onToggleExpanded: () -> Unit,
     onOpenLeftTrigger: (handleId: String) -> Unit,
     onOpenRightTrigger: (handleId: String) -> Unit,
@@ -695,9 +681,6 @@ private fun TriggerEntryList(
                                     side = PanelSide.LEFT,
                                     handleId = handleId,
                                     landscape = landscape,
-                                    onRequestRestore = {
-                                        onRequestRestoreGroup(PanelSide.LEFT, handleId)
-                                    },
                                 ),
                                 onClick = { onOpenLeftTrigger(handleId) },
                                 onLongClick = if (serviceEnabled) {
@@ -730,9 +713,6 @@ private fun TriggerEntryList(
                                     side = PanelSide.RIGHT,
                                     handleId = handleId,
                                     landscape = landscape,
-                                    onRequestRestore = {
-                                        onRequestRestoreGroup(PanelSide.RIGHT, handleId)
-                                    },
                                 ),
                                 onClick = { onOpenRightTrigger(handleId) },
                                 onLongClick = if (serviceEnabled) {
@@ -811,15 +791,27 @@ private fun TriggerSideRow(
     )
 }
 
+/**
+ * 底部 / 顶部触钮行的标题。
+ *
+ * ⚠️ 这里曾经只给"默认 id"起名字，**其余直接回显 `handleId`** —— 而新增触钮的 id 是
+ * `TriggerHandle.newId()` 生成的 8 位随机串，于是列表里会出现"一串数字字母"。
+ * 现在与左右触钮同一套口径：一个时只显示「底部触钮」，多个时补「· 第 N 组」。
+ */
 @Composable
-private fun triggerCollectionHandleTitle(side: PanelSide, handleId: String): String {
-    if (side == PanelSide.BOTTOM && handleId == TriggerHandle.DEFAULT_ID) {
-        return stringResource(R.string.trigger_bottom_default_title)
+private fun triggerCollectionHandleTitle(
+    side: PanelSide,
+    handleId: String,
+    index: Int,
+    count: Int,
+): String {
+    val base = when {
+        side == PanelSide.BOTTOM -> stringResource(R.string.trigger_bottom_default_title)
+        side == PanelSide.TOP -> stringResource(R.string.trigger_top_default_title)
+        // 左右两侧走自己的 TriggerSideRow 标题，不会到这儿；留个兜底避免再暴露内部 id。
+        else -> handleId
     }
-    if (side == PanelSide.TOP && handleId == TriggerHandle.DEFAULT_ID) {
-        return stringResource(R.string.trigger_top_default_title)
-    }
-    return handleId
+    return if (count <= 1) base else "$base · ${stringResource(R.string.trigger_pair_index, index + 1)}"
 }
 
 @Composable

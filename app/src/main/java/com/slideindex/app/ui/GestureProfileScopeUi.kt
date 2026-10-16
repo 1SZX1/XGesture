@@ -30,13 +30,11 @@ data class GestureProfileScopeUi(
     val boundAppEntries: List<AppPackageEntry> = emptyList(),
     val onOpenBindApp: () -> Unit = {},
     val onUnbindApp: (String) -> Unit = {},
-    /** 「恢复为全局」：整档按当前全局重新复制一份。 */
+    /** 「恢复为全局」：整档按当前全局重新复制一份（这是**唯一**的恢复入口）。 */
     val onRestoreFromGlobal: () -> Unit = {},
-    /** 「该触钮组恢复为全局」：把全局那一组写回本档。[Boolean] = 是否横屏那套。 */
-    val onRestoreGroupFromGlobal: (PanelSide, String, Boolean) -> Unit = { _, _, _ -> },
 ) {
     /**
-     * 某个触钮组是否已被本档改过。
+     * 某个触钮组是否已被本档改过（**只读徽标**用，不再有"恢复该组"入口）。
      *
      * 两个判定都来自数据层：动作按「侧 + 触钮组 + 竖/横屏」逐项比，
      * 几何/外观按「侧 + 竖/横屏」整体比（触钮几何在存储里就是按侧一份数组）。

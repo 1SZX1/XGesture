@@ -110,6 +110,35 @@ class GestureProfileCodecTest {
     }
 
     @Test
+    fun encodeDecode_keepsDeliberatelyEmptyHandleSide() {
+        // 回归：档里把某侧触钮**删光**必须原样存住 —— 不能因为"没有记录"就回落到出厂的那一个默认触钮
+        // （表现会是"档里横/竖屏的侧边触钮怎么删都删不干净"）。
+        val base = profileWith(emptyMap())
+        val profile = base.copy(
+            snapshot = base.snapshot.copy(
+                leftTriggerHandles = emptyList(),
+                leftTriggerHandlesLandscape = emptyList(),
+            ),
+        )
+
+        val restored = GestureProfileCodec
+            .decodeAll(GestureProfileCodec.encodeAll(listOf(profile)))
+            .single()
+
+        assertTrue("删空的竖屏左侧必须保持为空", restored.snapshot.leftTriggerHandles.isEmpty())
+        assertTrue("删空的横屏左侧必须保持为空", restored.snapshot.leftTriggerHandlesLandscape.isEmpty())
+        // 其它侧不受影响。
+        assertEquals(
+            profile.snapshot.rightTriggerHandles,
+            restored.snapshot.rightTriggerHandles,
+        )
+        assertEquals(
+            profile.snapshot.rightTriggerHandlesLandscape,
+            restored.snapshot.rightTriggerHandlesLandscape,
+        )
+    }
+
+    @Test
     fun profileNameSanitizesControlChars() {
         val profile = profileWith(emptyMap()).copy(name = "游\u001F戏\u001D\u0000")
 

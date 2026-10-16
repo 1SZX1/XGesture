@@ -23,19 +23,28 @@ fun AppSettings.storedLandscapeTriggerHandles(side: PanelSide): List<TriggerHand
     PanelSide.TOP -> topTriggerHandlesLandscape
 }
 
-/** 将横屏存储映射到主 handle 字段，复用现有编辑/变更逻辑。 */
-fun AppSettings.forLandscapeHandleEditing(): AppSettings = copy(
-    edgeTrigger = edgeTrigger.copy(
-        leftTriggerHandles = storedLandscapeTriggerHandles(PanelSide.LEFT)
-            .ifEmpty { leftTriggerHandles },
-        rightTriggerHandles = storedLandscapeTriggerHandles(PanelSide.RIGHT)
-            .ifEmpty { rightTriggerHandles },
-        bottomTriggerHandles = storedLandscapeTriggerHandles(PanelSide.BOTTOM)
-            .ifEmpty { bottomTriggerHandles },
-        topTriggerHandles = storedLandscapeTriggerHandles(PanelSide.TOP)
-            .ifEmpty { topTriggerHandles },
-    ),
-)
+/**
+ * 将横屏存储映射到主 handle 字段，复用现有编辑/变更逻辑。
+ *
+ * ⚠️ **只有"横屏还没初始化"时才回填竖屏**：一旦 `landscapeTriggersInitialized == true`，
+ * 某侧的空列表就是用户的**真实意图**（他就是要横屏这一侧没有触钮）。
+ * 早先这里无条件 `ifEmpty { 竖屏 }`，于是"在横屏里把触钮删光"在下一次**任何读改写**
+ * （再删一次 / 拖动 / 改宽高 / 改别的保存）时会被竖屏回填并落盘 —— 表现就是
+ * 「横屏触钮怎么删都删不干净，删掉的两个过一会又回来」。
+ * 一次性迁移由 [withLandscapeCopiedFromPortrait] 负责，不需要靠这里反复兜底。
+ */
+fun AppSettings.forLandscapeHandleEditing(): AppSettings {
+    fun fallback(stored: List<TriggerHandle>, portrait: List<TriggerHandle>): List<TriggerHandle> =
+        if (landscapeTriggersInitialized) stored else stored.ifEmpty { portrait }
+    return copy(
+        edgeTrigger = edgeTrigger.copy(
+            leftTriggerHandles = fallback(storedLandscapeTriggerHandles(PanelSide.LEFT), leftTriggerHandles),
+            rightTriggerHandles = fallback(storedLandscapeTriggerHandles(PanelSide.RIGHT), rightTriggerHandles),
+            bottomTriggerHandles = fallback(storedLandscapeTriggerHandles(PanelSide.BOTTOM), bottomTriggerHandles),
+            topTriggerHandles = fallback(storedLandscapeTriggerHandles(PanelSide.TOP), topTriggerHandles),
+        ),
+    )
+}
 
 /** 横屏编辑态：布局 + 手势规则均映射到主字段，与竖屏编辑互不干扰。 */
 fun AppSettings.forLandscapeEditing(): AppSettings = forLandscapeHandleEditing().let { base ->

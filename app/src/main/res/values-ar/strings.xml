@@ -57,7 +57,7 @@
     <string name="gesture_app_profiles_add">إضافة تطبيق</string>
     <string name="gesture_app_profiles_empty">لا توجد تطبيقات مرتبطة بعد</string>
     <string name="gesture_app_profiles_remove">إلغاء الربط</string>
-    <string name="gesture_app_profiles_detail_title">مقابض %1$s</string>
+    <string name="gesture_app_profiles_detail_title">الملف · %1$s</string>
     <string name="gesture_app_profiles_detail_desc">هذه هي مجموعة المقابض الكاملة الخاصة بهذا الملف (نسخة للوضع الرأسي وأخرى للأفقي)؛ التغييرات تؤثر فقط على التطبيقات المرتبطة بهذا الملف</string>
     <string name="gesture_app_profiles_slot_overridden">مُستبدلة</string>
     <string name="gesture_app_profiles_slot_follow_global">تتبع الإعداد العام</string>
@@ -66,9 +66,6 @@
     <string name="gesture_app_profiles_restore_from_global_desc">انسخ الإعداد العام الحالي بالكامل (بما في ذلك نسخة الوضع الأفقي) إلى هذا الملف</string>
     <string name="gesture_app_profiles_restore_confirm_title">الاستعادة من الإعداد العام؟</string>
     <string name="gesture_app_profiles_restore_confirm_message">سيتم استبدال كل تغييرات هذا الملف بالإعدادات العامة الحالية، ولا يمكن التراجع.</string>
-    <string name="gesture_app_profiles_restore_group">إرجاع إلى الإعداد العام</string>
-    <string name="gesture_app_profiles_restore_group_confirm_title">إرجاع مجموعة المقابض هذه إلى الإعداد العام؟</string>
-    <string name="gesture_app_profiles_restore_group_confirm_message">ستُعاد كتابة إيماءات هذه المجموعة وهندستها من الإعداد العام الحالي.</string>
     <string name="gesture_app_profiles_new">ملف جديد</string>
     <string name="gesture_app_profiles_new_title">ملف جديد</string>
     <string name="gesture_app_profiles_name_hint">اسم الملف (اتركه فارغًا للتسمية التلقائية)</string>

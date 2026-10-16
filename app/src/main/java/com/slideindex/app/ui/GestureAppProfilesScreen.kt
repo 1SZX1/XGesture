@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.settings.GestureProfile
 import com.slideindex.app.ui.miuix.MiuixConfirmDialog
@@ -84,7 +85,13 @@ fun GestureAppProfilesScreen(
         } else {
             itemsIndexed(profiles, key = { _, profile -> profile.id }) { index, profile ->
                 BasicComponent(
-                    modifier = Modifier.miuixGroupedCardItem(index, profiles.size),
+                    // ⚠️ 最后一行补 12dp 底部外边距 = 与下面「新建档」那张卡之间的标准间距；
+                    // `miuixGroupedCardItem` 默认是 0dp，两张圆角卡贴在一起会出现"双圆角掐腰"。
+                    modifier = Modifier.miuixGroupedCardItem(
+                        index = index,
+                        count = profiles.size,
+                        outerBottomPadding = 12.dp,
+                    ),
                     title = profile.name,
                     summary = stringResource(
                         R.string.gesture_app_profiles_bound_count,

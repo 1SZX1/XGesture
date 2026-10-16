@@ -9,17 +9,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import top.yukonga.miuix.kmp.nav.core.NavEntryBuilder
 import com.slideindex.app.R
-import com.slideindex.app.gesture.TriggerHandle
 import com.slideindex.app.overlay.PanelSide
 import com.slideindex.app.settings.GestureProfile
-import com.slideindex.app.settings.GestureProfileSnapshot
 import com.slideindex.app.settings.extractGestureProfileSnapshot
 import com.slideindex.app.settings.gestureProfileById
 import com.slideindex.app.settings.gestureSnapshot
 import com.slideindex.app.settings.hasStoredLandscapeTriggerHandles
 import com.slideindex.app.settings.materializeGestureProfile
 import com.slideindex.app.settings.profileIdOwning
-import com.slideindex.app.settings.rulesFor
 import com.slideindex.app.settings.toMinimalAppSettings
 import com.slideindex.app.settings.withAddedBottomTriggerHandle
 import com.slideindex.app.settings.withAddedTopTriggerHandle
@@ -173,19 +170,10 @@ private fun GestureAppProfileDetailRoute(ctx: MainNavContext, profileId: String)
                 viewModel.updateGestureProfile(profile.withoutPackage(packageName))
             },
             onRestoreFromGlobal = {
-                // 「恢复为全局」= 整档按当前全局重新复制一份（含横屏那套）。
+                // 「恢复为全局」= 整档按当前全局重新复制一份（含横屏那套）。这是**唯一**的恢复入口：
+                // 早先还有一个"每组恢复为全局"，但它按侧整份换几何，会把同侧别的组一起冲掉、
+                // 还会凭空多出/少掉触钮（触钮几何在存储里就是按侧一份数组），所以整块去掉了。
                 viewModel.setGestureProfileSnapshot(profileId, globalSettings.gestureSnapshot())
-            },
-            onRestoreGroupFromGlobal = { side, handleId, landscape ->
-                viewModel.setGestureProfileSnapshot(
-                    profileId,
-                    profile.snapshot.restoreGroupFromGlobal(
-                        global = globalSettings.gestureSnapshot(),
-                        side = side,
-                        handleId = handleId,
-                        landscape = landscape,
-                    ),
-                )
             },
         ),
         onEnsureLandscapeInitialized = {
@@ -285,46 +273,3 @@ private fun GestureAppProfileDetailRoute(ctx: MainNavContext, profileId: String)
     )
 }
 
-/**
- * 「该触钮组恢复为全局」：把**全局那一组**写回本档。
- *
- * - 动作：本档该 (侧 + 触钮组 + 竖/横屏) 的规则整组换成全局的同组规则；
- * - 几何 / 外观：该侧该竖/横屏的触钮列表整份换成全局的。
- *
- * 几何之所以按"整侧"而不是"单个触钮"换：数据层提供的
- * `handleGeometryDiffersFromGlobal(global, side, landscape)` 本来就是按侧比较的
- * （触钮几何在存储里就是按侧一份数组），只有整侧对齐才能让「已覆盖 / 跟随全局」真正归位。
- * 顶/底侧通常各只有一个触钮，于是这条等价于"只换这一个触钮"。
- */
-internal fun GestureProfileSnapshot.restoreGroupFromGlobal(
-    global: GestureProfileSnapshot,
-    side: PanelSide,
-    handleId: String,
-    landscape: Boolean,
-): GestureProfileSnapshot {
-    val ownRules = if (landscape) gestureRulesLandscape else gestureRules
-    val nextRules = ownRules.filterNot { it.side == side && it.handleId == handleId } +
-        global.rulesFor(side, landscape).filter { it.handleId == handleId }
-    val withRules = if (landscape) copy(gestureRulesLandscape = nextRules) else copy(gestureRules = nextRules)
-    return withRules.withHandlesFor(side, landscape, global.handlesFor(side, landscape))
-}
-
-private fun GestureProfileSnapshot.withHandlesFor(
-    side: PanelSide,
-    landscape: Boolean,
-    handles: List<TriggerHandle>,
-): GestureProfileSnapshot = if (landscape) {
-    when (side) {
-        PanelSide.LEFT -> copy(leftTriggerHandlesLandscape = handles)
-        PanelSide.RIGHT -> copy(rightTriggerHandlesLandscape = handles)
-        PanelSide.BOTTOM -> copy(bottomTriggerHandlesLandscape = handles)
-        PanelSide.TOP -> copy(topTriggerHandlesLandscape = handles)
-    }
-} else {
-    when (side) {
-        PanelSide.LEFT -> copy(leftTriggerHandles = handles)
-        PanelSide.RIGHT -> copy(rightTriggerHandles = handles)
-        PanelSide.BOTTOM -> copy(bottomTriggerHandles = handles)
-        PanelSide.TOP -> copy(topTriggerHandles = handles)
-    }
-}

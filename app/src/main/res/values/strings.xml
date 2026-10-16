@@ -86,7 +86,7 @@
     <string name="gesture_app_profiles_add">Add app</string>
     <string name="gesture_app_profiles_empty">No bound apps yet</string>
     <string name="gesture_app_profiles_remove">Unbind</string>
-    <string name="gesture_app_profiles_detail_title">%1$s triggers</string>
+    <string name="gesture_app_profiles_detail_title">Profile · %1$s</string>
     <string name="gesture_app_profiles_detail_desc">This profile\'s own full trigger set (one for portrait, one for landscape); changes affect only the apps bound to this profile</string>
     <string name="gesture_app_profiles_slot_overridden">Overridden</string>
     <string name="gesture_app_profiles_slot_follow_global">Follows global</string>
@@ -95,9 +95,6 @@
     <string name="gesture_app_profiles_restore_from_global_desc">Copy the whole current global set (including the landscape one) into this profile</string>
     <string name="gesture_app_profiles_restore_confirm_title">Restore from global?</string>
     <string name="gesture_app_profiles_restore_confirm_message">Every change in this profile will be replaced by the current global settings. This cannot be undone.</string>
-    <string name="gesture_app_profiles_restore_group">Restore to global</string>
-    <string name="gesture_app_profiles_restore_group_confirm_title">Restore this trigger group to global?</string>
-    <string name="gesture_app_profiles_restore_group_confirm_message">This group\'s gestures and geometry will be rewritten from the current global settings.</string>
     <string name="gesture_app_profiles_new">New profile</string>
     <string name="gesture_app_profiles_new_title">New profile</string>
     <string name="gesture_app_profiles_name_hint">Profile name (leave empty to auto-name)</string>

@@ -297,11 +297,24 @@ object GestureProfileCodec {
             add(record(id, "num", encodeScalars(profile.snapshot)))
             add(record(id, "anim", AnimationStyleCodec.encode(profile.snapshot.animationStyles)))
             for (side in PanelSide.entries) {
-                for (handle in profile.snapshot.handlesFor(side, landscape = false)) {
-                    add(record(id, "h", side.name, TriggerHandleCodec.encode(handle)))
+                // ⚠️ **空列表要写成显式标记**（kind + 侧，值为空串），不能"什么都不写"：
+                // 后者与"这条记录缺失"无法区分，解码时就会回落到出厂的一个默认触钮 ——
+                // 表现就是"档里把某侧触钮删光，过一会它自己又回来"（与横屏那个回填 bug 同源）。
+                val portrait = profile.snapshot.handlesFor(side, landscape = false)
+                if (portrait.isEmpty()) {
+                    add(record(id, "h", side.name, ""))
+                } else {
+                    for (handle in portrait) {
+                        add(record(id, "h", side.name, TriggerHandleCodec.encode(handle)))
+                    }
                 }
-                for (handle in profile.snapshot.handlesFor(side, landscape = true)) {
-                    add(record(id, "hl", side.name, TriggerHandleCodec.encode(handle)))
+                val landscape = profile.snapshot.handlesFor(side, landscape = true)
+                if (landscape.isEmpty()) {
+                    add(record(id, "hl", side.name, ""))
+                } else {
+                    for (handle in landscape) {
+                        add(record(id, "hl", side.name, TriggerHandleCodec.encode(handle)))
+                    }
                 }
             }
             for (rule in profile.snapshot.gestureRules) add(record(id, "r", encodeRule(rule)))
@@ -321,6 +334,15 @@ object GestureProfileCodec {
                 "anim" -> builder.animationStyles = AnimationStyleCodec.decode(header.value)
                 "h", "hl" -> {
                     val side = PanelSide.entries.firstOrNull { it.name == header.subKey } ?: continue
+                    if (header.value.isEmpty()) {
+                        // 显式空标记：这一侧（竖屏或横屏）就是"故意一个触钮都没有"。
+                        if (header.kind == "h") {
+                            builder.emptyHandleSides += side
+                        } else {
+                            builder.emptyLandscapeHandleSides += side
+                        }
+                        continue
+                    }
                     val handle = TriggerHandleCodec.decode(header.value) ?: continue
                     if (header.kind == "h") {
                         builder.handles.getOrPut(side) { mutableListOf() } += handle
@@ -478,6 +500,9 @@ object GestureProfileCodec {
         var animationStyles: AnimationStyles = AnimationStyles()
         val handles = LinkedHashMap<PanelSide, MutableList<TriggerHandle>>()
         val handlesLandscape = LinkedHashMap<PanelSide, MutableList<TriggerHandle>>()
+        /** 显式声明"这一侧一个触钮都没有"的侧别（见 `encodeAll` 里的空标记）。 */
+        val emptyHandleSides = mutableSetOf<PanelSide>()
+        val emptyLandscapeHandleSides = mutableSetOf<PanelSide>()
         val rules = mutableListOf<GestureRule>()
         val rulesLandscape = mutableListOf<GestureRule>()
 
@@ -490,6 +515,8 @@ object GestureProfileCodec {
                 animationStyles = animationStyles,
                 handles = handles,
                 handlesLandscape = handlesLandscape,
+                emptyHandleSides = emptyHandleSides,
+                emptyLandscapeHandleSides = emptyLandscapeHandleSides,
                 rules = rules,
                 rulesLandscape = rulesLandscape,
             ),
@@ -501,6 +528,8 @@ object GestureProfileCodec {
         animationStyles: AnimationStyles,
         handles: Map<PanelSide, List<TriggerHandle>>,
         handlesLandscape: Map<PanelSide, List<TriggerHandle>>,
+        emptyHandleSides: Set<PanelSide>,
+        emptyLandscapeHandleSides: Set<PanelSide>,
         rules: List<GestureRule>,
         rulesLandscape: List<GestureRule>,
     ): GestureProfileSnapshot {
@@ -518,6 +547,15 @@ object GestureProfileCodec {
             p3 = float("${prefix}P3", fallback.p3),
             p4 = float("${prefix}P4", fallback.p4),
         )
+        /** 竖屏某侧触钮：有记录就用记录（含空标记 → 空），没有记录才回落到出厂那一个默认触钮。 */
+        fun portraitOf(side: PanelSide, fallback: List<TriggerHandle>): List<TriggerHandle> = when {
+            handles.containsKey(side) -> handles.getValue(side)
+            side in emptyHandleSides -> emptyList()
+            else -> fallback
+        }
+        /** 横屏某侧触钮：默认本来就是空，标记只是把"故意为空"写成显式记录、防止将来又被兜底。 */
+        fun landscapeOf(side: PanelSide): List<TriggerHandle> =
+            if (side in emptyLandscapeHandleSides) emptyList() else handlesLandscape[side].orEmpty()
         return GestureProfileSnapshot(
             leftEdgeEnabled = bool("lEdge", d.leftEdgeEnabled),
             rightEdgeEnabled = bool("rEdge", d.rightEdgeEnabled),
@@ -529,14 +567,14 @@ object GestureProfileCodec {
             rightTriggerTopFraction = float("rTop", d.rightTriggerTopFraction),
             leftTriggerHeightFraction = float("lHeight", d.leftTriggerHeightFraction),
             rightTriggerHeightFraction = float("rHeight", d.rightTriggerHeightFraction),
-            leftTriggerHandles = handles[PanelSide.LEFT]?.takeIf { it.isNotEmpty() } ?: d.leftTriggerHandles,
-            rightTriggerHandles = handles[PanelSide.RIGHT]?.takeIf { it.isNotEmpty() } ?: d.rightTriggerHandles,
-            bottomTriggerHandles = handles[PanelSide.BOTTOM]?.takeIf { it.isNotEmpty() } ?: d.bottomTriggerHandles,
-            topTriggerHandles = handles[PanelSide.TOP]?.takeIf { it.isNotEmpty() } ?: d.topTriggerHandles,
-            leftTriggerHandlesLandscape = handlesLandscape[PanelSide.LEFT].orEmpty(),
-            rightTriggerHandlesLandscape = handlesLandscape[PanelSide.RIGHT].orEmpty(),
-            bottomTriggerHandlesLandscape = handlesLandscape[PanelSide.BOTTOM].orEmpty(),
-            topTriggerHandlesLandscape = handlesLandscape[PanelSide.TOP].orEmpty(),
+            leftTriggerHandles = portraitOf(PanelSide.LEFT, d.leftTriggerHandles),
+            rightTriggerHandles = portraitOf(PanelSide.RIGHT, d.rightTriggerHandles),
+            bottomTriggerHandles = portraitOf(PanelSide.BOTTOM, d.bottomTriggerHandles),
+            topTriggerHandles = portraitOf(PanelSide.TOP, d.topTriggerHandles),
+            leftTriggerHandlesLandscape = landscapeOf(PanelSide.LEFT),
+            rightTriggerHandlesLandscape = landscapeOf(PanelSide.RIGHT),
+            bottomTriggerHandlesLandscape = landscapeOf(PanelSide.BOTTOM),
+            topTriggerHandlesLandscape = landscapeOf(PanelSide.TOP),
             landscapeTriggersInitialized = bool("landInit", d.landscapeTriggersInitialized),
             // 一条规则都没解出来（记录缺失/整条坏掉）时回落到出厂默认，与全局空的处理一致。
             gestureRules = rules.takeIf { it.isNotEmpty() } ?: d.gestureRules,
