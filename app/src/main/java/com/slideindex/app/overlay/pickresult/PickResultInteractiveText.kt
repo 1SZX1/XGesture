@@ -73,6 +73,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,6 +86,7 @@ import com.slideindex.app.overlay.searchpanel.SearchPanelQueryBridge
 import com.slideindex.app.overlay.OverlaySelectionToolbarOverlay
 import com.slideindex.app.overlay.cutTextFieldValue
 import com.slideindex.app.overlay.fieldModifier
+import com.slideindex.app.overlay.overlayContainerWidthDp
 import com.slideindex.app.overlay.pasteIntoTextFieldValue
 import com.slideindex.app.overlay.rememberOverlaySelectionToolbarState
 import com.slideindex.app.overlay.suppressSystemTextContextMenu
@@ -1339,6 +1341,54 @@ internal fun PickResultTextBody(
             }
             val selectScrollState = rememberScrollState()
             val toolbarState = rememberOverlaySelectionToolbarState()
+            // 正文区高度：**先用测量器算出真实文字高度**，不再拿一个"垫数"顶着。
+            //
+            // 之前这里在"还没测到"时回退到 PickResultTextBodyMinVisibleHeight（240dp），
+            // 而真机日志显示这段文字实测只有 32dp —— 首帧垫 240、第二帧掉到 32，
+            // 贴底 + 分页样式下就是用户看到的"面板整体抬高再掉回来"（524 → 316 那一段）。
+            //
+            // 现在首帧就能拿到实测值（测量器与 BasicTextField 用同一套 TextStyle：
+            // 同字号、同行高、同可用宽度），所以首帧即终态，那一段跳变消失。
+            val textMeasurer = rememberTextMeasurer()
+            // ⚠️ 这里用"容器宽 × 0.92"近似面板宽度：面板在竖屏贴底时约占屏宽 92%，居中/横屏样式会更窄。
+            // 偏窄只会让测量结果偏保守（行数偏多、高度偏大），比偏宽安全——偏宽会少算行数、反而要二次纠正。
+            // 若以后要更精确，把 panelLayoutWidth 沿 PickResultPanelTextSlot → 本函数传下来即可。
+            val textBodyWidthPx = with(density) {
+                (overlayContainerWidthDp() * 0.92f).toPx().toInt()
+            }
+            // ⚠️ 取值必须在可组合上下文里先做好：runCatching 的 lambda 不是 @Composable，不能读 MaterialTheme。
+            val measureStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = bodyTextSize,
+                lineHeight = editLineHeight,
+            )
+            val textVerticalPaddingPx = with(density) { PickResultTextBodyTopPadding.toPx() * 2f }
+            val measuredTextHeight = remember(textFieldValue.text, textSizeSp, textBodyWidthPx) {
+                if (textFieldValue.text.isBlank()) {
+                    Dp.Unspecified
+                } else {
+                    runCatching {
+                        val layout = textMeasurer.measure(
+                            text = textFieldValue.text,
+                            style = measureStyle,
+                            constraints = androidx.compose.ui.unit.Constraints(
+                                maxWidth = textBodyWidthPx.coerceAtLeast(1),
+                            ),
+                        )
+                        with(density) {
+                            (layout.size.height + textVerticalPaddingPx).toDp()
+                        }
+                    }.getOrDefault(Dp.Unspecified)
+                }
+            }
+            var selectContentHeightDp by remember(textFieldValue.text) {
+                mutableStateOf(measuredTextHeight)
+            }
+            // 兜底顺序：实测值 → 首帧没测到（例如刚切换模式）时仍用下限。
+            val selectBoxHeight = selectContentHeightDp
+                .takeIf { it != Dp.Unspecified }
+                ?.coerceAtMost(effectiveMaxHeight)
+                ?: measuredTextHeight.takeIf { it != Dp.Unspecified }
+                ?: PickResultTextBodyMinVisibleHeight
             val selectToolbarActions = remember(selectionToolbarActions) {
                 selectionToolbarActions?.copy(
                     editable = false,
@@ -1347,10 +1397,7 @@ internal fun PickResultTextBody(
             }
             Box(
                 modifier = paddedModifier
-                    .heightIn(
-                        min = effectiveMaxHeight,
-                        max = effectiveMaxHeight,
-                    )
+                    .heightIn(min = selectBoxHeight, max = selectBoxHeight)
                     .clip(RoundedCornerShape(0.dp))
                     .then(Modifier.viewportModifier(toolbarState)),
             ) {
@@ -1370,7 +1417,20 @@ internal fun PickResultTextBody(
                             .fillMaxWidth()
                             .suppressSystemTextContextMenu()
                             .then(Modifier.fieldModifier(toolbarState)),
-                        onTextLayout = { toolbarState.textLayoutResult = it },
+                        onTextLayout = { layoutResult ->
+                            toolbarState.textLayoutResult = layoutResult
+                            // 正文区容器高度 = 文字真实高度 + paddedModifier 的上下 4dp。
+                            // ⚠️ "可用空间"那部分不能重复加：effectiveMaxHeight 已经扣过
+                            // PickResultTextBodyVerticalPadding，那是给分词模式的分配量，不是这里的间距。
+                            val measured = with(density) {
+                                (layoutResult.size.height +
+                                    PickResultTextBodyTopPadding.toPx() * 2f).toDp()
+                            }
+                            if (measured != selectContentHeightDp) {
+                                // 与上面的测量器取值同一口径（都夹在可用空间内），避免两边算出不同高度又来一次跳变。
+                                selectContentHeightDp = measured.coerceAtMost(effectiveMaxHeight)
+                            }
+                        },
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             fontSize = bodyTextSize,
                             lineHeight = editLineHeight,

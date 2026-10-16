@@ -247,6 +247,18 @@ internal val PickResultTextBodyTopPadding = 4.dp
 
 internal val PickResultTextBodyVerticalPadding = 28.dp
 
+/**
+ * 非分词（长按选中）模式正文区的**高度下限**。
+ *
+ * 为什么需要它：这个模式的正文区原本是 `.heightIn(min = effectiveMaxHeight, max = effectiveMaxHeight)`
+ * —— 把"屏幕剩余空间"当成内容高度**写死**，于是取两三个字也把面板撑到接近满屏（用户反馈）。
+ * 现已改为按真实文字高度收缩，但纯按内容收缩会让短文本的面板缩成一条、选中手柄与工具条很局促，
+ * 所以给一个地板高度。240dp 是用户真机试出来的观感取值。
+ *
+ * 注意它只是**下限**：文字多到超过可用空间时仍以可用空间为准（内部滚动）。
+ */
+internal val PickResultTextBodyMinVisibleHeight = 240.dp
+
 internal fun pickResultTextSectionChromeReservedHeight(): Dp =
 PickResultTextSectionToolbarReservedHeight +
 PickResultTextActionBarReservedHeight +

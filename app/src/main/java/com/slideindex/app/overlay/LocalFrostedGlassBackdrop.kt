@@ -1,5 +1,6 @@
 package com.slideindex.app.overlay
 
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Outline
 import android.graphics.RectF
@@ -7,14 +8,18 @@ import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.View
 import android.view.ViewOutlineProvider
+import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.annotation.ColorInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -25,12 +30,24 @@ fun LocalFrostedGlassBackdrop(
     cornerRadiusPx: Float = 0f,
     blurRadiusPx: Int = 80,
     @ColorInt tintColor: Int = 0x331C1C1E,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    /**
+     * 不许糊时的实色降级底色。默认跟随主题，因为绝大多数调用点（取词 / 翻译 / 搜索 / 历史 /
+     * 音量 / 剪贴板 / 图片搜索）的前景色本身也跟随主题，浅色底 + 深色字自洽。
+     *
+     * ⚠️ 前景色**写死为白**的面板必须显式传深色（见 [com.slideindex.app.overlay.OhoQuickToolsPanel]），
+     * 否则浅色主题下会渲染成白底白字 —— 也就是用户报的「关闭悬浮窗模糊后快速工具面板毫无可读性」。
+     */
+    @ColorInt solidFallbackColor: Int? = null
 ) {
     if (!enabled) return
 
-    if (!rememberOverlayBlurEnabled()) {
-        SolidPanelBackdrop(modifier = modifier, cornerRadiusPx = cornerRadiusPx)
+    if (!canBlurInOverlay()) {
+        SolidPanelBackdrop(
+            modifier = modifier,
+            cornerRadiusPx = cornerRadiusPx,
+            solidColor = solidFallbackColor
+        )
         return
     }
 
@@ -64,15 +81,40 @@ fun LocalFrostedGlassBackdrop(
  *
  * 这层 backdrop 往往是面板**唯一**的背景来源（取词等面板的卡片自身没有背景色），
  * 所以不能简单跳过，否则面板会塌成半透明 tint 甚至全透明。
+ *
+ * [solidColor] 为 null 时用主题容器色；写死白色前景的面板要显式传深色。
  */
 @Composable
-private fun SolidPanelBackdrop(modifier: Modifier, cornerRadiusPx: Float) {
+private fun SolidPanelBackdrop(
+    modifier: Modifier,
+    cornerRadiusPx: Float,
+    @ColorInt solidColor: Int? = null
+) {
     val corner = with(LocalDensity.current) { cornerRadiusPx.toDp() }
+    val color = solidColor?.let { Color(it) } ?: MiuixTheme.colorScheme.surfaceContainer
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(corner))
-            .background(MiuixTheme.colorScheme.surfaceContainer),
+            .background(color),
     )
+}
+
+/**
+ * 面板内 backdrop 这条路上能否真的糊：**用户总开关 × 系统跨窗模糊能力**，走
+ * [OverlayBlurGate] 这个唯一决策点。
+ *
+ * 只问用户开关是不够的：ROM 关掉跨窗模糊时 [setupBackgroundBlur] 的反射会静默失败
+ * （只打一条日志），面板就只剩 tint 甚至什么都没有 —— 与「关闭模糊后塌成浅色底」是同一类
+ * 现象。所以系统那半边必须一起问，问不到就按实色降级。
+ */
+@Composable
+private fun canBlurInOverlay(): Boolean {
+    if (!rememberOverlayBlurEnabled()) return false
+    val context = LocalContext.current
+    val windowManager = remember(context) {
+        context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+    }
+    return OverlayBlurGate.isSystemBlurEnabled(windowManager)
 }
 
 internal fun setupBackgroundBlur(view: View, cornerRadiusPx: Float, blurRadiusPx: Int, @ColorInt tintColor: Int) {

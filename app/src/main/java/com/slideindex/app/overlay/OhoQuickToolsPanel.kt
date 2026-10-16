@@ -57,6 +57,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -75,6 +76,20 @@ import kotlinx.coroutines.withContext
 /** Pixel-mapped palette matching the Samsung One Hand Operation+ quick-tools panel. */
 private object OhoColors {
     val PanelBackground = Color(0xE02D2D30) // rgba(45,45,48,0.88)
+    /**
+     * 不许糊（模糊总开关关闭 / 系统不支持跨窗模糊）时给 backdrop 的实色降级底。
+     *
+     * 本面板的图标与文字**全部写死为白色系**（[PanelBorder] / [TileInactiveIcon] / [SliderFill] …），
+     * 所以底色必须也写死深色：不能走 [LocalFrostedGlassBackdrop] 默认的
+     * `MiuixTheme.colorScheme.surfaceContainer`（浅色主题下是白）——那会渲染成白底白字。
+     *
+     * 取 90% 不透明（`0xE6`）：留给下方界面一点点透光，观感更接近开模糊时那层深色玻璃；
+     * 白图标压在这个深灰上没有可读性问题。
+     *
+     * ⚠️ 只在**降级路径**生效。正常开着模糊（且系统支持跨窗模糊）时用的是
+     * [LocalFrostedGlassBackdrop] 的硬件模糊 + `tintColor`，跟这个值无关。
+     */
+    val PanelSolidBackground = Color(0xE62D2D30)
     val PanelBorder = Color(0x38FFFFFF) // 22% white specular highlight rim
     val CardBackground = Color(0x35000000) // Translucent dark plate (rgba(0,0,0,0.21))
     val CardBorder = Color(0x18FFFFFF) // 10% white micro-edge
@@ -156,7 +171,9 @@ fun OhoQuickToolsPanel(
             cornerRadiusPx = outerCornerPx,
             blurRadiusPx = blurRadiusPx,
             tintColor = frostedTint,
-            enabled = true
+            enabled = true,
+            // 前景色写死为白（见 OhoColors），降级底必须也写死深色，否则浅色主题下白底白字。
+            solidFallbackColor = OhoColors.PanelSolidBackground.toArgb()
         )
         Column(
             modifier = Modifier.padding(12.dp),

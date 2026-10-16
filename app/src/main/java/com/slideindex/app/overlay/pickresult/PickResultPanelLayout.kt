@@ -828,12 +828,19 @@ internal fun PickResultCollapsePanelColumn(
     var textTabPageHeightPx by remember { mutableIntStateOf(0) }
     var imageTabPageHeightPx by remember { mutableIntStateOf(0) }
     val tabPagerProgress = (pagerState.currentPage + pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
+    // 分页器高度 = 两页高度按翻页进度插值（翻页跟手；**不要**改成"两页取最大值"——
+    // 那样截图页会被文字页的高度撑开、下面留一大片空白，用户实测反馈过）。
+    //
+    // 唯一保留的收紧：结果**夹在可用空间内**。单页按"剩余空间"排出来的自然高度
+    // （见 computePickResultCollapseHeights 的 rawTextBodyHeight）只是它的排版结果，
+    // 真机日志里文字页报出 1375px（≈524dp）远超可用空间，直接采用会把面板撑大再缩回。
+    val pagerHeightCapPx = with(density) { panelContentHeight.roundToPx() }
     val measuredTabPagerHeightPx = when {
         textTabPageHeightPx <= 0 && imageTabPageHeightPx <= 0 -> 0
         textTabPageHeightPx <= 0 -> imageTabPageHeightPx
         imageTabPageHeightPx <= 0 -> textTabPageHeightPx
         else -> (textTabPageHeightPx + (imageTabPageHeightPx - textTabPageHeightPx) * tabPagerProgress).roundToInt()
-    }
+    }.coerceAtMost(pagerHeightCapPx)
 
     val editModeProgress by animateFloatAsState(
         targetValue = if (isEditMode) 1f else 0f,

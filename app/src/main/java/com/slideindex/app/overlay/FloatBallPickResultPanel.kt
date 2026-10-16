@@ -160,6 +160,10 @@ object FloatBallPickResultPanel {
     private fun revealPanelAnimated(context: Context) {
         panelRevealGeneration++
         val generation = panelRevealGeneration
+        // ⚠️ 这里**不要**把 `targetState = true` 挪进 `view.post`（试过，真机反而闪更多次）。
+        // 原因：`panelVisibilityState` 是 `MutableTransitionState`，它带着启动退场动画；把它推到 post
+        // 里延后一帧，会让"数据已到"和"内容开始组合"这一帧里 `currentState/targetState` 组合出中间态，
+        // 于是同一轮取词里出现多次可见变化。保持原来的同步赋值。
         panelVisibilityState?.targetState = true
         panelRevealedState?.value = false
         val view = composeView ?: return
@@ -1145,6 +1149,13 @@ object FloatBallPickResultPanel {
                     onTextChange = { textHolder.value = it },
                     onCopy = { value, keepPanelOpen ->
                         FloatBallTextPick.copyText(context, value)
+                        // 复制后必须有可见反馈：非分词模式下长按选中文本、点自绘工具条的复制按钮时
+                        // 面板**保持打开**，此前只有一次震动（触觉反馈关掉或设备无马达就等于零反馈），
+                        // 用户报「复制了没有任何提示」。这里用挂在无障碍层的 OverlayToastWindow ——
+                        // 它稳定压在面板之上，且在"复制后关闭面板"那一支也能活下来。
+                        // 刻意不用面板内提示条 showInPanelMessage：那个已有 12 处调用点承载
+                        // 保存/收纳等操作的反馈，和复制提示叠在一起会出现两条提示。
+                        OverlayToastWindow.show(context, context.getString(R.string.float_ball_text_copied))
                         if (settingsHolder.value.floatBallPickHapticEnabled) {
                             val vibrator = context.getSystemService(android.os.Vibrator::class.java)
                                 ?: (context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager)?.defaultVibrator

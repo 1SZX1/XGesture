@@ -121,6 +121,7 @@ import com.slideindex.app.overlay.FloatBallTextPick
 import com.slideindex.app.overlay.OverlayBlurGate
 import com.slideindex.app.overlay.OverlaySelectionToolbarActions
 import com.slideindex.app.overlay.OverlaySelectionToolbarPopup
+import com.slideindex.app.overlay.OverlayToastWindow
 import com.slideindex.app.overlay.SystemWallpaperBlurHelper
 import com.slideindex.app.overlay.cutTextFieldValue
 import com.slideindex.app.overlay.fieldModifier
@@ -1175,10 +1176,21 @@ fun SearchPanelScreen(
                                                 editable = true,
                                                 onCopy = { copied ->
                                                     FloatBallTextPick.copyText(context, copied)
+                                                    // 复制后必须有反馈：本面板是全屏覆盖层窗口，
+                                                    // 系统 toast 会被它整个盖住（用户反馈"没有反馈"），
+                                                    // 所以走挂在无障碍层的 OverlayToastWindow。
+                                                    OverlayToastWindow.show(
+                                                        context,
+                                                        context.getString(R.string.float_ball_text_copied)
+                                                    )
                                                 },
                                                 onCut = {
                                                     textFieldValue = cutTextFieldValue(textFieldValue) { copied ->
                                                         FloatBallTextPick.copyText(context, copied)
+                                                        OverlayToastWindow.show(
+                                                            context,
+                                                            context.getString(R.string.float_ball_text_copied)
+                                                        )
                                                     }
                                                 },
                                                 onPaste = {
