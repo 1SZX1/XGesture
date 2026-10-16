@@ -504,8 +504,11 @@ fun NavEntryBuilder.floatBallNavEntries(ctx: MainNavContext) {
      */
     hiltEntry<AppNavKey.FloatBallGestureQuickLauncherPanel> { key ->
         val viewModel: ExtensionSettingsViewModel = hiltViewModel()
-        val overlaySettings by viewModel.overlaySettings.collectAsStateWithLifecycle()
-        val settings = overlaySettings.toMinimalAppSettings()
+        // 面板列表只随**手势切片**投影出来：`OverlaySettings` 里没有 `quickLauncherPanels`，
+        // 用它会让选择页的 `effectivePanels(emptyList())` 恒等于一个兜底默认面板
+        // （真机上表现为「建了两个面板，这里只列出一个」），选中还会写进不存在的面板 id。
+        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
+        val settings = gestureSettings.toMinimalAppSettings()
         val gestureType = FloatBallGestureType.fromId(key.gestureTypeId) ?: FloatBallGestureType.SINGLE_TAP
         val returnKey = AppNavKey.FloatBallGesture
         QuickLauncherPanelPickScreen(
