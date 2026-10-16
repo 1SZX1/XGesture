@@ -605,8 +605,8 @@ internal fun HistoryPanelScreen(
      * ⚠️ 顺序按"**后开的先关**"排：弹窗/编辑条只可能盖在列表之上（点不到卡片），所以展开的卡片
      * 排在这些模态之下；而它们都排在"清搜索词"与"收面板"之上。
      * ⚠️ 顺序 0（键盘优先）**只有一份**，在 `dispatchBack()` 里 —— 本文件与调用侧都**不要**再判 IME。
-     * ⚠️ 本表只覆盖**面板窗内**的层。另有**独立窗**不在本表：`HistoryNoteSlotWindow`（长按把手弹的
-     * 输入槽）、`HistorySavePeekWindow`（存下后的预览）—— 它们各自有 `OverlayViewBackHandler`，
+     * ⚠️ 本表只覆盖**面板窗内**的层。另有**独立窗**不在本表：`HistoryComposerWindow`（长按把手弹的
+     * 编辑窗，§0.16.25）、`HistorySavePeekWindow`（存下后的预览）—— 它们各自有 `OverlayViewBackHandler`，
      * **系统返回**按焦点路由到它们（谁在上面就给谁），而**手势"返回"**走面板入口、不经过它们
      * （两种情况都还没纳入本次分层，真机如撞上再单独处理）。
      */

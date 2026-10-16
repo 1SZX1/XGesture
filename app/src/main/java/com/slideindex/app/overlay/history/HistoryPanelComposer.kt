@@ -174,6 +174,15 @@ internal fun HistoryComposerModal(
     onRemoveAudio: (String) -> Unit = {},
     imeBottom: Dp,
     focusRequester: FocusRequester,
+    /**
+     * 每次"重新打开"时 +1。
+     *
+     * 为什么需要它：本组件在**长按指示条弹出的独立编辑窗**里是**常驻可见**的
+     * （那个窗一次只开一次组合，`open` 恒为 true），第二次长按不会重建组合 ——
+     * 只认 `open` 的 `LaunchedEffect` 就不会重跑，用户看到的是"第二次打开光标不在、输入法不弹"。
+     * 面板那条路每次开关都会重组，传默认值 0 即可（行为与改动前完全一致）。
+     */
+    focusEpoch: Int = 0,
     onBarHeightChanged: (Dp) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -181,7 +190,8 @@ internal fun HistoryComposerModal(
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     // 与搜索框同一套节奏：先让展开动画起来再抢焦点，否则 overlay 窗里 IME 常常不弹。
-    LaunchedEffect(open) {
+    // ⚠️ `focusEpoch` 也要进 key：独立编辑窗里 `open` 恒为 true，只有它能触发"再抢一次焦点"。
+    LaunchedEffect(open, focusEpoch) {
         if (open) {
             delay(HistoryComposerFocusDelayMs)
             runCatching { focusRequester.requestFocus() }

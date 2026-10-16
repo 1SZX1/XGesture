@@ -35,7 +35,7 @@ import com.slideindex.app.overlay.StashPanelInitialTab
 import com.slideindex.app.overlay.history.HistoryFloatContent
 import com.slideindex.app.overlay.history.HistoryHandleCaptureVisibility
 import com.slideindex.app.overlay.history.HistoryHandleGlowWindow
-import com.slideindex.app.overlay.history.HistoryNoteSlotWindow
+import com.slideindex.app.overlay.history.HistoryComposerWindow
 import com.slideindex.app.overlay.history.HistoryPanelTab
 import com.slideindex.app.overlay.history.HistorySavePeekWindow
 import com.slideindex.app.overlay.history.HistorySaveSignal
@@ -84,8 +84,8 @@ class HistoryFloatService : Service() {
     private var handleAlert by mutableStateOf(false)
     /** 存下后的内容预览（懒创建：没人存东西就不建窗）。 */
     private var peekWindow: HistorySavePeekWindow? = null
-    /** 长按把手的就地输入槽（懒创建）。 */
-    private var slotWindow: HistoryNoteSlotWindow? = null
+    /** 长按把手的**就地编辑窗**（懒创建）：内容与面板里的加号弹窗完全一致，§0.16.25。 */
+    private var composerWindow: HistoryComposerWindow? = null
     /**
      * 「提醒流光」自愈轮询的退避状态（见 [refreshHandlePendingGlow]）。单位 ms。
      */
@@ -168,8 +168,8 @@ class HistoryFloatService : Service() {
                         )
                     },
                     onRevealEnd = { commit -> StashCoordinator.endHandleReveal(commit) },
-                    // 长按 = 就地记一条（设计稿 `.slot`），不再只是"打开面板"。
-                    onQuickNote = { showNoteSlot() },
+                    // 长按 = 就地记一条：弹出与面板加号弹窗**同一个**完整编辑框（§0.16.25）。
+                    onQuickNote = { showComposerWindow() },
                     // 纵向拖动中越过屏幕中线、松手 → 吸附到对侧（侧别落盘，重启后仍是这一侧）。
                     onSwitchSide = { setHandleSide(handleSide.opposite, persist = true) },
                     // 流光窗是另一个 window，拿不到"有没有提醒/在不在拖动"；由把手内容上报。
@@ -231,8 +231,8 @@ class HistoryFloatService : Service() {
         HistoryHandleCaptureVisibility.detachApplier()
         runCatching { unregisterReceiver(screenOffReceiver) }
         HistorySaveSignal.removeListener(saveListener)
-        slotWindow?.destroy()
-        slotWindow = null
+        composerWindow?.destroy()
+        composerWindow = null
         peekWindow?.destroy()
         peekWindow = null
         glowWindow?.destroy()
@@ -355,9 +355,10 @@ class HistoryFloatService : Service() {
             composeView?.let { runCatching { windowManager.updateViewLayout(it, mainParams) } }
         }
         // 贴着把手的那两个小窗也要跟着换边（它们按屏幕左右缘定位）。
+        // ⚠️ 长按的编辑窗（`composerWindow`）**不在此列**：它是满屏居中的模态，
+        // 位置与把手贴哪一边无关，换边不需要通知它。
         val end = side == HistoryFloatHandleSide.RIGHT
         peekWindow?.setGravityEnd(end)
-        slotWindow?.setGravityEnd(end)
         if (persist) {
             deps.applicationScope.launch {
                 deps.settingsRepository.setClipboardHistoryFloatHandleSide(side)
@@ -447,13 +448,12 @@ class HistoryFloatService : Service() {
     /** 把手纵向中心（px）：peek 与输入槽都贴着它对齐。 */
     private fun handleCenterY(): Int = positionY + estimateHandleHeightPx() / 2
 
-    /** 长按把手：弹出就地输入槽（懒创建窗口）。 */
-    private fun showNoteSlot() {
-        val window = slotWindow ?: HistoryNoteSlotWindow(this, windowManager).also {
-            it.setGravityEnd(handleSide == HistoryFloatHandleSide.RIGHT)
-            slotWindow = it
+    /** 长按把手：弹出完整的「记一条」编辑窗（懒创建窗口）。 */
+    private fun showComposerWindow() {
+        val window = composerWindow ?: HistoryComposerWindow(this, windowManager).also {
+            composerWindow = it
         }
-        window.show(handleCenterY())
+        window.show()
     }
 
     private fun ensurePeekWindow(): HistorySavePeekWindow =
@@ -621,10 +621,10 @@ class HistoryFloatService : Service() {
         }
         view.alpha = if (hidden) 0f else 1f
         view.visibility = View.VISIBLE
-        // 把手藏起来时，贴在它旁边的两个小窗（预览 / 输入槽）与流光窗也要收掉。
+        // 把手藏起来时，贴在它旁边的两个小窗（预览 / 编辑窗）与流光窗也要收掉。
         if (hidden) {
             peekWindow?.hide()
-            slotWindow?.hide()
+            composerWindow?.dismiss()
         }
         applyGlowVisibility()
     }
