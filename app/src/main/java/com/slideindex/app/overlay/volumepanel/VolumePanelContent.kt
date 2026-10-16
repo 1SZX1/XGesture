@@ -65,7 +65,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -80,7 +82,7 @@ import com.slideindex.app.gesture.ActionExecutor
 import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.overlay.LocalFrostedGlassBackdrop
 import com.slideindex.app.settings.AppSettings
-import com.slideindex.app.settings.launchPolicyLongPressEligible
+import com.slideindex.app.settings.shouldLaunchFullscreen
 import com.slideindex.app.ui.Md3PickerIconLeading
 import com.slideindex.app.ui.Md3PickerLaunchShortcutLeading
 import com.slideindex.app.ui.Md3PickerPackageLeading
@@ -100,6 +102,7 @@ private val ExpandPanelCornerRadius = 20.dp
 @Composable
 fun VolumePanelContent(onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val deps = remember { OverlayDependencyAccess.overlayDependencies(context) }
     val scope = rememberCoroutineScope()
     var slotActions by remember { mutableStateOf(List<GestureAction?>(8) { null }) }
@@ -154,8 +157,6 @@ fun VolumePanelContent(onDismiss: () -> Unit) {
             deps?.settingsRepository?.setExpandPanelSlotAction(index, action)
         }
     }
-
-    val longPressLaunchEnabled = appSettings.launchPolicyLongPressEligible()
 
     ExpandPanelFrostedSurface {
         AnimatedContent(
@@ -236,13 +237,19 @@ fun VolumePanelContent(onDismiss: () -> Unit) {
                         slotActions = slotActions,
                         activityShortcuts = activityShortcuts,
                         isEditMode = isShortcutsEditMode,
-                        longPressLaunchEnabled = longPressLaunchEnabled,
+                        settings = appSettings,
                         onRun = ::runSlotAction,
                         onAssign = { index ->
                             pickerSlot = index
                             isPickerMode = true
                         },
                         onClear = { index -> saveSlotAction(index, null) },
+                        // 长按槽位进/出编辑模式（"空转才借用"）：长按没被「启动策略」占用时才走这条。
+                        // 编辑态里长按同样退出，否则进了编辑模式只能去长按空白才能出来（用户反馈）。
+                        onToggleEditMode = {
+                            isShortcutsEditMode = !isShortcutsEditMode
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
                     )
                 }
             }
@@ -449,10 +456,11 @@ private fun ExpandPanelShortcutsSection(
     slotActions: List<GestureAction?>,
     activityShortcuts: List<ActivityShortcut>,
     isEditMode: Boolean,
-    longPressLaunchEnabled: Boolean,
+    settings: AppSettings,
     onRun: (GestureAction, Boolean) -> Unit,
     onAssign: (Int) -> Unit,
     onClear: (Int) -> Unit,
+    onToggleEditMode: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -472,10 +480,11 @@ private fun ExpandPanelShortcutsSection(
             slotActions = slotActions,
             activityShortcuts = activityShortcuts,
             isEditMode = isEditMode,
-            longPressLaunchEnabled = longPressLaunchEnabled,
+            settings = settings,
             onRun = onRun,
             onAssign = onAssign,
             onClear = onClear,
+            onToggleEditMode = onToggleEditMode,
         )
         Box(
             modifier = Modifier
@@ -505,10 +514,11 @@ private fun ExpandPanelShortcutsGrid(
     slotActions: List<GestureAction?>,
     activityShortcuts: List<ActivityShortcut>,
     isEditMode: Boolean,
-    longPressLaunchEnabled: Boolean,
+    settings: AppSettings,
     onRun: (GestureAction, Boolean) -> Unit,
     onAssign: (Int) -> Unit,
     onClear: (Int) -> Unit,
+    onToggleEditMode: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -524,7 +534,7 @@ private fun ExpandPanelShortcutsGrid(
                         action = action,
                         activityShortcuts = activityShortcuts,
                         isEditMode = isEditMode,
-                        longPressLaunchEnabled = longPressLaunchEnabled,
+                        settings = settings,
                         onClick = {
                             if (isEditMode || action == null) {
                                 onAssign(index)
@@ -537,6 +547,7 @@ private fun ExpandPanelShortcutsGrid(
                                 onRun(action, true)
                             }
                         },
+                        onLongPressEnterEditMode = onToggleEditMode,
                         onRemove = { onClear(index) },
                     )
                 }
@@ -551,9 +562,11 @@ private fun ExpandPanelShortcutCell(
     action: GestureAction?,
     activityShortcuts: List<ActivityShortcut>,
     isEditMode: Boolean,
-    longPressLaunchEnabled: Boolean,
+    settings: AppSettings,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    /** 长按没被「启动策略」占用时：进/出编辑模式（以前完全没反应，只能去戳空白）。 */
+    onLongPressEnterEditMode: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -569,10 +582,13 @@ private fun ExpandPanelShortcutCell(
         isEditMode -> addLabel
         else -> ""
     }
-    val supportsLongPressLaunch = longPressLaunchEnabled &&
-        !isEditMode &&
-        action != null &&
+    // app / 快捷方式槽位：长按弹「小横条」（打开 + 编辑模式），交互与排布照抄搜索面板的 app 候选卡片；
+    // 其它槽位与空槽位：长按直接进编辑模式（编辑态里则是退出）。见 ExpandPanelSlotQuickActions.kt。
+    val isAppSlot = action != null &&
         (action is GestureAction.LaunchApp || action is GestureAction.LaunchShortcut)
+    val quickActionStripEnabled = !isEditMode && isAppSlot
+    // 「打开」这一格是按「应用启动方式」策略解析出来的形态（与原来长按直接打开等价）。
+    val openFullscreen = settings.shouldLaunchFullscreen(longPressTriggered = true)
     Column(
         modifier = modifier.padding(horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -581,39 +597,56 @@ private fun ExpandPanelShortcutCell(
             modifier = Modifier.size(ExpandPanelSlotIconSize),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .then(
-                        if (supportsLongPressLaunch) {
-                            Modifier.combinedClickable(
-                                interactionSource = cellInteraction,
-                                indication = null,
-                                onClick = onClick,
-                                onLongClick = onLongClick,
-                            )
-                        } else {
-                            Modifier.clickable(
-                                interactionSource = cellInteraction,
-                                indication = null,
-                                onClick = onClick,
-                            )
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
+            ExpandPanelSlotQuickActionTarget(
+                enabled = quickActionStripEnabled,
+                openFullscreen = openFullscreen,
+                settings = settings,
+                onAction = { quickAction ->
+                    when (quickAction) {
+                        // 松手不动 = 默认落在「打开」上，与原来"长按直接打开"等价。
+                        ExpandPanelSlotQuickAction.OPEN -> onLongClick()
+                        ExpandPanelSlotQuickAction.EDIT_MODE -> onLongPressEnterEditMode()
+                    }
+                },
+                modifier = Modifier.matchParentSize(),
             ) {
-                if (action != null) {
-                    ExpandPanelSlotIcon(
-                        action = action,
-                        activityShortcuts = activityShortcuts,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.expand_panel_shortcut_add),
-                        modifier = Modifier.size(ExpandPanelSlotIconInner),
-                        tint = MiuixTheme.colorScheme.primary,
-                    )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(
+                            if (quickActionStripEnabled) {
+                                // 长按由上面的横条接管，这里只处理点击。
+                                Modifier.clickable(
+                                    interactionSource = cellInteraction,
+                                    indication = null,
+                                    onClick = onClick,
+                                )
+                            } else {
+                                // 编辑态 / 非 app 槽位 / 空槽位：长按进（编辑态里是出）编辑模式。
+                                // combinedClickable 会在长按后吞掉 UP，松手不会再把槽位动作跑一遍。
+                                Modifier.combinedClickable(
+                                    interactionSource = cellInteraction,
+                                    indication = null,
+                                    onClick = onClick,
+                                    onLongClick = onLongPressEnterEditMode,
+                                )
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (action != null) {
+                        ExpandPanelSlotIcon(
+                            action = action,
+                            activityShortcuts = activityShortcuts,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = stringResource(R.string.expand_panel_shortcut_add),
+                            modifier = Modifier.size(ExpandPanelSlotIconInner),
+                            tint = MiuixTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
             if (isEditMode && action != null) {
