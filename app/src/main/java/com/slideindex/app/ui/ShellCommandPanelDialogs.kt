@@ -23,8 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon as Material3Icon
@@ -59,6 +57,9 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 private data class ShellTestResultState(
     val exitCode: Int,
@@ -168,7 +169,7 @@ private fun ShellCommandEditorActionsRow(
             if (onDelete != null) {
                 IconButton(onClick = onDelete) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
+                        imageVector = MiuixIcons.Medium.Delete,
                         contentDescription = stringResource(R.string.shell_panel_delete),
                         tint = MiuixTheme.colorScheme.error,
                     )
@@ -374,7 +375,7 @@ fun ShellResultScreen(
         actions = {
             IconButton(onClick = onCopy) {
                 Material3Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = MiuixIcons.Medium.Copy,
                     contentDescription = stringResource(R.string.shell_panel_copy),
                 )
             }

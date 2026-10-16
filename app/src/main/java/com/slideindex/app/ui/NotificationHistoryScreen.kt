@@ -4,7 +4,6 @@ import com.slideindex.app.ui.viewmodel.NotificationHistoryViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.outlined.Tune
 import com.slideindex.app.ui.miuix.MiuixConfirmDialog
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixScaffoldSearchTabBottomContent
@@ -53,6 +52,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
+import top.yukonga.miuix.kmp.icon.extended.Tune
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 private data class NotificationHistoryQuery(
     val items: List<NotificationHistoryItem>,
@@ -220,7 +221,7 @@ fun NotificationHistoryScreen(
             }
             IconButton(onClick = onOpenRules) {
                 Icon(
-                    Icons.Outlined.Tune,
+                    MiuixIcons.Medium.Tune,
                     contentDescription = stringResource(R.string.notification_filter_rules_action),
                     tint = MiuixTheme.colorScheme.onBackground,
                 )

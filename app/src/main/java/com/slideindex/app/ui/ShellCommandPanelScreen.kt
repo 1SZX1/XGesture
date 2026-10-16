@@ -35,7 +35,6 @@ import androidx.compose.material.icons.Icons
 
 import androidx.compose.material.icons.filled.Code
 
-import androidx.compose.material.icons.filled.History
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 
@@ -112,6 +111,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import kotlinx.coroutines.withTimeout
+import top.yukonga.miuix.kmp.icon.extended.Recent
 
 
 
@@ -241,7 +241,7 @@ fun ShellCommandPanelScreen(
         actions = {
             IconButton(onClick = onOpenHistory) {
                 Icon(
-                    Icons.Default.History,
+                    MiuixIcons.Medium.Recent,
                     contentDescription = stringResource(R.string.shell_panel_history_action),
                 )
             }
@@ -487,5 +487,4 @@ private fun copyToClipboard(context: Context, text: String) {
     clipboard.setPrimaryClip(ClipData.newPlainText("shell_output", text))
 
 }
-
 

@@ -23,9 +23,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -78,6 +75,10 @@ import com.slideindex.app.util.AppShortcutLoader
 import com.slideindex.app.util.AppShortcutLoader.CreatedShortcut
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Image
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -305,7 +306,7 @@ fun RingLauncherSlotConfigSheet(
                         if (slotBound && !panelPickVisible && subScreen == QuickLauncherAddSubScreen.Main) {
                             IconButton(onClick = onOpenCustomIconEditor) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Image,
+                                    imageVector = MiuixIcons.Medium.Image,
                                     contentDescription = customIconTitle,
                                 )
                             }
@@ -323,7 +324,7 @@ fun RingLauncherSlotConfigSheet(
                         embedParentConfirm?.let { confirm ->
                             IconButton(onClick = confirm.onConfirm, enabled = confirm.enabled) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = MiuixIcons.Medium.Ok,
                                     contentDescription = stringResource(R.string.confirm),
                                 )
                             }
@@ -331,7 +332,7 @@ fun RingLauncherSlotConfigSheet(
 
                         IconButton(onClick = requestDismiss) {
                             Icon(
-                                imageVector = Icons.Outlined.Close,
+                                imageVector = MiuixIcons.Medium.Close,
                                 contentDescription = null,
                             )
                         }

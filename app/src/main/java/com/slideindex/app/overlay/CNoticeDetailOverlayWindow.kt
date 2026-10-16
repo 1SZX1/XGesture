@@ -32,7 +32,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -70,6 +69,8 @@ import com.slideindex.app.message.NotificationMessagingHistory
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
 import java.text.DateFormat
 import java.util.Date
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 object CNoticeDetailOverlayWindow {
     private const val TAG = "CNoticeDetail"
@@ -365,7 +366,7 @@ private fun CNoticeDetailContent(
                             .size(32.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = MiuixIcons.Medium.Close,
                             contentDescription = stringResource(R.string.message_overlay_menu_close),
                             tint = headerTextColor,
                         )

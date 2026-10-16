@@ -44,18 +44,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.ViewHeadline
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -126,6 +122,11 @@ import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.util.Date
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.icon.extended.Pin
+import top.yukonga.miuix.kmp.icon.extended.Remove
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 enum class ClipboardFloatDisplayMode {
     Chip,
@@ -340,7 +341,7 @@ private fun ClipboardFloatExpandedChrome(
             ) {
                 IconButton(onClick = onTogglePin, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = if (pinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                        imageVector = if (pinned) MiuixIcons.Medium.Pin else MiuixIcons.Regular.Pin,
                         contentDescription = stringResource(R.string.clipboard_float_keep_visible),
                         modifier = Modifier.size(18.dp)
                     )
@@ -358,7 +359,7 @@ private fun ClipboardFloatExpandedChrome(
                 }
                 IconButton(onClick = onOpenStashPanel, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = Icons.Default.Home,
+                        imageVector = MiuixIcons.Medium.Home,
                         contentDescription = stringResource(R.string.clipboard_float_open_stash_panel),
                         modifier = Modifier.size(18.dp)
                     )
@@ -405,14 +406,14 @@ private fun ClipboardFloatExpandedChrome(
                 }
                 IconButton(onClick = onCollapse, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = Icons.Default.Remove,
+                        imageVector = MiuixIcons.Medium.Remove,
                         contentDescription = stringResource(R.string.clipboard_float_collapse),
                         modifier = Modifier.size(18.dp)
                     )
                 }
                 IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = MiuixIcons.Medium.Close,
                         contentDescription = stringResource(R.string.clipboard_float_close),
                         modifier = Modifier.size(18.dp)
                     )

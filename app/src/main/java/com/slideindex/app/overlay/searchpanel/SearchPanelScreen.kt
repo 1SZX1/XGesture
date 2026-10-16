@@ -53,7 +53,6 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -182,6 +181,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Image
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 enum class SearchMode { TEXT, IMAGE }
 
@@ -1306,7 +1308,7 @@ fun SearchPanelScreen(
                                                                     clearSearchLocks()
                                                                 }) {
                                                                     Icon(
-                                                                        Icons.Default.Close,
+                                                                        MiuixIcons.Medium.Close,
                                                                         contentDescription = null,
                                                                     )
                                                                 }
@@ -1326,7 +1328,7 @@ fun SearchPanelScreen(
                                                                 }
                                                             }) {
                                                                 Icon(
-                                                                    Icons.Default.Image,
+                                                                    MiuixIcons.Medium.Image,
                                                                     contentDescription = null,
                                                                 )
                                                             }

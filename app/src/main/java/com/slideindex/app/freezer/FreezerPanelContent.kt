@@ -14,9 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
@@ -71,6 +69,10 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.icon.extended.Add
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 面板**自己挂**返回处理时走哪条派发链。
@@ -402,7 +404,7 @@ fun FreezerPanelContent(
                     }
                     IconButton(onClick = ::exitSelection) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = MiuixIcons.Medium.Close,
                             contentDescription = selectionDoneLabel,
                             tint = MiuixTheme.colorScheme.onBackground
                         )
@@ -419,7 +421,7 @@ fun FreezerPanelContent(
                 if (onManageApps != null) {
                     IconButton(onClick = onManageApps) {
                         Icon(
-                            imageVector = Icons.Default.Add,
+                            imageVector = MiuixIcons.Medium.Add,
                             contentDescription = stringResource(R.string.freezer_manage_apps),
                             tint = MiuixTheme.colorScheme.onBackground
                         )
@@ -445,7 +447,7 @@ fun FreezerPanelContent(
                     Box {
                         IconButton(onClick = { overflowMenuExpanded = true }) {
                             Icon(
-                                imageVector = Icons.Default.MoreVert,
+                                imageVector = MiuixIcons.Medium.More,
                                 contentDescription = stringResource(R.string.freezer_batch_menu),
                                 tint = MiuixTheme.colorScheme.onBackground,
                             )

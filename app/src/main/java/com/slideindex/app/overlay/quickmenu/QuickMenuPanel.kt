@@ -28,7 +28,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -54,6 +53,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.barcode.BarcodeScanResult
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 「快捷菜单」面板内容。
@@ -210,7 +211,7 @@ private fun ListHeader(onDismiss: () -> Unit) {
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onDismiss) {
-            Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(R.string.quick_menu_back))
+            Icon(imageVector = MiuixIcons.Medium.Close, contentDescription = stringResource(R.string.quick_menu_back))
         }
     }
 }
@@ -238,7 +239,7 @@ private fun ToolPageHeader(title: String, onBack: () -> Unit, onDismiss: () -> U
             overflow = TextOverflow.Ellipsis,
         )
         IconButton(onClick = onDismiss) {
-            Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(R.string.quick_menu_back))
+            Icon(imageVector = MiuixIcons.Medium.Close, contentDescription = stringResource(R.string.quick_menu_back))
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))

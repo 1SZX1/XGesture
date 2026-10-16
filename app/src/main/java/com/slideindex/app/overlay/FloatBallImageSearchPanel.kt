@@ -55,7 +55,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -105,6 +104,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 private val PANEL_HORIZONTAL_PADDING = 12.dp
 private val IMAGE_SEARCH_SCRIM_ALPHA = 0.35f
@@ -634,7 +635,7 @@ private fun FloatBallImageSearchPanelContent(
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.shell_panel_close))
+                        Icon(MiuixIcons.Medium.Close, contentDescription = stringResource(R.string.shell_panel_close))
                     }
                 }
 

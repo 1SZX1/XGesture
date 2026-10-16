@@ -18,13 +18,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CropSquare
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Circle
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -68,6 +64,11 @@ import androidx.compose.ui.zIndex
 import com.slideindex.app.R
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.extended.Edit
+import top.yukonga.miuix.kmp.icon.extended.Pin
+import top.yukonga.miuix.kmp.icon.extended.Share
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @Composable
 fun SmartScreenshotEditor(
@@ -371,7 +372,7 @@ fun SmartScreenshotEditor(
                 contentDescription = stringResource(R.string.float_ball_action_edit),
                 onClick = onEdit
             ) {
-                Icon(Icons.Outlined.Edit, contentDescription = null)
+                Icon(MiuixIcons.Medium.Edit, contentDescription = null)
             }
         }
 
@@ -400,21 +401,21 @@ fun SmartScreenshotEditor(
                 contentDescription = "Copy",
                 onClick = onCopy
             ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null)
+                Icon(MiuixIcons.Medium.Copy, contentDescription = null)
             }
             ToolIconButton(
                 enabled = bottomToolbarEnabled,
                 contentDescription = "Share",
                 onClick = onShare
             ) {
-                Icon(Icons.Default.Share, contentDescription = null)
+                Icon(MiuixIcons.Medium.Share, contentDescription = null)
             }
             ToolIconButton(
                 enabled = bottomToolbarEnabled,
                 contentDescription = "Pin",
                 onClick = onPin
             ) {
-                Icon(Icons.Default.PushPin, contentDescription = null)
+                Icon(MiuixIcons.Medium.Pin, contentDescription = null)
             }
             ToolIconButton(
                 enabled = bottomToolbarEnabled,

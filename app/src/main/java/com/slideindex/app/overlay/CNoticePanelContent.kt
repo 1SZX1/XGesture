@@ -34,8 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -74,6 +72,9 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.math.min
 import kotlinx.coroutines.flow.distinctUntilChanged
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 internal data class CNoticePanelEntryUi(
     val conversationSourceKey: String,
@@ -483,7 +484,7 @@ private fun CNoticePanelDetailContent(
                         modifier = Modifier.size(36.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Done,
+                            imageVector = MiuixIcons.Medium.Ok,
                             contentDescription = stringResource(R.string.message_c_notice_mark_read),
                             tint = entry.headerTextColor,
                         )
@@ -506,7 +507,7 @@ private fun CNoticePanelDetailContent(
                         .size(36.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = MiuixIcons.Medium.Close,
                         contentDescription = stringResource(R.string.message_overlay_menu_close),
                         tint = entry.headerTextColor,
                     )

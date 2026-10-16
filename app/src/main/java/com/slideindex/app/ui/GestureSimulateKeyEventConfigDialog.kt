@@ -34,13 +34,14 @@ import com.slideindex.app.ui.settings.components.LazySettingsItem
 import com.slideindex.app.ui.settings.components.SettingsScreenScaffold
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.preference.RadioButtonLocation
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @Composable
 fun GestureSimulateKeyEventScreen(
@@ -268,7 +269,7 @@ fun GestureSimulateKeyEventScreen(
             actions = {
                 top.yukonga.miuix.kmp.basic.IconButton(onClick = handleSave) {
                     top.yukonga.miuix.kmp.basic.Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = MiuixIcons.Medium.Ok,
                         contentDescription = stringResource(R.string.shell_panel_save)
                     )
                 }

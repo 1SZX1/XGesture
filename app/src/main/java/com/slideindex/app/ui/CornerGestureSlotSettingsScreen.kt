@@ -2,8 +2,6 @@ package com.slideindex.app.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +23,9 @@ import com.slideindex.app.ui.settings.components.settingsCardScopeItem
 import com.slideindex.app.ui.settings.components.settingsLazyHint
 import com.slideindex.app.ui.settings.components.settingsLazyTipCard
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -63,7 +64,7 @@ fun CornerGestureSlotSettingsScreen(
         actions = {
             IconButton(onClick = onSave) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = MiuixIcons.Medium.Ok,
                     contentDescription = stringResource(R.string.fv_ring_launcher_done),
                 )
             }
@@ -141,7 +142,7 @@ fun CornerGestureSlotSettingsScreen(
                                     trailingContent = {
                                         IconButton(onClick = { onRemoveSubMenuItem(index) }) {
                                             Icon(
-                                                imageVector = Icons.Default.Delete,
+                                                imageVector = MiuixIcons.Medium.Delete,
                                                 contentDescription = subMenuRemoveItem,
                                                 tint = MaterialTheme.colorScheme.error
                                             )

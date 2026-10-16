@@ -10,9 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.Composable
@@ -41,6 +38,10 @@ import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 验证码规则页：**一张列表 + 一个测试按钮**。
@@ -77,7 +78,7 @@ internal fun LazyListScope.otpRulesListItems(
                 if (onOpenRulesMenu != null) {
                     IconButton(onClick = onOpenRulesMenu) {
                         Icon(
-                            Icons.Outlined.MoreVert,
+                            MiuixIcons.Medium.More,
                             contentDescription = stringResource(R.string.otp_rules_more),
                             tint = MiuixTheme.colorScheme.onSurfaceSecondary,
                         )
@@ -215,7 +216,7 @@ private fun OtpRuleRowContent(
                 if (onCopyToUser != null) {
                     IconButton(onClick = onCopyToUser) {
                         Icon(
-                            Icons.Outlined.ContentCopy,
+                            MiuixIcons.Medium.Copy,
                             contentDescription = stringResource(R.string.otp_rules_copy_to_user),
                             tint = MiuixTheme.colorScheme.onSurfaceSecondary,
                         )
@@ -224,7 +225,7 @@ private fun OtpRuleRowContent(
                 if (onDelete != null) {
                     IconButton(onClick = onDelete) {
                         Icon(
-                            Icons.Default.Delete,
+                            MiuixIcons.Medium.Delete,
                             contentDescription = stringResource(R.string.otp_rules_delete),
                             tint = MiuixTheme.colorScheme.error,
                         )

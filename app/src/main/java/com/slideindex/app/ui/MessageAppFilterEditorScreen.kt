@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +31,8 @@ import com.slideindex.app.message.MessageMatchType
 import com.slideindex.app.ui.settings.components.SettingLinkRow
 import com.slideindex.app.ui.settings.components.SettingsCardScope
 import com.slideindex.app.ui.settings.components.settingsCardItems
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @Composable
 fun MessageAppFilterEditorScreen(
@@ -167,7 +168,7 @@ private fun SettingsCardScope.MessageFilterConditionRow(
             )
             IconButton(onClick = onRemove) {
                 Icon(
-                    Icons.Default.Close,
+                    MiuixIcons.Medium.Close,
                     contentDescription = stringResource(R.string.message_filter_remove_condition),
                 )
             }

@@ -47,6 +47,8 @@ import com.slideindex.app.util.LocalCrashHandler
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import top.yukonga.miuix.kmp.icon.extended.Share
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @Composable
 fun DiagnosticLogListScreen(
@@ -79,7 +81,7 @@ fun DiagnosticLogListScreen(
         extraActions = {
             IconButton(onClick = { DiagnosticReportExporter.shareOrCopy(context) }) {
                 Icon(
-                    imageVector = Icons.Default.Share,
+                    imageVector = MiuixIcons.Medium.Share,
                     contentDescription = stringResource(R.string.diagnostic_log_share)
                 )
             }

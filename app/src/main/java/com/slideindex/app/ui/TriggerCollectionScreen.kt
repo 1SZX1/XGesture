@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.ScreenRotation
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.IconButton
 import com.slideindex.app.settings.forLandscapeEditing
 import com.slideindex.app.ui.trigger.TriggerSettingsLandscapeSession
@@ -73,6 +72,8 @@ import com.slideindex.app.ui.settings.components.settingsCardScopeItem
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
 import com.slideindex.app.ui.settings.components.SwitchNavigationTrailingContent
 import kotlinx.coroutines.delay
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 private const val TRIGGER_PAIR_ENTER_MS = 260
 private const val TRIGGER_PAIR_EXIT_MS = 200
@@ -194,7 +195,7 @@ fun TriggerCollectionScreen(
             if (landscapeMode) {
                 IconButton(onClick = { showCopyPortraitConfirm = true }) {
                     Icon(
-                        Icons.Default.ContentCopy,
+                        MiuixIcons.Medium.Copy,
                         contentDescription = stringResource(R.string.trigger_copy_portrait),
                     )
                 }

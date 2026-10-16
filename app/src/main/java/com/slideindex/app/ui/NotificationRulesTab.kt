@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.foundation.layout.Box
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.basic.Text
@@ -38,6 +37,8 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 fun LazyListScope.notificationRulesItems(
     rules: List<NotificationFilterRule>,
@@ -168,7 +169,7 @@ private fun NotificationRuleRowContent(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDelete) {
                         Icon(
-                            Icons.Default.Delete,
+                            MiuixIcons.Medium.Delete,
                             contentDescription = stringResource(R.string.notification_rule_delete),
                             tint = MiuixTheme.colorScheme.error,
                         )

@@ -31,8 +31,9 @@ import com.slideindex.app.ui.settings.components.LazySettingsItem
 import com.slideindex.app.ui.settings.components.SettingsScreenScaffold
 import com.slideindex.app.ui.viewmodel.NotificationHistoryViewModel
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @Composable
 fun NotificationRuleEditorScreen(
@@ -112,7 +113,7 @@ fun NotificationRuleEditorScreen(
         actions = {
             top.yukonga.miuix.kmp.basic.IconButton(onClick = saveRule) {
                 top.yukonga.miuix.kmp.basic.Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = MiuixIcons.Medium.Ok,
                     contentDescription = stringResource(R.string.confirm),
                 )
             }

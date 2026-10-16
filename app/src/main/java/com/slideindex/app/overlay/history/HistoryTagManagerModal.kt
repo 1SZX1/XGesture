@@ -29,9 +29,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -61,6 +58,12 @@ import com.slideindex.app.stash.StashTag
 import com.slideindex.app.stash.StashTagEdits
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.extended.Edit
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.extended.Theme
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 8 个预设标签色（§0.16.4 待办 2「新增（名字 + 8 个预设色）」）。
@@ -413,13 +416,13 @@ private fun TagRow(
                 modifier = Modifier.weight(1f),
             )
             TagIconButton(
-                icon = Icons.Default.Check,
+                icon = MiuixIcons.Medium.Ok,
                 contentDescription = stringResource(R.string.stash_tag_rename),
                 enabled = renameText.isNotBlank(),
                 onClick = onRenameConfirm,
             )
             TagIconButton(
-                icon = Icons.Default.Close,
+                icon = MiuixIcons.Medium.Close,
                 contentDescription = stringResource(R.string.panel_close),
                 enabled = true,
                 onClick = onRenameCancel,
@@ -433,20 +436,20 @@ private fun TagRow(
                 modifier = Modifier.weight(1f),
             )
             TagIconButton(
-                icon = Icons.Outlined.Edit,
+                icon = MiuixIcons.Medium.Edit,
                 contentDescription = stringResource(R.string.stash_tag_rename),
                 enabled = renameable,
                 onClick = onRenameStart,
             )
             TagIconButton(
-                icon = Icons.Outlined.Palette,
+                icon = MiuixIcons.Medium.Theme,
                 contentDescription = stringResource(R.string.stash_tag_color),
                 // 改色对「待办」也开放：颜色不参与关键字判定。
                 enabled = true,
                 onClick = onColorToggle,
             )
             TagIconButton(
-                icon = Icons.Default.Delete,
+                icon = MiuixIcons.Medium.Delete,
                 contentDescription = stringResource(R.string.stash_tag_delete),
                 enabled = removable,
                 danger = true,

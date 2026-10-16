@@ -26,8 +26,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,6 +66,9 @@ import com.slideindex.app.R
 import com.slideindex.app.service.ScreenshotCaptureOutcome
 import com.slideindex.app.service.SlideIndexAccessibilityService
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.extended.Refresh
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 「快捷菜单 → 屏幕取色」。
@@ -162,7 +163,7 @@ internal fun QuickMenuColorPickerScreen() {
                 label = { Text(stringResource(R.string.quick_menu_color_title)) },
             )
             IconButton(onClick = { capture() }) {
-                Icon(Icons.Filled.Refresh, contentDescription = null)
+                Icon(MiuixIcons.Medium.Refresh, contentDescription = null)
             }
         }
 
@@ -577,7 +578,7 @@ private fun PickedValueBar(argb: Int, onCopy: () -> Unit, modifier: Modifier = M
                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = FontFamily.Monospace),
                 )
                 IconButton(onClick = onCopy) {
-                    Icon(Icons.Filled.ContentCopy, contentDescription = null)
+                    Icon(MiuixIcons.Medium.Copy, contentDescription = null)
                 }
             }
         }
@@ -634,7 +635,7 @@ private fun ColorDetails(sample: SamplePoint?, history: List<Int>) {
                         .padding(start = 8.dp),
                 )
                 IconButton(onClick = { copyColor(context, label, value) }) {
-                    Icon(Icons.Filled.ContentCopy, contentDescription = null)
+                    Icon(MiuixIcons.Medium.Copy, contentDescription = null)
                 }
             }
         }

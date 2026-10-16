@@ -47,15 +47,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
@@ -125,6 +122,10 @@ import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import java.security.SecureRandom
 import kotlin.random.asKotlinRandom
+import top.yukonga.miuix.kmp.icon.extended.Copy
+import top.yukonga.miuix.kmp.icon.extended.Refresh
+import top.yukonga.miuix.kmp.icon.extended.Share
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 「快捷菜单」的 6 个工具页。
@@ -210,7 +211,7 @@ private fun ResultRow(text: String, copyLabel: String) {
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = { copyToClipboard(context, copyLabel, text) }) {
-                Icon(imageVector = Icons.Filled.ContentCopy, contentDescription = null)
+                Icon(imageVector = MiuixIcons.Medium.Copy, contentDescription = null)
             }
         }
     }
@@ -248,12 +249,12 @@ private fun ResultRowWithActions(
             )
             IconButton(onClick = onRegenerate) {
                 Icon(
-                    imageVector = Icons.Filled.Refresh,
+                    imageVector = MiuixIcons.Medium.Refresh,
                     contentDescription = regenerateLabel,
                 )
             }
             IconButton(onClick = { copyToClipboard(context, copyLabel, text) }) {
-                Icon(imageVector = Icons.Filled.ContentCopy, contentDescription = null)
+                Icon(imageVector = MiuixIcons.Medium.Copy, contentDescription = null)
             }
         }
     }
@@ -545,7 +546,7 @@ internal fun QuickMenuCurrencyConverterScreen() {
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(onClick = { refresh() }, enabled = !loading) {
                 Icon(
-                    imageVector = Icons.Filled.Refresh,
+                    imageVector = MiuixIcons.Medium.Refresh,
                     contentDescription = null,
                     modifier = if (loading) Modifier.size(18.dp) else Modifier.size(24.dp),
                 )
@@ -667,7 +668,7 @@ internal fun QuickMenuQrGeneratorScreen() {
                     }
                 }) {
                     Icon(
-                        imageVector = Icons.Filled.Share,
+                        imageVector = MiuixIcons.Medium.Share,
                         contentDescription = stringResource(R.string.quick_menu_qr_share),
                     )
                 }
@@ -926,7 +927,7 @@ private fun ScanItemActions(text: String) {
     val context = LocalContext.current
     val url = remember(text) { webUrlOfText(text) }
     IconButton(onClick = { copyToClipboard(context, "scan", text) }) {
-        Icon(imageVector = Icons.Filled.ContentCopy, contentDescription = null)
+        Icon(imageVector = MiuixIcons.Medium.Copy, contentDescription = null)
     }
     if (url != null) {
         IconButton(onClick = {
@@ -1318,7 +1319,7 @@ internal fun QuickMenuStopwatchScreen() {
                 }
             }) {
                 Icon(
-                    imageVector = if (state.running) Icons.Filled.Flag else Icons.Filled.Refresh,
+                    imageVector = if (state.running) Icons.Filled.Flag else MiuixIcons.Medium.Refresh,
                     contentDescription = null,
                 )
             }
@@ -1440,7 +1441,7 @@ internal fun QuickMenuCountdownScreen() {
                 )
             }
             IconButton(onClick = { QuickMenuTimerRuntime.resetCountdown() }) {
-                Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
+                Icon(imageVector = MiuixIcons.Medium.Refresh, contentDescription = null)
             }
         }
     }

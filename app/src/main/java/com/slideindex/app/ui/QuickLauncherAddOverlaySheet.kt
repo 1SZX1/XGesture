@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -71,6 +69,9 @@ import com.slideindex.app.util.AppShortcutLoader.CreatedShortcut
 import com.slideindex.app.util.AppShortcutLoader.toQuickLauncherItem
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.icon.extended.AddFolder
+import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 data class PendingQuickLauncherFolderShortcut(
     val folderName: String,
@@ -511,7 +512,7 @@ private fun QuickLauncherAddOverlayHeader(
             embedParentConfirm?.let { confirm ->
                 IconButton(onClick = confirm.onConfirm, enabled = confirm.enabled) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = MiuixIcons.Medium.Ok,
                         contentDescription = stringResource(R.string.confirm),
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
@@ -520,7 +521,7 @@ private fun QuickLauncherAddOverlayHeader(
             if (subScreen == QuickLauncherAddSubScreen.Main) {
                 IconButton(onClick = onCreateFolder) {
                     Icon(
-                        Icons.Outlined.CreateNewFolder,
+                        MiuixIcons.Medium.AddFolder,
                         contentDescription = stringResource(R.string.quick_launcher_new_folder),
                         tint = MaterialTheme.colorScheme.onSurface,
                     )

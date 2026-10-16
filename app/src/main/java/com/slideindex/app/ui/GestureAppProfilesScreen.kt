@@ -2,7 +2,6 @@ package com.slideindex.app.ui
 
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +26,8 @@ import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffold
 import com.slideindex.app.ui.settings.components.settingsCardScopeItem
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
 import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 /**
  * 侧滑手势「按应用分档」的档管理页（GitHub issue #26 v2）。
@@ -108,7 +109,7 @@ fun GestureAppProfilesScreen(
                     endActions = {
                         IconButton(onClick = { deleteTarget = profile }) {
                             Icon(
-                                Icons.Default.Delete,
+                                MiuixIcons.Medium.Delete,
                                 contentDescription = stringResource(
                                     R.string.gesture_app_profiles_delete,
                                 ),
