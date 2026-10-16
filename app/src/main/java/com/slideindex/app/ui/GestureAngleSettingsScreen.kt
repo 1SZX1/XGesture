@@ -65,7 +65,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 import top.yukonga.miuix.kmp.icon.extended.Ok
-import top.yukonga.miuix.kmp.icon.extended.Recent
+import top.yukonga.miuix.kmp.icon.extended.Reset
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -118,7 +118,9 @@ fun GestureAngleSettingsScreen(
                     )
                 }
             ) {
-                Icon(MiuixIcons.Medium.Recent, contentDescription = stringResource(R.string.gesture_angle_reset))
+                // 这枚按钮是「重置为默认角度」（contentDescription = gesture_angle_reset），
+                // 不是"历史"，所以用 Reset 而不是 Recent（Material 原来的 History 也是错的）。
+                Icon(MiuixIcons.Medium.Reset, contentDescription = stringResource(R.string.gesture_angle_reset))
             }
             IconButton(
                 enabled = !saving,
