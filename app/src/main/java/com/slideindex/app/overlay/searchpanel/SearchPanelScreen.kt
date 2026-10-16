@@ -1166,6 +1166,10 @@ fun SearchPanelScreen(
                         verticalArrangement = Arrangement.spacedBy(SearchPanelCardVerticalSpacing),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                            // 资源文案必须在组合期用 stringResource 读取：
+                            // 在 onClick 回调里走 LocalContext.current.getString(...) 不是配置感知的，
+                            // 会被 Compose lint 判成 **Error**（LocalContextGetResourceValueCall）并让 lintLiteDebug 直接失败。
+                            val copiedToastText = stringResource(R.string.float_ball_text_copied)
                             val searchFieldBlock: @Composable () -> Unit = {
                                 SearchPanelFrostedCard {
                                     Crossfade(targetState = mode, label = "SearchModeCrossfade") { currentMode ->
@@ -1181,7 +1185,7 @@ fun SearchPanelScreen(
                                                     // 所以走挂在无障碍层的 OverlayToastWindow。
                                                     OverlayToastWindow.show(
                                                         context,
-                                                        context.getString(R.string.float_ball_text_copied)
+                                                        copiedToastText
                                                     )
                                                 },
                                                 onCut = {
@@ -1189,7 +1193,7 @@ fun SearchPanelScreen(
                                                         FloatBallTextPick.copyText(context, copied)
                                                         OverlayToastWindow.show(
                                                             context,
-                                                            context.getString(R.string.float_ball_text_copied)
+                                                            copiedToastText
                                                         )
                                                     }
                                                 },
