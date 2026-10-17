@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.os.SystemClock
 import android.text.TextPaint
 import android.text.TextUtils
 import android.view.MotionEvent
@@ -21,7 +22,9 @@ import com.slideindex.app.gesture.isEffective
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.CornerGestureSettings
 import com.slideindex.app.settings.CornerRadialMenuCodec
+import com.slideindex.app.R
 import com.slideindex.app.settings.effectiveLongPressDurationMs
+import com.slideindex.app.settings.shouldLaunchFullscreen
 import com.slideindex.app.settings.launchPolicyLongPressEligible
 import com.slideindex.app.shell.ShellCommand
 import com.slideindex.app.ui.gesturepicker.gestureActionLabelText
@@ -64,6 +67,9 @@ internal class CornerGestureOverlayView(
     private var editModeEntered = false
     private var slotPressIndex = -1
     private var slotPressDownTime = 0L
+    /** 提示卡片进度线自己记的"当前槽位 / 进入时间"（与 slotPress* 解耦）。 */
+    private var hintRingSlot = -1
+    private var hintRingEnteredAt = 0L
     private var slotLongPressArmed = false
     private var slotLongPressTrackingIndex = -1
     private var slotLongPressRunnable: Runnable? = null
@@ -533,6 +539,10 @@ internal class CornerGestureOverlayView(
                 hideShortcutSubMenu()
             }
             highlightedSlot = slot
+            if (slot != hintRingSlot) {
+                hintRingSlot = slot
+                hintRingEnteredAt = SystemClock.uptimeMillis()
+            }
             highlightedShortcutIndex = -1
             lastHapticHighlightedShortcutIndex = -1
             maybeHapticForSlotChange(slot)
@@ -826,6 +836,10 @@ internal class CornerGestureOverlayView(
         if (!menuActive) return
         val anchor = activeAnchor ?: return
         val (anchorX, anchorY) = anchorCenter(anchor)
+        val hintRing = hintRingProgress()
+        val (modeSuffix, modePip) = hintLongPressMode()
+        // 按住期间逐帧刷新（进度线按"按住时长"实时推进）
+        if (hintRing in 0f..0.999f) postInvalidateOnAnimation()
         drawBackgroundMask(canvas, menuRevealProgress)
         val subMenuItems = if (shortcutSubMenuVisible && shortcutSubMenuSlot >= 0) {
             cornerSettings.slotSubMenuFor(anchor, shortcutSubMenuSlot).items
@@ -858,6 +872,42 @@ internal class CornerGestureOverlayView(
             shortcutSubMenuLayout = if (shortcutSubMenuVisible) shortcutSubMenuLayout else null,
             highlightedShortcutIndex = highlightedShortcutIndex,
             shortcutSubMenuRevealProgress = shortcutSubMenuRevealProgress,
+            longPressRingProgress = hintRing,
+            hintLabelSuffix = modeSuffix,
+            hintPipArmed = modePip,
         )
+    }
+
+    /**
+     * 长按到时间后名字后缀与"小窗"角标：目标形态由启动策略决定。
+     * 全屏 → "-全屏"、不画角标；小窗 → "-小窗" + 图标右下角画中画角标。
+     */
+    private fun hintLongPressMode(): Pair<String, Boolean> {
+        // 不再要求"小窗功能已开"：到时间就把目标形态写出来（小窗没开时就是 -全屏），
+        // 这样用户能立刻看到长按到底会发生什么。PiP 角标只在目标是小窗时才画。
+        return if (settings.shouldLaunchFullscreen(longPressTriggered = true)) {
+            context.getString(R.string.fv_hint_suffix_fullscreen) to false
+        } else {
+            context.getString(R.string.fv_hint_suffix_free_window) to true
+        }
+    }
+
+    /**
+     * 提示卡片里图标外圈的进度（0..1）；**-1 = 不画**。
+     *
+     * 就是"按住这个槽位多久了"的长按倒计时：按下开始走、走满停住、抬手消失。
+     * 与快捷轮盘提示条里那条线同源同时长（`effectiveLongPressDurationMs()`）。
+     */
+    private fun hintRingProgress(): Float {
+        if (sessionMode == SessionMode.EDIT) return -1f
+        val slot = hintRingSlot
+        if (slot < 0 || slot != highlightedSlot) return -1f
+        val anchor = activeAnchor ?: return -1f
+        val action = cornerSettings.slotsFor(anchor).getOrElse(slot) { GestureAction.None }
+        if (action is GestureAction.None) return -1f
+        val elapsed = SystemClock.uptimeMillis() - hintRingEnteredAt
+        if (elapsed < 0) return -1f
+        val duration = settings.effectiveLongPressDurationMs().coerceAtLeast(1)
+        return (elapsed.toFloat() / duration).coerceIn(0f, 1f)
     }
 }

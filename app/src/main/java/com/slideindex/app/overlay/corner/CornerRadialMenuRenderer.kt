@@ -17,6 +17,7 @@ import com.slideindex.app.gesture.SelectedHintMetrics
 import com.slideindex.app.launcher.isShellActivityShortcut
 import com.slideindex.app.launcher.showsShellActivityShortcutBadge
 import com.slideindex.app.launcher.showsShellCommandBadge
+import com.slideindex.app.overlay.HintRingRenderer
 import com.slideindex.app.overlay.ShellCommandBadgeRenderer
 import com.slideindex.app.overlay.ShortcutBadgeRenderer
 import com.slideindex.app.settings.CornerGestureSettings
@@ -27,6 +28,8 @@ import kotlin.math.min
 
 internal object CornerRadialMenuRenderer {
     private val slotIconClipPath = Path()
+    /** 提示卡片里图标外圈的进度用矩形（复用，避免每帧分配）。 */
+    private val hintRingRect = RectF()
     private const val ICON_TINT = 0xFF374151.toInt()
     private const val ICON_TINT_HIGHLIGHT = 0xFF0D9488.toInt()
     private const val BUBBLE_FILL = 0xFFFFFFFF.toInt()
@@ -74,6 +77,14 @@ internal object CornerRadialMenuRenderer {
         shortcutSubMenuItems: List<GestureAction.LaunchShortcut> = emptyList(),
         highlightedShortcutIndex: Int = -1,
         shortcutSubMenuRevealProgress: Float = 1f,
+        /**
+         * 提示卡片里图标外圈的进度（长按倒计时）：0..1；**-1 = 不画**。
+         */
+        longPressRingProgress: Float = -1f,
+        /** 长按到时间后拼到名字后面的后缀（如 "-小窗" / "-全屏"）；空串表示不加。 */
+        hintLabelSuffix: String = "",
+        /** 长按到时间后是否在图标右下角画"小窗"（画中画）角标。 */
+        hintPipArmed: Boolean = false,
     ) {
         val progress = revealProgress.coerceIn(0f, 1f)
         if (progress <= 0.01f) return
@@ -183,6 +194,9 @@ internal object CornerRadialMenuRenderer {
                     activityShortcuts = activityShortcuts,
                     shellCommands = shellCommands,
                     appRepository = appRepository,
+                    longPressRingProgress = longPressRingProgress,
+                    hintLabelSuffix = hintLabelSuffix,
+                    hintPipArmed = hintPipArmed,
                 )
             }
         }
@@ -350,8 +364,16 @@ internal object CornerRadialMenuRenderer {
         activityShortcuts: List<ActivityShortcut>,
         shellCommands: List<ShellCommand>,
         appRepository: AppRepository?,
+        /** 提示卡片里图标外圈的进度：0..1；-1 = 不画。 */
+        longPressRingProgress: Float = -1f,
+        /** 长按到时间后拼到名字后面的后缀（如 "-小窗" / "-全屏"）；空串表示不加。 */
+        hintLabelSuffix: String = "",
+        /** 长按到时间后是否在图标右下角画"小窗"（画中画）角标。 */
+        hintPipArmed: Boolean = false,
     ) {
-        val label = gestureActionLabelText(context, action)
+        // 长按到时间 → 名字后面拼上目标形态（-小窗 / -全屏）
+        val label = gestureActionLabelText(context, action) +
+            if (longPressRingProgress >= 1f) hintLabelSuffix else ""
         if (label.isBlank()) return
 
         val iconSizeDp = SelectedHintMetrics.clampIconSizeDp(hintIconSizeDp)
@@ -412,6 +434,31 @@ internal object CornerRadialMenuRenderer {
                 iconLeft + iconSize / 2f - iconBitmap.width / 2f,
                 centerY - iconBitmap.height / 2f,
                 iconPaint,
+            )
+        }
+        // 图标外圈的进度线（长按倒计时）。外扩 = 半边笔宽 + 1dp 间隙，正好贴在图标外侧。
+        if (longPressRingProgress >= 0f) {
+            val inflate = HintRingRenderer.STROKE_DP * density * 0.5f + 1f * density
+            hintRingRect.set(
+                iconLeft - inflate,
+                centerY - iconSize / 2f - inflate,
+                iconLeft + iconSize + inflate,
+                centerY + iconSize / 2f + inflate,
+            )
+            HintRingRenderer.draw(
+                canvas = canvas,
+                icon = iconBitmap,
+                bounds = hintRingRect,
+                progress = longPressRingProgress,
+                density = density,
+            )
+        }
+        // 长按到时间且目标是"小窗" → 图标右下角一个画中画角标
+        if (hintPipArmed && longPressRingProgress >= 1f) {
+            HintRingRenderer.drawPipBadge(
+                canvas = canvas,
+                iconBounds = hintRingRect,
+                density = density,
             )
         }
         if (action is GestureAction.LaunchShortcut) {

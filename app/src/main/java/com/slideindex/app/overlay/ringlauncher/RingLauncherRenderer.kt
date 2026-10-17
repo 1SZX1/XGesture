@@ -17,6 +17,7 @@ import com.slideindex.app.data.AppInfo
 import com.slideindex.app.data.AppRepository
 import com.slideindex.app.overlay.HoneycombRuntimeTarget
 import com.slideindex.app.overlay.ShellCommandBadgeRenderer
+import com.slideindex.app.overlay.HintRingRenderer
 import com.slideindex.app.overlay.ShortcutBadgeRenderer
 import com.slideindex.app.overlay.layout.FvRingLauncherSide
 import com.slideindex.app.overlay.layout.FvCircleLayoutEngine
@@ -88,6 +89,14 @@ internal object RingLauncherRenderer {
         editDragX: Float = 0f,
         editDragY: Float = 0f,
         slotIconOverrides: Map<Int, FvRingLauncherSlotIconOverride> = emptyMap(),
+        /**
+         * 提示卡片里图标外圈的进度（长按倒计时）：0..1；**-1 = 不画**。
+         */
+        hintRingProgress: Float = -1f,
+        /** 长按到时间后拼到名字后面的后缀（如 "-小窗" / "-全屏"）；空串表示不加。 */
+        hintLabelSuffix: String = "",
+        /** 长按到时间后是否在图标右下角画"小窗"（画中画）角标。 */
+        hintPipArmed: Boolean = false,
     ) {
         val progress = revealProgress.coerceIn(0f, 1f)
         if (progress <= 0.01f) return
@@ -243,11 +252,14 @@ internal object RingLauncherRenderer {
                 val previewBadgeInfo = drawSelectionPreview(
                     canvas = canvas,
                     side = layout.side,
-                    label = target.label,
+                    // 长按到时间 → 名字后面拼上目标形态（-小窗 / -全屏）
+                    label = if (hintRingProgress >= 1f) target.label + hintLabelSuffix else target.label,
                     bitmap = bigBitmap,
                     density = density,
                     progress = progress,
                     cornerRadiusRatio = layout.cornerRadiusRatio,
+                    hintRingProgress = hintRingProgress,
+                    hintPipArmed = hintPipArmed,
                 )
                 if (previewBadgeInfo != null) {
                     val (badgeCx, badgeCy, badgeSize) = previewBadgeInfo
@@ -265,6 +277,8 @@ internal object RingLauncherRenderer {
     private val iconDstRect = RectF()
     private val iconHighlightRect = RectF()
     private val iconShadowRect = RectF()
+    /** 提示卡片里图标外圈的进度用矩形（复用，避免每帧分配）。 */
+    private val hintRingRect = RectF()
     private val iconPlatePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val iconClipPath = Path()
 
@@ -451,6 +465,10 @@ internal object RingLauncherRenderer {
         density: Float,
         progress: Float,
         cornerRadiusRatio: Float,
+        /** 提示卡片里图标外圈的进度：0..1；-1 = 不画。 */
+        hintRingProgress: Float = -1f,
+        /** 长按到时间且目标是"小窗"时，在图标右下角画画中画角标。 */
+        hintPipArmed: Boolean = false,
     ): Triple<Float, Float, Float>? {
         val centerX = canvas.width * 0.5f
         val iconSizePx = 54f * density
@@ -512,6 +530,28 @@ internal object RingLauncherRenderer {
         }
         canvas.drawBitmap(bitmap, null, iconRect, previewIconPaint)
         canvas.restoreToCount(previewClipSaveCount)
+
+        // 图标外圈的进度线（长按倒计时）：外扩 = 半边笔宽 + 1dp 间隙，贴在图标外侧。
+        if (hintRingProgress >= 0f) {
+            val inflate = HintRingRenderer.STROKE_DP * density * 0.5f + 1f * density
+            hintRingRect.set(
+                iconRect.left - inflate,
+                iconRect.top - inflate,
+                iconRect.right + inflate,
+                iconRect.bottom + inflate,
+            )
+            HintRingRenderer.draw(
+                canvas = canvas,
+                icon = bitmap,
+                bounds = hintRingRect,
+                progress = hintRingProgress,
+                density = density,
+            )
+        }
+        // 长按到时间且目标是"小窗" → 图标右下角一个画中画角标
+        if (hintPipArmed && hintRingProgress >= 1f) {
+            HintRingRenderer.drawPipBadge(canvas = canvas, iconBounds = iconRect, density = density)
+        }
 
         if (label.isNotBlank()) {
             val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {

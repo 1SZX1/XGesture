@@ -21,4 +21,6 @@
     <string name="fv_custom_gesture_need_gesture">请先画一个手势。</string>
     <string name="fv_custom_gesture_need_action">请先选择要执行的动作。</string>
     <string name="fv_custom_gesture_save_failed">手势保存失败。</string>
+    <string name="fv_hint_suffix_free_window">-小窗</string>
+    <string name="fv_hint_suffix_fullscreen">-全屏</string>
 </resources>

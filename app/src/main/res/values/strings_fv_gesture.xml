@@ -22,4 +22,6 @@
     <string name="fv_custom_gesture_need_gesture">Draw a gesture first.</string>
     <string name="fv_custom_gesture_need_action">Pick an action first.</string>
     <string name="fv_custom_gesture_save_failed">Could not save the gesture.</string>
+    <string name="fv_hint_suffix_free_window">- Free window</string>
+    <string name="fv_hint_suffix_fullscreen">- Fullscreen</string>
 </resources>
