@@ -1705,6 +1705,7 @@
     <string name="float_ball_position_right">右</string>
     <string name="float_ball_position_both_edges">両端</string>
     <string name="float_ball_position_both_lines">両端ともライン</string>
+    <string name="float_ball_free_move_hint">移動モード：フローティングボールを目標位置までドラッグし、離すと最寄りの端に貼り付いて位置が保存されます</string>
     <string name="float_ball_position_y">縦位置</string>
     <string name="float_ball_visible_fraction">表示量</string>
     <string name="float_ball_position_xy_hint">パーセンテージは、ドック時にボールのどれだけが画面内に残るかを示します</string>

@@ -62,6 +62,7 @@ import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
 import com.slideindex.app.data.AppRepository
 import com.slideindex.app.launcher.QuickLauncherItemType
+import com.slideindex.app.overlay.FloatBallOverlay
 import com.slideindex.app.overlay.HoneycombRuntimeTarget
 import com.slideindex.app.overlay.OverlayComposeDialogHost
 import com.slideindex.app.overlay.layout.FvRingLauncherSide
@@ -380,8 +381,12 @@ internal class RingLauncherOverlayView(
                 enterEditMode()
                 return true
             }
-            toolbarButton == FvToolbarButton.HIDE -> {
+            toolbarButton == FvToolbarButton.MOVE -> {
+                prepareForToolbarAction()
                 dismissPanel()
+                // 「移动」＝把悬浮球切到自由位置模式（保持当前所在位置），之后在屏幕上拖动球即可移动它。
+                // 原先这里只是 dismissPanel()，与「−」完全重复，等于没做功能。
+                FloatBallOverlay.enterFreeMoveMode()
                 return true
             }
             toolbarButton == FvToolbarButton.SETTINGS -> {
@@ -390,16 +395,16 @@ internal class RingLauncherOverlayView(
                 post { showAppearanceDialog() }
                 return true
             }
-            toolbarButton == FvToolbarButton.MOVE -> {
-                dismissPanel()
-                return true
-            }
             toolbarButton == FvToolbarButton.KEYBOARD -> {
                 val wasEdit = sessionMode == SessionMode.EDIT
                 prepareForToolbarAction()
                 pinPanel()
                 if (wasEdit) enterEditMode()
-                InputMethodHelper.showInputMethodPicker(context)
+                // 这里必须用 switchInputMethod（与圆环槽位/手势里的「切换输入法」同一入口）：
+                // 裸调 InputMethodManager.showInputMethodPicker() 要求**当前窗口持有输入法焦点**，
+                // 圆环是 overlay 窗口拿不到 IME 焦点，会被系统静默忽略（点了像没反应）。
+                // switchInputMethod 内部有"临时挂一个可获焦点的 accessibility overlay"兜底。
+                InputMethodHelper.switchInputMethod(context)
                 return true
             }
             sessionMode == SessionMode.EDIT && editDragFromSlot >= 0 -> {

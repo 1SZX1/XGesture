@@ -409,7 +409,6 @@ internal object RingLauncherRenderer {
         button: FvToolbarButton,
     ) {
         val (baseColor, highlightColor) = when (button) {
-            FvToolbarButton.HIDE -> 0xFFFFA000.toInt() to 0xFFFFB300.toInt()
             FvToolbarButton.MOVE -> 0xFF0288D1.toInt() to 0xFF039BE5.toInt()
             FvToolbarButton.PIN -> 0xFF43A047.toInt() to 0xFF4CAF50.toInt()
             FvToolbarButton.SETTINGS -> 0xFF607D8B.toInt() to 0xFF78909C.toInt()
@@ -435,7 +434,6 @@ internal object RingLauncherRenderer {
         glyphPaint.color = Color.WHITE
         glyphPaint.textSize = drawRadius * 1.05f
         val glyph = when (button) {
-            FvToolbarButton.HIDE -> "−"
             FvToolbarButton.MOVE -> "↕"
             FvToolbarButton.PIN -> "✎"
             FvToolbarButton.SETTINGS -> "⚙"

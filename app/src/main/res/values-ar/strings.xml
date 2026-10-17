@@ -1692,6 +1692,7 @@
     <string name="float_ball_position_right">الحافة اليمنى</string>
     <string name="float_ball_position_both_edges">العرض على كلا الحافتين في نفس الوقت</string>
     <string name="float_ball_position_both_lines">خطّان على كلا الحافتين</string>
+    <string name="float_ball_free_move_hint">وضع التحريك: اسحب الكرة العائمة إلى الموضع المطلوب، وعند الإفلات تلتصق بأقرب حافة ويُحفظ الموضع</string>
     <string name="float_ball_position_y">الموضع العمودي</string>
     <string name="float_ball_visible_fraction">النسبة المئوية للعرض</string>
     <string name="float_ball_position_xy_hint">النسبة المئوية المعروضة تمثل نسبة بقاء الكرة العائمة داخل الشاشة عند اللصق بالحافة</string>

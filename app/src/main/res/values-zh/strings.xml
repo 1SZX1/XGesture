@@ -1718,6 +1718,7 @@
     <string name="float_ball_position_right">右边</string>
     <string name="float_ball_position_both_edges">左右两边同时显示</string>
     <string name="float_ball_position_both_lines">两侧都是线</string>
+    <string name="float_ball_free_move_hint">移动模式：把悬浮球拖到目标位置，松手会自动贴边并保存位置</string>
     <string name="float_ball_position_y">垂直位置</string>
     <string name="float_ball_visible_fraction">显示百分比</string>
     <string name="float_ball_position_xy_hint">显示百分比表示贴边时球体留在屏幕内的比例</string>

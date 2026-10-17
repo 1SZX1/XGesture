@@ -163,6 +163,14 @@ internal class FloatBallTouchHostLayout(
         endGestureCapture()
     }
 
+    /**
+     * 圆环工具栏「移动」进入的移动模式：只跟手挪球，不识别/不执行任何悬浮球手势，也不显示手势提示。
+     * 抬手时检测器会走 inishPick()（= 拖动正常结束），把落位交回 [FloatBallOverlay]。
+     */
+    fun setMoveMode(active: Boolean) {
+        ballDetector.moveModeActive = active
+    }
+
     fun lockPickFromPause() {
         ballDetector.lockPickFromPause()
     }

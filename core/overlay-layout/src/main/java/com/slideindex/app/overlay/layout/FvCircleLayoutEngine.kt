@@ -45,7 +45,9 @@ object FvCircleLayoutEngine {
     private const val END_MARGIN_RAD = PI / 180.0 * 6.0
     private const val TOOLBAR_GAP_DP = 10f
     private const val TOOLBAR_EDGE_GAP_DP = 15f
-    private const val TOOLBAR_BUTTON_COUNT = 5
+    // 工具栏按钮数量：必须与 FvToolbarButton.entries.size 保持一致（按钮中心按此数量等距排布）。
+    // 已移除多余的「−」（HIDE）：它只是收起面板，与点空白处重复，而 MOVE 现在承担"自由移动悬浮球"。
+    private const val TOOLBAR_BUTTON_COUNT = 4
     private const val TOOLBAR_HIT_SCALE = 1.35f
 
     data class SlotGeo(
@@ -511,7 +513,6 @@ object FvCircleLayoutEngine {
 }
 
 enum class FvToolbarButton {
-    HIDE,
     MOVE,
     PIN,
     SETTINGS,

@@ -73,6 +73,12 @@ internal class FloatBallGestureDetector(
     private var pickActive = false
     /** 手指滑出 slop 后为 true，此后才跟手取词并启动手势窗口。 */
     private var pickDragStarted = false
+
+    /**
+     * 移动模式（圆环工具栏「移动」触发）：只跟手挪球。
+     * 置位后：不显示手势提示、不执行任何手势，抬手直接走 inishPick()（= 拖动结束，交回覆盖层落位）。
+     */
+    var moveModeActive: Boolean = false
     private var pickDragStartTime = 0L
     /** 超过手势窗口后为 true，抬手走取词而非手势。 */
     private var pickGestureLocked = false
@@ -298,6 +304,16 @@ internal class FloatBallGestureDetector(
                 cancelDeferredCallbacks()
                 gesturePath.add(event.rawX)
                 gesturePath.add(event.rawY)
+                // ★ 移动模式：抬手就是"拖动结束"，绝不执行任何手势。
+                // 之前这里会落到下面的 returnGesture/compoundGesture/方向滑动分支，那些分支都以
+                // finishGestureOnly() 收尾 → 覆盖层收到的是 onPickCancel（取消）→ 球被复位，
+                // 于是"移动"看起来完全没生效。这里改走 finishPick() = 拖动正常结束，
+                // 覆盖层才会执行"选边 + 存竖直位置 + 吸附回边缘"。
+                if (moveModeActive) {
+                    finishPick()
+                    resetTouchSession()
+                    return true
+                }
                 val totalDx = event.rawX - downX
                 val totalDy = event.rawY - downY
                 lockSwipeAxisIfNeeded(totalDx, totalDy)
@@ -681,6 +697,11 @@ internal class FloatBallGestureDetector(
     }
 
     private fun emitGestureHint(totalDx: Float, totalDy: Float) {
+        // 移动模式：只跟手挪球，不预测/不显示任何手势提示（用户会看到"手势图标"跳出来）。
+        if (moveModeActive) {
+            onGestureHint?.invoke(null)
+            return
+        }
         val returnGesture = classifyReturnGesture()
         if (returnGesture != null) {
             onGestureHint?.invoke(returnGesture)

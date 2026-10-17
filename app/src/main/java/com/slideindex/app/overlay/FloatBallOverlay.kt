@@ -71,6 +71,12 @@ private const val PICK_PREVIEW_ALPHA_MIN = 0.25f
 object FloatBallOverlay {
     private const val TAG = "FloatBallOverlay"
     private const val EDGE_MARGIN_DP = 8f
+
+    /** 圆环工具栏「移动」：进入移动模式时球朝屏幕中心内移的距离（纯提示，不落盘）。 */
+    private const val MOVE_MODE_HINT_DP = 14f
+
+    /** 移动模式的自动退出时间（用户点了但没拖，几秒后自动复位）。 */
+    private const val MOVE_MODE_TIMEOUT_MS = 6000L
     /** FV O0: reschedule cache rebuild after finger moves this many dp. */
     private const val CACHE_REFRESH_MOVE_DP = 3f
     /** FV O0 / I0: delay before rebuilding preview bounds cache during drag. */
@@ -280,6 +286,14 @@ object FloatBallOverlay {
         }
     private var passthroughRestorePending = false
     private var committedActiveSideUntilPersist: FloatBallSide? = null
+
+    /**
+     * 圆环工具栏「移动」进入的临时移动模式：**只在内存里**，不写任何位置设置（自由位置 CUSTOM 模式存不住，
+     * FloatBallPositionMode.fromStorageKey 会把 CUSTOM 读回 RIGHT）。
+     * 开启时球朝屏幕中心内移一点作为提示；拖动时只跟手、不取词；松手按落点选边 + 存竖直位置并吸附回边缘。
+     */
+    private var moveModeActive = false
+    private var moveModeExitRunnable: Runnable? = null
     private var activeSideAtDragStart: FloatBallSide? = null
     private var finishDragRequested = false
     private var dragChromeLayoutFrameScheduled = false
@@ -644,6 +658,123 @@ object FloatBallOverlay {
         settingsState?.value?.let { applyAllLayouts(it) }
     }
 
+    /**
+     * 圆环启动器工具栏「移动」按钮。
+     *
+     * 交互（与用户约定）：
+     * 1. 进入**临时移动模式**（只在内存，不写任何位置设置——自由位置 CUSTOM 模式存不住，
+     *    `FloatBallPositionMode.fromStorageKey` 会把 CUSTOM 读回 RIGHT）；
+     * 2. 球朝屏幕中心方向**内移约 14dp** 作为"已进入移动模式"的视觉提示；
+     * 3. 这期间拖动球只跟手，**不取词**（不弹光标/放大镜/取词面板）；
+     * 4. 松手时按落点选边（左半屏→左，右半屏→右）+ 保存竖直位置，球**吸附回边缘**；
+     * 5. 若一直没拖，几秒后自动复位。
+     */
+    fun enterFreeMoveMode() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { enterFreeMoveMode() }
+            return
+        }
+        val hostContext = appContext ?: return
+        val settings = settingsState?.value ?: return
+        val metrics = displayView?.resources?.displayMetrics ?: return
+        Toast.makeText(hostContext, R.string.float_ball_free_move_hint, Toast.LENGTH_SHORT).show()
+        moveModeActive = true
+        // 关键：必须让检测器也知道，否则拖球会被当成立式手势（抬手走 onPickCancel，球被复位）。
+        touchHost?.setMoveMode(true)
+        scheduleMoveModeTimeout()
+        // 内移提示：用 sceneState.ballCenterPx 当"当前球心覆盖值"，后续布局都会沿用它，
+        // 直到 applyBallLayout 把它清空（回到正常停靠位）。
+        val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(hostContext, windowManager)
+        val activeSide = effectiveActiveSide(settings)
+        val (centerX, centerY) =
+            FloatBallLayout.ballCenterPx(settings, metrics, activeSide, screenWidthPx, screenHeightPx)
+        val nudge = MOVE_MODE_HINT_DP * metrics.density
+        val inward = if (centerX < screenWidthPx / 2f) nudge else -nudge
+        sceneState?.ballCenterPx?.value = Offset(centerX + inward, centerY)
+        syncDisplayBallLayout(settings)
+    }
+
+    /** 退出移动模式并让球回到正常停靠布局（没拖就超时复位也走这里）。 */
+    private fun exitMoveMode() {
+        if (!moveModeActive) return
+        moveModeActive = false
+        touchHost?.setMoveMode(false)
+        moveModeExitRunnable?.let { mainHandler.removeCallbacks(it) }
+        moveModeExitRunnable = null
+        sceneState?.ballCenterPx?.value = null
+        settingsState?.value?.let { applyBallLayout(it) }
+    }
+
+    private fun scheduleMoveModeTimeout() {
+        moveModeExitRunnable?.let { mainHandler.removeCallbacks(it) }
+        val runnable = Runnable { exitMoveMode() }
+        moveModeExitRunnable = runnable
+        mainHandler.postDelayed(runnable, MOVE_MODE_TIMEOUT_MS)
+    }
+
+    /**
+     * 移动模式下落手：按落点选边 + 存竖直位置，球吸附回边缘。
+     *
+     * 先做**乐观更新**（立刻吸附，不等数据库回程），再异步写设置。
+     */
+    private fun finishMoveModeRelease(settings: AppSettings) {
+        val view = displayView ?: return
+        val metrics = view.resources.displayMetrics
+        val density = metrics.density
+        val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(view.context, windowManager)
+        val ballSizePx = FloatBallLayout.ballSizePx(settings, density)
+        val center = dragSession.clampedBallCenter(
+            ballSizePx = ballSizePx.toFloat(),
+            marginPx = FloatBallLayout.marginPx(density),
+            screenWidth = screenWidthPx,
+            screenHeight = screenHeightPx
+        )
+        val side = if (center.x < screenWidthPx / 2f) FloatBallSide.LEFT else FloatBallSide.RIGHT
+        val yFraction = FloatBallLayout.coercePositionYFraction(center.y / screenHeightPx)
+
+        moveModeActive = false
+        touchHost?.setMoveMode(false)
+        moveModeExitRunnable?.let { mainHandler.removeCallbacks(it) }
+        moveModeExitRunnable = null
+        sceneState?.ballCenterPx?.value = null
+
+        val usesEdgeLines = FloatBallLayout.usesEdgeLines(settings)
+        if (usesEdgeLines) {
+            // 双边/双线模式：落点决定"当前活动侧"（仓库里已有机制，applyActiveSide 会立刻吸附并落盘）。
+            applyActiveSide(side)
+        }
+        val targetMode = if (side == FloatBallSide.LEFT) {
+            FloatBallPositionMode.LEFT
+        } else {
+            FloatBallPositionMode.RIGHT
+        }
+        val updated = if (!usesEdgeLines && settings.floatBallPositionMode != targetMode) {
+            settings.copy(
+                floatBall = settings.floatBall.copy(
+                    floatBallPositionMode = targetMode,
+                    floatBallPositionYFraction = yFraction
+                )
+            )
+        } else {
+            settings.copy(
+                floatBall = settings.floatBall.copy(floatBallPositionYFraction = yFraction)
+            )
+        }
+        settingsState?.value = updated
+        applyBallLayout(updated)
+
+        val hostContext = appContext ?: return
+        val deps = OverlayDependencyAccess.overlayDependencies(hostContext) ?: return
+        overlayScope.launch {
+            deps.settingsRepository.setFloatBallPositionYFraction(yFraction)
+            if (usesEdgeLines) {
+                deps.settingsRepository.setFloatBallActiveSide(side)
+            } else if (settings.floatBallPositionMode != targetMode) {
+                deps.settingsRepository.setFloatBallPositionMode(targetMode)
+            }
+        }
+    }
+
     /** 应用内语言切换后重建悬浮球窗口，使 Compose/资源使用新 Locale。 */
     fun recreateForLocaleChange() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -782,6 +913,10 @@ object FloatBallOverlay {
         cancelPassiveLineRestore()
         cancelDeferredGifResume()
         cancelDeferredDragStart()
+        moveModeActive = false
+        touchHost?.setMoveMode(false)
+        moveModeExitRunnable?.let { mainHandler.removeCallbacks(it) }
+        moveModeExitRunnable = null
         hideCursor(restorePassive = false)
         ballIconView?.release()
         cancelPauseTimer()
@@ -1188,16 +1323,25 @@ object FloatBallOverlay {
                 onDragCancel = { dragCallbacks.onCancel() },
                 onGesture = { gestureType, rawX, rawY, touchDownX, touchDownY ->
                     hideGestureHintWindow()
-                    performFloatBallGesture(
-                        state.settingsState.value,
-                        gestureType,
-                        rawX,
-                        rawY,
-                        touchDownRawX = touchDownX,
-                        touchDownRawY = touchDownY
-                    )
+                    // 移动模式下绝不执行悬浮球手势（含长按/双击）：这次拖动只是挪球。
+                    if (!moveModeActive) {
+                        performFloatBallGesture(
+                            state.settingsState.value,
+                            gestureType,
+                            rawX,
+                            rawY,
+                            touchDownRawX = touchDownX,
+                            touchDownRawY = touchDownY
+                        )
+                    }
                 },
-                onGestureHint = dragCallbacks::onGestureHint,
+                onGestureHint = { hint ->
+                    if (moveModeActive) {
+                        hideGestureHintWindow()
+                    } else {
+                        dragCallbacks.onGestureHint(hint)
+                    }
+                },
                 onPickPreviewStart = dragCallbacks::onPreviewStart,
                 onPickPreviewProgress = dragCallbacks::onPreviewProgress,
                 onPickPreviewMove = { touchDownX, touchDownY, fingerX, fingerY ->
@@ -2493,6 +2637,7 @@ object FloatBallOverlay {
 
     private fun cancelDragWithoutPick() {
         if (!isDragging) return
+        if (moveModeActive) exitMoveMode()
         cancelDragChromeLayoutFrame()
         cancelCursorCommitFrame()
         activeSideAtDragStart = null
@@ -2546,6 +2691,13 @@ object FloatBallOverlay {
         cancelCursorCommitFrame()
         flushDragChromeLayout(syncAnchorState = true)
         commitPickAnchor()
+        // 圆环工具栏「移动」进入的移动模式：松手只做"选边 + 存竖直位置 + 吸附"，不取词。
+        if (moveModeActive) {
+            finishMoveModeRelease(settings)
+            activeSideAtDragStart = null
+            restoreAfterDragEnd(settingsState?.value ?: settings)
+            return
+        }
         val hadPauseIntent = cursorPausedState?.value == true || selectionStartState?.value != null
         if (hadPauseIntent) {
             if (!regionalPickActive) {
@@ -2687,24 +2839,37 @@ object FloatBallOverlay {
         restoreDockPosition(settings)
     }
 
-    private fun persistBallCenterFraction() {
-        val view = displayView ?: return
-        val settings = settingsState?.value ?: return
+    /** 当前球心占屏幕宽/高的比例（自由位置模式用的就是这两个分数）。 */
+    private fun currentBallCenterFraction(): Pair<Float, Float>? {
+        val view = displayView ?: return null
+        val settings = settingsState?.value ?: return null
         val metrics = view.resources.displayMetrics
-        val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(view.context, windowManager)
         val density = metrics.density
         val ballSizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt()
-        val activeSide = FloatBallLayout.resolvedActiveSide(settings)
-        val (centerX, centerY) = FloatBallLayout.ballCenterPx(
-            settings,
-            metrics,
-            activeSide,
-            screenWidthPx,
-            screenHeightPx
-        )
-        val customCenterXFraction = FloatBallLayout.coerceCustomCenterXFraction(centerX / screenWidthPx)
-        val yFraction = FloatBallLayout.coercePositionYFraction(centerY / screenHeightPx)
-        onPositionPersisted?.invoke(customCenterXFraction, yFraction)
+        val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(view.context, windowManager)
+        // ⚠ 拖动中必须以**手指带动的真实球心**为准：dragSession 记着"手指↔球心"的偏移并做了边界钳制。
+        // 若这里去问 FloatBallLayout.ballCenterPx(settings)，自由位置模式下读到的还是**旧的自定义分数**，
+        // 结果就是"拖到哪、松手又弹回哪"（自由位置模式的移动一直是坏的）。
+        val center: Pair<Float, Float> = if (isDragging) {
+            val clamped = dragSession.clampedBallCenter(
+                ballSizePx = ballSizePx.toFloat(),
+                marginPx = FloatBallLayout.marginPx(density),
+                screenWidth = screenWidthPx,
+                screenHeight = screenHeightPx
+            )
+            clamped.x to clamped.y
+        } else {
+            val activeSide = FloatBallLayout.resolvedActiveSide(settings)
+            FloatBallLayout.ballCenterPx(settings, metrics, activeSide, screenWidthPx, screenHeightPx)
+        }
+        val customCenterXFraction = FloatBallLayout.coerceCustomCenterXFraction(center.first / screenWidthPx)
+        val yFraction = FloatBallLayout.coercePositionYFraction(center.second / screenHeightPx)
+        return customCenterXFraction to yFraction
+    }
+
+    private fun persistBallCenterFraction() {
+        val (xFraction, yFraction) = currentBallCenterFraction() ?: return
+        onPositionPersisted?.invoke(xFraction, yFraction)
     }
 
     private fun showCursorPickPreview(@Suppress("UNUSED_PARAMETER") screenX: Float, @Suppress("UNUSED_PARAMETER") screenY: Float) {
@@ -2961,6 +3126,21 @@ object FloatBallOverlay {
         if (!fromEdgeGesture && dragOriginatedFromLine && !deferBallWindowMutation) {
             setBallTouchable(false)
         }
+        // 移动模式：这条拖动只用来挪球 —— 不进取词（不显示光标/放大镜/选区）。
+        if (moveModeActive) {
+            cancelDragChromeLayoutFrame()
+            cancelCursorCommitFrame()
+            pendingPickAnchor = null
+            selectionStartState?.value = null
+            selectionPreviewBoundsState?.value = null
+            cursorVisibleState?.value = false
+            cursorPausedState?.value = false
+            dragScreenBounds = FloatBallScreenMetrics.bounds(view.context, windowManager)
+            setCursorLayersVisible(false)
+            // 跟手更新球窗口（applyDragBallLayout 用的是 dragSession 的手指坐标）
+            flushDragChromeLayout()
+            return
+        }
         cancelDragChromeLayoutFrame()
         cancelCursorCommitFrame()
         pendingPickAnchor = null
@@ -3066,6 +3246,8 @@ object FloatBallOverlay {
     }
 
     private fun onDragMoved() {
+        // 移动模式：只挪球，不调度取词那一套（暂停计时、预览缓存）。
+        if (moveModeActive) return
         val start = selectionStartState?.value
         if (start != null) {
             val anchor = currentPickAnchor()
@@ -3444,8 +3626,12 @@ object FloatBallOverlay {
     private fun commitDragChromeLayoutFrame(forceAnchorState: Boolean = false) {
         val pick = pendingCursorFrameAnchor ?: currentDragPickAnchor
         pendingCursorFrameAnchor = null
-        syncCursorPreviewAppearance()
+        if (!moveModeActive) {
+            syncCursorPreviewAppearance()
+        }
         settingsState?.value?.let { applyDragBallLayout(it) }
+        // 移动模式下不维护取词光标锚点/预览边界：这一趟拖动只是为了挪球。
+        if (moveModeActive) return
         val needsPreviewAnchor = forceAnchorState ||
             cursorPausedState?.value == true ||
             selectionStartState?.value != null
@@ -3517,15 +3703,18 @@ object FloatBallOverlay {
         val screenWidth = bounds.width
         val screenHeight = bounds.height
 
-        val pick = dragSession.computePick(
-            settings = settings,
-            ballSizePx = ballSizePx.toFloat(),
-            screenWidth = screenWidth,
-            screenHeight = screenHeight,
-            density = density,
-            marginPx = marginPx
-        )
-        applyPickAnchor(pick)
+        // 移动模式：这次拖动只是挪球，不计算/提交取词锚点。
+        if (!moveModeActive) {
+            val pick = dragSession.computePick(
+                settings = settings,
+                ballSizePx = ballSizePx.toFloat(),
+                screenWidth = screenWidth,
+                screenHeight = screenHeight,
+                density = density,
+                marginPx = marginPx
+            )
+            applyPickAnchor(pick)
+        }
 
         if (!moveBallWindow) return
         flushDragChromeLayout()

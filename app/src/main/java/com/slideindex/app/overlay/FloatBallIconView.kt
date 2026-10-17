@@ -96,6 +96,11 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         if (key == boundKey) {
             applyChildGravity(settings, activeSide)
             applyCircularClip(sizePx)
+            // 兜底：内置动画的画面完全依赖 View 内部的"当前样式"。窗口被摘掉再挂回（取词/截图）时，
+            // 即使样式没变也必须把样式重新喂给它，否则它没有内容可画（球会变透明）。setStyle 同样式是幂等的。
+            if (FloatBallBuiltinAnimCatalog.isBuiltinAnimated(settings.floatBallStyleType)) {
+                builtinAnimView.setStyle(settings.floatBallStyleType)
+            }
             return
         }
         boundKey = key
