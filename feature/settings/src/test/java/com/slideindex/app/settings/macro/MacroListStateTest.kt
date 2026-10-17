@@ -75,7 +75,9 @@ class MacroListStateTest {
     fun `copy 语义保留另一半字段`() {
         val state = MacroListState(macros, "cart")
         assertEquals("cart", state.withMacros(emptyList()).query)
-        assertEquals(emptyList<Macro>(), state.withQuery("").visible)
+        // 空关键字 = 全都要（与 `空关键字返回全部并保持原顺序` 一致）：withQuery 只换关键字，
+        // 原全量列表必须原样留着。这里原先写的是 emptyList()，与它自己的语义相反。
+        assertEquals(macros, state.withQuery("").macros)
     }
 
     @Test

@@ -5,7 +5,7 @@ package com.slideindex.app.settings.macro
  *
  * 界面层把输入框 / 选择器的值同步进来，用它算"能不能保存"、"能不能开始录制"。
  */
-class MacroEditState(
+data class MacroEditState(
     /** 正在编辑的宏 id（界面层已经有 id，这里只是留着做展示用）。 */
     val macroId: String = "",
     val name: String = "",
