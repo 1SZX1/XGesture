@@ -42,9 +42,6 @@ import dev.chrisbanes.haze.HazeState
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.utils.PagerGestureNestedScrollConnection
-import top.yukonga.miuix.kmp.utils.PagerInterceptionMode
-import top.yukonga.miuix.kmp.utils.pagerGestureOverride
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -83,8 +80,8 @@ internal fun MainTabPagerHost(
         pageCount = { MainBottomNavDestination.entries.size },
     )
     val mainTabPagerState = rememberMainTabPagerState(pagerState)
-    // 横滑由 miuix 的 PagerSwipeNode 接管（见下方 pagerGestureOverride），不再经过 pager 原生
-    // 手势，interactionSource 收不到拖动事件，所以自行跟踪“用户正在横滑”用于底栏 1:1 跟随。
+    // 横滑走 pager 原生手势：interactionSource 收不到拖动事件，所以自行跟踪“用户正在横滑”
+    // 用于底栏 1:1 跟随。
     var isPagerDragTracking by remember(pagerState) { mutableStateOf(false) }
     val liquidGlassBackdrop = rememberLayerBackdrop()
     val floatingNavBackdrop = rememberMiuixBlurBackdrop(bottomNavUsesHaze)
@@ -103,10 +100,10 @@ internal fun MainTabPagerHost(
                 }
         }
         launch {
-            // miuix 的横滑与落位共用一个 scroll 突变，突变结束即表示这一轮横滑收尾。
+            // 原生横滑与落位共用一个 scroll 突变：突变期间底栏跟手，结束即收回。
             snapshotFlow { pagerState.isScrollInProgress }
                 .collect { inProgress ->
-                    if (!inProgress) isPagerDragTracking = false
+                    isPagerDragTracking = inProgress
                 }
         }
         snapshotFlow { pagerState.settledPage }.collect { page ->
@@ -185,25 +182,17 @@ internal fun MainTabPagerHost(
                 .fillMaxSize()
                 .then(activeBackdrop?.let { Modifier.layerBackdrop(it) } ?: Modifier),
         ) {
-            // 竖列表惯性滚动 / 回弹过程中的横滑交给 miuix 的 Cross-Axis 拦截；只在本 Tab
-            // 根页启用，子页里的横向滚动（搜索面板、取词结果等）保持原生手势不被抢走。
+            // 横滑切页交给 pager 原生手势。miuix 的 PagerSwipeNode 在 Initial 阶段抢事件，
+            // 会把子级滑条（要到 Main 阶段才消费拖拽）的手势截胡——真机表现为"拖滑条只会切 tab"。
             val pagerGestureEnabled = isRootDestination
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pagerGestureOverride(
-                        pagerState = pagerState,
-                        mode = PagerInterceptionMode.CrossAxisInterceptor,
-                        enabled = pagerGestureEnabled,
-                        onTriggered = { isPagerDragTracking = true },
-                    ),
-                userScrollEnabled = false,
-                pageNestedScrollConnection = if (pagerGestureEnabled) {
-                    PagerGestureNestedScrollConnection
-                } else {
-                    PagerDefaults.pageNestedScrollConnection(pagerState, Orientation.Horizontal)
-                },
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = pagerGestureEnabled,
+                pageNestedScrollConnection = PagerDefaults.pageNestedScrollConnection(
+                    pagerState,
+                    Orientation.Horizontal,
+                ),
                 beyondViewportPageCount = 1,
                 key = { it },
             ) { page ->
