@@ -242,6 +242,8 @@ internal object SettingsSnapshotReader {
             freezerBootstrapExcludedPackages =
                 prefs[SettingsPreferenceKeys.FREEZER_BOOTSTRAP_EXCLUDED_PACKAGES] ?: emptySet(),
             freezerShowInLauncher = prefs[SettingsPreferenceKeys.FREEZER_SHOW_IN_LAUNCHER] ?: false,
+            freezerShowSystemApps =
+                prefs[SettingsPreferenceKeys.FREEZER_SHOW_SYSTEM_APPS] ?: false,
             freezerWorkModeId = prefs[SettingsPreferenceKeys.FREEZER_WORK_MODE]
                 ?: FreezerWorkMode.DEFAULT.id,
             freezerAppIntents = FreezerAppIntentCodec.decode(

@@ -24,6 +24,7 @@ import com.slideindex.app.ui.ExtensionHubScreen
 import com.slideindex.app.ui.ExternalInvocationHelpScreen
 import com.slideindex.app.ui.FreezerAppsPickerScreen
 import com.slideindex.app.ui.FreezerHomeScreen
+import com.slideindex.app.ui.FreezerSettingsScreen
 import com.slideindex.app.ui.LicenseTextScreen
 import com.slideindex.app.ui.LauncherShortcutMenuScreen
 import com.slideindex.app.ui.MissingGesturePermissionsScreen
@@ -83,6 +84,14 @@ fun NavEntryBuilder.extensionHubNavEntries(ctx: MainNavContext) {
         FreezerAppsPickerScreen(
             settingsRepository = ctx.deps.settingsRepository,
             onBack = { ctx.navigateBackTo(AppNavKey.ExtensionFreezer) },
+            onOpenSettings = { ctx.navigate(AppNavKey.ExtensionFreezerSettings) },
+        )
+    }
+
+    hiltEntry<AppNavKey.ExtensionFreezerSettings> {
+        FreezerSettingsScreen(
+            settingsRepository = ctx.deps.settingsRepository,
+            onBack = { ctx.navigateBackTo(AppNavKey.ExtensionFreezerApps) },
         )
     }
 

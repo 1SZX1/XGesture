@@ -280,6 +280,7 @@ class SettingsRepository @Inject constructor(
     suspend fun removeFreezerApp(packageName: String) = edge.removeFreezerApp(packageName)
     suspend fun setFreezerShowInLauncher(enabled: Boolean) = edge.setFreezerShowInLauncher(enabled)
     suspend fun setFreezerWorkMode(modeId: Int) = edge.setFreezerWorkMode(modeId)
+    suspend fun setFreezerShowSystemApps(enabled: Boolean) = edge.setFreezerShowSystemApps(enabled)
     suspend fun setFreezerAppPackages(packages: Set<String>) = edge.setFreezerAppPackages(packages)
     suspend fun setFreezerAppIntent(packageName: String, intent: FreezerAppIntent?) =
         edge.setFreezerAppIntent(packageName, intent)

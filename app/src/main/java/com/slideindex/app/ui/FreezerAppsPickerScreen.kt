@@ -1,15 +1,12 @@
 package com.slideindex.app.ui
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,47 +18,49 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
-import com.slideindex.app.freezer.FreezerLauncherHelper
 import com.slideindex.app.freezer.FreezerListOperations
 import com.slideindex.app.freezer.FreezerOperations
-import com.slideindex.app.settings.FreezerWorkMode
-import com.slideindex.app.settings.PrivilegeMode
 import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.ui.compose.rememberAppRepository
-import com.slideindex.app.ui.miuix.MiuixHintText
-import top.yukonga.miuix.kmp.basic.SmallTitle
+import com.slideindex.app.ui.miuix.MiuixConfirmDialog
 import com.slideindex.app.ui.miuix.MiuixTabRowWithContour
-import com.slideindex.app.ui.miuix.groupedCardItems
-import com.slideindex.app.ui.settings.components.SettingNavigationRow
-import com.slideindex.app.ui.settings.components.SettingSwitchRow
 import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffoldWithExpandableSearch
-import com.slideindex.app.ui.settings.components.settingsCardScopeItem
+import com.slideindex.app.ui.settings.components.settingsLazyTipCard
 import com.slideindex.app.util.TaskManagerUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/**
+ * 「管理应用」的默认视图：**冰箱内**。
+ *
+ * 原先默认是「全部」（174 个应用里 173 个和冰箱无关），用户进来是为了挑成员，
+ * 第一屏却全是无关应用。四个 Tab 也砍成两个：「已冻结 / 已暂停 / 使用中」的分法
+ * 在「冰箱内」这个视图里已经由每行的状态文案回答了，不需要再占一整行宽度。
+ */
 private enum class FreezerPickerFilter {
+    IN_LIST,
     ALL,
-    FROZEN,
-    PAUSED,
-    ACTIVE,
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FreezerAppsPickerScreen(
     settingsRepository: SettingsRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val context = LocalContext.current
-    val resources = LocalResources.current
     val settings by settingsRepository.settings.collectAsStateWithLifecycle(
         initialValue = settingsRepository.readSnapshot()
     )
@@ -69,9 +68,11 @@ fun FreezerAppsPickerScreen(
     var allApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
-    var showSystemApps by remember { mutableStateOf(false) }
-    var listFilter by remember { mutableStateOf(FreezerPickerFilter.ALL) }
+    var listFilter by remember { mutableStateOf(FreezerPickerFilter.IN_LIST) }
     var privilegedAccessGranted by remember { mutableStateOf<Boolean?>(null) }
+    // 冻结 / 暂停中的成员不能直接移出（会在系统里留一个没人管的停用应用），
+    // 所以点「×」先弹确认，问一句要不要恢复后再移出。
+    var pendingRemove by remember { mutableStateOf<AppInfo?>(null) }
     val scope = rememberCoroutineScope()
     val frozenLabel = stringResource(R.string.freezer_status_frozen)
     val pausedLabel = stringResource(R.string.freezer_status_paused)
@@ -97,10 +98,16 @@ fun FreezerAppsPickerScreen(
         isLoading = false
     }
 
-    val searchFilteredApps = remember(allApps, searchQuery, showSystemApps) {
+    val memberPackages = settings.freezerAppPackages
+
+    // 「显示系统应用」只管**候选**，不该把已经是成员的系统应用藏起来：
+    // 关掉它以后「冰箱内」会少算这些人，用户看着 1 个、实际冻着 3 个，而且在这个页面里再也找不到它们。
+    val searchFilteredApps = remember(allApps, searchQuery, settings.freezerShowSystemApps, memberPackages) {
         val query = searchQuery.trim().lowercase()
         allApps
-            .filter { showSystemApps || !it.isSystem }
+            .filter {
+                settings.freezerShowSystemApps || !it.isSystem || it.packageName in memberPackages
+            }
             .filter { app ->
                 query.isBlank() ||
                     app.label.contains(query, ignoreCase = true) ||
@@ -109,159 +116,52 @@ fun FreezerAppsPickerScreen(
             }
     }
 
-    val frozenTabCount = remember(searchFilteredApps) {
-        searchFilteredApps.count { FreezerOperations.stateOf(context, it.packageName).isFrozen }
+    // 两个 Tab 的计数都取**搜索过滤之后**的数字：与列表同源，不会出现「Tab 显示 5、列表只有 1 个」的错位。
+    val inListCount = remember(searchFilteredApps, memberPackages) {
+        searchFilteredApps.count { it.packageName in memberPackages }
     }
-    val pausedTabCount = remember(searchFilteredApps) {
-        searchFilteredApps.count { FreezerOperations.stateOf(context, it.packageName).isPaused }
-    }
-    val allTabCount = searchFilteredApps.size
-    val activeTabCount = allTabCount - frozenTabCount - pausedTabCount
+    val allCount = searchFilteredApps.size
 
-    val displayedApps = remember(searchFilteredApps, settings.freezerAppPackages, listFilter) {
+    val displayedApps = remember(searchFilteredApps, memberPackages, listFilter) {
         searchFilteredApps
-            .filter { app ->
-                when (listFilter) {
-                    FreezerPickerFilter.ALL -> true
-                    FreezerPickerFilter.FROZEN -> FreezerOperations.stateOf(context, app.packageName).isFrozen
-                    FreezerPickerFilter.PAUSED -> FreezerOperations.stateOf(context, app.packageName).isPaused
-                    FreezerPickerFilter.ACTIVE -> FreezerOperations.stateOf(context, app.packageName).isActive
-                }
-            }
+            .filter { app -> listFilter == FreezerPickerFilter.ALL || app.packageName in memberPackages }
             .sortedWith(
-                compareByDescending<AppInfo> { it.packageName in settings.freezerAppPackages }
+                compareByDescending<AppInfo> { it.packageName in memberPackages }
                     .thenBy { it.pinyinKey }
             )
     }
 
     val filterTabs = listOf(
-        stringResource(R.string.freezer_tab_all_count, allTabCount),
-        stringResource(R.string.freezer_tab_frozen_count, frozenTabCount),
-        stringResource(R.string.freezer_tab_paused_count, pausedTabCount),
-        stringResource(R.string.freezer_tab_active_count, activeTabCount)
+        stringResource(R.string.freezer_tab_in_list_count, inListCount),
+        stringResource(R.string.freezer_tab_all_count, allCount),
     )
+    val permissionBannerText = stringResource(R.string.freezer_permission_banner)
     val selectedFilterTabIndex = when (listFilter) {
-        FreezerPickerFilter.ALL -> 0
-        FreezerPickerFilter.FROZEN -> 1
-        FreezerPickerFilter.PAUSED -> 2
-        FreezerPickerFilter.ACTIVE -> 3
+        FreezerPickerFilter.IN_LIST -> 0
+        FreezerPickerFilter.ALL -> 1
     }
 
     SettingsLazyScreenScaffoldWithExpandableSearch(
         title = stringResource(R.string.freezer_manage_apps),
-        pageHint = stringResource(R.string.extension_freezer_subtitle),
+        pageHint = stringResource(R.string.freezer_picker_hint),
         searchQuery = searchQuery,
         onSearchQueryChange = { searchQuery = it },
-        onBack = onBack
+        onBack = onBack,
+        extraActions = {
+            IconButton(onClick = onOpenSettings) {
+                MiuixIcon(
+                    imageVector = MiuixIcons.Medium.Settings,
+                    contentDescription = stringResource(R.string.freezer_settings_title),
+                    tint = MiuixTheme.colorScheme.onBackground,
+                )
+            }
+        },
     ) {
-        item(key = "freezer-picker-hint") {
-            MiuixHintText(
-                when (settings.privilegeMode) {
-                    PrivilegeMode.SHIZUKU ->
-                        if (privilegedAccessGranted == true) {
-                            stringResource(R.string.freezer_shizuku_granted)
-                        } else {
-                            stringResource(R.string.freezer_shizuku_denied)
-                        }
-                    PrivilegeMode.ROOT ->
-                        if (privilegedAccessGranted == true) {
-                            stringResource(R.string.privilege_mode_status_root_ready)
-                        } else {
-                            stringResource(R.string.privilege_mode_status_root_missing)
-                        }
-                }
-            )
-        }
-        item(key = "freezer-picker-launcher-hint") {
-            MiuixHintText(stringResource(R.string.freezer_legacy_icon_cleanup))
-        }
-        item(key = "freezer-picker-pause-hint") {
-            MiuixHintText(stringResource(R.string.freezer_pause_semantics_hint))
-        }
-        groupedCardItems(
-            keyPrefix = "freezer-picker-options",
-            items = listOf(
-                settingsCardScopeItem("show-launcher") {
-                    SettingSwitchRow(
-                        title = stringResource(R.string.freezer_show_in_launcher_title),
-                        subtitle = stringResource(R.string.freezer_show_in_launcher_desc),
-                        checked = settings.freezerShowInLauncher,
-                        enabled = true,
-                        onCheckedChange = { enabled ->
-                            scope.launch {
-                                if (enabled) {
-                                    if (!FreezerLauncherHelper.requestPinShortcut(context)) {
-                                        FreezerLauncherHelper.showPinShortcutFailedToast(context)
-                                        return@launch
-                                    }
-                                    settingsRepository.setFreezerShowInLauncher(true)
-                                } else {
-                                    settingsRepository.setFreezerShowInLauncher(false)
-                                    FreezerLauncherHelper.cleanupLegacyAlias(context)
-                                    FreezerLauncherHelper.showUnpinHintToast(context)
-                                }
-                            }
-                        }
-                    )
-                },
-                settingsCardScopeItem("show-system") {
-                    SettingSwitchRow(
-                        title = stringResource(R.string.freezer_show_system_apps),
-                        checked = showSystemApps,
-                        enabled = true,
-                        onCheckedChange = { showSystemApps = it }
-                    )
-                },
-                settingsCardScopeItem("work-mode") {
-                    val pauseMode = settings.freezerWorkMode.isPause
-                    SettingSwitchRow(
-                        title = stringResource(
-                            R.string.freezer_work_mode_title_format,
-                            stringResource(
-                                if (pauseMode) R.string.freezer_action_pause else R.string.freezer_action_freeze
-                            )
-                        ),
-                        subtitle = stringResource(R.string.freezer_work_mode_pause_desc),
-                        checked = pauseMode,
-                        enabled = true,
-                        onCheckedChange = { pause ->
-                            scope.launch {
-                                settingsRepository.setFreezerWorkMode(
-                                    if (pause) FreezerWorkMode.PAUSE.id else FreezerWorkMode.FREEZE.id
-                                )
-                            }
-                        }
-                    )
-                },
-                settingsCardScopeItem("import-frozen") {
-                    SettingNavigationRow(
-                        icon = { label -> Icon(Icons.Default.AcUnit, contentDescription = label) },
-                        title = stringResource(R.string.freezer_import_frozen_apps),
-                        subtitle = stringResource(R.string.freezer_import_frozen_apps_desc),
-                        onClick = {
-                            scope.launch {
-                                val count = withContext(Dispatchers.IO) {
-                                    FreezerListOperations.importFrozenApps(context, settingsRepository)
-                                }
-                                val message = if (count > 0) {
-                                    resources.getQuantityString(R.plurals.freezer_import_frozen_done, count, count)
-                                } else {
-                                    resources.getString(R.string.freezer_import_frozen_none)
-                                }
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                reloadApps()
-                            }
-                        }
-                    )
-                }
-            )
-        )
-        item(key = "freezer-picker-apps-title") {
-            SmallTitle(
-                stringResource(R.string.freezer_apps_section_title, displayedApps.size),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    
+        // 只在真的没授权时出现：原来「Shizuku 已授权」这种正常状态也常驻一行灰字，属于没信息量的日志。
+        if (privilegedAccessGranted == false) {
+            settingsLazyTipCard(
+                key = "freezer-picker-permission",
+                text = permissionBannerText,
             )
         }
         item(key = "freezer-picker-filter-tabs") {
@@ -270,10 +170,8 @@ fun FreezerAppsPickerScreen(
                 selectedTabIndex = selectedFilterTabIndex,
                 onTabSelected = { index ->
                     listFilter = when (index) {
-                        0 -> FreezerPickerFilter.ALL
-                        1 -> FreezerPickerFilter.FROZEN
-                        2 -> FreezerPickerFilter.PAUSED
-                        else -> FreezerPickerFilter.ACTIVE
+                        0 -> FreezerPickerFilter.IN_LIST
+                        else -> FreezerPickerFilter.ALL
                     }
                 },
                 contentHorizontalPadding = 12.dp
@@ -290,12 +188,14 @@ fun FreezerAppsPickerScreen(
             }
             displayedApps.isEmpty() -> {
                 item(key = "freezer-picker-empty") {
+                    val emptyText = when {
+                        searchQuery.isNotBlank() -> stringResource(R.string.no_apps)
+                        listFilter == FreezerPickerFilter.IN_LIST ->
+                            stringResource(R.string.freezer_list_empty_in_list)
+                        else -> stringResource(R.string.no_apps)
+                    }
                     Text(
-                        text = if (searchQuery.isBlank()) {
-                            stringResource(R.string.no_apps)
-                        } else {
-                            stringResource(R.string.no_apps)
-                        },
+                        text = emptyText,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp)
                     )
@@ -304,47 +204,80 @@ fun FreezerAppsPickerScreen(
             else -> {
                 items(displayedApps.size, key = { displayedApps[it].packageName }) { index ->
                     val app = displayedApps[index]
-                    val inList = app.packageName in settings.freezerAppPackages
+                    val inList = app.packageName in memberPackages
                     val state = FreezerOperations.stateOf(context, app.packageName)
-                    val statusSuffix = when {
-                        !inList -> ""
-                        state.isFrozen -> " · $frozenLabel"
-                        state.isPaused -> " · $pausedLabel"
-                        else -> " · $activeLabel"
+                    // 在列表里 → 副标题回答「它现在什么状态」；不在列表里 → 回答「这是哪个包」。
+                    val subtitle = when {
+                        !inList -> app.packageName
+                        state.isFrozen -> frozenLabel
+                        state.isPaused -> pausedLabel
+                        else -> activeLabel
                     }
                     AppPackageListRow(
                         entry = AppPackageEntry.Installed(app),
                         segmentIndex = index,
                         segmentCount = displayedApps.size,
                         actionIcon = if (inList) Icons.Default.Close else Icons.Default.Add,
-                        actionDescription = if (inList) {
-                            stringResource(R.string.freezer_remove_from_list)
-                        } else {
-                            stringResource(R.string.freezer_add_to_list)
+                        actionDescription = when {
+                            !inList -> stringResource(R.string.freezer_add_to_list)
+                            state.isFrozen -> stringResource(R.string.freezer_unfreeze_and_remove)
+                            state.isPaused -> stringResource(R.string.freezer_unpause_and_remove)
+                            else -> stringResource(R.string.freezer_remove_from_list)
                         },
                         missingIcon = Icons.Default.TouchApp,
-                        subtitle = app.packageName + statusSuffix,
-                        enabled = !inList || state.isActive,
+                        subtitle = subtitle,
                         onAction = {
-                            scope.launch {
-                                if (inList) {
-                                    if (FreezerListOperations.removeFromList(
-                                            context = context,
-                                            settingsRepository = settingsRepository,
-                                            packageName = app.packageName,
-                                            appRepository = appRepository
-                                        )
-                                    ) {
-                                        reloadApps()
-                                    }
-                                } else {
-                                    settingsRepository.addFreezerApp(app.packageName)
+                            if (!inList) {
+                                scope.launch { settingsRepository.addFreezerApp(app.packageName) }
+                            } else if (state.isActive) {
+                                scope.launch {
+                                    FreezerListOperations.removeFromList(
+                                        context = context,
+                                        settingsRepository = settingsRepository,
+                                        packageName = app.packageName,
+                                        appRepository = appRepository
+                                    )
                                 }
+                            } else {
+                                // 冻结 / 暂停中的成员：先问要不要恢复再移出，而不是把按钮直接置灰
+                                // （那样在这一页根本删不掉一个冻着的成员）。
+                                pendingRemove = app
                             }
                         }
                     )
                 }
             }
         }
+    }
+
+    pendingRemove?.let { app ->
+        val state = FreezerOperations.stateOf(context, app.packageName)
+        val frozen = state.isFrozen
+        MiuixConfirmDialog(
+            show = true,
+            onDismissRequest = { pendingRemove = null },
+            title = app.label,
+            message = stringResource(
+                if (frozen) R.string.freezer_remove_frozen_confirm
+                else R.string.freezer_remove_paused_confirm
+            ),
+            confirmText = stringResource(
+                if (frozen) R.string.freezer_unfreeze_and_remove
+                else R.string.freezer_unpause_and_remove
+            ),
+            onConfirm = {
+                scope.launch {
+                    if (FreezerListOperations.restoreAndRemoveFromList(
+                            context = context,
+                            settingsRepository = settingsRepository,
+                            packageName = app.packageName,
+                            appRepository = appRepository
+                        )
+                    ) {
+                        reloadApps()
+                    }
+                }
+            },
+        )
     }
 }

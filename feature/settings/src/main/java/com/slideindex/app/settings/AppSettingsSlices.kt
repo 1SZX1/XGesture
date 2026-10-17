@@ -94,6 +94,8 @@ data class LauncherSettings(
     val freezerAppPackages: Set<String> = emptySet(),
     val freezerBootstrapExcludedPackages: Set<String> = emptySet(),
     val freezerShowInLauncher: Boolean = false,
+    /** 「管理应用」的「全部」是否也列出系统应用；原先是页面内的临时状态，挪到设置页后必须持久化。 */
+    val freezerShowSystemApps: Boolean = false,
     /** 冰箱工作模式：面板底部按钮默认执行冻结还是暂停，见 [FreezerWorkMode]。 */
     val freezerWorkModeId: Int = FreezerWorkMode.DEFAULT.id,
     /** 每个成员上次被设成的目标态；批量动作优先按它还原，见 [FreezerAppIntent]。 */

@@ -339,6 +339,9 @@ sealed interface AppNavKey : NavKey {
     @Serializable data class ExtensionDiagnosticLogDetail(val fileName: String) : AppNavKey
     @Serializable data object ExtensionFreezer : AppNavKey
     @Serializable data object ExtensionFreezerApps : AppNavKey
+
+    /** 冰箱全局设置（工作模式 / 系统应用 / 启动器图标 / 导入），从「管理应用」顶栏的齿轮进入。 */
+    @Serializable data object ExtensionFreezerSettings : AppNavKey
     @Serializable data object ExtensionBackTap : AppNavKey
     @Serializable data object ExtensionBackTapActionPick : AppNavKey
     @Serializable data object ExtensionBackTapActionMyShortcuts : AppNavKey

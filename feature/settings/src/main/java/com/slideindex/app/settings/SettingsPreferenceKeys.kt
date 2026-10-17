@@ -443,6 +443,9 @@ internal object SettingsPreferenceKeys {
     val FREEZER_SHOW_IN_LAUNCHER = booleanPreferencesKey("freezer_show_in_launcher")
     val FREEZER_WORK_MODE = intPreferencesKey("freezer_work_mode")
 
+    /** 「管理应用」页是否把系统应用也列进「全部」；从页内状态提升为设置，见 `FreezerSettingsScreen`。 */
+    val FREEZER_SHOW_SYSTEM_APPS = booleanPreferencesKey("freezer_show_system_apps")
+
     /** 每个冰箱成员「上次被设成哪种目标态」，见 [FreezerAppIntent] / [FreezerAppIntentCodec]。 */
     val FREEZER_APP_INTENTS = stringPreferencesKey("freezer_app_intents")
     val EXPAND_PANEL_SHORTCUTS = stringPreferencesKey("expand_panel_shortcuts")
