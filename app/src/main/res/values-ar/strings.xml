@@ -1024,6 +1024,15 @@
     <string name="gesture_action_screen_off_keep_awake">تعليق الشاشة المغلقة (شاشة مغلقة زائفة)</string>
     <string name="gesture_action_screen_off_keep_awake_desc">شاشة سوداء بالكامل بأدنى سطوع مع إبقاء الشاشة مستيقظة لمنع حرق الشاشة، انقر نقراً مزدوجاً أو اضغط على مفتاح الصوت للخروج</string>
     <string name="pseudo_screen_off_hint">انقر مرتين على الشاشة أو اضغط على زر الصوت للخروج</string>
+    <string name="gesture_action_touch_block">تعطيل اللمس</string>
+    <string name="gesture_action_touch_block_desc">ابتلاع كل اللمسات على الشاشة: ارسم دائرة للاستعادة، والنقر المزدوج يبدّل الشاشة السوداء</string>
+    <string name="gesture_search_touch_block_1">تعطيل اللمس</string>
+    <string name="gesture_search_touch_block_2">منع اللمس الخاطئ</string>
+    <string name="touch_block_hint_title">تم تعطيل اللمس</string>
+    <string name="touch_block_hint_body">ارسم دائرة للاستعادة، والنقر المزدوج يبدّل الشاشة السوداء</string>
+    <string name="touch_block_black_hint_body">الشاشة سوداء · انقر مرتين للإضاءة أو ارسم دائرة لإلغاء تعطيل اللمس</string>
+    <string name="touch_block_released">تمت استعادة اللمس</string>
+    <string name="touch_block_released_timeout">تمت استعادة اللمس تلقائياً (مهلة)</string>
     <string name="gesture_action_pin_to_screen">التثبيت على الشاشة</string>
     <string name="gesture_action_pin_to_screen_desc">اختيار نص أو صورة من الحافظة لإنشاء نافذة عائمة قابلة للسحب ومثبتة في الأعلى</string>
     <string name="gesture_action_app_carousel_switcher">مبدل التطبيقات</string>

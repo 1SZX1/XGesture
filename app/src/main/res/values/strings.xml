@@ -1737,6 +1737,15 @@
     <string name="gesture_action_screen_off_keep_awake">Pseudo Screen Off (Keep Awake)</string>
     <string name="gesture_action_screen_off_keep_awake_desc">Full black screen with minimum brightness, keeps device awake and prevents burn-in. Double tap or press volume key to exit.</string>
     <string name="pseudo_screen_off_hint">Double tap or press volume key to exit</string>
+    <string name="gesture_action_touch_block">Block touch</string>
+    <string name="gesture_action_touch_block_desc">Swallow every touch on the screen: draw a circle to restore. Double tap toggles a black screen.</string>
+    <string name="gesture_search_touch_block_1">Block touch</string>
+    <string name="gesture_search_touch_block_2">Prevent accidental touch</string>
+    <string name="touch_block_hint_title">Touch blocked</string>
+    <string name="touch_block_hint_body">Draw a circle to restore. Double tap toggles a black screen.</string>
+    <string name="touch_block_black_hint_body">Black screen on · double tap to brighten, or draw a circle to restore touch</string>
+    <string name="touch_block_released">Touch restored</string>
+    <string name="touch_block_released_timeout">Touch restored (timed out)</string>
     <string name="gesture_action_pin_to_screen">Pin to screen</string>
     <string name="gesture_action_pin_to_screen_desc">Pin clipboard text or image as a draggable floating note or overlay</string>
     <string name="gesture_action_app_carousel_switcher">App switcher</string>

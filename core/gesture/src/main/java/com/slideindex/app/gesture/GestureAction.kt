@@ -143,6 +143,17 @@ enum class GestureActionType(val id: Int) {
      * 具体行为见 `com.slideindex.app.pagescroll`。
      */
     PAGE_SCROLL(97),
+
+    /**
+     * 「禁止触摸」：全屏吞掉所有触摸，屏幕对下面的应用完全无响应。
+     *
+     * 解除方式：在屏幕上画一个闭合的圈（见 `TouchBlockLoopDetector`）；双击黑屏后再双击亮屏可以继续用；
+     * 最长 5 分钟后自动解除兜底。
+     *
+     * 另外还注册了 `ACTION_SCREEN_OFF` 做**静默兜底**（收到就撤窗），但它只是 best-effort：Flyme + Android 14+
+     * 上会因进程冻结、AOD/doze、快速解锁而漏掉，所以**文案里不承诺"锁屏恢复"**，别把它当可靠路径。
+     */
+    TOUCH_BLOCK(98),
     ;
 
     companion object {
@@ -938,6 +949,12 @@ sealed class GestureAction {
         override val payload = ""
     }
 
+    /** 禁止触摸：全屏吞掉所有触摸，画一个闭合的圈解除。 */
+    data object TouchBlock : GestureAction() {
+        override val type = GestureActionType.TOUCH_BLOCK
+        override val payload = ""
+    }
+
     /** 钉到屏幕（轻量弹窗选择文本或图片，生成悬浮便签或图片置顶）。 */
     data object PinToScreen : GestureAction() {
         override val type = GestureActionType.PIN_TO_SCREEN
@@ -1088,6 +1105,7 @@ sealed class GestureAction {
                 GestureActionType.CURRENT_APP_INFO -> CurrentAppInfo
                 GestureActionType.SIMULATE_KEY_EVENT -> SimulateKeyEvent.fromPayload(payload)
                 GestureActionType.SCREEN_OFF_KEEP_AWAKE -> ScreenOffKeepAwake
+                GestureActionType.TOUCH_BLOCK -> TouchBlock
                 GestureActionType.PIN_TO_SCREEN -> PinToScreen
                 GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ForegroundActivityInspector
                 GestureActionType.NONE -> None

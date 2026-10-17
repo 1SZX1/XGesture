@@ -107,6 +107,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.OPEN_LINK -> Icons.Outlined.Link
     GestureActionType.CURRENT_APP_INFO -> ThinActionIcons.Assistant
     GestureActionType.SCREEN_OFF_KEEP_AWAKE -> ThinActionIcons.ScreenOffKeepAwake
+    GestureActionType.TOUCH_BLOCK -> ThinActionIcons.TouchApp
     GestureActionType.PIN_TO_SCREEN -> ThinActionIcons.Pin
     GestureActionType.SIMULATE_KEY_EVENT -> ThinActionIcons.Keyboard
     GestureActionType.POINTER_GESTURE_RECORDER -> ThinActionIcons.Gesture
@@ -204,6 +205,7 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.OPEN_LINK -> Icons.Outlined.Link
     GestureActionType.CURRENT_APP_INFO -> ThinActionIcons.Assistant
     GestureActionType.SCREEN_OFF_KEEP_AWAKE -> ThinActionIcons.ScreenOffKeepAwake
+    GestureActionType.TOUCH_BLOCK -> ThinActionIcons.TouchApp
     GestureActionType.PIN_TO_SCREEN -> ThinActionIcons.Pin
     GestureActionType.SIMULATE_KEY_EVENT -> ThinActionIcons.Keyboard
     GestureActionType.POINTER_GESTURE_RECORDER -> ThinActionIcons.Gesture

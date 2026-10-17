@@ -1041,6 +1041,15 @@
     <string name="gesture_action_screen_off_keep_awake">疑似画面オフ（スリープ維持）</string>
     <string name="gesture_action_screen_off_keep_awake_desc">最小輝度の全黒画面。端末を起動状態に保ち、焼き付きを防止。ダブルタップまたは音量キーで終了。</string>
     <string name="pseudo_screen_off_hint">ダブルタップまたは音量キーで終了</string>
+    <string name="gesture_action_touch_block">タッチ禁止</string>
+    <string name="gesture_action_touch_block_desc">画面全体のタッチを無効化。円を描くと解除。ダブルタップで画面のオン/オフを切り替え</string>
+    <string name="gesture_search_touch_block_1">タッチ禁止</string>
+    <string name="gesture_search_touch_block_2">誤タッチ防止</string>
+    <string name="touch_block_hint_title">タッチを禁止しました</string>
+    <string name="touch_block_hint_body">円を描くと解除。ダブルタップで画面のオン/オフを切り替え</string>
+    <string name="touch_block_black_hint_body">画面オフ中 · ダブルタップで点灯、円を描くとタッチ解除</string>
+    <string name="touch_block_released">タッチ禁止を解除しました</string>
+    <string name="touch_block_released_timeout">タイムアウトでタッチ禁止を解除しました</string>
     <string name="gesture_action_pin_to_screen">画面にピン留め</string>
     <string name="gesture_action_pin_to_screen_desc">クリップボードのテキストまたは画像をドラッグ可能なフローティングメモまたはオーバーレイとしてピン留め</string>
     <string name="gesture_action_app_carousel_switcher">アプリ切り替え</string>

@@ -114,6 +114,7 @@ object GestureActionCatalog {
         GestureActionType.PAGE_SCROLL,
         GestureActionType.CURRENT_APP_INFO,
         GestureActionType.SCREEN_OFF_KEEP_AWAKE,
+        GestureActionType.TOUCH_BLOCK,
         -> GestureActionCategory.Navigation
 
         // 2. 开关与调节 (Controls & Media)
@@ -262,6 +263,7 @@ object GestureActionCatalog {
         GestureAction.FreeWindowCurrentApp,
         GestureAction.CurrentAppInfo,
         GestureAction.ScreenOffKeepAwake,
+        GestureAction.TouchBlock,
         GestureAction.LockScreen,
         GestureAction.LockScreenAndSilenceRing,
         GestureAction.LockScreenAndMuteAll,

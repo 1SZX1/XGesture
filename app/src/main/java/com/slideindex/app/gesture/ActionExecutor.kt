@@ -424,6 +424,8 @@ class ActionExecutor(
                 com.slideindex.app.overlay.PseudoScreenOffOverlayWindow.toggle(context)
                 true
             }
+            GestureAction.TouchBlock ->
+                com.slideindex.app.overlay.TouchBlockOverlayWindow.toggle(context)
             GestureAction.PinToScreen -> {
                 com.slideindex.app.overlay.PinToScreenDialog.show(context)
                 true
