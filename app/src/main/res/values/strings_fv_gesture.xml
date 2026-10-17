@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FooView（FV 悬浮球）「自定义手势」移植版用到的文案。
+     单独成文件是为了不把这几条塞进已经 4500 条的 strings.xml（仓库里 macro / page_scroll 也是这样分文件的）。 -->
+<resources>
+    <string name="fv_custom_gesture_title">Custom gestures</string>
+    <string name="fv_custom_gesture_summary">Draw a stroke on the floating ball to run an action</string>
+    <string name="fv_custom_gesture_section">Custom gestures</string>
+    <string name="fv_custom_gesture_add">Add gesture</string>
+    <string name="fv_custom_gesture_empty">No custom gestures yet — tap “+” to draw one.</string>
+    <string name="fv_custom_gesture_edit">Edit</string>
+    <string name="fv_custom_gesture_delete">Delete</string>
+    <string name="fv_custom_gesture_delete_title">Delete gesture?</string>
+    <string name="fv_custom_gesture_delete_message">The gesture and its mirrored counterpart will both be removed.</string>
+    <string name="fv_custom_gesture_mirror_badge">Mirrored gesture</string>
+    <string name="fv_custom_gesture_dialog_title">Gesture</string>
+    <string name="fv_custom_gesture_action_row">Action</string>
+    <string name="fv_custom_gesture_action_none">None</string>
+    <string name="fv_custom_gesture_mirror_row">Also add the mirrored gesture</string>
+    <string name="fv_custom_gesture_conflict_message">This gesture is already assigned to "%1$s". Draw a different shape, or change that one first.</string>
+    <string name="fv_custom_gesture_failed_title">Failed</string>
+    <string name="fv_custom_gesture_straight_line">A straight line conflicts with the built-in swipe gestures. Draw a corner or a curve instead.</string>
+    <string name="fv_custom_gesture_need_gesture">Draw a gesture first.</string>
+    <string name="fv_custom_gesture_need_action">Pick an action first.</string>
+    <string name="fv_custom_gesture_save_failed">Could not save the gesture.</string>
+</resources>

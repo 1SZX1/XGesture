@@ -123,6 +123,23 @@ internal class FloatBallGestureDetector(
     private var onLauncherCaptureUp: ((rawX: Float, rawY: Float) -> Unit)? = null
     private var launcherCaptureMode = false
 
+    /**
+     * FV「自定义手势」的接线点：把本次抬手的原始轨迹（x,y 交替的**屏幕 raw 坐标**）交给外部判定。
+     *
+     * 返回 true = 本次已被自定义手势消费（命中并执行了动作，或画的是曲线但没匹配到 —— 后者按 FV
+     * 语义「什么都不做」）；返回 false = 交给原生方向手势，行为与未接入时完全一致。
+     *
+     * 解耦说明：这里是纯 lambda，检测器不认识 FV 的类型；判定与动作执行都在
+     * `FloatBallOverlay` 侧（见 `FvFloatBallBridge.kt`）。
+     */
+    private var onCustomGestureResolve: ((path: FloatArray, rawX: Float, rawY: Float, touchDownX: Float, touchDownY: Float) -> Boolean)? = null
+
+    /**
+     * 本次手势的原始轨迹（x,y 交替）。仅用于 FV 自定义手势的形状识别；
+     * 与 `downX/downY/lastX/lastY` 那套「方向 + 位移」判定互不干扰。
+     */
+    private val gesturePath = ArrayList<Float>(64)
+
     private val pickGestureLockRunnable = Runnable {
         if (!pickDragStarted) return@Runnable
         pickGestureLocked = true
@@ -171,6 +188,7 @@ internal class FloatBallGestureDetector(
         onPickPreviewCancel: () -> Unit = {},
         onLauncherCaptureMove: (rawX: Float, rawY: Float) -> Unit = { _, _ -> },
         onLauncherCaptureUp: (rawX: Float, rawY: Float) -> Unit = { _, _ -> },
+        onCustomGestureResolve: (path: FloatArray, rawX: Float, rawY: Float, touchDownX: Float, touchDownY: Float) -> Boolean = { _, _, _, _, _ -> false },
         inwardSignProvider: () -> Float = { 1f }
     ) {
         this.density = density
@@ -192,6 +210,7 @@ internal class FloatBallGestureDetector(
         this.onPickPreviewCancel = onPickPreviewCancel
         this.onLauncherCaptureMove = onLauncherCaptureMove
         this.onLauncherCaptureUp = onLauncherCaptureUp
+        this.onCustomGestureResolve = onCustomGestureResolve
         this.inwardSignProvider = inwardSignProvider
     }
 
@@ -222,6 +241,9 @@ internal class FloatBallGestureDetector(
                 lastX = downX
                 lastY = downY
                 downTime = SystemClock.uptimeMillis()
+                gesturePath.clear()
+                gesturePath.add(downX)
+                gesturePath.add(downY)
                 pickActive = true
                 onGestureHint?.invoke(null)
                 onPickPreviewStart?.invoke(downX, downY)
@@ -241,6 +263,8 @@ internal class FloatBallGestureDetector(
                 val dy = event.rawY - lastY
                 lastX = event.rawX
                 lastY = event.rawY
+                gesturePath.add(event.rawX)
+                gesturePath.add(event.rawY)
                 val distFromStart = hypot(event.rawX - downX, event.rawY - downY)
                 if (!pickDragStarted) {
                     val progress = if (slopPx > 0f) (distFromStart / slopPx).coerceIn(0f, 1f) else 1f
@@ -272,6 +296,8 @@ internal class FloatBallGestureDetector(
             MotionEvent.ACTION_UP -> {
                 onGestureHint?.invoke(null)
                 cancelDeferredCallbacks()
+                gesturePath.add(event.rawX)
+                gesturePath.add(event.rawY)
                 val totalDx = event.rawX - downX
                 val totalDy = event.rawY - downY
                 lockSwipeAxisIfNeeded(totalDx, totalDy)
@@ -297,6 +323,19 @@ internal class FloatBallGestureDetector(
                         onGesture?.invoke(compoundGesture, event.rawX, event.rawY, downX, downY)
                         finishGestureOnly()
                     }
+                    // FV「自定义手势」的位置（用户选定方案 A）：
+                    //  - **原生"形状类"手势优先**：折返 / 混合（两段式）在上面已经先判，成立就归原生，绝不抢
+                    //    （此前放在最前面，把"先下滑再内滑"这类混合手势吃掉了）。
+                    //  - 这里只处理剩下的轨迹：**直线**由回调自己判定为"不介入"（返回 false）→ 继续落到下面的
+                    //    方向滑动分支，行为与接入前完全一致；**折线/曲线**才交给自定义手势
+                    //    （命中→执行动作；没命中→按 FV 语义本次什么都不做）。
+                    onCustomGestureResolve?.invoke(
+                        gesturePath.toFloatArray(),
+                        event.rawX,
+                        event.rawY,
+                        downX,
+                        downY
+                    ) == true -> finishGestureOnly()
                     shouldCommitSwipeGesture(dx, dy) -> {
                         classifySwipe(dx, dy)
                             ?.let { onGesture?.invoke(it, event.rawX, event.rawY, downX, downY) }
@@ -710,6 +749,7 @@ internal class FloatBallGestureDetector(
         reboundStartTime = 0L
         firstSegmentAnchorX = null
         firstSegmentAnchorY = null
+        gesturePath.clear()
     }
 
     private fun swipeThresholdPx(percent: Float, density: Float): Float =

@@ -471,6 +471,13 @@ sealed interface AppNavKey : NavKey {
     @Serializable data object FloatBallAppearance : AppNavKey
     @Serializable data object FloatBallStyle : AppNavKey
     @Serializable data object FloatBallGesture : AppNavKey
+    /**
+     * 悬浮球手势页里的「自定义手势」列表（FV 的 `v_setting_custom_gesture` → `FooSettingCustomGuesture`）。
+     *
+     * 只有列表页需要导航键：录入弹窗是 View 版 Dialog，动作选择与它的子选择页都在列表页内部
+     * 按阶段切换（原因见 `ui/FvCustomGestureScreen.kt` 的文件头注释）。
+     */
+    @Serializable data object FvCustomGesture : AppNavKey
     @Serializable data class FloatBallGestureActionPick(val gestureTypeId: Int) : AppNavKey
     @Serializable data class FloatBallGestureMyShortcuts(val gestureTypeId: Int) : AppNavKey
     @Serializable data class FloatBallGesturePresetShortcuts(val gestureTypeId: Int) : AppNavKey

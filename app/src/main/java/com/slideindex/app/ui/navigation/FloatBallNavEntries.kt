@@ -381,6 +381,8 @@ fun NavEntryBuilder.floatBallNavEntries(ctx: MainNavContext) {
             onUpSwipeShortPercentChange = viewModel::setFloatBallUpSwipeShortPercent,
             onLongPressMsChange = viewModel::setFloatBallLongPressMs,
             onOverlayAnchorAtTouchDownChange = viewModel::setFloatBallOverlayAnchorAtTouchDown,
+            // FooView「自定义手势」列表页（由 fvCustomGestureNavEntries 注册）
+            onOpenCustomGesture = { ctx.navigate(AppNavKey.FvCustomGesture) },
         )
     }
 

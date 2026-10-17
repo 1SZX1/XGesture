@@ -789,6 +789,8 @@ private fun NavEntryBuilder.registerMainTabNavEntries(
         MainBottomNavDestination.Home -> {
             homeNavEntries(ctx)
             floatBallNavEntries(ctx)
+            // FooView「自定义手势」列表页（入口在 悬浮球 → 手势 页里）
+            fvCustomGestureNavEntries(ctx)
             searchPanelNavEntries(ctx)
             floatingPointerNavEntries(ctx)
         }

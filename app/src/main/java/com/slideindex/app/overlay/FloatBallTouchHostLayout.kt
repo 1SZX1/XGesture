@@ -55,6 +55,8 @@ internal class FloatBallTouchHostLayout(
     private var onBallPickPreviewCancel: (() -> Unit)? = null
     private var onLauncherCaptureMove: ((rawX: Float, rawY: Float) -> Unit)? = null
     private var onLauncherCaptureUp: ((rawX: Float, rawY: Float) -> Unit)? = null
+    /** FV「自定义手势」：返回 true 表示本次抬手已被自定义手势消费（不再走原生方向手势）。 */
+    private var onCustomGestureResolve: ((path: FloatArray, rawX: Float, rawY: Float, touchDownX: Float, touchDownY: Float) -> Boolean)? = null
 
     private var idleChromeView: View? = null
 
@@ -110,7 +112,11 @@ internal class FloatBallTouchHostLayout(
             },
             onPickPreviewCancel = { onBallPickPreviewCancel?.invoke() },
             onLauncherCaptureMove = { x, y -> onLauncherCaptureMove?.invoke(x, y) },
-            onLauncherCaptureUp = { x, y -> onLauncherCaptureUp?.invoke(x, y) }
+            onLauncherCaptureUp = { x, y -> onLauncherCaptureUp?.invoke(x, y) },
+            // FV「自定义手势」：返回 true = 本次抬手已被自定义手势消费（见 FloatBallGestureDetector）
+            onCustomGestureResolve = { path, rawX, rawY, touchDownX, touchDownY ->
+                onCustomGestureResolve?.invoke(path, rawX, rawY, touchDownX, touchDownY) ?: false
+            }
         )
     }
 
@@ -126,7 +132,8 @@ internal class FloatBallTouchHostLayout(
         onPickPreviewMove: (touchDownX: Float, touchDownY: Float, fingerX: Float, fingerY: Float) -> Unit = { _, _, _, _ -> },
         onPickPreviewCancel: () -> Unit = {},
         onLauncherCaptureMove: (rawX: Float, rawY: Float) -> Unit = { _, _ -> },
-        onLauncherCaptureUp: (rawX: Float, rawY: Float) -> Unit = { _, _ -> }
+        onLauncherCaptureUp: (rawX: Float, rawY: Float) -> Unit = { _, _ -> },
+        onCustomGestureResolve: (path: FloatArray, rawX: Float, rawY: Float, touchDownX: Float, touchDownY: Float) -> Boolean = { _, _, _, _, _ -> false }
     ) {
         onBallDragStart = onDragStart
         onBallDrag = onDrag
@@ -140,6 +147,7 @@ internal class FloatBallTouchHostLayout(
         onBallPickPreviewCancel = onPickPreviewCancel
         this.onLauncherCaptureMove = onLauncherCaptureMove
         this.onLauncherCaptureUp = onLauncherCaptureUp
+        this.onCustomGestureResolve = onCustomGestureResolve
         settingsProvider().let { updateSettings(it) }
     }
 
@@ -178,7 +186,8 @@ internal class FloatBallTouchHostLayout(
         onPickPreviewMove: (Float, Float, Float, Float) -> Unit,
         onPickPreviewCancel: () -> Unit,
         onLauncherCaptureMove: (Float, Float) -> Unit = { _, _ -> },
-        onLauncherCaptureUp: (Float, Float) -> Unit = { _, _ -> }
+        onLauncherCaptureUp: (Float, Float) -> Unit = { _, _ -> },
+        onCustomGestureResolve: (FloatArray, Float, Float, Float, Float) -> Boolean = { _, _, _, _, _ -> false }
     ) {
         detector.bind(
             settings = settings,
@@ -195,6 +204,7 @@ internal class FloatBallTouchHostLayout(
             onPickPreviewCancel = onPickPreviewCancel,
             onLauncherCaptureMove = onLauncherCaptureMove,
             onLauncherCaptureUp = onLauncherCaptureUp,
+            onCustomGestureResolve = onCustomGestureResolve,
             inwardSignProvider = {
                 // 混合手势「向内」= 朝屏幕中心：左侧停靠为 +x，右侧停靠为 -x。
                 if (activeSideProvider() == FloatBallSide.LEFT) 1f else -1f

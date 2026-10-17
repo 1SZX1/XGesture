@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FooView（FV 悬浮球）「自定义手势」移植版文案（中文）。 -->
+<resources>
+    <string name="fv_custom_gesture_title">自定义手势</string>
+    <string name="fv_custom_gesture_summary">在悬浮球上画出手绘轨迹来触发动作</string>
+    <string name="fv_custom_gesture_section">自定义手势</string>
+    <string name="fv_custom_gesture_add">新增手势</string>
+    <string name="fv_custom_gesture_empty">还没有自定义手势，点右上角「＋」画一个。</string>
+    <string name="fv_custom_gesture_edit">编辑</string>
+    <string name="fv_custom_gesture_delete">删除</string>
+    <string name="fv_custom_gesture_delete_title">删除手势？</string>
+    <string name="fv_custom_gesture_delete_message">该手势与它的对称手势会一起删除。</string>
+    <string name="fv_custom_gesture_mirror_badge">对称手势</string>
+    <string name="fv_custom_gesture_dialog_title">手势</string>
+    <string name="fv_custom_gesture_action_row">执行</string>
+    <string name="fv_custom_gesture_action_none">无</string>
+    <string name="fv_custom_gesture_mirror_row">同时添加对称手势</string>
+    <string name="fv_custom_gesture_conflict_message">这个手势已经绑定给「%1$s」了，换一个画法，或先把它改掉。</string>
+    <string name="fv_custom_gesture_failed_title">失败</string>
+    <string name="fv_custom_gesture_straight_line">直线手势和内置滑动手势冲突，请画折线或曲线。</string>
+    <string name="fv_custom_gesture_need_gesture">请先画一个手势。</string>
+    <string name="fv_custom_gesture_need_action">请先选择要执行的动作。</string>
+    <string name="fv_custom_gesture_save_failed">手势保存失败。</string>
+</resources>

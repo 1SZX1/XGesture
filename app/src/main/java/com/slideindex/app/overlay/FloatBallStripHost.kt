@@ -79,6 +79,8 @@ internal class FloatBallStripHost(
     private var onPickPreviewCancel: (() -> Unit)? = null
     private var onLauncherCaptureMove: ((rawX: Float, rawY: Float) -> Unit)? = null
     private var onLauncherCaptureUp: ((rawX: Float, rawY: Float) -> Unit)? = null
+    /** FV「自定义手势」：返回 true 表示本次抬手已被自定义手势消费（不再走原生方向手势）。 */
+    private var onCustomGestureResolve: ((path: FloatArray, rawX: Float, rawY: Float, touchDownX: Float, touchDownY: Float) -> Boolean)? = null
 
     fun updateSettings(settings: AppSettings) {
         val density = resources.displayMetrics.density
@@ -102,7 +104,10 @@ internal class FloatBallStripHost(
             },
             onPickPreviewCancel = { onPickPreviewCancel?.invoke() },
             onLauncherCaptureMove = { x, y -> onLauncherCaptureMove?.invoke(x, y) },
-            onLauncherCaptureUp = { x, y -> onLauncherCaptureUp?.invoke(x, y) }
+            onLauncherCaptureUp = { x, y -> onLauncherCaptureUp?.invoke(x, y) },
+            onCustomGestureResolve = { path, rawX, rawY, touchDownX, touchDownY ->
+                onCustomGestureResolve?.invoke(path, rawX, rawY, touchDownX, touchDownY) ?: false
+            }
         )
     }
 
@@ -118,7 +123,8 @@ internal class FloatBallStripHost(
         onPickPreviewMove: (touchDownX: Float, touchDownY: Float, fingerX: Float, fingerY: Float) -> Unit = { _, _, _, _ -> },
         onPickPreviewCancel: () -> Unit = {},
         onLauncherCaptureMove: (rawX: Float, rawY: Float) -> Unit = { _, _ -> },
-        onLauncherCaptureUp: (rawX: Float, rawY: Float) -> Unit = { _, _ -> }
+        onLauncherCaptureUp: (rawX: Float, rawY: Float) -> Unit = { _, _ -> },
+        onCustomGestureResolve: (path: FloatArray, rawX: Float, rawY: Float, touchDownX: Float, touchDownY: Float) -> Boolean = { _, _, _, _, _ -> false }
     ) {
         this.onDragStart = onDragStart
         this.onDrag = onDrag
@@ -132,6 +138,7 @@ internal class FloatBallStripHost(
         this.onPickPreviewCancel = onPickPreviewCancel
         this.onLauncherCaptureMove = onLauncherCaptureMove
         this.onLauncherCaptureUp = onLauncherCaptureUp
+        this.onCustomGestureResolve = onCustomGestureResolve
         settingsProvider().let { updateSettings(it) }
     }
 

@@ -13,6 +13,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.slideindex.app.fvgesture.FvCustomGestureOutcome
+import com.slideindex.app.fvgesture.resolveCustomGesture
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -1212,6 +1214,17 @@ object FloatBallOverlay {
                         fromLineStrip = false,
                         settings = state.settingsState.value
                     )
+                },
+                // FV「自定义手势」：只有库里存在自定义手势且画的是曲线时才介入（见 handleFloatBallCustomGesture）。
+                onCustomGestureResolve = { path, rawX, rawY, touchDownX, touchDownY ->
+                    handleFloatBallCustomGesture(
+                        settings = state.settingsState.value,
+                        path = path,
+                        rawX = rawX,
+                        rawY = rawY,
+                        touchDownRawX = touchDownX,
+                        touchDownRawY = touchDownY
+                    )
                 }
             )
         }
@@ -1279,6 +1292,17 @@ object FloatBallOverlay {
                         rawY = y,
                         fromLineStrip = true,
                         settings = state.settingsState.value
+                    )
+                },
+                // 边缘线条（触钮）与球共用同一套 FV 自定义手势判定。
+                onCustomGestureResolve = { path, rawX, rawY, touchDownX, touchDownY ->
+                    handleFloatBallCustomGesture(
+                        settings = state.settingsState.value,
+                        path = path,
+                        rawX = rawX,
+                        rawY = rawY,
+                        touchDownRawX = touchDownX,
+                        touchDownRawY = touchDownY
                     )
                 }
             )
@@ -2006,6 +2030,68 @@ object FloatBallOverlay {
     ) {
         val action = settings.floatBallGestureActions[gestureType] ?: GestureAction.None
         if (action is GestureAction.None) return
+        executeFloatBallAction(
+            settings = settings,
+            action = action,
+            rawX = rawX,
+            rawY = rawY,
+            fromLineStrip = fromLineStrip,
+            touchDownRawX = touchDownRawX,
+            touchDownRawY = touchDownRawY,
+            // 只有长按才把「悬浮窗启动器」锚到球心（与历史行为一致）。
+            anchorAtBallCenterForLauncher = gestureType == FloatBallGestureType.LONG_PRESS
+        )
+    }
+
+    /**
+     * FV「自定义手势」的运行时入口（见 `docs/reverse/fv-custom-gesture/03-runtime-pipeline.md`）。
+     *
+     * 判定交给 `resolveCustomGesture`（纯函数，三态与 FV 的 `q1.o.H()` 一一对应）：
+     *  - `Native`   ：画的是直线手势 -> 返回 false，让悬浮球的原生方向手势继续处理；
+     *  - `Consumed` ：画了曲线但没匹配到 -> 返回 true（消费掉，本次什么都不做，FV 语义）；
+     *  - `Matched`  ：命中 -> 执行该手势绑定的动作并返回 true。
+     *
+     * 库里没有任何自定义手势时 `resolveCustomGesture` 直接返回 `Native`，因此未使用该功能的
+     * 用户行为零变化。
+     */
+    private fun handleFloatBallCustomGesture(
+        settings: AppSettings,
+        path: FloatArray,
+        rawX: Float,
+        rawY: Float,
+        touchDownRawX: Float,
+        touchDownRawY: Float
+    ): Boolean = when (val outcome = resolveCustomGesture(path)) {
+        FvCustomGestureOutcome.Native -> false
+        FvCustomGestureOutcome.Consumed -> true
+        is FvCustomGestureOutcome.Matched -> {
+            Log.i(TAG, "custom gesture matched: id=${outcome.gestureId}, action=${outcome.action}")
+            executeFloatBallAction(
+                settings = settings,
+                action = outcome.action,
+                rawX = rawX,
+                rawY = rawY,
+                fromLineStrip = false,
+                touchDownRawX = touchDownRawX,
+                touchDownRawY = touchDownRawY,
+                anchorAtBallCenterForLauncher = false
+            )
+            true
+        }
+    }
+
+    /** 悬浮球动作的统一执行体：原生方向手势与 FV 自定义手势都走这里。 */
+    private fun executeFloatBallAction(
+        settings: AppSettings,
+        action: GestureAction,
+        rawX: Float,
+        rawY: Float,
+        fromLineStrip: Boolean,
+        touchDownRawX: Float?,
+        touchDownRawY: Float?,
+        anchorAtBallCenterForLauncher: Boolean
+    ) {
+        if (action is GestureAction.None) return
         if (action is GestureAction.ClickPassthrough) {
             if (passthroughRestorePending) return
             // 输入层接管期间禁止注入放行：注入事件会再次进入模块的过滤器，形成回环。
@@ -2039,7 +2125,7 @@ object FloatBallOverlay {
                 }
             }
         )
-        if (gestureType == FloatBallGestureType.LONG_PRESS && isOverlayLauncherAction(action)) {
+        if (anchorAtBallCenterForLauncher && isOverlayLauncherAction(action)) {
             val (anchorX, anchorY) = if (fromLineStrip) {
                 rawX to rawY
             } else {

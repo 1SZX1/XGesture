@@ -4,9 +4,15 @@ package com.slideindex.app.ui
 
 import androidx.compose.foundation.layout.size
 
+import androidx.compose.material.icons.Icons
+
+import androidx.compose.material.icons.filled.Edit
+
 import androidx.compose.material3.ExperimentalMaterial3Api
 
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+
+import androidx.compose.material3.Icon
 
 import androidx.compose.runtime.Composable
 
@@ -72,13 +78,20 @@ fun FloatBallGestureSettingsScreen(
 
     onLongPressMsChange: (Int) -> Unit,
 
-    onOverlayAnchorAtTouchDownChange: (Boolean) -> Unit
+    onOverlayAnchorAtTouchDownChange: (Boolean) -> Unit,
+
+    /** 进入「自定义手势」列表（FV 里这一行叫 `v_setting_custom_gesture`） */
+    onOpenCustomGesture: () -> Unit
 
 ) {
 
     val distanceSectionTitle = stringResource(R.string.float_ball_gesture_distance_section)
     val longPressSectionTitle = stringResource(R.string.float_ball_gesture_long_press_section)
     val overlayAnchorSectionTitle = stringResource(R.string.float_ball_gesture_overlay_anchor_section)
+    // FV「自定义手势」入口的文案同样必须在 Lazy 作用域外解析（见下面对 settingsLazySmallTitle 的调用）。
+    val customGestureSectionTitle = stringResource(R.string.fv_custom_gesture_section)
+    val customGestureEntryTitle = stringResource(R.string.fv_custom_gesture_title)
+    val customGestureEntrySummary = stringResource(R.string.fv_custom_gesture_summary)
     // 分组小标题必须在 Lazy 作用域外解析（settingsLazySmallTitle 的 title 是普通 String）。
     val gestureGroupTitles = FloatBallGestureGroup.displayOrder.map { group ->
         group to floatBallGestureGroupTitle(group)
@@ -247,6 +260,33 @@ fun FloatBallGestureSettingsScreen(
                 }
             )
         }
+
+        // 与 FV 一致：自定义手势入口（v_setting_custom_gesture）紧跟在 8 个方向手势之后。
+        // 手势本身在列表页里增删改（FV 的 FooSettingCustomGuesture），这里只做一个导航行。
+        settingsLazySmallTitle(
+            key = "section-custom-gesture",
+            title = customGestureSectionTitle,
+        )
+        groupedCardItems(
+            keyPrefix = "float-ball-custom-gesture",
+            items = listOf(
+                settingsCardScopeItem("custom-gesture-entry") {
+                    SettingNavigationRow(
+                        icon = { label ->
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = label,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        },
+                        title = customGestureEntryTitle,
+                        subtitle = customGestureEntrySummary,
+                        enabled = true,
+                        onClick = onOpenCustomGesture,
+                    )
+                }
+            )
+        )
 
     }
 

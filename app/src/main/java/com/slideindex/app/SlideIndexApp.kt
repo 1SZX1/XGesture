@@ -14,6 +14,7 @@ import com.slideindex.app.di.OcrInstalledModelStartupVerifier
 import com.slideindex.app.di.ModuleHookConfigSync
 import com.slideindex.app.di.PrivilegeModeInitializer
 import com.slideindex.app.freezer.FreezerLauncherHelper
+import com.slideindex.app.fvgesture.FvGestureLibrary
 import com.slideindex.app.di.ShizukuInitializer
 import com.slideindex.app.nativeengine.NativeEnginePackCoordinator
 import com.slideindex.app.nativeengine.NativeEngineRuntime
@@ -184,6 +185,8 @@ class SlideIndexApp : Application(), androidx.work.Configuration.Provider {
         // 「录制宏」的接线：把录制实现塞进界面侧定义的窄接口（不接线时界面会提示尚未接入）。
         com.slideindex.app.macro.MacroRecordingInstaller.install(this)
         ClipboardMonitorStartup.applicationReady = true
+        // FV「自定义手势」参考实现：只注入 appContext，不读盘（手势库文件在首次访问时惰性加载）。
+        FvGestureLibrary.init(this)
 
         // —— 仅主进程：启动期重活、调度、拉起常驻服务 ——
         // :overlay 进程不跑这些，否则它自己就成了"启动期卡顿"的下一个受害者。
