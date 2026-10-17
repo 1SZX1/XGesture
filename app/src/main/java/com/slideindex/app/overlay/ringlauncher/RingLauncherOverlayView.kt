@@ -763,9 +763,15 @@ internal class RingLauncherOverlayView(
      */
     private fun hintRingProgress(): Float {
         if (sessionMode == SessionMode.EDIT) return -1f
+        // 只在小窗功能开着、且启动策略是「长按触发」那一档时才画。
+        if (!settings.launchPolicyLongPressEligible()) return -1f
         val slot = hintRingSlot
         if (slot < 0 || slot != highlightedSlot) return -1f
-        if (targets.getOrNull(slot) == null) return -1f
+        val target = targets.getOrNull(slot) ?: return -1f
+        // 只给 App / 快捷方式画：内置动作、Shell 命令、控件、文件夹这些槽位
+        // 长按没有"小窗/全屏"语义。
+        val type = target.item.type
+        if (type != QuickLauncherItemType.APP && type != QuickLauncherItemType.SHORTCUT) return -1f
         val elapsed = SystemClock.uptimeMillis() - hintRingEnteredAt
         if (elapsed < 0) return -1f
         val duration = settings.effectiveLongPressDurationMs().coerceAtLeast(1)

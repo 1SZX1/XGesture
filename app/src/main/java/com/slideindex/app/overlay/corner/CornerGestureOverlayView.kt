@@ -900,11 +900,17 @@ internal class CornerGestureOverlayView(
      */
     private fun hintRingProgress(): Float {
         if (sessionMode == SessionMode.EDIT) return -1f
+        // 只在小窗功能开着、且启动策略是「长按触发」那一档时才画：
+        // 策略为"始终全屏/始终小窗"时，长按根本不会改变启动形态，这条线没有意义。
+        if (!settings.launchPolicyLongPressEligible()) return -1f
         val slot = hintRingSlot
         if (slot < 0 || slot != highlightedSlot) return -1f
         val anchor = activeAnchor ?: return -1f
         val action = cornerSettings.slotsFor(anchor).getOrElse(slot) { GestureAction.None }
         if (action is GestureAction.None) return -1f
+        // 只给"长按会改变启动方式"的槽位（App 跟随全局策略 / 快捷方式）——
+        // 内置动作、Shell 命令这类槽位长按没有"小窗/全屏"语义，不画。
+        if (!action.usesLaunchPolicy()) return -1f
         val elapsed = SystemClock.uptimeMillis() - hintRingEnteredAt
         if (elapsed < 0) return -1f
         val duration = settings.effectiveLongPressDurationMs().coerceAtLeast(1)
