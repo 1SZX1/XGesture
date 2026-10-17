@@ -98,11 +98,9 @@ import com.slideindex.app.overlay.overlayIsLandscape
 import com.slideindex.app.di.OverlayDependencyAccess
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.util.HapticHelper
-import top.yukonga.miuix.kmp.icon.extended.Share
-import top.yukonga.miuix.kmp.icon.extended.Translate
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.More
-import top.yukonga.miuix.kmp.icon.extended.Pin
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.filled.MoreVert
 
 internal val PickResultPanelMaxWidth = 400.dp
 internal const val PickResultMaxVisibleTextLines = 7
@@ -877,7 +875,7 @@ internal fun PickResultTextActionBar(
                         .clip(RoundedCornerShape(21.dp))
                 ) {
                     Icon(
-                        imageVector = MiuixIcons.Medium.Translate,
+                        imageVector = Icons.Outlined.Translate,
                         contentDescription = null,
                         tint = translateTint,
                         modifier = Modifier.size(22.dp)
@@ -893,7 +891,7 @@ internal fun PickResultTextActionBar(
                         .clip(RoundedCornerShape(21.dp))
                 ) {
                     Icon(
-                        imageVector = MiuixIcons.Medium.Share,
+                        imageVector = Icons.Outlined.Share,
                         contentDescription = stringResource(R.string.pick_result_share),
                         tint = if (enabled) (if (isDark) androidx.compose.ui.graphics.Color(0xFFE0E0E6) else androidx.compose.ui.graphics.Color(0xFF333333)) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                         modifier = Modifier.size(22.dp)
@@ -910,7 +908,7 @@ internal fun PickResultTextActionBar(
                             .clip(RoundedCornerShape(21.dp))
                     ) {
                         Icon(
-                            imageVector = MiuixIcons.Medium.More,
+                            imageVector = Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.pick_result_action_more),
                             tint = if (enabled) (if (isDark) androidx.compose.ui.graphics.Color(0xFFE0E0E6) else androidx.compose.ui.graphics.Color(0xFF333333)) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                             modifier = Modifier.size(22.dp)
@@ -924,7 +922,7 @@ internal fun PickResultTextActionBar(
                         onPinToScreen?.let { pinAction ->
                             PickResultActionMenuItem(
                                 label = stringResource(R.string.pick_result_pin),
-                                icon = MiuixIcons.Medium.Pin,
+                                icon = Icons.Outlined.PushPin,
                                 onClick = {
                                     moreMenuExpanded = false
                                     pinAction()
@@ -1152,7 +1150,7 @@ internal fun PickResultTextActionBar(
                     .background(translateBg)
             ) {
                 Icon(
-                    imageVector = MiuixIcons.Medium.Translate,
+                    imageVector = Icons.Outlined.Translate,
                     contentDescription = null,
                     tint = translateTint,
                     modifier = Modifier.size(19.dp)
@@ -1176,7 +1174,7 @@ internal fun PickResultTextActionBar(
                         .clip(RoundedCornerShape(19.dp))
                 ) {
                     Icon(
-                        imageVector = MiuixIcons.Medium.More,
+                        imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.pick_result_action_more),
                         tint = if (enabled) (if (isDark) androidx.compose.ui.graphics.Color(0xFFE0E0E6) else androidx.compose.ui.graphics.Color(0xFF333333)) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                         modifier = Modifier.size(19.dp)
@@ -1189,7 +1187,7 @@ internal fun PickResultTextActionBar(
                 ) {
                     PickResultActionMenuItem(
                         label = stringResource(R.string.pick_result_share),
-                        icon = MiuixIcons.Medium.Share,
+                        icon = Icons.Outlined.Share,
                         onClick = {
                             moreMenuExpanded = false
                             onShare()
