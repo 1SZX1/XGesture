@@ -49,6 +49,7 @@
     <string name="shake_gestures_per_app_actions_title">%1$s のシェイクアクション</string>
     <string name="gesture_app_profiles_title">アプリ別プロファイル</string>
     <string name="gesture_app_profiles_desc">アプリごとに独立したトリガー一式を保持します。作成時にその時点の全体設定を丸ごとコピーし、以後は全体に追従しません</string>
+    <string name="gesture_app_profiles_entry_desc">アプリごとに独立したトリガー一式を保持します</string>
     <string name="gesture_app_profiles_entry_count">設定済みのプロファイル：%1$d</string>
     <string name="gesture_app_profiles_section">プロファイル</string>
     <string name="gesture_app_profiles_enabled">アプリ別プロファイル</string>

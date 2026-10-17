@@ -49,6 +49,7 @@
     <string name="shake_gestures_per_app_actions_title">إجراءات هز %1$s</string>
     <string name="gesture_app_profiles_title">ملفات حسب التطبيق</string>
     <string name="gesture_app_profiles_desc">احتفظ لكل تطبيق بمجموعة كاملة ومستقلة من المقابض: عند إنشاء ملف تُنسخ الإعدادات العامة الحالية بالكامل، ثم لا يتبع الملف الإعدادات العامة بعد ذلك</string>
+    <string name="gesture_app_profiles_entry_desc">احتفظ لكل تطبيق بمجموعة كاملة ومستقلة من المقابض</string>
     <string name="gesture_app_profiles_entry_count">الملفات المهيأة: %1$d</string>
     <string name="gesture_app_profiles_section">الملفات</string>
     <string name="gesture_app_profiles_enabled">ملفات حسب التطبيق</string>

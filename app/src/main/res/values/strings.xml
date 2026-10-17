@@ -78,6 +78,7 @@
     <string name="shake_gestures_per_app_actions_title">%1$s shake actions</string>
     <string name="gesture_app_profiles_title">Per-app profiles</string>
     <string name="gesture_app_profiles_desc">Keep a separate full set of triggers for each app: creating a profile copies the current global setup, and it stops following global afterwards</string>
+    <string name="gesture_app_profiles_entry_desc">Keep a separate full set of triggers for each app</string>
     <string name="gesture_app_profiles_entry_count">%1$d profile(s) configured</string>
     <string name="gesture_app_profiles_section">Profiles</string>
     <string name="gesture_app_profiles_enabled">Per-app profiles</string>

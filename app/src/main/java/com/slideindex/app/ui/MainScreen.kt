@@ -263,7 +263,7 @@ fun MainScreen(
                                         gestureAppProfileCount,
                                     )
                                 } else {
-                                    stringResource(R.string.gesture_app_profiles_desc)
+                                    stringResource(R.string.gesture_app_profiles_entry_desc)
                                 },
                                 onClick = onOpenGestureAppProfiles,
                             )

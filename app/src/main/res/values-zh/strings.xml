@@ -49,6 +49,7 @@
     <string name="shake_gestures_per_app_actions_title">%1$s 晃动动作</string>
     <string name="gesture_app_profiles_title">按应用分档</string>
     <string name="gesture_app_profiles_desc">给每个 App 一份独立的整套触钮集合：建档时把当时的全局整份复制进来，之后不再跟随全局</string>
+    <string name="gesture_app_profiles_entry_desc">给每个 App 一份独立的整套触钮集合</string>
     <string name="gesture_app_profiles_entry_count">已配置 %1$d 个档</string>
     <string name="gesture_app_profiles_section">档位</string>
     <string name="gesture_app_profiles_enabled">按应用分档</string>
