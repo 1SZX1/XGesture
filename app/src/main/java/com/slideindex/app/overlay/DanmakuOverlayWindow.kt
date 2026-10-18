@@ -33,6 +33,14 @@ object DanmakuOverlayWindow {
     private const val ATTACH_RETRY_MS = 5_000L
     private const val TOP_INSET_DP = 72f
 
+    /** 弹幕正文最大字数，超出直接截断，避免超长文本把条幅撑宽。 */
+    private const val MAX_CONTENT_CHARS = 120
+
+    /** 弹幕条最大宽度：横屏 60% 屏宽、竖屏 90% 屏宽，且不超过 [MAX_ITEM_WIDTH_DP]。 */
+    private const val MAX_ITEM_WIDTH_RATIO_LANDSCAPE = 0.60f
+    private const val MAX_ITEM_WIDTH_RATIO_PORTRAIT = 0.90f
+    private const val MAX_ITEM_WIDTH_DP = 420f
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private var overlayContext: Context? = null
     private var windowManager: WindowManager? = null
@@ -41,7 +49,11 @@ object DanmakuOverlayWindow {
     private var attachFailedAt = 0L
     private val occupiedTracks = BooleanArray(MAX_TRACKS)
     private var screenWidth = 0
+    private var screenHeight = 0
     private var bandHeightPx = 0
+
+    /** 当前窗口高度实际能容纳的轨道数；横屏下小于 [MAX_TRACKS]，避免底部轨道被窗口裁掉。 */
+    private var visibleTracks = MAX_TRACKS
 
     fun show(
         context: Context,
@@ -53,6 +65,7 @@ object DanmakuOverlayWindow {
         fontSizeLevel: Int = com.slideindex.app.message.SideBubbleFontSize.NORMAL
     ) {
         mainHandler.post {
+            refreshGeometryIfRotated(context)
             if (!ensureAttached(context)) {
                 Log.w(TAG, "show skipped: overlay not attached")
                 return@post
@@ -61,6 +74,13 @@ object DanmakuOverlayWindow {
             val track = pickTrack()
             occupiedTracks[track] = true
             val item = createDanmakuItem(root.context, data, theme, opacity, track, maxLines, fontSizeLevel)
+            val maxW = danmakuMaxWidthPx(root.context)
+            item.measure(
+                View.MeasureSpec.makeMeasureSpec(maxW, View.MeasureSpec.AT_MOST),
+                View.MeasureSpec.makeMeasureSpec(bandHeightPx, View.MeasureSpec.AT_MOST)
+            )
+            (item.layoutParams as FrameLayout.LayoutParams).width =
+                item.measuredWidth.coerceIn(1, maxW)
             root.addView(item)
             item.post {
                 bringToFrontInternal()
@@ -87,6 +107,18 @@ object DanmakuOverlayWindow {
             attachFailedAt = 0L
             occupiedTracks.fill(false)
         }
+    }
+
+    /** 横竖屏切换后窗口尺寸会变；检测到尺寸变化就重挂一次，避免继续用旧屏宽。 */
+    private fun refreshGeometryIfRotated(context: Context) {
+        if (rootView == null) return
+        val dm = context.resources.displayMetrics
+        if (dm.widthPixels == screenWidth && dm.heightPixels == screenHeight) return
+        runCatching { windowManager?.removeView(rootView) }
+        rootView = null
+        windowManager = null
+        rootLayoutParams = null
+        occupiedTracks.fill(false)
     }
 
     private fun bringToFrontInternal() {
@@ -119,11 +151,14 @@ object DanmakuOverlayWindow {
         val wm = hostContext.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return false
         val dm = hostContext.resources.displayMetrics
         screenWidth = dm.widthPixels
+        screenHeight = dm.heightPixels
         val density = dm.density
         val statusBarHeight = statusBarHeight(hostContext)
         val desiredBandHeight = (TRACK_HEIGHT_DP * MAX_TRACKS * density).toInt()
         val maxBandHeight = dm.heightPixels * 3 / 5
         bandHeightPx = min(desiredBandHeight, maxBandHeight).coerceAtLeast((TRACK_HEIGHT_DP * density).toInt())
+        val trackHeightPx = (TRACK_HEIGHT_DP * density).toInt().coerceAtLeast(1)
+        visibleTracks = (bandHeightPx / trackHeightPx).coerceIn(1, MAX_TRACKS)
 
         val params = OverlayWindowTypes.createPresentationParams(hostContext).apply {
             width = WindowManager.LayoutParams.MATCH_PARENT
@@ -162,10 +197,21 @@ object DanmakuOverlayWindow {
     }
 
     private fun pickTrack(): Int {
-        for (i in 0 until MAX_TRACKS) {
+        for (i in 0 until visibleTracks) {
             if (!occupiedTracks[i]) return i
         }
         return 0
+    }
+
+    /** 弹幕条最大宽度（px）：横屏 60% 屏宽、竖屏 90% 屏宽，且不超过 420dp。 */
+    private fun danmakuMaxWidthPx(context: Context): Int {
+        val dm = context.resources.displayMetrics
+        val ratio = if (dm.widthPixels > dm.heightPixels) {
+            MAX_ITEM_WIDTH_RATIO_LANDSCAPE
+        } else {
+            MAX_ITEM_WIDTH_RATIO_PORTRAIT
+        }
+        return min(dm.widthPixels * ratio, MAX_ITEM_WIDTH_DP * dm.density).toInt().coerceAtLeast(1)
     }
 
     private fun createDanmakuItem(
@@ -253,12 +299,18 @@ object DanmakuOverlayWindow {
         )
         textColumn.addView(titleView)
 
-        if (data.content.isNotBlank()) {
+        // 换行压平 + 空白折叠 + 超长截断：避免多行/超长文本参与测量把条幅撑到整屏，右侧却空着。
+        val content = data.content
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .take(MAX_CONTENT_CHARS)
+
+        if (content.isNotBlank()) {
             val contentView = TextView(context)
             applyDanmakuContentText(
                 textView = contentView,
                 title = titleText,
-                rawContent = data.content,
+                rawContent = content,
                 titleColorArgb = displayTheme.titleColorArgb,
                 contentSp = contentSp,
                 maxLines = maxLines
@@ -277,10 +329,7 @@ object DanmakuOverlayWindow {
             occupiedTracks[track] = false
             return
         }
-        item.measure(
-            View.MeasureSpec.makeMeasureSpec(screenWidth, View.MeasureSpec.AT_MOST),
-            View.MeasureSpec.makeMeasureSpec(bandHeightPx, View.MeasureSpec.AT_MOST)
-        )
+        // show() 里已经按最大宽度测量并写死了 layoutParams.width，这里不再按整屏重测。
         val itemWidth = max(if (item.width > 0) item.width else item.measuredWidth, 1)
         val startX = screenWidth.toFloat()
         val endX = -(itemWidth + screenWidth * 0.12f)
