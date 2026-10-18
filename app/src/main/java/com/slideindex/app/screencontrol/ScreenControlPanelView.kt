@@ -745,7 +745,7 @@ internal class ScreenControlPanelView(
         init {
             setWillNotDraw(false)
             isClickable = true
-            contentDescription = "Restore screen control"
+            contentDescription = "Restore touchpad"
             clipToOutline = true
             outlineProvider = object : ViewOutlineProvider() {
                 override fun getOutline(view: View, outline: Outline) {
