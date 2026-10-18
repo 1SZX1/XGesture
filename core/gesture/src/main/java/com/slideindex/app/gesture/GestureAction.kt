@@ -154,6 +154,9 @@ enum class GestureActionType(val id: Int) {
      * 上会因进程冻结、AOD/doze、快速解锁而漏掉，所以**文案里不承诺"锁屏恢复"**，别把它当可靠路径。
      */
     TOUCH_BLOCK(98),
+
+    /** 「屏幕控制」：悬浮触控板 + 自绘指针 + 4 方向键 + 4 导航键。 */
+    SCREEN_CONTROL(99),
     ;
 
     companion object {
@@ -990,6 +993,12 @@ sealed class GestureAction {
         override val payload = ""
     }
 
+    /** 屏幕控制：悬浮触控板 + 指针 + 方向键/导航键。 */
+    data object ScreenControl : GestureAction() {
+        override val type = GestureActionType.SCREEN_CONTROL
+        override val payload = ""
+    }
+
     /** 钉到屏幕（轻量弹窗选择文本或图片，生成悬浮便签或图片置顶）。 */
     data object PinToScreen : GestureAction() {
         override val type = GestureActionType.PIN_TO_SCREEN
@@ -1141,6 +1150,7 @@ sealed class GestureAction {
                 GestureActionType.SIMULATE_KEY_EVENT -> SimulateKeyEvent.fromPayload(payload)
                 GestureActionType.SCREEN_OFF_KEEP_AWAKE -> ScreenOffKeepAwake
                 GestureActionType.TOUCH_BLOCK -> TouchBlock
+                GestureActionType.SCREEN_CONTROL -> ScreenControl
                 GestureActionType.PIN_TO_SCREEN -> PinToScreen
                 GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ForegroundActivityInspector
                 GestureActionType.NONE -> None

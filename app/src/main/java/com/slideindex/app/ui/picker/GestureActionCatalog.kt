@@ -180,6 +180,7 @@ object GestureActionCatalog {
 
         // 5. 指针与高级 (Pointer & Advanced)
         GestureActionType.FLOATING_POINTER,
+        GestureActionType.SCREEN_CONTROL,
         GestureActionType.OPEN_FLOATING_POINTER_RADIAL_MENU,
         GestureActionType.POINTER_GESTURE_RECORDER,
         GestureActionType.POINTER_REALTIME_GESTURE,
@@ -326,6 +327,7 @@ object GestureActionCatalog {
 
         // 5. 指针与高级工具 (Pointer & Advanced)
         GestureAction.FloatingPointer,
+        GestureAction.ScreenControl,
         GestureAction.ShellCommandPanel,
         GestureAction.ExecuteShellCommand(),
         GestureAction.SimulateKeyEvent(),

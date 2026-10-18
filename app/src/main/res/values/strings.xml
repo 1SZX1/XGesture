@@ -1739,6 +1739,10 @@
     <string name="pseudo_screen_off_hint">Double tap or press volume key to exit</string>
     <string name="gesture_action_touch_block">Block touch</string>
     <string name="gesture_action_touch_block_desc">Swallow every touch on the screen: draw a circle to restore. Double tap toggles a black screen.</string>
+    <string name="gesture_action_screen_control">Screen control</string>
+    <string name="gesture_action_screen_control_desc">Open a floating touchpad: drag to move the pointer, tap/double-tap/long-press to click or drag; includes direction keys and back/home/recents.</string>
+    <string name="gesture_action_screen_control_permission">Requires accessibility service</string>
+    <string name="screen_control_accessibility_required">Accessibility service is not connected</string>
     <string name="gesture_search_touch_block_1">Block touch</string>
     <string name="gesture_search_touch_block_2">Prevent accidental touch</string>
     <string name="touch_block_hint_title">Touch blocked</string>

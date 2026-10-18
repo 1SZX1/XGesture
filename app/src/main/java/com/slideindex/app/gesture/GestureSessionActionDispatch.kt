@@ -487,6 +487,7 @@ internal fun GestureSession.handleClassifiedGesture(
         GestureAction.CurrentAppInfo,
         GestureAction.ScreenOffKeepAwake,
         GestureAction.TouchBlock,
+        GestureAction.ScreenControl,
         GestureAction.PinToScreen,
         GestureAction.ForegroundActivityInspector,
         GestureAction.SmartScreenshot,

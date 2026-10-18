@@ -120,6 +120,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.SNOOZE_OVERLAYS -> ThinActionIcons.VisibilityOff
     GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ThinActionIcons.Search
     GestureActionType.SMART_SCREENSHOT -> ThinActionIcons.Screenshot
+    GestureActionType.SCREEN_CONTROL -> ThinActionIcons.TouchApp
     GestureActionType.QUICK_WHEEL -> ThinActionIcons.QuickWheel
 }
 
@@ -218,5 +219,6 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.SNOOZE_OVERLAYS -> ThinActionIcons.VisibilityOff
     GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ThinActionIcons.Search
     GestureActionType.SMART_SCREENSHOT -> ThinActionIcons.Screenshot
+    GestureActionType.SCREEN_CONTROL -> ThinActionIcons.TouchApp
     GestureActionType.QUICK_WHEEL -> ThinActionIcons.QuickWheel
 }
