@@ -32,8 +32,17 @@ object QuickLauncherPanelLayoutEngine {
         panelWidth: Float,
         contentHeight: Float,
         anchorLocalY: Float,
+        /**
+         * 触发带覆盖（钉住面板用）。
+         *
+         * 落位公式的横向位置与纵向夹取都由触发带决定，而 [OverlayPanelLayoutHost.activeTriggerZoneRect]
+         * 在"手势进行中"返回**当前那一个触钮**的矩形、在"空闲"返回**该侧所有触钮的并集** ——
+         * 两者不是同一个矩形。钉住面板必须沿用呼出那一刻的触发带，否则松手后一重算就整体平移。
+         * `null` = 不用覆盖（保持历史行为）。
+         */
+        triggerRectOverride: RectF? = null,
     ): RectF {
-        val trigger = host.activeTriggerZoneRect()
+        val trigger = triggerRectOverride ?: host.activeTriggerZoneRect()
         val anchorY = anchorLocalY.coerceIn(trigger.top, trigger.bottom)
         val gap = host.dp(8f)
         val left = when (host.side()) {
@@ -101,10 +110,18 @@ object QuickLauncherPanelLayoutEngine {
         headerHeight: Float,
         anchorLocalY: Float,
         toolbarReserveWidth: Float,
+        /** 触发带覆盖；见 [anchoredPanelRect]。`null` = 用宿主当前的实时触发带。 */
+        triggerRectOverride: RectF? = null,
     ): RectF {
         val layout = gridLayoutInfo(columnsPerPage, rowsPerPage, cellWidth, gridPadding)
         val height = contentHeight(layout.rows, cellHeight, gridPadding, headerHeight)
-        val base = anchoredPanelRect(host, layout.panelWidth, height, anchorLocalY)
+        val base = anchoredPanelRect(
+            host = host,
+            panelWidth = layout.panelWidth,
+            contentHeight = height,
+            anchorLocalY = anchorLocalY,
+            triggerRectOverride = triggerRectOverride,
+        )
         return offsetForToolbar(host, base, toolbarReserveWidth)
     }
 }

@@ -6,8 +6,10 @@ import android.graphics.RectF
 import android.view.MotionEvent
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.diagnostic.EdgeDiag
 import com.slideindex.app.gesture.ActionExecutor
 import com.slideindex.app.gesture.FloatBallOverlayAnchorPolicy
+import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.gesture.GestureSession
 import com.slideindex.app.gesture.GestureZoneLayout
 import com.slideindex.app.gesture.PanelGridSession
@@ -195,6 +197,11 @@ internal class QuickLauncherOverlayController(
             }
         }
     )
+
+    init {
+        // 钉住态没有返回键兜底，工具栏「×」是唯一看得见的退出方式。
+        quickLauncherPanelController.onCloseRequested = { requestClosePinned() }
+    }
 
     internal var quickLauncherAnchorRawY: Float? = null
     /** 锚点来自外部触发（悬浮球 / 圆环入口等），不是边滑手势现场算出来的。 */
@@ -389,8 +396,307 @@ internal class QuickLauncherOverlayController(
     fun handleTouch(event: MotionEvent, localX: Float, localY: Float): Boolean =
         touchHandler.handleTouch(event, localX, localY)
 
-    fun draw(canvas: Canvas, drawToolbar: Boolean = true) =
+    fun draw(canvas: Canvas, drawToolbar: Boolean = true) {
+        // 工具栏要跟着「钉住」状态多画一个「×」（钉住态返回键不再负责关闭，得给一个可见出口）。
+        quickLauncherPanelController.pinned = host.gestureSession().quickLauncherPinned()
         renderer.draw(canvas, drawToolbar)
+    }
+
+    /** 当前面板是否处于钉住态（下发给工具栏 / 触控判断）。 */
+    fun isPinned(): Boolean = host.gestureSession().quickLauncherPinned()
+
+    /**
+     * 钉住面板的窗口矩形（屏幕坐标）；不该缩窗时返回 null。
+     *
+     * 只有「钉住 + 手指已抬起 + 面板还停在屏上」这一档才缩窗：缩窗后窗口不再盖住整屏，
+     * 面板外的触摸才会落到下面的应用上 —— 这就是「钉住之后还能操作屏幕」的实现方式。
+     * 呼出动画 / 手势跟手 / 收起动画 / 面板内弹窗 / 编辑拖动分页都仍走全屏窗，避免坐标系跨界。
+     */
+    fun pinnedWindowRect(screenWidthPx: Float, screenHeightPx: Float): RectF? {
+        val session = host.gestureSession()
+        if (!session.quickLauncherPinnedIdle()) return null
+        if (quickLauncherExiting) return null
+        if (quickLauncherOverlayDialogHost.isShowing) return null
+        if (quickLauncherPanelController.editMode) return null
+        if (screenWidthPx <= 0f || screenHeightPx <= 0f) return null
+        // ⚠️ 进入钉住空闲的第一时间把面板落位**整块矩形**钉死。
+        //
+        // 只钉锚点不够：落位算法还有「对齐触发带 / 以锚点居中」两条分支（由 activeTriggerZoneRect
+        // 与外部触发锚点决定），而这两样在呼出之后会变 —— 于是同一锚点算出来的矩形会整体平移
+        // （真机日志：呼出时 (348,918)，重算后 (332,829)，宽高完全一致）。
+        // 钉住期间一律用冻结的那一块，点面板外 / 切应用 / 设置刷新都不会再让面板跳。
+        if (pinnedIdlePanelRect == null) {
+            pinnedIdleAnchorLocalY = quickLauncherAnchorLocalY()
+            val frozenRect = computeQuickLauncherPanelRect()
+            pinnedIdlePanelRect = frozenRect
+            EdgeDiag.log(
+                "qlPin",
+                "钉住落位锁定 anchorLocalY=$pinnedIdleAnchorLocalY panel=$frozenRect",
+            )
+        }
+        val panelRect = pinnedIdlePanelRect ?: return null
+        if (panelRect.isEmpty) return null
+        val content = quickLauncherPanelController.combinedContentRect(panelRect)
+        if (content.isEmpty) return null
+        val margin = host.dp(PINNED_WINDOW_MARGIN_DP)
+        val left = (content.left - margin).coerceIn(0f, screenWidthPx - 1f)
+        val top = (content.top - margin).coerceIn(0f, screenHeightPx - 1f)
+        val right = (content.right + margin).coerceIn(left + 1f, screenWidthPx)
+        val bottom = (content.bottom + margin).coerceIn(top + 1f, screenHeightPx)
+        val rect = RectF(left, top, right, bottom)
+        if (rect != lastPinnedWindowRect) {
+            lastPinnedWindowRect = rect
+            EdgeDiag.log("qlPin", "钉住窗口 rect=$rect panel=$panelRect")
+        }
+        return rect
+    }
+
+    /** 最近一次下发的钉住窗口矩形（只用于日志去重）。 */
+    private var lastPinnedWindowRect: RectF? = null
+
+    /**
+     * 钉住空闲期间**冻结的面板矩形**。
+     *
+     * 落位算法有两条分支（对齐触发带 / 以锚点居中），呼出之后触发带与外部锚点都会变，
+     * 同一锚点也能算出平移过的矩形 —— 钉住期间一律用这一块，面板才「纹丝不动」。
+     */
+    private var pinnedIdlePanelRect: RectF? = null
+
+    /**
+     * 钉住空闲期间的「冻结锚点」。
+     *
+     * 面板一进入钉住空闲就锁定当时的落位，此后窗口怎么重算都不再重新求解 —— 见 [pinnedWindowRect]。
+     */
+    private var pinnedIdleAnchorLocalY: Float? = null
+
+    private companion object {
+        /** 缩窗时在面板外围留一点余量，避免面板边缘的抗锯齿 / 阴影被窗口边界裁掉。 */
+        const val PINNED_WINDOW_MARGIN_DP = 6f
+
+        /** 钉住期间的前台包名轮询间隔（只读一个静态字段，开销可忽略）。 */
+        const val FOREGROUND_POLL_INTERVAL_MS = 400L
+
+        /** 判定「切走应用」需要的连续命中次数（键盘 / 系统窗口的瞬时前台会被过滤掉）。 */
+        const val FOREGROUND_CONFIRM_HITS = 2
+    }
+
+    // ── 钉住 +「仅在本应用」：切走自动隐藏、切回原样恢复 ─────────────────────────
+
+    /** 钉住那一刻的前台包名（「仅在本应用」的归属）。 */
+    private var pinnedOwnerPackage: String = ""
+
+    /** 恢复面板用的主线程 Handler（视图 detach 后 View.post 不执行，见 restorePinnedAfterAppSwitch）。 */
+    private val restoreHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** 因为切走而暂时隐藏：记住它是谁、在哪里，等归属应用回来再原样打开。 */
+    private var hiddenByAppSwitch: Boolean = false
+    private var hiddenPanelId: String = ""
+    private var hiddenAnchorRawY: Float = 0f
+
+    /**
+     * 前台包名轮询（钉住 +「仅本应用」的唯一可靠触发源）。
+     *
+     * 事件链（`OverlayManager.updateForegroundPackage` → 各侧 controller）在真机上不一定被调到：
+     * 日志里只有「钉住归属」、一次「切走应用」都没有 —— 于是面板切走也不隐藏。
+     * 这里在钉住期间直接比对那个本来就常驻的 `OverlayService.foregroundPackage`：
+     * 400ms 一次、只读一个静态字段，开销可忽略，且不依赖任何回调链。
+     */
+    private var lastPolledForegroundPackage: String = ""
+    private var foregroundPollScheduled = false
+
+    /** 「切走应用」的连续确认：同一个非归属包名要连续命中这么多次才认。 */
+    private var pendingForegroundPackage: String = ""
+    private var pendingForegroundHits: Int = 0
+
+    private val foregroundPollTick = Runnable {
+        foregroundPollScheduled = false
+        val pkg = com.slideindex.app.service.OverlayService.foregroundPackage.orEmpty()
+        if (pkg.isNotBlank() && pkg != lastPolledForegroundPackage) {
+            lastPolledForegroundPackage = pkg
+            EdgeDiag.log("qlPin", "轮询到前台变化 → $pkg")
+            onForegroundPackageChanged(pkg)
+        }
+        scheduleForegroundPolling()
+    }
+
+    private fun shouldPollForeground(): Boolean {
+        val session = host.gestureSession()
+        return hiddenByAppSwitch ||
+            (session.quickLauncherPinned() && session.quickLauncherPinCurrentApp())
+    }
+
+    /** 幂等：需要时保证有一个在途的轮询。 */
+    private fun scheduleForegroundPolling() {
+        host.removeCallbacks(foregroundPollTick)
+        foregroundPollScheduled = false
+        if (!shouldPollForeground()) return
+        host.postDelayed(foregroundPollTick, FOREGROUND_POLL_INTERVAL_MS)
+        foregroundPollScheduled = true
+    }
+
+    /**
+     * 前台应用变化：只有「钉住 + 仅本应用」才关心。
+     *
+     * 隐藏/恢复都要走**本侧**（面板当初就画在这一侧）；恢复用
+     * [SlideIndexAccessibilityService.dispatchExternalGestureAction]，它会按需挂面板专用宿主 ——
+     * 该侧没有触钮时也能把面板画出来（直接调本侧 view 的方式在无触钮侧会静默失败）。
+     */
+    fun onForegroundPackageChanged(packageName: String?) {
+        val pkg = packageName.orEmpty()
+        if (pkg.isBlank()) return
+        val session = host.gestureSession()
+        val panelVisible = session.panelMode() == OverlayPanelMode.QUICK_LAUNCHER
+        if (hiddenByAppSwitch) {
+            // 隐藏期间会话已经没了，钉住标记也随之清空 → 这里只看归属包名决定要不要恢复。
+            if (pkg == pinnedOwnerPackage) {
+                resetForegroundConfirm()
+                restorePinnedAfterAppSwitch()
+            }
+            return
+        }
+        if (!session.quickLauncherPinned() || !session.quickLauncherPinCurrentApp()) return
+        if (pinnedOwnerPackage.isEmpty()) return
+        if (pkg == pinnedOwnerPackage) {
+            resetForegroundConfirm()
+            return
+        }
+        if (!panelVisible) return
+        // ⚠️ 弹出键盘时前台包名会闪成输入法 / 系统界面包名（真机日志：com.meizu.assistant 之类）。
+        // 键盘是叠加窗口，宿主 App 其实没变 —— 这时候绝不能当成"切走"，否则一打字面板就消失。
+        if (isPinnedForegroundNoise(pkg)) return
+        // 再要求"同一个包名连续命中两次"（≈0.8s）才认，避免一闪而过的系统窗口把面板收掉。
+        if (pkg == pendingForegroundPackage) {
+            pendingForegroundHits++
+        } else {
+            pendingForegroundPackage = pkg
+            pendingForegroundHits = 1
+        }
+        if (pendingForegroundHits < FOREGROUND_CONFIRM_HITS) return
+        resetForegroundConfirm()
+        hidePinnedForAppSwitch(session.quickLauncherPanelId())
+    }
+
+    private fun resetForegroundConfirm() {
+        pendingForegroundPackage = ""
+        pendingForegroundHits = 0
+    }
+
+    /**
+     * 这些包名不算"用户切走了 App"：输入法、系统界面、助手的瞬时前台。
+     *
+     * 它们都是**叠加在宿主 App 之上**的窗口，宿主仍然在下面；把它们当成切走，
+     * 会让"在原本的 App 里点一下输入框"直接把钉住面板收掉。
+     */
+    private fun isPinnedForegroundNoise(pkg: String): Boolean {
+        if (pkg == "com.android.systemui") return true
+        // 键盘可见时，前台包名的抖动一律不算切走（宿主没变）。
+        if (KeyboardTriggerImeState.imeTopOrNull() != null) return true
+        return false
+    }
+
+    private fun hidePinnedForAppSwitch(panelId: String) {
+        if (panelId.isBlank()) return
+        hiddenByAppSwitch = true
+        hiddenPanelId = panelId
+        hiddenAnchorRawY = rememberRestoreAnchorRawY()
+        EdgeDiag.log("qlPin", "切走应用 → 暂时隐藏钉住面板 panelId=$panelId")
+        requestClosePinned()
+    }
+
+    /**
+     * 记下"回来时按哪个高度恢复"。
+     *
+     * 优先用外部触发锚点（悬浮球位置）；没有就用面板中心 —— 绝不能用 0，
+     * 否则恢复出来的面板会贴到屏幕最上面。
+     */
+    private fun rememberRestoreAnchorRawY(): Float {
+        quickLauncherAnchorRawY?.takeIf { it > 0f }?.let { return it }
+        val rect = quickLauncherPanelRect()
+        return if (rect.isEmpty) 0f else rect.centerY()
+    }
+
+    /**
+     * 钉住面板里的条目**打开了别的 App** → 面板要收起，但必须留住「回来就恢复」的信息。
+     *
+     * 与「切走应用」是同一件事的两种触发：用户注意力离开了，面板该让位；回到归属应用时再原样摆回来。
+     * 必须在 [GestureSession.endSession] 之前调用（它会清归属 / 恢复信息）。
+     */
+    fun recordPinnedHiddenByLaunch() {
+        val session = host.gestureSession()
+        if (!session.quickLauncherPinned() || !session.quickLauncherPinCurrentApp()) return
+        val panelId = session.quickLauncherPanelId()
+        if (panelId.isBlank()) return
+        if (pinnedOwnerPackage.isBlank()) {
+            pinnedOwnerPackage =
+                com.slideindex.app.service.OverlayService.foregroundPackage.orEmpty()
+        }
+        hiddenByAppSwitch = true
+        hiddenPanelId = panelId
+        hiddenAnchorRawY = rememberRestoreAnchorRawY()
+        EdgeDiag.log(
+            "qlPin",
+            "面板里启动了别的 App → 记下待恢复 panelId=$panelId owner=$pinnedOwnerPackage " +
+                "anchorY=$hiddenAnchorRawY",
+        )
+    }
+
+    private fun restorePinnedAfterAppSwitch() {
+        val panelId = hiddenPanelId
+        val anchorRawY = hiddenAnchorRawY
+        hiddenByAppSwitch = false
+        hiddenPanelId = ""
+        if (panelId.isBlank()) return
+        val side = host.side()
+        EdgeDiag.log("qlPin", "回到归属应用 → 恢复钉住面板 panelId=$panelId side=$side")
+        // ⚠️ 不能用 host.post（= View.post）：面板隐藏后视图通常已 detach，
+        // detached view 的 runnable 会挂在队列里等 attach，永远不执行（真机表现：恢复毫无反应、
+        // 连失败日志都没有）。这里直接用主线程 Handler。
+        restoreHandler.post {
+            // ⚠️ 必须走 OverlayManager 那条「外部触发」路径：它会在该侧没有触钮时按需挂一扇
+            // 面板专用宿主。直接调本侧 view 的 dispatchExternalAction 在无触钮侧会静默失败
+            //（真机日志：外部触发面板失败：LEFT 侧无触钮且面板专用宿主挂不上）。
+            val restored = com.slideindex.app.service.SlideIndexAccessibilityService
+                .dispatchExternalGestureAction(
+                    action = GestureAction.QuickLauncher(
+                        panelId = panelId,
+                        pinned = true,
+                        pinCurrentApp = true,
+                    ),
+                    anchorRawY = anchorRawY,
+                    panelSide = side,
+                )
+            if (!restored) {
+                EdgeDiag.log("qlPin", "恢复失败（该侧挂不上画布），放弃本次恢复 side=$side")
+            }
+        }
+    }
+
+    /** 记录钉住归属（只在「钉住 + 仅本应用」且第一次钉住时抓一次）。 */
+    private fun capturePinnedOwnerIfNeeded() {
+        val session = host.gestureSession()
+        if (!session.quickLauncherPinned() || !session.quickLauncherPinCurrentApp()) return
+        if (pinnedOwnerPackage.isNotBlank()) return
+        pinnedOwnerPackage = com.slideindex.app.service.OverlayService.foregroundPackage.orEmpty()
+        EdgeDiag.log("qlPin", "钉住归属 = $pinnedOwnerPackage")
+    }
+
+    private val pinnedScreenOffReceiver = ScreenOffDismissReceiver { requestClosePinned() }
+
+    private fun syncPinnedScreenOffReceiver() {
+        val pinned = host.gestureSession().quickLauncherPinned()
+        if (pinned) {
+            pinnedScreenOffReceiver.register(host.context)
+        } else {
+            pinnedScreenOffReceiver.unregister()
+        }
+    }
+
+    /**
+     * 显式关闭面板（工具栏「×」/ 锁屏 / 切走应用等）。
+     *
+     * 与「点面板外」无关：钉住态下点面板外不关，只有这里和「再划一次同一手势」才关。
+     */
+    fun requestClosePinned() = dismissFromBack()
 
     fun panelRect(): RectF = quickLauncherPanelRect()
 
@@ -429,7 +735,42 @@ internal class QuickLauncherOverlayController(
     }
 
     fun onSizeChanged() {
+        // ⚠️ 这里**不能**清钉住冻结：钉住缩窗就是我们自己改窗口尺寸触发的，
+        // 清掉 → 下一次重算换个落位 → 再缩窗再清 → 真机表现就是「面板一跳一跳」。
         quickLauncherLayoutPanelWidth = 0f
+    }
+
+    /**
+     * 真正的**屏幕**尺寸变化（旋转 / 分屏 / 分辨率切换）。
+     *
+     * 只有这种变化才该作废钉住冻结；窗口因钉住而缩小/恢复全屏不算。
+     */
+    fun onScreenSizeChanged() {
+        pinnedIdlePanelRect = null
+        pinnedIdleAnchorLocalY = null
+        pinnedLayoutSnapshot = null
+        lastPinnedWindowRect = null
+        lastLoggedPanelRect = null
+    }
+
+    /**
+     * 进场动画结束 / 落位已定 → 冻结钉住面板的位置。
+     *
+     * 冻结发生在**呼出完成那一刻**（而不是第一次缩窗时），这样从"看得见"到"钉住"之间
+     * 位置也不会变一下。
+     */
+    fun freezePinnedLayout() {
+        if (!host.gestureSession().quickLauncherPinned()) return
+        if (pinnedIdlePanelRect != null) return
+        // 锚点优先用「呼出过程中记下的快照」：它和用户看到的落位是同一套输入。
+        pinnedIdleAnchorLocalY = pinnedLayoutSnapshot?.anchorLocalY ?: quickLauncherAnchorLocalY()
+        pinnedIdlePanelRect = computeQuickLauncherPanelRect()
+        lastPinnedWindowRect = null
+        EdgeDiag.log(
+            "qlPin",
+            "冻结落位 anchorLocalY=$pinnedIdleAnchorLocalY panel=$pinnedIdlePanelRect " +
+                "bandSnapshot=${pinnedLayoutSnapshot?.trigger} active=${host.gestureSession().isActive()}",
+        )
     }
 
     fun setAnchorRawY(rawY: Float?) {
@@ -484,6 +825,21 @@ internal class QuickLauncherOverlayController(
     }
 
     fun onSessionEnd() {
+        // 面板真的收起了：锁屏监听撤掉。归属包名 / 恢复信息只在「不是因切走而隐藏」时才清 ——
+        // 因切走隐藏的那一次必须留着它，归属应用回来才能原样恢复。
+        pinnedScreenOffReceiver.unregister()
+        // 因切走而隐藏的那一次要继续盯前台包名，等归属应用回来把面板恢复回去。
+        scheduleForegroundPolling()
+        // 钉住落位锁定 / 窗口矩形记录随会话一起作废：下一次呼出要按新的触发位置重新落位。
+        pinnedIdleAnchorLocalY = null
+        pinnedIdlePanelRect = null
+        pinnedLayoutSnapshot = null
+        lastPinnedWindowRect = null
+        lastLoggedPanelRect = null
+        if (!hiddenByAppSwitch) {
+            hiddenPanelId = ""
+            pinnedOwnerPackage = ""
+        }
         quickLauncherAnchorRawY = null
         quickLauncherExternalAnchor = false
         quickLauncherFrozenAnchorLocalY = null
@@ -516,6 +872,9 @@ internal class QuickLauncherOverlayController(
     }
 
     fun onPanelEnterAnimationEnded() {
+        // 面板落位已经定了：钉住的面板从这一刻起冻结落位，之后点面板外 / 切应用 / 窗口重算
+        // 都不再重算位置（重算会走另一条落位分支，panel 会整体平移）。
+        freezePinnedLayout()
         host.notifyPresentationTouchRequirementChanged()
         if (!host.gestureSession().isMoveTimeActionLocked() ||
             host.gestureSession().quickLauncherContinuousPickActive()
@@ -523,7 +882,18 @@ internal class QuickLauncherOverlayController(
             quickLauncherOpeningGestureActive = false
         }
         // leave-open 面板需要可聚焦，否则 Back 会落到下层 Activity（尤其 XGesture 自身）。
-        if (!host.gestureSession().quickLauncherContinuousPickActive() &&
+        // ⚠️ 钉住态例外：钉住的目的是「一边用面板一边在下面的 App 里打字 / 点按」，
+        // 一旦抢焦点，输入法就跟到浮层上，下面的 App 再也收不到字。
+        capturePinnedOwnerIfNeeded()
+        syncPinnedScreenOffReceiver()
+        // 钉住 +「仅本应用」：从这里开始盯前台包名（事件链不可靠，见 scheduleForegroundPolling）。
+        if (shouldPollForeground()) {
+            lastPolledForegroundPackage =
+                com.slideindex.app.service.OverlayService.foregroundPackage.orEmpty()
+        }
+        scheduleForegroundPolling()
+        if (!host.gestureSession().quickLauncherPinned() &&
+            !host.gestureSession().quickLauncherContinuousPickActive() &&
             !host.gestureSession().isMoveTimeActionLocked()
         ) {
             host.setPanelPresentationFocus(true)
@@ -760,8 +1130,31 @@ internal class QuickLauncherOverlayController(
     }
 
     internal fun quickLauncherPanelRect(): RectF {
+        // 钉住空闲：整块矩形已冻结（见 pinnedIdlePanelRect），不再让落位算法重算。
+        pinnedIdlePanelRect?.let { return RectF(it) }
+        return computeQuickLauncherPanelRect()
+    }
+
+    /** 真正跑一次落位算法（不含钉住冻结）。 */
+    private fun computeQuickLauncherPanelRect(): RectF {
         quickLauncherPagination()
-        return QuickLauncherPanelLayoutEngine.panelRect(
+        val session = host.gestureSession()
+        val pinned = session.quickLauncherPinned()
+        // 呼出 / 跟手阶段：把这一帧真正用于布局的「触发带 + 锚点」记下来。
+        //
+        // 这是「面板自己跳」的根因所在：落位公式的横向位置与纵向夹取都由触发带决定，而
+        // activeTriggerZoneRect() 在手势进行中返回「当前触钮」的矩形、松手后返回「该侧所有
+        // 触钮的并集」——两者不是同一个矩形（真机实测横向差 16px、纵向差 89px）。
+        // 钉住面板必须一直用呼出时那一个，否则松手后任何一次重算都会整体平移。
+        if (pinned && session.isActive()) {
+            pinnedLayoutSnapshot = PinnedLayoutSnapshot(
+                trigger = RectF(host.activeTriggerZoneRect()),
+                anchorLocalY = quickLauncherAnchorLocalY(),
+            )
+        }
+        val snapshot = if (pinned) pinnedLayoutSnapshot else null
+        val anchorLocalY = snapshot?.anchorLocalY ?: quickLauncherAnchorLocalY()
+        val rect = QuickLauncherPanelLayoutEngine.panelRect(
             host = host,
             columnsPerPage = quickLauncherColumnsPerPage(),
             rowsPerPage = quickLauncherRowsPerPage(),
@@ -769,10 +1162,35 @@ internal class QuickLauncherOverlayController(
             cellHeight = quickLauncherCellHeight,
             gridPadding = quickLauncherGridPadding,
             headerHeight = quickLauncherHeaderHeight,
-            anchorLocalY = quickLauncherAnchorLocalY(),
-            toolbarReserveWidth = quickLauncherPanelController.contentReserveWidth(host.settings())
+            anchorLocalY = anchorLocalY,
+            toolbarReserveWidth = quickLauncherPanelController.contentReserveWidth(host.settings()),
+            triggerRectOverride = snapshot?.trigger,
         )
+        // 真机排查「面板自己挪位置」：面板矩形一变就记一笔，附上触发带与状态。
+        if (rect != lastLoggedPanelRect) {
+            lastLoggedPanelRect = rect
+            EdgeDiag.log(
+                "qlPin",
+                "面板矩形 rect=$rect anchorLocalY=$anchorLocalY " +
+                    "active=${session.isActive()} pinned=$pinned " +
+                    "bandNow=${host.activeTriggerZoneRect()} " +
+                    "bandSnapshot=${pinnedLayoutSnapshot?.trigger} " +
+                    "view=${host.viewWidth()}x${host.viewHeight()}",
+            )
+        }
+        return rect
     }
+
+    /** 钉住落位快照：呼出过程中记下的触发带与锚点；钉住空闲只认它。 */
+    private data class PinnedLayoutSnapshot(
+        val trigger: RectF,
+        val anchorLocalY: Float,
+    )
+
+    private var pinnedLayoutSnapshot: PinnedLayoutSnapshot? = null
+
+    /** 上次记录过的面板矩形（只用于日志去重）。 */
+    private var lastLoggedPanelRect: RectF? = null
 
     private fun resolveQuickLauncherAnchorLocalY(): Float {
         val rawY = quickLauncherAnchorRawY ?: host.pathRecognizer().gestureStartRawY()
@@ -795,7 +1213,8 @@ internal class QuickLauncherOverlayController(
     }
 
     private fun quickLauncherAnchorLocalY(): Float =
-        quickLauncherFrozenAnchorLocalY ?: resolveQuickLauncherAnchorLocalY()
+        // 钉住空闲锁定的落位优先：此后不再跟随手势现场（那个现场已经被会话收尾清掉了）。
+        pinnedIdleAnchorLocalY ?: quickLauncherFrozenAnchorLocalY ?: resolveQuickLauncherAnchorLocalY()
 
     private fun quickLauncherGridLayoutInfo(): GridLayoutInfo =
         QuickLauncherPanelLayoutEngine.gridLayoutInfo(

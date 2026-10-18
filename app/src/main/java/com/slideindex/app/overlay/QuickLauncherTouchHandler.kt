@@ -235,7 +235,11 @@ internal class QuickLauncherTouchHandler(
                 if (host.gestureSession().releaseImmediateGestureLock()) {
                     ctrl.quickLauncherOpeningGestureActive = false
                     host.onInitiatingEdgeGestureReleased()
-                    host.setPanelPresentationFocus(true)
+                    // 钉住态**不抢焦点**：抢焦点会把输入法从下面的 App（如 Obsidian）抢到浮层上，
+                    // 用户就再也打不出字了 —— 代价是返回键不再负责关面板（改用手势 / 工具栏「×」）。
+                    if (!host.gestureSession().quickLauncherPinned()) {
+                        host.setPanelPresentationFocus(true)
+                    }
                     host.invalidate()
                     return true
                 }
@@ -258,7 +262,9 @@ internal class QuickLauncherTouchHandler(
                         host.gestureSession().finishLeaveOpenFingerTracking()
                         host.notifyPresentationTouchRequirementChanged()
                         host.onInitiatingEdgeGestureReleased()
-                        host.setPanelPresentationFocus(true)
+                        if (!host.gestureSession().quickLauncherPinned()) {
+                            host.setPanelPresentationFocus(true)
+                        }
                         ctrl.quickLauncherPageSwipeLocked = false
                         ctrl.quickLauncherPageChangedThisGesture = false
                         host.invalidate()
@@ -269,9 +275,9 @@ internal class QuickLauncherTouchHandler(
                     ) {
                         pickResolver.updateHighlight(localX, localY, touchX, event.eventTime, haptic = false)
                         val panelModeBeforeAction = host.gestureSession().panelMode()
-                        if (host.panelGridSession().highlightedIndex >= 0 &&
+                        val launchedApp = host.panelGridSession().highlightedIndex >= 0 &&
                             pickResolver.performUpAction(event, touchX, localX, localY)
-                        ) {
+                        if (launchedApp) {
                             endQuickLauncherAfterLaunch(ctrl.quickLauncherLaunchEndDeferMs)
                             ctrl.quickLauncherLaunchEndDeferMs = 0L
                         } else if (!ctrl.quickLauncherPanelController.editMode &&
@@ -281,6 +287,12 @@ internal class QuickLauncherTouchHandler(
                             host.gestureSession().panelMode() == panelModeBeforeAction
                         ) {
                             endQuickLauncherSessionAnimated()
+                        } else if (host.gestureSession().quickLauncherPinned() &&
+                            host.gestureSession().panelMode() == OverlayPanelMode.QUICK_LAUNCHER
+                        ) {
+                            // 钉住：条目已经执行（面板要留下），这里把手势收尾掉 —— 面板才进入
+                            // 「钉住空闲态」，窗口也才会缩到面板矩形。
+                            finishGestureKeepingPinnedPanel()
                         }
                     } else if (!ctrl.quickLauncherPanelController.editMode &&
                         !ctrl.quickLauncherOverlayDialogHost.isShowing &&
@@ -312,9 +324,9 @@ internal class QuickLauncherTouchHandler(
                     pickResolver.clearHighlight()
                 }
                 val panelModeBeforeAction = host.gestureSession().panelMode()
-                if (!ctrl.quickLauncherPageChangedThisGesture &&
+                val launchedApp = !ctrl.quickLauncherPageChangedThisGesture &&
                     pickResolver.performUpAction(event, touchX, localX, localY)
-                ) {
+                if (launchedApp) {
                     endQuickLauncherAfterLaunch(ctrl.quickLauncherLaunchEndDeferMs)
                     ctrl.quickLauncherLaunchEndDeferMs = 0L
                 } else if (!ctrl.quickLauncherPanelController.editMode &&
@@ -325,6 +337,11 @@ internal class QuickLauncherTouchHandler(
                     host.gestureSession().panelMode() == panelModeBeforeAction
                 ) {
                     endQuickLauncherSessionAnimated()
+                } else if (host.gestureSession().quickLauncherPinned() &&
+                    host.gestureSession().panelMode() == OverlayPanelMode.QUICK_LAUNCHER
+                ) {
+                    // 钉住 + 松手触发：条目执行完面板留下，手势必须收尾（否则窗口不会缩）。
+                    finishGestureKeepingPinnedPanel()
                 }
                 ctrl.quickLauncherPageSwipeTracking = false
                 ctrl.quickLauncherPageSwipeLocked = false
@@ -338,6 +355,19 @@ internal class QuickLauncherTouchHandler(
     fun applyEditDragAutoPage(touchX: Float, panelRect: RectF): Boolean =
         scrollHandler.applyEditDragAutoPage(touchX, panelRect)
 
+    /**
+     * 钉住态的手势收尾：面板留在屏上，但手指跟踪必须结束。
+     *
+     * 这是「窗口缩到面板矩形」的前提：[GestureSession.quickLauncherPinnedIdle] 要求 `!active`；
+     * 只清面板状态而不清 active，会让面板一直停在"手势进行中"，全屏窗也就一直盖着整屏。
+     */
+    private fun finishGestureKeepingPinnedPanel() {
+        host.gestureSession().clearQuickLauncherContinuousPick()
+        host.gestureSession().finishLeaveOpenFingerTracking()
+        host.notifyPresentationTouchRequirementChanged()
+        host.invalidate()
+    }
+
     private fun endQuickLauncherAfterLaunch(deferMs: Long) {
         if (deferMs > 0L) {
             host.postDelayed({ host.gestureSession().endSession() }, deferMs)
@@ -348,6 +378,14 @@ internal class QuickLauncherTouchHandler(
 
     private fun endQuickLauncherSessionAnimated() {
         EdgeDiag.logStack("qlTouch", "endQuickLauncherSessionAnimated：关闭快速启动器面板")
+        // 钉住：点面板外 / 面板空白处**不再收起面板**（这正是「钉住」的定义之一）。
+        // 但必须把手指跟踪收尾掉 —— 否则会话一直 active，面板永远进不了「钉住空闲态」，
+        // 窗口也就不会缩到面板矩形（表现为"面板外点不到下面的应用"）。
+        if (host.gestureSession().quickLauncherPinned()) {
+            EdgeDiag.log("qlTouch", "钉住面板：保留面板，仅收尾手指跟踪")
+            finishGestureKeepingPinnedPanel()
+            return
+        }
         if (ctrl.quickLauncherExiting) return
         if (host.gestureSession().panelMode() != OverlayPanelMode.QUICK_LAUNCHER) {
             host.gestureSession().endSession()

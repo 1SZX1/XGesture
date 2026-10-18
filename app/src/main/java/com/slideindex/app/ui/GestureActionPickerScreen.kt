@@ -123,6 +123,11 @@ fun GestureActionPickerScreen(
         )
     }
     var quickWheelConfigVisible by remember { mutableStateOf(false) }
+    val quickLauncherInitial = remember(current) {
+        val ql = current as? GestureAction.QuickLauncher
+        Triple(ql?.panelId.orEmpty(), ql?.pinned == true, ql?.pinCurrentApp == true)
+    }
+    var quickLauncherConfigVisible by remember { mutableStateOf(false) }
     val quickWheelInitialAnchorMode = remember(current) {
         (current as? GestureAction.QuickWheel)?.anchorMode ?: QuickWheelAnchorMode.FOLLOW_FINGER
     }
@@ -293,6 +298,7 @@ fun GestureActionPickerScreen(
                             )
                         },
                         onOpenQuickWheel = { quickWheelConfigVisible = true },
+                        onOpenQuickLauncher = { quickLauncherConfigVisible = true },
                         highlightPulse = pickerHighlightPulse.value,
                     )
                 }
@@ -376,6 +382,32 @@ fun GestureActionPickerScreen(
                                 shape = shape,
                                 manualSectorMask = manualSectorMask,
                                 anchorMode = anchorMode,
+                            ),
+                        )
+                    },
+                    overlayMode = true,
+                )
+            }
+        }
+
+        if (quickLauncherConfigVisible) {
+            Dialog(
+                onDismissRequest = { quickLauncherConfigVisible = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false),
+            ) {
+                GestureQuickLauncherActionScreen(
+                    panels = appSettings.quickLauncherPanels,
+                    initialPanelId = quickLauncherInitial.first,
+                    initialPinned = quickLauncherInitial.second,
+                    initialPinCurrentApp = quickLauncherInitial.third,
+                    onBack = { quickLauncherConfigVisible = false },
+                    onConfirm = { panelId, pinned, pinCurrentApp ->
+                        quickLauncherConfigVisible = false
+                        safeSelect(
+                            GestureAction.QuickLauncher(
+                                panelId = panelId,
+                                pinned = pinned,
+                                pinCurrentApp = pinCurrentApp,
                             ),
                         )
                     },

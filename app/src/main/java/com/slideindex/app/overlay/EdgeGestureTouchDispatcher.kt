@@ -37,6 +37,12 @@ internal class EdgeGestureTouchDispatcher(
     ): Boolean {
         if (UniversalCopyOverlay.isShowing) return false
         if (composeOverlayDialogShowing()) return false
+        // 钉住面板的「再划一次同一手势 = 关闭」：先记下它，等手势分类出来之后再决定是否吞掉重开。
+        val closedPinnedQuickLauncherId = if (gestureSession.quickLauncherPinnedIdle()) {
+            gestureSession.quickLauncherPanelId()
+        } else {
+            ""
+        }
         if (gestureSession.panelMode() != OverlayPanelMode.NONE && !gestureSession.isActive()) {
             EdgeDiag.logStack(
                 "touch",
@@ -51,6 +57,9 @@ internal class EdgeGestureTouchDispatcher(
         }
         if (!gestureSession.onTouchDownForHandle(handleId, rawX, rawY, localX, localY)) {
             return false
+        }
+        if (closedPinnedQuickLauncherId.isNotEmpty()) {
+            gestureSession.markClosedPinnedQuickLauncher(closedPinnedQuickLauncherId)
         }
         FloatingPointerAreaPreviewOverlay.onEdgeTriggerTouch(rawX, rawY)
         setEdgeCaptureTouchActive(true)
@@ -93,19 +102,33 @@ internal class EdgeGestureTouchDispatcher(
         }
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                // 同 beginCaptureStripTouch：钉住面板用「再划一次同一手势」关闭，记下来供分类后吞掉重开。
+                val pinnedIdle = gestureSession.quickLauncherPinnedIdle()
+                val closedPinnedQuickLauncherId = if (pinnedIdle) {
+                    gestureSession.quickLauncherPanelId()
+                } else {
+                    ""
+                }
                 when {
                     adjustPanelController.hasAdjustPanel() &&
                         !gestureSession.isActive() &&
                         !adjustPanelController.isDismissing() ->
                         onForceRecoverInteractionState()
                     gestureSession.panelMode() != OverlayPanelMode.NONE && !gestureSession.isActive() ->
-                        gestureSession.forceReset(notifySessionEnd = true)
+                        // ⚠️ 钉住面板例外：窗口已经缩到面板矩形，落进窗口的只可能是面板 / 它的留白，
+                        // 这时候 forceReset 就等于「碰一下面板就没了」。钉住面板只认边缘手势 / 「×」。
+                        if (!pinnedIdle) {
+                            gestureSession.forceReset(notifySessionEnd = true)
+                        }
                     gestureSession.isActive() -> {
                         shellCoordinator.closePanelTrampolineIfContinuous()
                         gestureSession.forceReset(notifySessionEnd = false)
                     }
                 }
                 if (gestureSession.onTouchDown(event.rawX, event.rawY, localX, localY)) {
+                    if (closedPinnedQuickLauncherId.isNotEmpty()) {
+                        gestureSession.markClosedPinnedQuickLauncher(closedPinnedQuickLauncherId)
+                    }
                     FloatingPointerAreaPreviewOverlay.onEdgeTriggerTouch(event.rawX, event.rawY)
                     setEdgeCaptureTouchActive(true)
                     onSyncZoneLayout()

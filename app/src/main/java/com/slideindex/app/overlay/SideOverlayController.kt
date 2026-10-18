@@ -246,6 +246,15 @@ class SideOverlayController(
         }
     }
 
+    /**
+     * 前台应用变化（由 [OverlayManager] 转发）。
+     *
+     * 目前只有「钉住 + 仅在本应用」的快速启动器面板关心：切走自动隐藏、切回归属应用原样恢复。
+     */
+    fun onForegroundPackageChanged(packageName: String?) {
+        windowManager.presentationView?.onForegroundPackageChanged(packageName)
+    }
+
     fun setPreviewMode(
         enabled: Boolean,
         content: LayoutPreviewContent = LayoutPreviewContent.TRIGGER_ONLY,

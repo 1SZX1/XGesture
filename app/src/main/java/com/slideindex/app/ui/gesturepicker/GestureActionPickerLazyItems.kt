@@ -96,6 +96,7 @@ fun LazyListScope.actionPickerActionItems(
     onOpenOpenLink: () -> Unit = {},
     onOpenSimulateKeyEvent: (() -> Unit)? = null,
     onOpenQuickWheel: (() -> Unit)? = null,
+    onOpenQuickLauncher: (() -> Unit)? = null,
     /** 定位到"当前已绑定动作"之后闪一下的强度（0..1），只作用在当前那一行上。 */
     highlightPulse: Float = 0f,
 ) {
@@ -184,6 +185,19 @@ fun LazyListScope.actionPickerActionItems(
                     selected = current is GestureAction.QuickWheel,
                     onOpenConfig = onOpenQuickWheel,
                     highlightPulse = highlightPulse,
+                )
+            } else if (action.type == GestureActionType.QUICK_LAUNCHER && onOpenQuickLauncher != null) {
+                // 快速启动器要先选「哪个面板 + 是否钉住」，所以点它同样是打开配置而不是直接选中。
+                ActionPickerActionRow(
+                    action = action,
+                    segmentIndex = index,
+                    segmentCount = section.actions.size,
+                    selected = current is GestureAction.QuickLauncher,
+                    onClick = {
+                        requestPermissionForAdjustAction(context, action)
+                        onOpenQuickLauncher()
+                    },
+                    highlightPulse = if (current is GestureAction.QuickLauncher) highlightPulse else 0f,
                 )
             } else {
                 ActionPickerActionRow(

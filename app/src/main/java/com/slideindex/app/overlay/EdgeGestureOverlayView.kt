@@ -161,6 +161,11 @@ class EdgeGestureOverlayView(
 
     private val shellCoordinator: ShellPanelOverlayController = ShellPanelOverlayController(overlayHosts)
     private val quickLauncherController: QuickLauncherOverlayController = QuickLauncherOverlayController(overlayHosts)
+
+    /** 前台应用变化：钉住 +「仅本应用」时据此自动隐藏 / 恢复面板（恢复走 OverlayManager 那条路）。 */
+    fun onForegroundPackageChanged(packageName: String?) {
+        quickLauncherController.onForegroundPackageChanged(packageName)
+    }
     private val indexPanelRenderer: IndexPanelRenderer = IndexPanelRenderer(overlayHosts).also {
         overlayHosts.indexPanelContentRectProvider = { it.indexPanelContentRect() }
     }
@@ -332,13 +337,13 @@ class EdgeGestureOverlayView(
         layoutCoordinator.applyExpandedOverlayLayout()
         runAfterLayout {
             val loc = IntArray(2)
-            getLocationOnScreen(loc)
+            locationOnScreenLogical(loc)
             val screenHeight = resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
-            val viewHeight = if (height > 0) height.toFloat() else screenHeight
+            val viewHeight = logicalHeightPx().toFloat().coerceAtLeast(1f)
             val localY = (anchorRawY - loc[1]).coerceIn(0f, viewHeight)
             val screenWidth = resources.displayMetrics.widthPixels.toFloat().coerceAtLeast(1f)
-            val localX = if (width > 0) width / 2f else screenWidth / 2f
-            val anchorRawX = if (width > 0) loc[0] + localX else screenWidth / 2f
+            val localX = logicalWidthPx() / 2f
+            val anchorRawX = loc[0] + localX
             externalPanelAnchorLocalY = localY
             when (action) {
                 is GestureAction.TaskSwitcher -> taskSwitcherController.setExternalAnchor(anchorRawY)
@@ -528,10 +533,119 @@ class EdgeGestureOverlayView(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        // 窗口 resize 已经发生：把挂起的几何（含画布平移量）应用到这一帧，
+        // 平移与窗口尺寸因此永远同步（否则会先闪到窗口左上角）。
+        pendingWindowGeometry?.let { geometry ->
+            pendingWindowGeometry = null
+            applyPresentationWindowGeometry(geometry.originX, geometry.originY, geometry.shrunk)
+        }
+        // 窗口被缩成面板矩形时，view 的尺寸不再等于整屏；绘制 / 命中仍按整屏坐标系算，
+        // 所以只在"全屏"这一档记住逻辑屏幕尺寸（见 [logicalWidthPx]）。
+        if (!presentationWindowShrunk && w > 0 && h > 0) {
+            val logicalChanged = logicalScreenWidthPx != w || logicalScreenHeightPx != h
+            logicalScreenWidthPx = w
+            logicalScreenHeightPx = h
+            // 只有「屏幕真的变了」（旋转 / 分屏 / 分辨率切换）才需要作废钉住冻结；
+            // 钉住缩窗自己改窗口尺寸不算，否则每次缩窗都会把冻结打掉、面板跟着跳。
+            if (logicalChanged) {
+                quickLauncherController.onScreenSizeChanged()
+            }
+        }
         quickLauncherController.onSizeChanged()
         layoutCoordinator.syncZoneLayout()
         adjustPanelController.onSizeChanged()
     }
+
+    /**
+     * presentation 窗口是否已被缩成「面板矩形」。
+     *
+     * 钉住面板要在保持可见的同时把面板外的触摸让给下面的应用 —— 实现方式就是把窗口缩到面板那一块。
+     * 缩了之后 [width]/[height] 是面板尺寸，而面板绘制 / 命中全部沿用整屏坐标，
+     * 因此这里额外维护一份逻辑屏幕尺寸 + 绘制时的画布平移。
+     */
+    private var presentationWindowShrunk = false
+    private var presentationWindowOriginX = 0
+    private var presentationWindowOriginY = 0
+    private var logicalScreenWidthPx = 0
+    private var logicalScreenHeightPx = 0
+
+    /**
+     * 待应用的窗口几何。
+     *
+     * ⚠️ 窗口 resize 是**异步**的（[WindowManager.updateViewLayout] 提交后要等系统合成），
+     * 而画布平移是同步的。如果先改平移再等窗口缩小，中间那一帧就是「新平移 + 旧窗口尺寸」：
+     * 面板会被画到窗口左上角（真机表现：面板先闪到左上角，窗口缩完再回到原位）。
+     * 所以几何先挂起，等 [onSizeChanged] 报出目标尺寸再一起生效。
+     */
+    private var pendingWindowGeometry: WindowGeometry? = null
+
+    private data class WindowGeometry(
+        val originX: Int,
+        val originY: Int,
+        val shrunk: Boolean,
+    )
+
+    /**
+     * 由 [SideOverlayWindowManager] 下发窗口几何（缩窗 / 全屏）。
+     *
+     * [widthPx]/[heightPx] 是**这次下发的窗口目标尺寸**：与 view 当前尺寸不一致时说明 resize 还没发生，
+     * 几何先挂起，等 [onSizeChanged] 再应用（保证平移量与窗口尺寸始终同一帧）。
+     */
+    fun setPresentationWindowGeometry(
+        originX: Int,
+        originY: Int,
+        widthPx: Int,
+        heightPx: Int,
+        shrunk: Boolean,
+    ) {
+        if (widthPx != width || heightPx != height) {
+            pendingWindowGeometry = WindowGeometry(originX, originY, shrunk)
+            return
+        }
+        applyPresentationWindowGeometry(originX, originY, shrunk)
+    }
+
+    private fun applyPresentationWindowGeometry(originX: Int, originY: Int, shrunk: Boolean) {
+        if (presentationWindowOriginX == originX &&
+            presentationWindowOriginY == originY &&
+            presentationWindowShrunk == shrunk
+        ) {
+            return
+        }
+        presentationWindowOriginX = originX
+        presentationWindowOriginY = originY
+        presentationWindowShrunk = shrunk
+        com.slideindex.app.diagnostic.EdgeDiag.log(
+            "qlPin",
+            "窗口几何生效 origin=($originX,$originY) shrunk=$shrunk view=${width}x${height} " +
+                "logical=${logicalWidthPx()}x${logicalHeightPx()}",
+        )
+        invalidate()
+    }
+
+    /**
+     * 当前是否处于缩窗态。
+     *
+     * ⚠️ 按**真实尺寸**判断，不看 `presentationWindowShrunk` 标志：窗口 resize 是 WMS 异步应用的，
+     * 标志由我们的回调更新，两者之间存在中间态；用标志去决定"脏矩形要不要换算坐标"会在中间态
+     * 算错（与 [onDraw] 保持同一判据，绘制与局部重绘才不会错位）。
+     */
+    fun isPresentationWindowShrunk(): Boolean =
+        width < logicalWidthPx() || height < logicalHeightPx()
+
+    /** 逻辑屏幕宽 / 高：缩窗期间仍按整屏算，面板几何才不会跟着窗口一起缩。 */
+    fun logicalWidthPx(): Int = if (logicalScreenWidthPx > 0) logicalScreenWidthPx else width
+
+    fun logicalHeightPx(): Int = if (logicalScreenHeightPx > 0) logicalScreenHeightPx else height
+
+    /**
+     * 钉住面板的窗口矩形（屏幕坐标）；不用缩窗时返回 null。
+     *
+     * 只在小手已经抬起、面板还停在屏上的「钉住 idle」态返回，其余时刻一律全屏 ——
+     * 呼出动画、手势跟手、面板收起动画都还在整屏坐标系里跑。
+     */
+    fun pinnedQuickLauncherWindowRect(): RectF? =
+        quickLauncherController.pinnedWindowRect(logicalWidthPx().toFloat(), logicalHeightPx().toFloat())
 
     override fun onDetachedFromWindow() {
         gestureAnimationCoordinator.hide()
@@ -552,8 +666,18 @@ class EdgeGestureOverlayView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        // 绘制窗口**永远全屏**（包括钉住态），坐标系就是屏幕坐标系，不需要任何平移。
+        // 钉住态的面板外触摸穿透由独立的触摸层窗口实现，窗口几何不变 → 不存在
+        // "窗口位置/尺寸与画布平移不同步"的闪跳帧。
         panelRenderer.draw(canvas, width, height)
     }
+
+    /**
+     * 钉住面板触摸层转发进来的触摸事件（该层只有面板那么大）。
+     *
+     * 事件来自另一个窗口，`rawX/rawY` 仍是屏幕坐标，与绘制层的屏幕坐标系一致。
+     */
+    fun dispatchPinnedTouch(event: MotionEvent): Boolean = handleForwardedTouch(event)
 
     private fun buildOverlayAccessibilitySnapshot(): OverlayAccessibilitySnapshot =
         EdgeGestureOverlayAccessibilityCollector.collect(
@@ -662,9 +786,25 @@ class EdgeGestureOverlayView(
         block(event.rawX, event.rawY, localX, localY)
     }
 
+    /**
+     * 「逻辑原点」= 整屏左上角在 view 坐标系里的位置。
+     *
+     * 缩窗期间真实窗口origin 在 (x0,y0)，但面板矩形 / 触钮区域 / 命中判定全部沿用**整屏坐标**，
+     * 所以触摸与定位换算必须按逻辑原点（0,0）算：否则触摸（窗口本地坐标）与面板矩形差一个窗口原点，
+     * 表现为「点面板上某处却命中别处」，同时锚点会漂、面板自己挪位置。
+     */
+    internal fun locationOnScreenLogical(out: IntArray) {
+        if (presentationWindowShrunk) {
+            out[0] = 0
+            out[1] = 0
+        } else {
+            getLocationOnScreen(out)
+        }
+    }
+
     private fun rawToLocal(rawX: Float, rawY: Float): Pair<Float, Float> {
         val loc = IntArray(2)
-        getLocationOnScreen(loc)
+        locationOnScreenLogical(loc)
         return rawX - loc[0] to rawY - loc[1]
     }
 

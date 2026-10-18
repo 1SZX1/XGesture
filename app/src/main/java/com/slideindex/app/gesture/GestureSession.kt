@@ -77,6 +77,39 @@ class GestureSession(
     internal var sessionActiveHandleId = TriggerHandle.DEFAULT_ID
     internal var sessionQuickLauncherPanelId: String = ""
 
+    /**
+     * 当前快速启动器面板的「钉住」设置（见 [GestureAction.QuickLauncher.pinned]）。
+     *
+     * 与 [sessionQuickLauncherPanelId] 同寿：面板收起 / 会话强制复位时一起清掉，
+     * 避免下一次普通呼出误继承上一次的钉住状态。
+     */
+    internal var sessionQuickLauncherPinned: Boolean = false
+
+    /** 钉住范围：是否只钉在钉住那一刻的前台应用（[GestureAction.QuickLauncher.pinCurrentApp]）。 */
+    internal var sessionQuickLauncherPinCurrentApp: Boolean = false
+
+    /**
+     *「刚刚被这次按下关掉的钉住面板」。
+     *
+     * 钉住面板靠「再划一次同一手势」关闭：按下的那一刻面板已经收掉了（会话被强制复位），
+     * 如果随后手势又分类成同一个面板的打开动作，就会「关了又立刻开」，等于关不掉。
+     * 记下它，让这一条一次性的手势被吞掉 —— 语义才是真正的开关。
+     */
+    internal var sessionClosedPinnedQuickLauncherId: String = ""
+
+    /** 记录本次按下关掉的是哪个钉住面板（[forceReset] 之后调用，因此不受它清状态影响）。 */
+    fun markClosedPinnedQuickLauncher(panelId: String) {
+        sessionClosedPinnedQuickLauncherId = panelId
+    }
+
+    /** 本次手势要打开的面板是否就是刚被关掉的那个钉住面板（是 → 吞掉，不再重开）。 */
+    fun consumeClosedPinnedQuickLauncher(panelId: String): Boolean {
+        if (sessionClosedPinnedQuickLauncherId.isEmpty()) return false
+        val match = sessionClosedPinnedQuickLauncherId == panelId
+        sessionClosedPinnedQuickLauncherId = ""
+        return match
+    }
+
     private var lastRawX = 0f
     private var lastRawY = 0f
     private var lastLocalX = 0f
@@ -213,6 +246,18 @@ class GestureSession(
     fun taskSwitcherContinuousPickActive(): Boolean = sessionContinuousPick.taskSwitcherActive()
 
     fun quickLauncherPanelId(): String = sessionQuickLauncherPanelId
+
+    /** 当前快速启动器面板是否处于「钉住」模式（松手后由它自己常驻）。 */
+    fun quickLauncherPinned(): Boolean = sessionQuickLauncherPinned
+
+    /** 钉住是否只限钉住那一刻的前台应用。 */
+    fun quickLauncherPinCurrentApp(): Boolean = sessionQuickLauncherPinCurrentApp
+
+    /** 钉住面板仍在屏上、但手指手势已经结束（= 可以点按 / 不会再被会话收掉）。 */
+    fun quickLauncherPinnedIdle(): Boolean =
+        sessionQuickLauncherPinned &&
+            sessionPanelMode == OverlayPanelMode.QUICK_LAUNCHER &&
+            !active
 
     fun setQuickLauncherPanelId(panelId: String) {
         sessionQuickLauncherPanelId = panelId
@@ -590,9 +635,12 @@ class GestureSession(
             sessionSettings.quickLauncherPanels,
             action.panelId
         )
+        sessionQuickLauncherPinned = action.pinned
+        sessionQuickLauncherPinCurrentApp = action.pinned && action.pinCurrentApp
         EdgeDiag.log(
             "panel",
             "openQuickLauncherPanel actionPanelId='${action.panelId}' → resolved='$sessionQuickLauncherPanelId' " +
+                "pinned=${action.pinned} pinCurrentApp=${action.pinCurrentApp} " +
                 "panels=${sessionSettings.quickLauncherPanels.size}"
         )
         openPanel(OverlayPanelMode.QUICK_LAUNCHER)
@@ -712,6 +760,9 @@ class GestureSession(
         thresholdTracker.reset()
         sessionActiveHandleId = TriggerHandle.DEFAULT_ID
         sessionQuickLauncherPanelId = ""
+        sessionQuickLauncherPinned = false
+        sessionQuickLauncherPinCurrentApp = false
+        sessionClosedPinnedQuickLauncherId = ""
 
         callbacks.cancelDelayed(longPressCheckRunnable)
         callbacks.cancelDelayed(hoverHapticCheckRunnable)

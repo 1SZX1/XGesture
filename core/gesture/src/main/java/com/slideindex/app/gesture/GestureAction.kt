@@ -322,11 +322,46 @@ sealed class GestureAction {
         }
     }
 
+    /**
+     * 快速启动器面板。
+     *
+     * @param panelId 面板 id；空串表示取第一个面板。
+     * @param pinned 钉住：呼出后面板常驻。点面板里的动作不再关闭面板，点面板外部也不关闭
+     *   （外部触摸直接落到下面的应用），只有再划一次同一手势、面板上的关闭按钮或锁屏才收起。
+     * @param pinCurrentApp 只钉在钉住那一刻的前台应用里：切走自动隐藏，切回原样恢复。
+     *   仅在 [pinned] 为 true 时有意义。
+     */
     data class QuickLauncher(
         val panelId: String = "",
+        val pinned: Boolean = false,
+        val pinCurrentApp: Boolean = false,
     ) : GestureAction() {
         override val type = GestureActionType.QUICK_LAUNCHER
-        override val payload = panelId
+
+        // 不钉住时载荷与旧版**完全一致**（仅 panelId），不影响已保存的记录；
+        // 只有真的钉住时才追加第二段（1 = 钉住，2 = 钉住且只在本应用）。
+        override val payload: String = buildString {
+            append(panelId)
+            if (!pinned) return@buildString
+            append(PIN_SEP)
+            append(if (pinCurrentApp) "2" else "1")
+        }
+
+        companion object {
+            /** 载荷内各段的分隔符（SOH；面板 id 是 UUID，不会出现该控制字符）。 */
+            private const val PIN_SEP = '\u0001'
+
+            /** 从裸载荷解析；段缺失 / 非法时按「仅 panelId、不钉住」处理（向后兼容）。 */
+            fun parse(raw: String): QuickLauncher {
+                val parts = raw.split(PIN_SEP)
+                val panelId = parts[0]
+                return when (parts.getOrNull(1)?.trim()) {
+                    "2" -> QuickLauncher(panelId = panelId, pinned = true, pinCurrentApp = true)
+                    "1" -> QuickLauncher(panelId = panelId, pinned = true)
+                    else -> QuickLauncher(panelId = panelId)
+                }
+            }
+        }
     }
 
     data object TaskSwitcher : GestureAction() {
@@ -1014,7 +1049,7 @@ sealed class GestureAction {
                 GestureActionType.OPEN_INDEX -> OpenIndex
                 GestureActionType.LAUNCH_APP -> LaunchApp(payload)
                 GestureActionType.LAUNCH_SHORTCUT -> LaunchShortcut.fromPayload(payload)
-                GestureActionType.QUICK_LAUNCHER -> QuickLauncher(payload)
+                GestureActionType.QUICK_LAUNCHER -> QuickLauncher.parse(payload)
                 GestureActionType.TASK_SWITCHER -> TaskSwitcher
                 GestureActionType.BACK -> Back
                 GestureActionType.HOME -> Home

@@ -73,7 +73,10 @@ internal fun GestureSession.trackContinuousGesture(
                 sessionSettings.quickLauncherPanels,
                 action.panelId
             )
-            if (sessionPanelMode != OverlayPanelMode.QUICK_LAUNCHER ||
+            // 这次手势刚刚把同一个钉住面板关掉了 → 它就是那次关闭手势，不要再把它开回来。
+            if (consumeClosedPinnedQuickLauncher(resolvedPanelId)) {
+                EdgeDiag.log("dispatch", "trackContinuousGesture → 钉住面板已被本次手势关闭，吞掉重开")
+            } else if (sessionPanelMode != OverlayPanelMode.QUICK_LAUNCHER ||
                 sessionQuickLauncherPanelId != resolvedPanelId
             ) {
                 sessionContinuousPick.quickLauncher = true
@@ -267,11 +270,21 @@ internal fun GestureSession.handleClassifiedGesture(
         is GestureAction.QuickLauncher -> {
             sessionContinuousPick.quickLauncher = false
             sessionCallbacks.hapticConfirmLaunch()
+            val resolvedPanelId = QuickLauncherPanelDefaults.resolvePanelId(
+                sessionSettings.quickLauncherPanels,
+                action.panelId
+            )
             EdgeDiag.log(
                 "dispatch",
                 "handleClassifiedGesture → QuickLauncher（松手/即时路径直接开面板）panelId='${action.panelId}'"
             )
-            openQuickLauncherPanel(action)
+            // 同一手势 = 开关：这一下刚刚关掉了这个钉住面板，就不要再打开它。
+            if (consumeClosedPinnedQuickLauncher(resolvedPanelId)) {
+                EdgeDiag.log("dispatch", "handleClassifiedGesture → 钉住面板已被本次手势关闭（开关语义）")
+                endSession()
+            } else {
+                openQuickLauncherPanel(action)
+            }
         }
 
         is GestureAction.ShellCommandPanel -> {

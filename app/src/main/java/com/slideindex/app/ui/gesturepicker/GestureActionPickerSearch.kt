@@ -543,6 +543,14 @@ fun gestureActionSettingSubtitle(action: GestureAction): String {
             stringResource(R.string.gesture_action_simulate_key_event_named, name)
         }
         // 快捷轮盘不再暴露"哪个轮盘 / 形态方案"：摘要里只要知道"这个动作是调用轮盘"。
+        // 快速启动器只额外标一句"钉住"（含"仅本应用"），因为那会明显改变呼出后的行为。
+        is GestureAction.QuickLauncher -> {
+            when {
+                !action.pinned -> gestureActionLabel(action)
+                action.pinCurrentApp -> stringResource(R.string.quick_launcher_action_pin_subtitle_current_app)
+                else -> stringResource(R.string.quick_launcher_action_pin_subtitle)
+            }
+        }
         else -> gestureActionLabel(action)
     }
 }

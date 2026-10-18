@@ -19,7 +19,7 @@ import com.slideindex.app.shell.ShellCommand
 import com.slideindex.app.util.HapticHelper
 
 internal class EdgeGestureOverlayHosts(
-    private val view: View,
+    private val view: EdgeGestureOverlayView,
     private val side: PanelSide,
     private val appRepository: AppRepository,
     private val zoneLayout: GestureZoneLayout,
@@ -93,9 +93,10 @@ internal class EdgeGestureOverlayHosts(
 
     override fun activeTriggerZoneRect(): RectF = activeTriggerZoneRectFn()
 
-    override fun viewWidth(): Int = view.width
+    // 缩窗（钉住面板）期间窗口尺寸 != 整屏，面板几何必须继续按整屏坐标算，否则会越算越小。
+    override fun viewWidth(): Int = view.logicalWidthPx()
 
-    override fun viewHeight(): Int = view.height
+    override fun viewHeight(): Int = view.logicalHeightPx()
 
     override fun dp(value: Float): Float = dpFn(value)
 
@@ -107,12 +108,18 @@ internal class EdgeGestureOverlayHosts(
 
     override fun screenHeightPx(): Int = OverlayScreenMetrics.sizePx(view.context).second
 
-    override fun viewLocationOnScreen(): IntArray = IntArray(2).also { view.getLocationOnScreen(it) }
+    // 缩窗（钉住面板）期间窗口原点不是 (0,0)，而面板 / 触钮都按整屏坐标算 → 统一按逻辑原点换算。
+    override fun viewLocationOnScreen(): IntArray = IntArray(2).also { view.locationOnScreenLogical(it) }
 
     override fun invalidate() = view.invalidate()
 
     @Suppress("DEPRECATION")
     override fun invalidatePanel(rect: RectF) {
+        // 缩窗（钉住面板）时脏矩形还是整屏坐标，和窗口本地坐标对不上 → 整窗重画即可（窗口本身很小）。
+        if (view.isPresentationWindowShrunk()) {
+            view.invalidate()
+            return
+        }
         val target = if (rect.isEmpty) indexPanelContentRectProvider?.invoke() ?: rect else rect
         if (target.isEmpty) {
             view.invalidate()
@@ -128,8 +135,17 @@ internal class EdgeGestureOverlayHosts(
     }
 
     @Suppress("DEPRECATION")
-    override fun invalidatePartial(left: Int, top: Int, right: Int, bottom: Int) =
+    override fun invalidatePartial(left: Int, top: Int, right: Int, bottom: Int) {
+        // ⚠️ 缩窗（钉住面板）时这些脏矩形还是**整屏坐标**，而 view 的局部坐标原点已经变成窗口原点。
+        // 直接传进去会与 view 边界求交 → 要么只重绘窗口右下角一小块、要么交集为空**什么都不重绘**，
+        // 于是面板内容停在旧帧上（真机表现：点一下面板外，面板像跳到左上角，随后某次整窗重绘才回位）。
+        // 窗口本身很小，缩窗期间一律整窗重绘。
+        if (view.isPresentationWindowShrunk()) {
+            view.invalidate()
+            return
+        }
         view.invalidate(left, top, right, bottom)
+    }
 
     override fun post(action: () -> Unit) {
         view.post(action)

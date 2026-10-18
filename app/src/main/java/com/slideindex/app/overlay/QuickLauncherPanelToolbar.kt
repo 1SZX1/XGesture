@@ -12,7 +12,7 @@ internal class QuickLauncherPanelToolbar(
     private val controller: QuickLauncherPanelController,
     private val host: QuickLauncherPanelController.Host
 ) {
-    enum class ToolbarAction { ADD, SWITCH, EDIT }
+    enum class ToolbarAction { ADD, SWITCH, EDIT, CLOSE }
 
     data class ToolbarLayoutMetrics(
         val toolbarHeight: Float,
@@ -25,6 +25,7 @@ internal class QuickLauncherPanelToolbar(
     private val addButtonRect = RectF()
     private val switchButtonRect = RectF()
     private val editButtonRect = RectF()
+    private val closeButtonRect = RectF()
     private val toolbarRect = RectF()
     private val deleteBadgeRects = mutableListOf<RectF>()
 
@@ -108,23 +109,29 @@ internal class QuickLauncherPanelToolbar(
             addButtonRect.setEmpty()
             switchButtonRect.setEmpty()
             editButtonRect.setEmpty()
+            closeButtonRect.setEmpty()
             return
         }
         val toolbarHeight = host.dp(36f)
         val toolbarGap = host.dp(8f)
         val padding = host.dp(4f)
         val hasMulti = host.hasMultiplePanels()
+        // 钉住态多一个「×」：钉住不抢焦点，返回键收不到派发，必须留一个看得见的关闭入口。
+        val pinned = controller.pinned
 
         val buttonHeight = toolbarHeight - padding * 2f
         val smallBtnWidth = host.dp(34f)
         val switchBtnMaxWidth = host.dp(110f)
         val gap = host.dp(4f)
 
-        val desiredWidth = if (hasMulti) {
-            smallBtnWidth * 2f + switchBtnMaxWidth + gap * 2f + padding * 2f
-        } else {
-            smallBtnWidth * 2f + gap + padding * 2f
-        }
+        var buttonCount = 2 // 添加 + 编辑
+        if (hasMulti) buttonCount++
+        if (pinned) buttonCount++
+        val gapCount = buttonCount - 1
+
+        var desiredWidth = smallBtnWidth * 2f + gap * gapCount + padding * 2f
+        if (hasMulti) desiredWidth += switchBtnMaxWidth
+        if (pinned) desiredWidth += smallBtnWidth
         val toolbarWidth = minOf(panelRect.width(), desiredWidth)
         val left = panelRect.centerX() - toolbarWidth / 2f
         val top = panelRect.bottom + toolbarGap
@@ -133,29 +140,32 @@ internal class QuickLauncherPanelToolbar(
         val buttonTop = toolbarRect.top + padding
         val buttonBottom = buttonTop + buttonHeight
 
+        // Left: Add Button
+        val addLeft = toolbarRect.left + padding
+        addButtonRect.set(addLeft, buttonTop, addLeft + smallBtnWidth, buttonBottom)
+
+        var cursor = addButtonRect.right + gap
+
+        // Middle: Switch Button（占满剩余空间，名字长时自动省略）
         if (hasMulti) {
-            val totalSmallBtns = smallBtnWidth * 2f
-            val availableMiddle = (toolbarWidth - padding * 2f - totalSmallBtns - gap * 2f).coerceAtLeast(host.dp(40f))
-
-            // Left: Add Button
-            val addLeft = toolbarRect.left + padding
-            addButtonRect.set(addLeft, buttonTop, addLeft + smallBtnWidth, buttonBottom)
-
-            // Middle: Switch Button
-            val switchLeft = addButtonRect.right + gap
-            switchButtonRect.set(switchLeft, buttonTop, switchLeft + availableMiddle, buttonBottom)
-
-            // Right: Edit Button
-            val editLeft = switchButtonRect.right + gap
-            editButtonRect.set(editLeft, buttonTop, editLeft + smallBtnWidth, buttonBottom)
+            val reservedRight = smallBtnWidth * (if (pinned) 2f else 1f) + gap * (if (pinned) 2f else 1f)
+            val availableMiddle = (toolbarRect.right - padding - reservedRight - cursor)
+                .coerceAtLeast(host.dp(40f))
+            switchButtonRect.set(cursor, buttonTop, cursor + availableMiddle, buttonBottom)
+            cursor = switchButtonRect.right + gap
         } else {
-            val totalButtons = smallBtnWidth * 2f + gap
-            val startLeft = toolbarRect.centerX() - totalButtons / 2f
-
-            addButtonRect.set(startLeft, buttonTop, startLeft + smallBtnWidth, buttonBottom)
             switchButtonRect.setEmpty()
-            val editLeft = addButtonRect.right + gap
-            editButtonRect.set(editLeft, buttonTop, editLeft + smallBtnWidth, buttonBottom)
+        }
+
+        // Edit Button
+        editButtonRect.set(cursor, buttonTop, cursor + smallBtnWidth, buttonBottom)
+        cursor = editButtonRect.right + gap
+
+        // Right: Close Button（仅钉住态）
+        if (pinned) {
+            closeButtonRect.set(cursor, buttonTop, cursor + smallBtnWidth, buttonBottom)
+        } else {
+            closeButtonRect.setEmpty()
         }
     }
 
@@ -192,6 +202,15 @@ internal class QuickLauncherPanelToolbar(
             if (controller.editMode) theme.accent else Color.argb(230, 255, 255, 255),
             active = controller.editMode
         )
+        if (controller.pinned) {
+            drawToolbarButton(
+                canvas,
+                closeButtonRect,
+                ToolbarAction.CLOSE,
+                Color.argb(230, 255, 255, 255),
+                active = false
+            )
+        }
     }
 
     fun layoutDeleteBadges(cells: List<RectF>, dragFromIndex: Int = -1) {
@@ -255,6 +274,10 @@ internal class QuickLauncherPanelToolbar(
             }
             ToolbarAction.EDIT -> {
                 controller.setEditMode(!controller.editMode)
+                host.hapticTick()
+            }
+            ToolbarAction.CLOSE -> {
+                controller.onCloseRequested?.invoke()
                 host.hapticTick()
             }
         }
@@ -334,6 +357,16 @@ internal class QuickLauncherPanelToolbar(
                     toolbarIconPaint
                 )
             }
+            ToolbarAction.CLOSE -> {
+                toolbarIconPaint.textSize = host.sp(17f)
+                toolbarIconPaint.isFakeBoldText = false
+                canvas.drawText(
+                    "×",
+                    rect.centerX(),
+                    rect.centerY() - (toolbarIconPaint.descent() + toolbarIconPaint.ascent()) / 2f,
+                    toolbarIconPaint
+                )
+            }
         }
     }
 
@@ -346,15 +379,28 @@ internal class QuickLauncherPanelToolbar(
         if (addButtonRect.contains(localX, localY)) return ToolbarAction.ADD
         if (host.hasMultiplePanels() && switchButtonRect.contains(localX, localY)) return ToolbarAction.SWITCH
         if (editButtonRect.contains(localX, localY)) return ToolbarAction.EDIT
+        if (controller.pinned && closeButtonRect.contains(localX, localY)) return ToolbarAction.CLOSE
 
         if (host.hasMultiplePanels()) {
-            val candidates = listOf(
-                ToolbarAction.ADD to kotlin.math.abs(localX - addButtonRect.centerX()),
-                ToolbarAction.SWITCH to kotlin.math.abs(localX - switchButtonRect.centerX()),
-                ToolbarAction.EDIT to kotlin.math.abs(localX - editButtonRect.centerX())
-            )
+            val candidates = buildList {
+                add(ToolbarAction.ADD to kotlin.math.abs(localX - addButtonRect.centerX()))
+                add(ToolbarAction.SWITCH to kotlin.math.abs(localX - switchButtonRect.centerX()))
+                add(ToolbarAction.EDIT to kotlin.math.abs(localX - editButtonRect.centerX()))
+                if (controller.pinned) {
+                    add(ToolbarAction.CLOSE to kotlin.math.abs(localX - closeButtonRect.centerX()))
+                }
+            }
             return candidates.minByOrNull { it.second }?.first
         } else {
+            if (controller.pinned && !closeButtonRect.isEmpty) {
+                // 单面板时按钮更少：关掉「左半添加/右半编辑」的旧兜底，避免误触到「×」附近。
+                val candidates = listOf(
+                    ToolbarAction.ADD to kotlin.math.abs(localX - addButtonRect.centerX()),
+                    ToolbarAction.EDIT to kotlin.math.abs(localX - editButtonRect.centerX()),
+                    ToolbarAction.CLOSE to kotlin.math.abs(localX - closeButtonRect.centerX())
+                )
+                return candidates.minByOrNull { it.second }?.first
+            }
             return if (localX < toolbarRect.centerX()) ToolbarAction.ADD else ToolbarAction.EDIT
         }
     }
@@ -383,6 +429,12 @@ internal class QuickLauncherPanelToolbar(
             nodes += OverlayVirtualNode(
                 description = label,
                 boundsInParent = RectF(editButtonRect)
+            )
+        }
+        if (!closeButtonRect.isEmpty) {
+            nodes += OverlayVirtualNode(
+                description = context.getString(R.string.quick_launcher_pinned_close),
+                boundsInParent = RectF(closeButtonRect)
             )
         }
         return nodes

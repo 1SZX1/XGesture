@@ -1,5 +1,6 @@
 package com.slideindex.app.overlay
 
+import android.graphics.Color
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -131,7 +132,7 @@ internal class SideOverlayWindowManager(
             )
             return
         }
-        applyFullScreenPresentationLayout(params)
+        applyPresentationWindowLayout(content, params)
         clearPresentationBrightnessOverride(params)
         applyPresentationTouchFlags(content, params)
         if (!presentationAttached) {
@@ -155,6 +156,11 @@ internal class SideOverlayWindowManager(
     }
 
     fun detachPresentationWindow() {
+        // 触摸层必须跟着绘制层一起摘：否则面板没了，那块「看不见却吃触摸」的窗口会留在屏幕上。
+        pinnedTouchSlot?.let { slot ->
+            removeOverlayView(slot.view)
+            pinnedTouchSlot = null
+        }
         if (!presentationAttached) return
         EdgeDiag.logStack(
             "window",
@@ -228,7 +234,7 @@ internal class SideOverlayWindowManager(
                 if (!presentationAttached) {
                     ensurePresentationAttached()
                 } else {
-                    applyFullScreenPresentationLayout(params)
+                    applyPresentationWindowLayout(content, params)
                     applyPresentationPassthroughFlags(params)
                     clearPresentationBrightnessOverride(params)
                     runCatching { windowManager.updateViewLayout(root, params) }
@@ -246,7 +252,7 @@ internal class SideOverlayWindowManager(
             !content.needsPresentationDirectTouch()
         if (edgeOnlyGestureTracking) {
             // 全屏 NOT_TOUCHABLE presentation：承载手势动画 ComposeView（动画挂在 container 上）。
-            applyFullScreenPresentationLayout(params)
+            applyPresentationWindowLayout(content, params)
             applyPresentationPassthroughFlags(params)
             if (!presentationAttached) {
                 runCatching { addOverlayView(root, params) }
@@ -274,7 +280,7 @@ internal class SideOverlayWindowManager(
             renderer.applyPreviewPresentationWindow()
             return
         }
-        applyFullScreenPresentationLayout(params)
+        applyPresentationWindowLayout(content, params)
         applyPresentationTouchFlags(content, params)
         clearPresentationBrightnessOverride(params)
         runCatching { windowManager.updateViewLayout(root, params) }
@@ -523,6 +529,12 @@ internal class SideOverlayWindowManager(
         view: EdgeGestureOverlayView,
         params: WindowManager.LayoutParams
     ) {
+        // 钉住态：绘制窗口一律放行触摸（面板外直接落到下面的应用），
+        // 面板内的触摸由 [syncPinnedTouchWindow] 那层小窗口接住并转发。
+        if (view.pinnedQuickLauncherWindowRect() != null) {
+            applyPresentationPassthroughFlags(params)
+            return
+        }
         if (view.needsPresentationDirectTouch()) {
             val panelOpen = view.panelMode() != OverlayPanelMode.NONE
             if (!panelOpen && view.presentationShouldPassthroughTouches()) {
@@ -535,9 +547,117 @@ internal class SideOverlayWindowManager(
         }
     }
 
-    private fun applyFullScreenPresentationLayout(params: WindowManager.LayoutParams) {
+    /**
+     * 下发 presentation 窗口的几何。
+     *
+     * 默认全屏；**钉住面板空闲态**（快速启动器面板钉住、手指已抬起、面板还停在屏上）缩到面板矩形 ——
+     * 只有窗口不再盖住整屏，面板外的触摸才会落到下面的应用上，这就是「钉住还能操作屏幕」的实现。
+     */
+    private var pinnedWindowApplied = false
+
+    /** 钉住面板的触摸层窗口（绘制窗口全屏不动，触摸只在这一块生效）。 */
+    private var pinnedTouchSlot: CaptureWindow? = null
+
+    /**
+     * 下发 presentation 窗口的几何。
+     *
+     * ⚠️ **窗口几何永远是全屏**，钉住也不例外。
+     *
+     * 之前为了「面板外触摸穿透」把窗口缩到面板矩形，结果真机上每次缩放都会让面板闪到屏幕
+     * 左上角再回来：面板走的是硬件合成层，窗口位置/尺寸一变，HWC 会短暂用「新位置 + 旧内容」
+     * 合成一帧，画布怎么补都补不平（改平移量、改判据、用实时位置，全都试过）。
+     * 现在穿透改由独立的「钉住触摸层」小窗口实现（见 [syncPinnedTouchWindow]），
+     * 绘制窗口不再发生任何几何变化，这类闪跳从根上消失。
+     */
+    private fun applyPresentationWindowLayout(
+        content: EdgeGestureOverlayView,
+        params: WindowManager.LayoutParams
+    ) {
+        val pinned = content.pinnedQuickLauncherWindowRect() != null
+        if (pinned != pinnedWindowApplied) {
+            pinnedWindowApplied = pinned
+            EdgeDiag.log("window", "presentation 钉住态=${pinned}（窗口保持全屏）")
+        }
+        content.setPresentationWindowGeometry(
+            originX = 0,
+            originY = 0,
+            widthPx = content.logicalWidthPx(),
+            heightPx = content.logicalHeightPx(),
+            shrunk = false,
+        )
         OverlayWindowTypes.applyFullScreen(params)
         OverlayWindowTypes.ensureNoBrightnessOverride(params)
+        syncPinnedTouchWindow(content)
+    }
+
+    /**
+     * 钉住面板的**触摸层**窗口。
+     *
+     * 绘制窗口全屏且 `FLAG_NOT_TOUCHABLE`（面板外触摸直接落到下面的应用）；这一层只有面板那么大、
+     * 可触摸，收到的事件原样转发给绘制层（[EdgeGestureOverlayView.dispatchPinnedTouch]）。
+     * 两层分工后：绘制窗口零几何变化（不闪），触摸仍精确限定在面板矩形内。
+     */
+    private fun syncPinnedTouchWindow(content: EdgeGestureOverlayView) {
+        val rect = content.pinnedQuickLauncherWindowRect()
+        val existing = pinnedTouchSlot
+        if (rect == null) {
+            if (existing != null) {
+                removeOverlayView(existing.view)
+                pinnedTouchSlot = null
+                EdgeDiag.log("window", "钉住触摸层：摘除")
+            }
+            return
+        }
+        val bounds = CollapsedWindowBounds(
+            widthPx = rect.width().toInt().coerceAtLeast(1),
+            heightPx = rect.height().toInt().coerceAtLeast(1),
+            xPx = rect.left.toInt(),
+            yPx = rect.top.toInt(),
+        )
+        if (existing == null) {
+            val params = createCaptureLayoutParams()
+            applyPinnedTouchLayout(params, bounds)
+            applyCaptureTouchFlags(params)
+            val view = View(overlayContext).apply {
+                setBackgroundColor(Color.TRANSPARENT)
+                setOnTouchListener { _, event ->
+                    content.dispatchPinnedTouch(event)
+                    true
+                }
+            }
+            runCatching { addOverlayView(view, params) }
+                .onSuccess {
+                    pinnedTouchSlot = CaptureWindow(view, params)
+                    EdgeDiag.log("window", "钉住触摸层：挂载 rect=$rect")
+                }
+                .onFailure { Log.e(TAG, "Failed to add pinned touch window", it) }
+            return
+        }
+        applyPinnedTouchLayout(existing.params, bounds)
+        runCatching { windowManager.updateViewLayout(existing.view, existing.params) }
+            .onFailure { Log.e(TAG, "Failed to update pinned touch window", it) }
+    }
+
+    /**
+     * 钉住触摸层的布局：**必须用 TOP|START + 绝对屏幕坐标**。
+     *
+     * ⚠️ 不能复用 [applyCaptureLayout]：那个函数带 `gravity = windowGravity()`（右侧面板是
+     * `TOP|END`），而 [CollapsedWindowBounds.xPx] 是"距屏幕左边"。两者一混，窗口就被摆到
+     * 右边缘往里数 x 的位置，一块透明但可触摸的窗口落在屏幕中间/右侧，把那一片的点击滑动全吞掉
+     *（真机表现：面板所在那一整条水平范围都点不动）。
+     */
+    private fun applyPinnedTouchLayout(
+        params: WindowManager.LayoutParams,
+        bounds: CollapsedWindowBounds
+    ) {
+        params.width = bounds.widthPx
+        params.height = bounds.heightPx
+        params.gravity = Gravity.TOP or Gravity.START
+        params.x = bounds.xPx
+        params.y = bounds.yPx
+        params.flags = params.flags or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        params.layoutInDisplayCutoutMode =
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
     }
 
     private fun applyCaptureLayout(

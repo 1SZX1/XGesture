@@ -5,6 +5,7 @@ import android.view.MotionEvent
 import com.slideindex.app.launcher.QuickLauncherItemCodec
 import com.slideindex.app.launcher.QuickLauncherItemType
 import com.slideindex.app.settings.effectiveLongPressDurationMs
+import com.slideindex.app.settings.opensSomething
 import com.slideindex.app.settings.resolvedLaunchPolicy
 
 internal class QuickLauncherPickResolver(
@@ -146,31 +147,50 @@ internal class QuickLauncherPickResolver(
             }
             QuickLauncherItemType.ACTION -> {
                 val action = QuickLauncherItemCodec.parseActionPayload(item.payload) ?: return false
-                host.gestureSession().performQuickLauncherAction(
+                val sessionEnds = host.gestureSession().performQuickLauncherAction(
                     action,
                     localX,
                     localY,
                     event.rawY,
                     confirmHaptic = longPress
                 )
+                // 钉住：面板里的「动作」类条目（不换前台的那些）执行完不收起面板，才能一连按好几个
+                // （加粗 → 下划线 → 编号……）；会换前台的动作（打开 App / 链接等）照旧收起 ——
+                // 用户的注意力已经离开这个面板了，面板再浮在上面只会挡路。
+                if (sessionEnds &&
+                    host.gestureSession().quickLauncherPinned() &&
+                    !action.opensSomething()
+                ) {
+                    false
+                } else {
+                    // 会换前台的动作：面板收起，但「只在本应用」要记住等回来恢复。
+                    if (sessionEnds && action.opensSomething()) {
+                        ctrl.recordPinnedHiddenByLaunch()
+                    }
+                    sessionEnds
+                }
             }
             else -> {
                 if (longPress) {
                     host.hapticConfirmLaunch()
                 }
-                ctrl.quickLauncherLaunchEndDeferMs =
-                    if (host.actionExecutor().launchQuickItem(
-                            item,
-                            host.settings(),
-                            longPressArmed = longPress,
-                            anchorRawY = event.rawY,
-                            panelSide = host.side(),
-                        )
-                    ) {
-                        280L
-                    } else {
-                        0L
-                    }
+                val launched = host.actionExecutor().launchQuickItem(
+                    item,
+                    host.settings(),
+                    longPressArmed = longPress,
+                    anchorRawY = event.rawY,
+                    panelSide = host.side(),
+                )
+                // ⚠️ 不能拿 `launched` 当"有没有换前台"的判据：[launchQuickItem] 对 APP 类型
+                // **恒定返回 false**（那个返回值的语义是"是否走了 action 直通"，不是"有没有启动"）。
+                // 用它会让"从面板里点 App 跳走"这一路漏记「待恢复」，回到原应用时面板回不来。
+                // APP / SHORTCUT 必然把前台交出去，所以按**条目类型**判断。
+                if (item.type == QuickLauncherItemType.APP ||
+                    item.type == QuickLauncherItemType.SHORTCUT
+                ) {
+                    ctrl.recordPinnedHiddenByLaunch()
+                }
+                ctrl.quickLauncherLaunchEndDeferMs = if (launched) 280L else 0L
                 true
             }
         }

@@ -60,6 +60,16 @@ internal class QuickLauncherPanelController(
     var editMode: Boolean = false
         private set
 
+    /**
+     * 当前面板是否处于「钉住」态（由 [QuickLauncherOverlayController.draw] 每帧同步）。
+     *
+     * 工具栏据此多画一个「×」：钉住态不再抢焦点，返回键收不到派发，必须有一个看得见的出口。
+     */
+    var pinned: Boolean = false
+
+    /** 工具栏「×」的回调（由 [QuickLauncherOverlayController] 注入）。 */
+    var onCloseRequested: (() -> Unit)? = null
+
     var itemPageOffset: Int = 0
         internal set
 

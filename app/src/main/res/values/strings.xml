@@ -2762,6 +2762,20 @@
     <string name="quick_launcher_panel_pick_title">Choose launcher panel</string>
     <string name="quick_launcher_panel_pick_desc">Different gesture slots can open different launcher panels.</string>
     <string name="gesture_action_quick_launcher_named">Quick launcher · %1$s</string>
+    <string name="quick_launcher_label_fallback">Launcher panel</string>
+    <string name="quick_launcher_pinned_close">Close pinned panel</string>
+    <string name="quick_launcher_action_config_title">Quick launcher</string>
+    <string name="quick_launcher_action_config_hint">Pick the panel this gesture opens. Pinned keeps it on screen so several items can be tapped in a row.</string>
+    <string name="quick_launcher_action_panel_section">Panel</string>
+    <string name="quick_launcher_action_panel_empty">No launcher panels yet.</string>
+    <string name="quick_launcher_action_panel_cells">%1$d × %2$d grid</string>
+    <string name="quick_launcher_action_pin_section">Pin</string>
+    <string name="quick_launcher_action_pin_row">Pinned</string>
+    <string name="quick_launcher_action_pin_row_desc">Tapping an item, or anywhere outside the panel, no longer hides it. Swipe the same gesture again, or tap × in the panel bar, to close.</string>
+    <string name="quick_launcher_action_pin_current_app_row">Only in the current app</string>
+    <string name="quick_launcher_action_pin_current_app_row_desc">Hides when you switch to another app, and comes back as you left it when you return.</string>
+    <string name="quick_launcher_action_pin_subtitle">Pinned</string>
+    <string name="quick_launcher_action_pin_subtitle_current_app">Pinned · this app only</string>
     <string name="quick_launcher_appearance_section">Appearance</string>
     <string name="quick_launcher_icon_size">Icon size</string>
     <string name="quick_launcher_icon_size_value">%1$d dp</string>
@@ -3284,6 +3298,7 @@ Questions: open a GitHub Issue on the project repository.</string>
     <string name="launcher_shortcut_menu_hint">Long-press and drag to reorder. Turned-off items are hidden from the long-press menu.</string>
     <string name="shortcut_panel_open_failed">Could not open panel. Make sure XGesture is enabled.</string>
     <string name="about_section_title">About</string>
+    <string name="about_version_format" translatable="false">v%1$s (%2$d)</string>
     <string name="about_release_notes_title">Release notes</string>
     <string name="about_check_update_title">Check for updates</string>
     <string name="about_check_update_subtitle">Query latest release on GitHub</string>
@@ -4198,8 +4213,8 @@ or revoke permanent Root for Shell in APatch.</string>
     <string name="cd_view_all">View all</string>
     <string name="holographic_no_apps_loaded">No apps loaded</string>
     <string name="holographic_check_settings_hint">Check settings or configure on the settings page</string>
-    <string name="update_version_current">Current v%1$s</string>
-    <string name="update_version_latest">Latest v%1$s</string>
+    <string name="update_version_current">Current %1$s</string>
+    <string name="update_version_latest">Latest %1$s</string>
     <string name="task_switcher_app_info">App info</string>
     <string name="task_switcher_quick_share">Quick Share</string>
     <string name="toggle_gesture_enabled">Gestures enabled</string>

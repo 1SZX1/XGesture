@@ -216,6 +216,11 @@ class OverlayManager(
         if (foregroundPackage == packageName) return
         foregroundPackage = packageName
         scheduleRefreshTriggerVisibility()
+        // 钉住面板的「仅在本应用」靠它决定自动隐藏 / 恢复；面板细节留在各侧宿主里，这里只做转发。
+        leftController?.onForegroundPackageChanged(packageName)
+        rightController?.onForegroundPackageChanged(packageName)
+        bottomController?.onForegroundPackageChanged(packageName)
+        topController?.onForegroundPackageChanged(packageName)
     }
 
     fun setPreviewMode(
