@@ -4122,8 +4122,8 @@
     <string name="cd_view_all">すべて表示</string>
     <string name="holographic_no_apps_loaded">アプリが読み込まれていません</string>
     <string name="holographic_check_settings_hint">設定を確認するか、設定ページで構成してください</string>
-    <string name="update_version_current">現在 v%1$s</string>
-    <string name="update_version_latest">最新 v%1$s</string>
+    <string name="update_version_current">現在 %1$s</string>
+    <string name="update_version_latest">最新 %1$s</string>
     <string name="task_switcher_app_info">アプリ情報</string>
     <string name="task_switcher_quick_share">クイック共有</string>
     <string name="toggle_gesture_enabled">ジェスチャーを有効にしました</string>

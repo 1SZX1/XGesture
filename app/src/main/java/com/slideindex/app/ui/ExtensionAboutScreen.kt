@@ -76,6 +76,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import com.slideindex.app.BuildConfig
 import com.slideindex.app.R
 import com.slideindex.app.ui.icon.AppIconTheme
 import com.slideindex.app.ui.miuix.MiuixBackNavigationIcon
@@ -223,6 +224,7 @@ private fun AboutContent(
 
     var logoHeightDp by remember { mutableStateOf(300.dp) }
 
+    val versionProgress = { ((scrollProgress() - 0.05f) / 0.15f).coerceIn(0f, 1f) }
     val projectNameProgress = { ((scrollProgress() - 0.20f) / 0.15f).coerceIn(0f, 1f) }
     val iconProgress = { ((scrollProgress() - 0.35f) / 0.15f).coerceIn(0f, 1f) }
 
@@ -325,6 +327,24 @@ private fun AboutContent(
                 color = MiuixTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,
                 fontSize = 32.sp
+            )
+            Text(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        val p = versionProgress()
+                        alpha = 1 - p
+                        scaleX = 1 - (p * 0.05f)
+                        scaleY = 1 - (p * 0.05f)
+                    },
+                text = stringResource(
+                    R.string.about_version_format,
+                    BuildConfig.VERSION_NAME,
+                    BuildConfig.VERSION_CODE
+                ),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
             )
         }
 

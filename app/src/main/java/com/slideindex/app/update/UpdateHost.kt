@@ -139,7 +139,7 @@ private fun UpToDateContent(
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Text(
-                text = "v$currentVersion",
+                text = currentVersion,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

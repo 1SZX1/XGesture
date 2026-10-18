@@ -4098,8 +4098,8 @@
     <string name="cd_view_all">عرض الكل</string>
     <string name="holographic_no_apps_loaded">لم يتم تحميل أي تطبيقات</string>
     <string name="holographic_check_settings_hint">يرجى التحقق من الإعدادات أو الانتقال إلى صفحة الإعدادات للتكوين</string>
-    <string name="update_version_current">الحالي v%1$s</string>
-    <string name="update_version_latest">الأحدث v%1$s</string>
+    <string name="update_version_current">الحالي %1$s</string>
+    <string name="update_version_latest">الأحدث %1$s</string>
     <string name="task_switcher_app_info">معلومات التطبيق</string>
     <string name="task_switcher_quick_share">مشاركة سريعة</string>
     <string name="toggle_gesture_enabled">الإيماءة مفعلة</string>
