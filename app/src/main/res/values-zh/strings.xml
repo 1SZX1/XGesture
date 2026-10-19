@@ -2249,6 +2249,8 @@
     <string name="search_engine_move_up">上移</string>
     <string name="search_engine_move_down">下移</string>
     <string name="search_engine_name_hint">名称</string>
+    <string name="search_engine_name_placeholder">点击填写名称</string>
+    <string name="search_engine_name_required">请先填写名称</string>
     <string name="search_engine_alias_hint">别名（可选）</string>
     <string name="search_engine_alias_support">在搜索面板输入「别名 + 空格 + 关键词」可锁定该引擎。例：g 天气</string>
     <string name="search_engine_alias_invalid">别名不能包含空格，最长 16 个字符</string>

@@ -2182,6 +2182,8 @@
     <string name="search_engine_move_up">上へ移動</string>
     <string name="search_engine_move_down">下へ移動</string>
     <string name="search_engine_name_hint">名前</string>
+    <string name="search_engine_name_placeholder">タップして名前を入力</string>
+    <string name="search_engine_name_required">先に名前を入力してください</string>
     <string name="search_engine_alias_hint">エイリアス（任意）</string>
     <string name="search_engine_alias_support">検索パネルで「エイリアス + スペース + クエリ」でエンジンを固定。例: g weather</string>
     <string name="search_engine_alias_invalid">エイリアスにスペースは使えず、最大 16 文字です</string>

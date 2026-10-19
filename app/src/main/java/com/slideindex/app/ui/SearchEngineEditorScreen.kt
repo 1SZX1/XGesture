@@ -32,7 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -72,6 +76,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Download
+import top.yukonga.miuix.kmp.icon.extended.Edit
 import top.yukonga.miuix.kmp.icon.extended.File
 import top.yukonga.miuix.kmp.icon.extended.GridView
 import top.yukonga.miuix.kmp.icon.extended.Image
@@ -103,6 +108,7 @@ fun SearchEngineEditorScreen(
 ) {
     val isNew = initialEngine == null
     val name = draft.name
+    val isNameMissing = name.isBlank()
     val aliasCode = draft.aliasCode
     val engineType = draft.engineType
     val searchLink = draft.searchLink
@@ -117,6 +123,7 @@ fun SearchEngineEditorScreen(
 
     var showTextIconDialog by remember(initialEngine?.id) { mutableStateOf(false) }
     var showIdentityDialog by remember(initialEngine?.id) { mutableStateOf(false) }
+    var nameSaveAttempted by remember(initialEngine?.id) { mutableStateOf(false) }
     var isFetchingFavicon by remember(initialEngine?.id) { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -160,38 +167,60 @@ fun SearchEngineEditorScreen(
     }
 
     val saveAction: () -> Unit = {
-        val engine = buildEngine(
-            initialEngine = initialEngine,
-            name = name.trim(),
-            aliasCode = aliasCode,
-            engineType = engineType,
-            searchLink = searchLink.trim(),
-            externJumpLink = externJumpLink.trim(),
-            externJumpPackage = externJumpPackage.trim(),
-            targetPackage = targetPackage.trim(),
-            targetActivity = targetActivity.trim(),
-            autoInputEnter = autoInputEnter,
-            hasPendingIcon = pendingIconUri != null || pendingIconPath != null,
-            pendingIconPath = pendingIconPath,
-            pendingTextIcon = pendingTextIcon,
-        )
-        val normalizedAlias = SearchPanelAliasResolver.normalizeAliasCode(engine.aliasCode.orEmpty())
-        if (!SearchPanelAliasResolver.isValidAliasCode(normalizedAlias)) {
+        if (isNameMissing) {
+            // 名称是必填项，但入口藏在标题行里，很容易被当成说明文字跳过。
+            // 这里直接打开名称弹窗并说明原因，避免"点保存没反应"。
+            nameSaveAttempted = true
+            showIdentityDialog = true
             Toast.makeText(
                 context,
-                R.string.search_engine_alias_invalid,
+                R.string.search_engine_name_required,
                 Toast.LENGTH_SHORT,
             ).show()
-        } else if (SearchEngineValidator.validate(engine)) {
-            onSave(
-                SearchEngineEditorResult(
-                    engine = engine.copy(
-                        aliasCode = normalizedAlias.takeIf { it.isNotEmpty() },
-                    ),
-                    iconUri = pendingIconUri,
-                    savedIconPath = pendingIconPath,
-                ),
+        } else {
+            val engine = buildEngine(
+                initialEngine = initialEngine,
+                name = name.trim(),
+                aliasCode = aliasCode,
+                engineType = engineType,
+                searchLink = searchLink.trim(),
+                externJumpLink = externJumpLink.trim(),
+                externJumpPackage = externJumpPackage.trim(),
+                targetPackage = targetPackage.trim(),
+                targetActivity = targetActivity.trim(),
+                autoInputEnter = autoInputEnter,
+                hasPendingIcon = pendingIconUri != null || pendingIconPath != null,
+                pendingIconPath = pendingIconPath,
+                pendingTextIcon = pendingTextIcon,
             )
+            val normalizedAlias = SearchPanelAliasResolver.normalizeAliasCode(engine.aliasCode.orEmpty())
+            when {
+                !SearchPanelAliasResolver.isValidAliasCode(normalizedAlias) -> {
+                    Toast.makeText(
+                        context,
+                        R.string.search_engine_alias_invalid,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                !SearchEngineValidator.validate(engine) -> {
+                    Toast.makeText(
+                        context,
+                        R.string.search_engine_validation_failed,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                else -> {
+                    onSave(
+                        SearchEngineEditorResult(
+                            engine = engine.copy(
+                                aliasCode = normalizedAlias.takeIf { it.isNotEmpty() },
+                            ),
+                            iconUri = pendingIconUri,
+                            savedIconPath = pendingIconPath,
+                        ),
+                    )
+                }
+            }
         }
     }
 
@@ -232,36 +261,82 @@ fun SearchEngineEditorScreen(
                         insideMargin = PaddingValues(bottom = 8.dp),
                     )
 
+                    val nameNeedsAttention = isNameMissing && nameSaveAttempted
+                    val nameFieldAccent = when {
+                        nameNeedsAttention -> MiuixTheme.colorScheme.error
+                        isNameMissing -> MiuixTheme.colorScheme.primary
+                        else -> MiuixTheme.colorScheme.dividerLine
+                    }
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showIdentityDialog = true }
+                            .drawBehind {
+                                drawRoundRect(
+                                    color = nameFieldAccent,
+                                    cornerRadius = CornerRadius(12.dp.toPx()),
+                                    style = Stroke(
+                                        width = 1.dp.toPx(),
+                                        pathEffect = if (isNameMissing) {
+                                            PathEffect.dashPathEffect(
+                                                floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
+                                            )
+                                        } else {
+                                            null
+                                        },
+                                    ),
+                                )
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         SearchEngineEditorIconPreview(
                             previewEngine = previewEngine,
                             pendingIconUri = pendingIconUri,
-                            modifier = Modifier.size(56.dp),
+                            modifier = Modifier.size(48.dp),
                             backgroundColor = MiuixTheme.colorScheme.surfaceVariant,
                             fallbackContentColor = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showIdentityDialog = true }
-                                .padding(vertical = 6.dp),
-                        ) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = name.ifBlank { stringResource(R.string.search_engine_name_hint) },
+                                text = name.ifBlank {
+                                    stringResource(R.string.search_engine_name_placeholder)
+                                },
                                 style = MiuixTheme.textStyles.title4,
                                 fontWeight = FontWeight.SemiBold,
+                                color = if (isNameMissing) {
+                                    nameFieldAccent
+                                } else {
+                                    MiuixTheme.colorScheme.onSurfaceContainer
+                                },
                             )
                             Text(
-                                text = stringResource(R.string.search_engine_edit_identity_hint),
+                                text = if (isNameMissing) {
+                                    stringResource(R.string.search_engine_name_required)
+                                } else {
+                                    stringResource(R.string.search_engine_edit_identity_hint)
+                                },
                                 style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                color = if (nameNeedsAttention) {
+                                    MiuixTheme.colorScheme.error
+                                } else {
+                                    MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                },
                             )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = MiuixIcons.Medium.Edit,
+                            contentDescription = stringResource(R.string.search_engine_edit_identity_title),
+                            tint = if (isNameMissing) {
+                                nameFieldAccent
+                            } else {
+                                MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            },
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
 
                     if (!isShareImageType) {
@@ -457,6 +532,7 @@ fun SearchEngineEditorScreen(
             title = stringResource(R.string.search_engine_edit_identity_title),
             onDismissRequest = { showIdentityDialog = false },
             confirmText = stringResource(R.string.search_engine_save),
+            confirmEnabled = name.isNotBlank(),
             onConfirm = { showIdentityDialog = false },
         ) {
             Column(

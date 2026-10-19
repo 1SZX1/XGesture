@@ -798,6 +798,8 @@
     <string name="search_engine_move_up">Move up</string>
     <string name="search_engine_move_down">Move down</string>
     <string name="search_engine_name_hint">Name</string>
+    <string name="search_engine_name_placeholder">Tap to enter a name</string>
+    <string name="search_engine_name_required">Enter a name first</string>
     <string name="search_engine_alias_hint">Alias (optional)</string>
     <string name="search_engine_alias_support">In the search panel, type “alias + space + query” to lock an engine. Example: g weather</string>
     <string name="search_engine_alias_invalid">Alias cannot contain spaces and must be at most 16 characters</string>
