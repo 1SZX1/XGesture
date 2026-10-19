@@ -122,6 +122,10 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.SMART_SCREENSHOT -> ThinActionIcons.Screenshot
     GestureActionType.SCREEN_DRAW -> ThinActionIcons.PenTablet
     GestureActionType.SCREEN_CONTROL -> ThinActionIcons.RemoteControl2
+    GestureActionType.WECHAT_SCAN -> PayQrActionIcons.WechatScan
+    GestureActionType.WECHAT_PAY_CODE -> PayQrActionIcons.WechatPayCode
+    GestureActionType.ALIPAY_PAY_CODE -> PayQrActionIcons.AlipayPayCode
+    GestureActionType.ALIPAY_SCAN -> PayQrActionIcons.AlipayScan
     GestureActionType.QUICK_WHEEL -> ThinActionIcons.QuickWheel
 }
 
@@ -222,5 +226,9 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.SMART_SCREENSHOT -> ThinActionIcons.Screenshot
     GestureActionType.SCREEN_DRAW -> ThinActionIcons.PenTablet
     GestureActionType.SCREEN_CONTROL -> ThinActionIcons.RemoteControl2
+    GestureActionType.WECHAT_SCAN -> PayQrActionIcons.WechatScan
+    GestureActionType.WECHAT_PAY_CODE -> PayQrActionIcons.WechatPayCode
+    GestureActionType.ALIPAY_PAY_CODE -> PayQrActionIcons.AlipayPayCode
+    GestureActionType.ALIPAY_SCAN -> PayQrActionIcons.AlipayScan
     GestureActionType.QUICK_WHEEL -> ThinActionIcons.QuickWheel
 }

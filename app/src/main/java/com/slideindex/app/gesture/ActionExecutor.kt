@@ -434,6 +434,26 @@ class ActionExecutor(
                 )
             GestureAction.ScreenDraw ->
                 com.slideindex.app.screendraw.ScreenDrawOverlay.toggle(context)
+            GestureAction.WechatScan ->
+                com.slideindex.app.payqr.PayQrActionLauncher.open(
+                    context,
+                    com.slideindex.app.payqr.PayQrActionLauncher.PayQrAction.WECHAT_SCAN,
+                )
+            GestureAction.WechatPayCode ->
+                com.slideindex.app.payqr.PayQrActionLauncher.open(
+                    context,
+                    com.slideindex.app.payqr.PayQrActionLauncher.PayQrAction.WECHAT_PAY_CODE,
+                )
+            GestureAction.AlipayPayCode ->
+                com.slideindex.app.payqr.PayQrActionLauncher.open(
+                    context,
+                    com.slideindex.app.payqr.PayQrActionLauncher.PayQrAction.ALIPAY_PAY_CODE,
+                )
+            GestureAction.AlipayScan ->
+                com.slideindex.app.payqr.PayQrActionLauncher.open(
+                    context,
+                    com.slideindex.app.payqr.PayQrActionLauncher.PayQrAction.ALIPAY_SCAN,
+                )
             GestureAction.PinToScreen -> {
                 com.slideindex.app.overlay.PinToScreenDialog.show(context)
                 true

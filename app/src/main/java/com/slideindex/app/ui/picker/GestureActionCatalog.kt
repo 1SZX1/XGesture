@@ -177,6 +177,10 @@ object GestureActionCatalog {
         GestureActionType.WIDGET_POPUP_OVERLAY,
         GestureActionType.QUICK_TOOLS_OVERLAY,
         GestureActionType.QUICK_MENU,
+        GestureActionType.WECHAT_SCAN,
+        GestureActionType.WECHAT_PAY_CODE,
+        GestureActionType.ALIPAY_PAY_CODE,
+        GestureActionType.ALIPAY_SCAN,
         -> GestureActionCategory.Panel
 
         // 5. 指针与高级 (Pointer & Advanced)
@@ -326,6 +330,10 @@ object GestureActionCatalog {
         GestureAction.WidgetPopupOverlay,
         GestureAction.QuickToolsOverlay,
         GestureAction.QuickMenu,
+        GestureAction.WechatScan,
+        GestureAction.WechatPayCode,
+        GestureAction.AlipayPayCode,
+        GestureAction.AlipayScan,
 
         // 5. 指针与高级工具 (Pointer & Advanced)
         GestureAction.FloatingPointer,

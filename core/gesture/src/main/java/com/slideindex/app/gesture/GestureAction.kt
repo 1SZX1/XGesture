@@ -160,6 +160,18 @@ enum class GestureActionType(val id: Int) {
 
     /** 「屏幕绘制」：全屏实时标注层 + 浮动工具栏，可撤销/清空并导出。 */
     SCREEN_DRAW(100),
+
+    /** 「微信扫一扫」：直接唤起微信扫一扫取景界面（`LauncherUI` + `LauncherUI.From.Scaner.Shortcut`）。 */
+    WECHAT_SCAN(101),
+
+    /** 「微信付款码」：直接唤起微信付款码（`BIZSHORTCUT` + `launch_type_offline_wallet`）。 */
+    WECHAT_PAY_CODE(102),
+
+    /** 「支付宝付款码」：直接唤起支付宝当面付/付款码（`FastStartActivity`）。 */
+    ALIPAY_PAY_CODE(103),
+
+    /** 「支付宝扫一扫」：直接唤起支付宝扫码界面（`alipays://…saId=10000007`）。 */
+    ALIPAY_SCAN(104),
     ;
 
     companion object {
@@ -1008,6 +1020,30 @@ sealed class GestureAction {
         override val payload = ""
     }
 
+    /** 微信扫一扫：直接唤起微信扫一扫取景界面。 */
+    data object WechatScan : GestureAction() {
+        override val type = GestureActionType.WECHAT_SCAN
+        override val payload = ""
+    }
+
+    /** 微信付款码：直接唤起微信付款码（离线钱包）。 */
+    data object WechatPayCode : GestureAction() {
+        override val type = GestureActionType.WECHAT_PAY_CODE
+        override val payload = ""
+    }
+
+    /** 支付宝付款码：直接唤起支付宝当面付/付款码。 */
+    data object AlipayPayCode : GestureAction() {
+        override val type = GestureActionType.ALIPAY_PAY_CODE
+        override val payload = ""
+    }
+
+    /** 支付宝扫一扫：直接唤起支付宝扫码界面。 */
+    data object AlipayScan : GestureAction() {
+        override val type = GestureActionType.ALIPAY_SCAN
+        override val payload = ""
+    }
+
     /** 钉到屏幕（轻量弹窗选择文本或图片，生成悬浮便签或图片置顶）。 */
     data object PinToScreen : GestureAction() {
         override val type = GestureActionType.PIN_TO_SCREEN
@@ -1161,6 +1197,10 @@ sealed class GestureAction {
                 GestureActionType.TOUCH_BLOCK -> TouchBlock
                 GestureActionType.SCREEN_CONTROL -> ScreenControl
                 GestureActionType.SCREEN_DRAW -> ScreenDraw
+                GestureActionType.WECHAT_SCAN -> WechatScan
+                GestureActionType.WECHAT_PAY_CODE -> WechatPayCode
+                GestureActionType.ALIPAY_PAY_CODE -> AlipayPayCode
+                GestureActionType.ALIPAY_SCAN -> AlipayScan
                 GestureActionType.PIN_TO_SCREEN -> PinToScreen
                 GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ForegroundActivityInspector
                 GestureActionType.NONE -> None
