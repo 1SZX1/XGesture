@@ -427,7 +427,13 @@ class ActionExecutor(
             GestureAction.TouchBlock ->
                 com.slideindex.app.overlay.TouchBlockOverlayWindow.toggle(context)
             GestureAction.ScreenControl ->
-                com.slideindex.app.screencontrol.ScreenControlOverlay.toggle(context, overlayAnchorX)
+                com.slideindex.app.screencontrol.ScreenControlOverlay.toggle(
+                    context,
+                    overlayAnchorX,
+                    settings.overlayBlurEnabled,
+                )
+            GestureAction.ScreenDraw ->
+                com.slideindex.app.screendraw.ScreenDrawOverlay.toggle(context)
             GestureAction.PinToScreen -> {
                 com.slideindex.app.overlay.PinToScreenDialog.show(context)
                 true

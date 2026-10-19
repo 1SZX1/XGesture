@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
@@ -1773,6 +1774,39 @@ internal object ThinActionIcons {
                 // Right partial card
                 moveTo(19f, 7f)
                 lineTo(19f, 17f)
+            }
+        }
+    }
+
+    val RemoteControl2: ImageVector by lazy {
+        createThinIcon("ThinRemoteControl2") {
+            addPath(
+                pathData = PathParser().parsePathString(
+                    "M18 2C18.5523 2 19 2.44772 19 3V21C19 21.5523 18.5523 22 18 22H6C5.44772 22 5 21.5523 5 21V3C5 2.44772 5.44772 2 6 2H18ZM17 4H7V20H17V4ZM15 15V17H13V15H15ZM11 15V17H9V15H11ZM13 6V8H15V10H12.999L13 12H11L10.999 10H9V8H11V6H13Z",
+                ).toNodes(),
+                fill = strokeBrush,
+            )
+        }
+    }
+
+    val PenTablet: ImageVector by lazy {
+        createThinIcon("ThinPenTablet") {
+            val strokeWidth = 2f
+            val paths = listOf(
+                "M22 5V19C22 20.1046 21.1046 21 20 21H4C2.89543 21 2 20.1046 2 19V5C2 3.89543 2.89543 3 4 3H20C21.1046 3 22 3.89543 22 5Z",
+                "M2 12H6",
+                "M6 3V21",
+                "M15.5 11.5L12 14.5",
+                "M17 10.01L17.01 9.99889",
+            )
+            paths.forEach { pathData ->
+                addPath(
+                    pathData = PathParser().parsePathString(pathData).toNodes(),
+                    stroke = strokeBrush,
+                    strokeLineWidth = strokeWidth,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                )
             }
         }
     }

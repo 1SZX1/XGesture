@@ -1055,7 +1055,16 @@
     <string name="gesture_action_screen_control">触控板</string>
     <string name="gesture_action_screen_control_desc">呼出悬浮触控板：滑动移动指针，点按单击/连击，长按拖动；带方向键和返回/任务/主页键</string>
     <string name="gesture_action_screen_control_permission">需要无障碍服务</string>
+    <string name="gesture_action_screen_draw">屏幕绘制</string>
+    <string name="gesture_action_screen_draw_desc">在屏幕上层直接手绘标注，可撤销/清空并导出为图片</string>
+    <string name="gesture_action_screen_draw_permission">需要无障碍服务</string>
     <string name="screen_control_accessibility_required">无障碍服务未连接</string>
+    <string name="screen_draw_accessibility_required">无障碍服务未连接</string>
+    <string name="screen_draw_empty">画布上还没有内容</string>
+    <string name="screen_draw_saved">绘制已保存到相册</string>
+    <string name="screen_draw_save_failed">保存绘制失败</string>
+    <string name="screen_draw_copied">绘制已复制到剪贴板</string>
+    <string name="screen_draw_shared">已打开分享面板</string>
     <string name="gesture_search_touch_block_1">禁止触摸</string>
     <string name="gesture_search_touch_block_2">防误触</string>
     <string name="touch_block_hint_title">已禁止触摸</string>

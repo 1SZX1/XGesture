@@ -28,6 +28,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.slideindex.app.R
 import com.slideindex.app.overlay.OverlayPanelTheme
+import com.slideindex.app.overlay.setupBackgroundBlur
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
@@ -47,6 +48,7 @@ internal enum class ScreenControlNav { BACK, RECENTS, HOME }
 internal class ScreenControlPanelView(
     context: Context,
     private val listener: Listener,
+    private val blurEnabled: Boolean = false,
 ) : FrameLayout(context) {
 
     interface Listener {
@@ -84,7 +86,7 @@ internal class ScreenControlPanelView(
     private var minimized = false
 
     init {
-        background = panelBackground()
+        background = if (blurEnabled) null else panelBackground()
         clipToOutline = false
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
@@ -168,7 +170,7 @@ internal class ScreenControlPanelView(
             resizeHandle,
             LayoutParams(dp(24f), dp(24f)).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                setMargins(0, 0, dp(1f), dp(1f))
+                setMargins(0, 0, 0, 0)
             },
         )
 
@@ -184,6 +186,31 @@ internal class ScreenControlPanelView(
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        applyPanelBackground()
+    }
+
+    private fun applyPanelBackground() {
+        if (!blurEnabled) {
+            background = panelBackground()
+            return
+        }
+        background = null
+        setupBackgroundBlur(
+            view = this,
+            cornerRadiusPx = 24f * density,
+            blurRadiusPx = (24f * density).roundToInt(),
+            tintColor = withAlpha(themeColors.panelBackground, 120),
+        )
+        post {
+            val bg = background
+            if (bg == null || !bg.javaClass.name.contains("BackgroundBlurDrawable")) {
+                background = panelBackground()
+            }
+        }
+    }
+
     fun setMinimized(minimized: Boolean) {
         if (this.minimized == minimized) return
         this.minimized = minimized
@@ -197,7 +224,7 @@ internal class ScreenControlPanelView(
             content.visibility = VISIBLE
             resizeHandle.visibility = VISIBLE
             ball.visibility = GONE
-            background = panelBackground()
+            applyPanelBackground()
             clipToOutline = false
         }
         requestLayout()
@@ -236,9 +263,9 @@ internal class ScreenControlPanelView(
             gravity = Gravity.CENTER
         }
         val items = listOf(
-            R.drawable.ic_sc_back to ScreenControlNav.BACK,
-            R.drawable.ic_sc_recents to ScreenControlNav.RECENTS,
-            R.drawable.ic_sc_home to ScreenControlNav.HOME,
+            R.drawable.ic_iconoir_undo to ScreenControlNav.BACK,
+            R.drawable.ic_iconoir_view_grid to ScreenControlNav.RECENTS,
+            R.drawable.ic_iconoir_home to ScreenControlNav.HOME,
         )
         items.forEachIndexed { index, (icon, nav) ->
             val key = iconKey(icon).apply {
@@ -255,7 +282,7 @@ internal class ScreenControlPanelView(
                 },
             )
         }
-        val minimize = iconKey(R.drawable.ic_sc_minimize, tint = Color.WHITE).apply {
+        val minimize = iconKey(R.drawable.ic_circle_dot, tint = Color.WHITE).apply {
             background = rippleKey(selected = true, accent = true)
             setOnClickListener {
                 performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -272,10 +299,10 @@ internal class ScreenControlPanelView(
     }
 
     private fun iconFor(direction: ScreenControlDirection): Int = when (direction) {
-        ScreenControlDirection.UP -> R.drawable.ic_sc_arrow_up
-        ScreenControlDirection.DOWN -> R.drawable.ic_sc_arrow_down
-        ScreenControlDirection.LEFT -> R.drawable.ic_sc_arrow_left
-        ScreenControlDirection.RIGHT -> R.drawable.ic_sc_arrow_right
+        ScreenControlDirection.UP -> R.drawable.ic_iconoir_nav_arrow_up
+        ScreenControlDirection.DOWN -> R.drawable.ic_iconoir_nav_arrow_down
+        ScreenControlDirection.LEFT -> R.drawable.ic_iconoir_nav_arrow_left
+        ScreenControlDirection.RIGHT -> R.drawable.ic_iconoir_nav_arrow_right
     }
 
     private fun iconKey(iconRes: Int, tint: Int = themeColors.textPrimary): ImageView =
@@ -310,8 +337,8 @@ internal class ScreenControlPanelView(
         shape = GradientDrawable.RECTANGLE
         cornerRadius = 24f * density
         colors = intArrayOf(
-            withAlpha(themeColors.panelBackground, 255),
-            withAlpha(themeColors.panelBackground, 255),
+            withAlpha(themeColors.panelBackground, if (blurEnabled) 150 else 255),
+            withAlpha(themeColors.panelBackground, if (blurEnabled) 150 else 255),
         )
         orientation = GradientDrawable.Orientation.TOP_BOTTOM
         setStroke((1f * density).roundToInt(), withAlpha(themeColors.cardBorder, 150))
@@ -320,7 +347,7 @@ internal class ScreenControlPanelView(
     private fun padBackground(): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
         cornerRadius = 20f * density
-        setColor(withAlpha(themeColors.panelBackground, 255))
+        setColor(withAlpha(themeColors.panelBackground, if (blurEnabled) 110 else 255))
         setStroke((1f * density).roundToInt(), withAlpha(themeColors.divider, 55))
     }
 
@@ -676,15 +703,9 @@ internal class ScreenControlPanelView(
                 strokeWidth = lineWidth
                 strokeCap = Paint.Cap.ROUND
             }
-            val radius = minOf(width, height).toFloat() - 1f * density
-            val inset = lineWidth / 2f
+            val radius = minOf(width, height).toFloat() - lineWidth / 2f
             canvas.drawArc(
-                RectF(
-                    -radius + inset,
-                    -radius + inset,
-                    radius - inset,
-                    radius - inset,
-                ),
+                RectF(-radius, -radius, radius, radius),
                 0f,
                 90f,
                 false,
@@ -734,7 +755,7 @@ internal class ScreenControlPanelView(
         private val density = resources.displayMetrics.density
         private val themeColors = OverlayPanelTheme.colors(context)
         private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
-        private val icon = context.getDrawable(R.drawable.ic_sc_circle_dot)?.mutate()
+        private val icon = context.getDrawable(R.drawable.ic_circle_dot)?.mutate()
 
         private var downRawX = 0f
         private var downRawY = 0f

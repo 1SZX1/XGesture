@@ -62,6 +62,7 @@ object ScreenControlOverlay {
     private var screenWidth = 1
     private var screenHeight = 1
     private var density = 1f
+    private var panelBlurEnabled = true
 
     private var panelWidthDp = ScreenControlPrefs.DEFAULT_WIDTH_DP
     private var panelHeightDp = ScreenControlPrefs.DEFAULT_HEIGHT_DP
@@ -86,17 +87,17 @@ object ScreenControlOverlay {
 
     val isShowing: Boolean get() = panelView != null
 
-    fun toggle(context: Context, anchorX: Float? = null): Boolean {
+    fun toggle(context: Context, anchorX: Float? = null, blurEnabled: Boolean = true): Boolean {
         if (isShowing) {
             dismiss()
             return true
         }
-        return show(context, anchorX)
+        return show(context, anchorX, blurEnabled)
     }
 
-    fun show(context: Context, anchorX: Float? = null): Boolean {
+    fun show(context: Context, anchorX: Float? = null, blurEnabled: Boolean = true): Boolean {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { show(context, anchorX) }
+            mainHandler.post { show(context, anchorX, blurEnabled) }
             return true
         }
         if (isShowing) return true
@@ -115,6 +116,7 @@ object ScreenControlOverlay {
         screenWidth = metrics.first.coerceAtLeast(1)
         screenHeight = metrics.second.coerceAtLeast(1)
         density = host.resources.displayMetrics.density
+        panelBlurEnabled = blurEnabled
         hostContext = host
         windowManager = wm
 
@@ -138,7 +140,7 @@ object ScreenControlOverlay {
             ((screenHeight - panelHeightPx) * 0.35f).roundToInt()
         }.coerceIn(0, (screenHeight - panelHeightPx).coerceAtLeast(0))
 
-        val panel = ScreenControlPanelView(host, panelListener)
+        val panel = ScreenControlPanelView(host, panelListener, blurEnabled)
         val params = WindowManager.LayoutParams(
             panelWidthPx,
             panelHeightPx,

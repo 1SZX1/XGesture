@@ -1742,7 +1742,16 @@
     <string name="gesture_action_screen_control">Touchpad</string>
     <string name="gesture_action_screen_control_desc">Open a floating touchpad: drag to move the pointer, tap/double-tap/long-press to click or drag; includes direction keys and back/home/recents.</string>
     <string name="gesture_action_screen_control_permission">Requires accessibility service</string>
+    <string name="gesture_action_screen_draw">Screen draw</string>
+    <string name="gesture_action_screen_draw_desc">Draw and annotate directly on top of the screen, with undo/clear and export.</string>
+    <string name="gesture_action_screen_draw_permission">Requires accessibility service</string>
     <string name="screen_control_accessibility_required">Accessibility service is not connected</string>
+    <string name="screen_draw_accessibility_required">Accessibility service is not connected</string>
+    <string name="screen_draw_empty">Nothing to save yet</string>
+    <string name="screen_draw_saved">Drawing saved to gallery</string>
+    <string name="screen_draw_save_failed">Failed to save drawing</string>
+    <string name="screen_draw_copied">Drawing copied to clipboard</string>
+    <string name="screen_draw_shared">Share sheet opened</string>
     <string name="gesture_search_touch_block_1">Block touch</string>
     <string name="gesture_search_touch_block_2">Prevent accidental touch</string>
     <string name="touch_block_hint_title">Touch blocked</string>

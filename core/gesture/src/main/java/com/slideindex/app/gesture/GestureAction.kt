@@ -157,6 +157,9 @@ enum class GestureActionType(val id: Int) {
 
     /** 「屏幕控制」：悬浮触控板 + 自绘指针 + 4 方向键 + 4 导航键。 */
     SCREEN_CONTROL(99),
+
+    /** 「屏幕绘制」：全屏实时标注层 + 浮动工具栏，可撤销/清空并导出。 */
+    SCREEN_DRAW(100),
     ;
 
     companion object {
@@ -999,6 +1002,12 @@ sealed class GestureAction {
         override val payload = ""
     }
 
+    /** 屏幕绘制：全屏实时标注 + 浮动工具栏。 */
+    data object ScreenDraw : GestureAction() {
+        override val type = GestureActionType.SCREEN_DRAW
+        override val payload = ""
+    }
+
     /** 钉到屏幕（轻量弹窗选择文本或图片，生成悬浮便签或图片置顶）。 */
     data object PinToScreen : GestureAction() {
         override val type = GestureActionType.PIN_TO_SCREEN
@@ -1151,6 +1160,7 @@ sealed class GestureAction {
                 GestureActionType.SCREEN_OFF_KEEP_AWAKE -> ScreenOffKeepAwake
                 GestureActionType.TOUCH_BLOCK -> TouchBlock
                 GestureActionType.SCREEN_CONTROL -> ScreenControl
+                GestureActionType.SCREEN_DRAW -> ScreenDraw
                 GestureActionType.PIN_TO_SCREEN -> PinToScreen
                 GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ForegroundActivityInspector
                 GestureActionType.NONE -> None
