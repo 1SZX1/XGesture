@@ -6,6 +6,23 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.slideindex.app.ui.Md3PickerAppEntryLeading
+import androidx.compose.material.icons.automirrored.outlined.Shortcut
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -100,95 +117,72 @@ fun LazyListScope.quickLauncherAddPickerActionItems(
         item(key = "ql-action-cat-${section.category.name}") {
             com.slideindex.app.ui.Md3PickerSectionHeader(stringResource(section.category.titleRes))
         }
-        items(
-            count = section.actions.size,
-            key = { index -> "ql-action-${section.category.name}-${section.actions[index].type.id}" },
-        ) { index ->
-            val action = section.actions[index]
-            val context = LocalContext.current
-            val label = gestureActionLabel(action)
-            if (action.type == GestureActionType.OPEN_LINK) {
-                QuickLauncherShellCommandActionRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    label = label,
-                    subtitle = gestureActionDescription(action),
-                    onOpenConfig = onOpenOpenLink,
-                )
-            } else if (action.type == GestureActionType.EXECUTE_SHELL_COMMAND) {
-                QuickLauncherShellCommandActionRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    label = label,
-                    subtitle = gestureActionDescription(action),
-                    onOpenConfig = {
-                        requestPermissionForAdjustAction(context, action)
-                        onOpenExecuteShellCommand()
-                    },
-                )
-            } else if (action.type == GestureActionType.SIMULATE_KEY_EVENT) {
-                QuickLauncherShellCommandActionRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    label = stringResource(R.string.gesture_action_simulate_key_event),
-                    subtitle = gestureActionDescription(action),
-                    onOpenConfig = {
-                        requestPermissionForAdjustAction(context, action)
-                        onOpenSimulateKeyEvent()
-                    },
-                )
-            } else if (action.type == GestureActionType.RUN_MACRO) {
-                // 「手势宏」：先弹选择框挑一条宏，拿到带 macroId 的动作再落库
-                //（否则会存进一个 macroId 为空的"空宏动作"，执行时静默失效）。
-                val added = QuickLauncherItemCodec.actionKey(action) in configuredActionKeys
-                // 列表里这一项是"模板动作"（macroId 为空）：显示通用名，别显示成"宏已删除"。
-                val macroLabel = if ((action as? GestureAction.RunMacro)?.macroId.isNullOrBlank()) {
-                    stringResource(R.string.macro_action_run_macro)
-                } else {
-                    gestureActionLabelText(context, action)
-                }
-                QuickLauncherActionRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    label = macroLabel,
-                    subtitle = gestureActionDescription(action),
-                    added = added,
-                    singleSelect = singleSelect,
-                    onToggle = {
-                        onRequestRunMacro { picked ->
-                            if (!added) {
-                                requestPermissionForAdjustAction(context, picked)
+        val rows = section.actions.chunked(PICKER_GRID_COLUMNS)
+        items(rows.size, key = { "ql-action-row-${section.category.name}-$it" }) { rowIndex ->
+            val rowActions = rows[rowIndex]
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowActions.forEach { action ->
+                    val context = LocalContext.current
+                    val added = QuickLauncherItemCodec.actionKey(action) in configuredActionKeys
+                    val cellLabel = if (action.type == GestureActionType.RUN_MACRO) {
+                        stringResource(R.string.macro_action_run_macro)
+                    } else {
+                        gestureActionLabel(action)
+                    }
+                    PickerGridCell(
+                        label = cellLabel,
+                        selected = !singleSelect && added,
+                        onClick = {
+                            when (action.type) {
+                                GestureActionType.OPEN_LINK -> onOpenOpenLink()
+                                GestureActionType.EXECUTE_SHELL_COMMAND -> {
+                                    requestPermissionForAdjustAction(context, action)
+                                    onOpenExecuteShellCommand()
+                                }
+                                GestureActionType.SIMULATE_KEY_EVENT -> {
+                                    requestPermissionForAdjustAction(context, action)
+                                    onOpenSimulateKeyEvent()
+                                }
+                                GestureActionType.RUN_MACRO -> onRequestRunMacro { picked ->
+                                    if (!added) requestPermissionForAdjustAction(context, picked)
+                                    onToggleItem(
+                                        QuickLauncherItem.action(
+                                            picked,
+                                            gestureActionLabelText(context, picked),
+                                        ),
+                                        false,
+                                    )
+                                }
+                                else -> {
+                                    if (!added) requestPermissionForAdjustAction(context, action)
+                                    onToggleItem(
+                                        QuickLauncherItem.action(
+                                            action,
+                                            gestureActionLabelText(context, action),
+                                        ),
+                                        if (singleSelect) false else added,
+                                    )
+                                }
                             }
-                            // 配置型动作一律按"新增"落库（与 Shell 命令/打开链接的约定一致）：
-                            // 否则在"已添加"状态下选完宏反而会把它取消掉，表现为"选了没反应"。
-                            onToggleItem(
-                                QuickLauncherItem.action(picked, gestureActionLabelText(context, picked)),
-                                false,
-                            )
-                        }
-                    },
-                )
-            } else {
-                val added = QuickLauncherItemCodec.actionKey(action) in configuredActionKeys
-                QuickLauncherActionRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    label = label,
-                    subtitle = gestureActionDescription(action),
-                    added = added,
-                    singleSelect = singleSelect,
-                    onToggle = {
-                        if (!added) {
-                            requestPermissionForAdjustAction(context, action)
-                        }
-                        onToggleItem(QuickLauncherItem.action(action, label), if (singleSelect) false else added)
-                    },
-                )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        androidx.compose.material3.Icon(
+                            imageVector = gestureActionIcon(action, outlined = true),
+                            contentDescription = null,
+                            tint = MiuixTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(27.dp),
+                        )
+                    }
+                }
+                repeat(PICKER_GRID_COLUMNS - rowActions.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
@@ -200,17 +194,33 @@ fun LazyListScope.quickLauncherAddPickerAppItems(
     onToggle: (AppInfo, Boolean) -> Unit,
     singleSelect: Boolean = false,
 ) {
-    items(filtered.size, key = { filtered[it].packageName }) { index ->
-        val app = filtered[index]
-        val added = app.packageName in configuredAppPackages
-        QuickLauncherToggleRow(
-            entry = AppPackageEntry.Installed(app),
-            segmentIndex = index,
-            segmentCount = filtered.size,
-            added = added,
-            singleSelect = singleSelect,
-            onToggle = { onToggle(app, if (singleSelect) false else added) },
-        )
+    val rows = filtered.chunked(PICKER_GRID_COLUMNS)
+    items(rows.size, key = { rows[it].first().packageName }) { rowIndex ->
+        val row = rows[rowIndex]
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            row.forEach { app ->
+                val added = app.packageName in configuredAppPackages
+                PickerGridCell(
+                    label = app.label,
+                    selected = !singleSelect && added,
+                    onClick = { onToggle(app, if (singleSelect) false else added) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Md3PickerAppEntryLeading(
+                        entry = AppPackageEntry.Installed(app),
+                        missingIcon = androidx.compose.material.icons.Icons.AutoMirrored.Outlined.Shortcut,
+                    )
+                }
+            }
+            repeat(PICKER_GRID_COLUMNS - row.size) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
     }
 }
 
@@ -296,5 +306,70 @@ fun rememberQuickLauncherFilteredApps(
                 app.pinyinKey.contains(query)
         }
         filtered.sortedBy { it.pinyinKey }
+    }
+}
+
+/** 添加页网格列数（应用 / 动作 / 快捷方式共用）。 */
+private const val PICKER_GRID_COLUMNS = 4
+
+/**
+ * 添加页网格中的一个格子：图标 + 名称 + 选中勾。
+ *
+ * 图标由调用方给（应用图标组件 / 动作矢量图标），这样三种内容共用同一套格子。
+ */
+@Composable
+private fun PickerGridCell(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box {
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(MiuixTheme.colorScheme.surfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                icon()
+            }
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(16.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MiuixTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = MiuixTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(10.dp),
+                    )
+                }
+            }
+        }
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            minLines = 2,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            modifier = Modifier.padding(top = 5.dp, start = 2.dp, end = 2.dp),
+        )
     }
 }

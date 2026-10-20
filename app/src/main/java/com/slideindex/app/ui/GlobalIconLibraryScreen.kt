@@ -263,7 +263,7 @@ private fun GlobalIconRow(
                         fontIcon != null -> Text(
                             text = fontIcon.second,
                             fontFamily = fontIcon.first,
-                            fontSize = 20.sp,
+                            fontSize = 27.sp,
                             color = MiuixTheme.colorScheme.onSurface,
                         )
                         bitmap != null -> Image(
@@ -277,7 +277,7 @@ private fun GlobalIconRow(
                             imageVector = defaultIcon,
                             contentDescription = null,
                             tint = MiuixTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(27.dp),
                         )
                         else -> Text(
                             text = label.take(1),
