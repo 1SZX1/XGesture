@@ -50,6 +50,7 @@ import com.slideindex.app.overlay.OverlayCompose
 import com.slideindex.app.overlay.OverlayComposeOwner
 import com.slideindex.app.overlay.OverlayViewBackHandler
 import com.slideindex.app.overlay.OverlayWindowTypes
+import com.slideindex.app.overlay.rememberOverlayImeBottomHeight
 import com.slideindex.app.overlay.compositor.OverlaySceneController
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
 import com.slideindex.app.util.PermissionHelper
@@ -230,6 +231,10 @@ private fun VolumePanelOverlayRoot(
     val scrimAnimSpec = tween<Float>(VOLUME_PANEL_SCRIM_ANIM_MS)
     val dismissInteraction = remember { MutableInteractionSource() }
     val panelInteraction = remember { MutableInteractionSource() }
+    // overlay 窗里 WindowInsets.ime 常常是 0，必须用这个（与历史面板同一条理由）。
+    // 面板固定在屏幕底部，键盘弹起会把下半截（搜索框 / 槽位列表）盖住：
+    // 这里整体抬起 IME 的高度，列表那一层再按同一数值收短（见 ExpandPanelSlotPicker 的 listHeight）。
+    val imeBottom = rememberOverlayImeBottomHeight()
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -262,14 +267,14 @@ private fun VolumePanelOverlayRoot(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(bottom = 8.dp)
+                    .padding(bottom = 8.dp + imeBottom)
                     .clickable(
                         interactionSource = panelInteraction,
                         indication = null,
                         onClick = {},
                     ),
             ) {
-                VolumePanelContent(onDismiss = onDismiss)
+                VolumePanelContent(onDismiss = onDismiss, imeBottom = imeBottom)
             }
         }
     }

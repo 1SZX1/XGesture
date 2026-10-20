@@ -72,6 +72,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.activity.ActivityShortcut
@@ -100,7 +101,11 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 private val ExpandPanelCornerRadius = 20.dp
 
 @Composable
-fun VolumePanelContent(onDismiss: () -> Unit) {
+fun VolumePanelContent(
+    onDismiss: () -> Unit,
+    /** overlay 窗里的键盘高度：面板内容要按它收短，配合根布局的整体抬起。 */
+    imeBottom: Dp = 0.dp,
+) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val deps = remember { OverlayDependencyAccess.overlayDependencies(context) }
@@ -195,6 +200,11 @@ fun VolumePanelContent(onDismiss: () -> Unit) {
                     activityShortcuts = activityShortcuts,
                     current = editingAction,
                     editingSubtitle = editingSubtitle,
+                    // 「快捷轮盘 / 打开快捷启动器」的参数页要这两份数据；
+                    // imeBottom 让列表在键盘弹起时让位（面板整体会被抬起，见 VolumePanelOverlayRoot）。
+                    wheels = appSettings.launcher.quickWheels,
+                    panels = appSettings.quickLauncherPanels,
+                    imeBottom = imeBottom,
                     onSelect = { action ->
                         if (pickerSlot in slotActions.indices) {
                             saveSlotAction(pickerSlot, action)
