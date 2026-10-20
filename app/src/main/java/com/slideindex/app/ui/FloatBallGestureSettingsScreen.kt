@@ -8,6 +8,8 @@ import androidx.compose.material.icons.Icons
 
 import androidx.compose.material.icons.filled.Edit
 
+import androidx.compose.material.icons.outlined.Tune
+
 import androidx.compose.material3.ExperimentalMaterial3Api
 
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -44,8 +46,6 @@ import com.slideindex.app.ui.settings.components.settingsCardScopeItem
 
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
 
-import kotlin.math.roundToInt
-
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -70,24 +70,16 @@ fun FloatBallGestureSettingsScreen(
      */
     onOpenQuickLauncherPanel: (FloatBallGestureType, String) -> Unit,
 
-    onDownSwipeShortPercentChange: (Float) -> Unit,
-
-    onSideSwipeShortPercentChange: (Float) -> Unit,
-
-    onUpSwipeShortPercentChange: (Float) -> Unit,
-
-    onLongPressMsChange: (Int) -> Unit,
-
-    onOverlayAnchorAtTouchDownChange: (Boolean) -> Unit,
+    /** 进入「识别与定位」子页（滑动距离 / 长按触发时长 / 启动器位置） */
+    onOpenTuning: () -> Unit,
 
     /** 进入「自定义手势」列表（FV 里这一行叫 `v_setting_custom_gesture`） */
     onOpenCustomGesture: () -> Unit
 
 ) {
 
-    val distanceSectionTitle = stringResource(R.string.float_ball_gesture_distance_section)
-    val longPressSectionTitle = stringResource(R.string.float_ball_gesture_long_press_section)
-    val overlayAnchorSectionTitle = stringResource(R.string.float_ball_gesture_overlay_anchor_section)
+    val tuningSectionTitle = stringResource(R.string.float_ball_gesture_tuning_section)
+    val tuningEntryTitle = stringResource(R.string.float_ball_gesture_tuning_title)
     // FV「自定义手势」入口的文案同样必须在 Lazy 作用域外解析（见下面对 settingsLazySmallTitle 的调用）。
     val customGestureSectionTitle = stringResource(R.string.fv_custom_gesture_section)
     val customGestureEntryTitle = stringResource(R.string.fv_custom_gesture_title)
@@ -102,123 +94,6 @@ fun FloatBallGestureSettingsScreen(
         pageHint = stringResource(R.string.float_ball_gesture_settings_summary),
         onBack = onBack
     ) {
-        settingsLazySmallTitle(
-            key = "section-distance",
-            title = distanceSectionTitle
-        )
-        groupedCardItems(
-            keyPrefix = "float-ball-gesture-distance",
-            items = buildList {
-                add(
-                    settingsCardScopeItem("down-swipe-distance") {
-                        SettingsSliderRow(
-                            title = stringResource(R.string.float_ball_gesture_down_swipe_distance),
-                            value = settings.floatBallDownSwipeShortPercent,
-                            valueRange = 50f..500f,
-                            steps = 18,
-                            enabled = true,
-                            label = stringResource(
-                                R.string.floating_pointer_percent_value,
-                                settings.floatBallDownSwipeShortPercent.roundToInt()
-                            ),
-                            onValueChange = onDownSwipeShortPercentChange
-                        )
-                    }
-                )
-                add(
-                    settingsCardScopeItem("side-swipe-distance") {
-                        SettingsSliderRow(
-                            title = stringResource(R.string.float_ball_gesture_side_swipe_distance),
-                            value = settings.floatBallSideSwipeShortPercent,
-                            valueRange = 50f..500f,
-                            steps = 18,
-                            enabled = true,
-                            label = stringResource(
-                                R.string.floating_pointer_percent_value,
-                                settings.floatBallSideSwipeShortPercent.roundToInt()
-                            ),
-                            onValueChange = onSideSwipeShortPercentChange
-                        )
-                    }
-                )
-                add(
-                    settingsCardScopeItem("up-swipe-distance") {
-                        SettingsSliderRow(
-                            title = stringResource(R.string.float_ball_gesture_up_swipe_distance),
-                            value = settings.floatBallUpSwipeShortPercent,
-                            valueRange = 50f..500f,
-                            steps = 18,
-                            enabled = true,
-                            label = stringResource(
-                                R.string.floating_pointer_percent_value,
-                                settings.floatBallUpSwipeShortPercent.roundToInt()
-                            ),
-                            onValueChange = onUpSwipeShortPercentChange
-                        )
-                    }
-                )
-            }
-        )
-
-        settingsLazySmallTitle(
-            key = "section-long-press",
-            title = longPressSectionTitle
-        )
-        groupedCardItems(
-            keyPrefix = "float-ball-gesture-long-press",
-            items = listOf(
-                settingsCardScopeItem("long-press-ms") {
-                    SettingsSliderRow(
-                        title = stringResource(R.string.float_ball_gesture_long_press_ms),
-                        value = settings.floatBallLongPressMs.toFloat(),
-                        valueRange = 200f..2000f,
-                        steps = 17,
-                        enabled = true,
-                        label = stringResource(
-                            R.string.float_ball_gesture_long_press_ms_value,
-                            settings.floatBallLongPressMs
-                        ),
-                        onValueChange = { onLongPressMsChange(it.roundToInt()) }
-                    )
-                }
-            )
-        )
-
-        settingsLazySmallTitle(
-
-            key = "section-overlay-anchor",
-
-            title = overlayAnchorSectionTitle
-
-        )
-
-        groupedCardItems(
-
-            keyPrefix = "float-ball-gesture-overlay-anchor",
-
-            items = listOf(
-
-                settingsCardScopeItem("overlay-anchor-touch-down") {
-
-                    SettingSwitchRow(
-
-                        title = stringResource(R.string.float_ball_gesture_overlay_anchor_touch_down),
-
-                        subtitle = stringResource(R.string.float_ball_gesture_overlay_anchor_touch_down_summary),
-
-                        checked = settings.floatBallOverlayAnchorAtTouchDown,
-
-                        enabled = true,
-
-                        onCheckedChange = onOverlayAnchorAtTouchDownChange
-
-                    )
-
-                }
-
-            )
-
-        )
 
         gestureGroupTitles.forEach { (group, groupTitle) ->
             settingsLazySmallTitle(
@@ -283,6 +158,34 @@ fun FloatBallGestureSettingsScreen(
                         subtitle = customGestureEntrySummary,
                         enabled = true,
                         onClick = onOpenCustomGesture,
+                    )
+                }
+            )
+        )
+
+        // 滑动距离 / 长按触发时长 / 启动器位置属于低频参数，收进「识别与定位」子页；
+        // 入口放在页面最底下，这样 8 个方向手势能直接顶到页面最上面。副标题带当前值摘要，
+        // 不进入子页也能确认参数现状（排查“滑不动”时不用盲找）。
+        settingsLazySmallTitle(
+            key = "section-tuning",
+            title = tuningSectionTitle,
+        )
+        groupedCardItems(
+            keyPrefix = "float-ball-gesture-tuning",
+            items = listOf(
+                settingsCardScopeItem("tuning-entry") {
+                    SettingNavigationRow(
+                        icon = { label ->
+                            Icon(
+                                Icons.Outlined.Tune,
+                                contentDescription = label,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        },
+                        title = tuningEntryTitle,
+                        subtitle = floatBallGestureTuningSummary(settings),
+                        enabled = true,
+                        onClick = onOpenTuning,
                     )
                 }
             )

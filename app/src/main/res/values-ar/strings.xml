@@ -2019,6 +2019,13 @@
     <string name="float_ball_gesture_overlay_anchor_section">موضع المشغّل</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down">محاذاة المشغّل مع موضع لمس الإصبع</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down_summary">تظهر لوحة المشغّل السريع أو حلقة التشغيل التي يفتحها إيماء الكرة العائمة في موضع لمس الإصبع للكرة أولاً. عند الإيقاف تظهر في موضع الإصبع لحظة تحقق الإيماءة (السحب: موضع الإفلات).</string>
+    <string name="float_ball_gesture_tuning_section">معطيات الإيماءات</string>
+    <string name="float_ball_gesture_tuning_title">التعرّف والموضع</string>
+    <string name="float_ball_gesture_tuning_summary">مسافات السحب ومدة الضغط المطول وموضع ظهور المشغّل السريع — المعطيات الأساسية للتعرف على الإيماءات.</string>
+    <string name="float_ball_gesture_tuning_swipe_prefix">سحب %1$s</string>
+    <string name="float_ball_gesture_tuning_hold_prefix">ضغط مطول %1$s</string>
+    <string name="float_ball_gesture_tuning_anchor_touch_down">موضع اللمس</string>
+    <string name="float_ball_gesture_tuning_anchor_gesture_fire">نقطة التحقق</string>
     <string name="float_ball_gesture_swipe_up_short">السحب لأعلى (قصير)</string>
     <string name="float_ball_gesture_swipe_up_long">السحب لأعلى (طويل)</string>
     <string name="float_ball_gesture_swipe_up_return">السحب لأعلى ثم الرجوع</string>

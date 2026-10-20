@@ -477,6 +477,13 @@ sealed interface AppNavKey : NavKey {
     @Serializable data object FloatBallStyle : AppNavKey
     @Serializable data object FloatBallGesture : AppNavKey
     /**
+     * 悬浮球手势页的「识别与定位」子页：滑动距离、长按触发时长、启动器位置。
+     *
+     * 这三段原先放在手势页最上面，把 8 个方向手势挤到第二屏；它们属于低频参数，收到子页后
+     * 手势列表就能直接顶到页面最上面（入口留在手势页最底下，副标题带当前值摘要）。
+     */
+    @Serializable data object FloatBallGestureTuning : AppNavKey
+    /**
      * 悬浮球手势页里的「自定义手势」列表（FV 的 `v_setting_custom_gesture` → `FooSettingCustomGuesture`）。
      *
      * 只有列表页需要导航键：录入弹窗是 View 版 Dialog，动作选择与它的子选择页都在列表页内部

@@ -904,6 +904,13 @@
     <string name="float_ball_gesture_overlay_anchor_section">Launcher position</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down">Align launcher with touch-down point</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down_summary">Quick launcher and ring launcher opened by a float-ball gesture appear where your finger first touched the ball. When off, they appear where the finger was when the gesture fired.</string>
+    <string name="float_ball_gesture_tuning_section">Gesture parameters</string>
+    <string name="float_ball_gesture_tuning_title">Recognition &amp; placement</string>
+    <string name="float_ball_gesture_tuning_summary">Swipe distances, long-press duration, and where quick launchers appear — the base parameters for gesture recognition.</string>
+    <string name="float_ball_gesture_tuning_swipe_prefix">Swipe %1$s</string>
+    <string name="float_ball_gesture_tuning_hold_prefix">Hold %1$s</string>
+    <string name="float_ball_gesture_tuning_anchor_touch_down">touch-down point</string>
+    <string name="float_ball_gesture_tuning_anchor_gesture_fire">gesture point</string>
     <string name="float_ball_gesture_swipe_up_short">Swipe up (short)</string>
     <string name="float_ball_gesture_swipe_up_long">Swipe up (long)</string>
     <string name="float_ball_gesture_swipe_up_return">Swipe up to return</string>

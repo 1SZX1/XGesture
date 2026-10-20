@@ -2026,6 +2026,13 @@
     <string name="float_ball_gesture_overlay_anchor_section">ランチャーの位置</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down">ランチャーを指を置いた位置に合わせる</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down_summary">フローティングボールのジェスチャーで開くクイックランチャー／リングランチャーを、指がボールに触れた位置に表示します。オフの場合はジェスチャーが成立した時点の指の位置（スワイプは離した位置）に表示します。</string>
+    <string name="float_ball_gesture_tuning_section">ジェスチャーパラメータ</string>
+    <string name="float_ball_gesture_tuning_title">認識と配置</string>
+    <string name="float_ball_gesture_tuning_summary">スワイプ距離、長押し時間、クイックランチャーの表示位置。ジェスチャー認識の基本パラメータです。</string>
+    <string name="float_ball_gesture_tuning_swipe_prefix">スワイプ %1$s</string>
+    <string name="float_ball_gesture_tuning_hold_prefix">長押し %1$s</string>
+    <string name="float_ball_gesture_tuning_anchor_touch_down">触れた位置</string>
+    <string name="float_ball_gesture_tuning_anchor_gesture_fire">成立位置</string>
     <string name="float_ball_gesture_swipe_up_short">上スワイプ（短）</string>
     <string name="float_ball_gesture_swipe_up_long">上スワイプ（長）</string>
     <string name="float_ball_gesture_swipe_up_return">上スワイプで戻る</string>

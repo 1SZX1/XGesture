@@ -19,6 +19,7 @@ import com.slideindex.app.search.SearchEngineIconStorage
 import com.slideindex.app.settings.toMinimalAppSettings
 import com.slideindex.app.ui.FloatBallAppearanceSettingsScreen
 import com.slideindex.app.ui.FloatBallGestureSettingsScreen
+import com.slideindex.app.ui.FloatBallGestureTuningScreen
 import com.slideindex.app.ui.floatBallGestureLabel
 import com.slideindex.app.ui.FloatBallPickHandfeelSettingsScreen
 import com.slideindex.app.ui.FloatBallPickPanelLayoutBehaviorSettingsScreen
@@ -376,13 +377,24 @@ fun NavEntryBuilder.floatBallNavEntries(ctx: MainNavContext) {
             onOpenQuickLauncherPanel = { type, panelId ->
                 ctx.navigate(AppNavKey.FloatBallGestureQuickLauncherPanel(type.id, panelId))
             },
+            onOpenTuning = { ctx.navigate(AppNavKey.FloatBallGestureTuning) },
+            // FooView「自定义手势」列表页（由 fvCustomGestureNavEntries 注册）
+            onOpenCustomGesture = { ctx.navigate(AppNavKey.FvCustomGesture) },
+        )
+    }
+
+    hiltEntry<AppNavKey.FloatBallGestureTuning> {
+        val viewModel: ExtensionSettingsViewModel = hiltViewModel()
+        val overlaySettings by viewModel.overlaySettings.collectAsStateWithLifecycle()
+        val settings = overlaySettings.toMinimalAppSettings()
+        FloatBallGestureTuningScreen(
+            settings = settings,
+            onBack = { ctx.navigateBackTo(AppNavKey.FloatBallGesture) },
             onDownSwipeShortPercentChange = viewModel::setFloatBallDownSwipeShortPercent,
             onSideSwipeShortPercentChange = viewModel::setFloatBallSideSwipeShortPercent,
             onUpSwipeShortPercentChange = viewModel::setFloatBallUpSwipeShortPercent,
             onLongPressMsChange = viewModel::setFloatBallLongPressMs,
             onOverlayAnchorAtTouchDownChange = viewModel::setFloatBallOverlayAnchorAtTouchDown,
-            // FooView「自定义手势」列表页（由 fvCustomGestureNavEntries 注册）
-            onOpenCustomGesture = { ctx.navigate(AppNavKey.FvCustomGesture) },
         )
     }
 

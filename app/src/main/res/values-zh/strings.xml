@@ -2121,6 +2121,13 @@
     <string name="float_ball_gesture_overlay_anchor_section">启动器位置</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down">启动器对齐手指按下位置</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down_summary">用悬浮球手势打开的快速启动器、圆环启动器出现在手指按住悬浮球的位置。关闭则出现在手势判定成立时的位置（滑动为松手处）。</string>
+    <string name="float_ball_gesture_tuning_section">手势参数</string>
+    <string name="float_ball_gesture_tuning_title">识别与定位</string>
+    <string name="float_ball_gesture_tuning_summary">滑动距离、长按触发时长，以及快速启动器出现在哪里——手势识别的基础参数。</string>
+    <string name="float_ball_gesture_tuning_swipe_prefix">滑动 %1$s</string>
+    <string name="float_ball_gesture_tuning_hold_prefix">长按 %1$s</string>
+    <string name="float_ball_gesture_tuning_anchor_touch_down">按下处</string>
+    <string name="float_ball_gesture_tuning_anchor_gesture_fire">判定处</string>
     <string name="float_ball_gesture_swipe_up_short">上滑（短）</string>
     <string name="float_ball_gesture_swipe_up_long">上滑（长）</string>
     <string name="float_ball_gesture_swipe_up_return">上滑后返回</string>
