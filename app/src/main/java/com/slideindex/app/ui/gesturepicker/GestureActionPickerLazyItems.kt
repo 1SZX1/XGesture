@@ -67,7 +67,7 @@ internal fun actionHasDetailParams(type: GestureActionType): Boolean = when (typ
 }
 
 /**
- * 动作网格格子：图标 + 1 行标题 + 右上角"有参数"小圆点，选中时描边。
+ * 动作网格格子：图标 + 最多 2 行标题 + 右上角"有参数"小圆点，选中时描边。
  *
  * 原来的行内副标题（动作描述 / 当前配置摘要，如"钉住·仅本应用"、Shell 命令预览）在网格里没有
  * 位置，统一由动作详情页承载 —— 这也是"网格化"必须和"详情页"一起做的原因。
@@ -85,14 +85,14 @@ private fun ActionPickerGridCell(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .clickable { onClick() }
-            .padding(vertical = 6.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(17.dp))
                     .background(
                         if (selected) {
                             accent.copy(alpha = 0.16f)
@@ -104,28 +104,33 @@ private fun ActionPickerGridCell(
             ) {
                 com.slideindex.app.ui.ActionIconSlot(
                     action = action,
-                    sizeDp = 24,
+                    sizeDp = 27,
                 )
             }
             if (hasParams) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .size(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .size(9.dp)
+                        .clip(RoundedCornerShape(5.dp))
                         .background(accent),
                 )
             }
         }
+        // 标题固定两行：动作名最长到「执行 Shell 命令」「模拟按键 (KeyEvent)」这个量级，
+        // 4 列时一格只有 ~74dp 文字宽（一行约 6 个汉字），一行必然打省略号。
+        // minLines = 2 让短标签也占满两行高度，整行格子等高，行距不会参差不齐。
         Text(
             text = gestureActionLabel(action),
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) accent else MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
-            maxLines = 1,
+            minLines = 2,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 11.sp,
-            modifier = Modifier.padding(top = 6.dp, start = 2.dp, end = 2.dp),
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            modifier = Modifier.padding(top = 5.dp, start = 2.dp, end = 2.dp),
         )
     }
 }
