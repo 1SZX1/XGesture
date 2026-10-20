@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.AcUnit
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -220,7 +221,7 @@ fun ExtensionHubScreen(
                 add(
                     settingsCardScopeItem("icon-library") {
                         SettingNavigationRow(
-                            icon = { label -> Icon(Icons.Outlined.AcUnit, contentDescription = label) },
+                            icon = { label -> Icon(Icons.Outlined.Palette, contentDescription = label) },
                             title = stringResource(R.string.extension_icon_library_title),
                             subtitle = stringResource(R.string.extension_icon_library_subtitle),
                             onClick = onOpenIconLibrary
