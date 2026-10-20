@@ -128,6 +128,8 @@ fun NavEntryBuilder.stashClipboardNavEntries(ctx: MainNavContext) {
             onClipboardFloatAlphaChange = viewModel::setClipboardFloatAlpha,
             onClipboardFloatAutoDimWhenUnfocusedChange = viewModel::setClipboardFloatAutoDimWhenUnfocused,
             onClipboardFloatAutoCloseSecondsChange = viewModel::setClipboardFloatAutoCloseSeconds,
+            onClipboardFloatBlurEnabledChange = viewModel::setClipboardFloatBlurEnabled,
+            onClipboardFloatBlurRadiusChange = viewModel::setClipboardFloatBlurRadiusDp,
             onOpenClipboardFloatBlacklist = { ctx.navigate(AppNavKey.ClipboardFloatBlacklist) },
             onResetClipboardFloatLayout = viewModel::resetClipboardFloatLayout,
         )

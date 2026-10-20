@@ -542,6 +542,8 @@ fun ClipboardFloatSettingsScreen(
     onClipboardFloatAlphaChange: (Float) -> Unit,
     onClipboardFloatAutoDimWhenUnfocusedChange: (Boolean) -> Unit,
     onClipboardFloatAutoCloseSecondsChange: (Int) -> Unit,
+    onClipboardFloatBlurEnabledChange: (Boolean) -> Unit,
+    onClipboardFloatBlurRadiusChange: (Int) -> Unit,
     onOpenClipboardFloatBlacklist: () -> Unit,
     onResetClipboardFloatLayout: () -> Unit,
 ) {
@@ -739,6 +741,40 @@ fun ClipboardFloatSettingsScreen(
                         )
                     },
                 )
+                add(
+                    settingsCardScopeItem("float-blur") {
+                        SettingSwitchRow(
+                            title = stringResource(R.string.clipboard_float_blur_title),
+                            // 总开关关掉时这条预览是骗人的（浮窗只会走实色），所以跟着一起禁用。
+                            subtitle = stringResource(
+                                if (settings.overlayBlurEnabled) {
+                                    R.string.clipboard_float_blur_desc
+                                } else {
+                                    R.string.clipboard_float_blur_desc_overlay_off
+                                },
+                            ),
+                            checked = settings.clipboardFloatBlurEnabled,
+                            enabled = settings.overlayBlurEnabled,
+                            onCheckedChange = onClipboardFloatBlurEnabledChange,
+                        )
+                    },
+                )
+                if (settings.clipboardFloatBlurEnabled) {
+                    add(
+                        settingsCardScopeItem("float-blur-radius") {
+                            SettingsSliderRow(
+                                title = stringResource(R.string.clipboard_float_blur_radius_title),
+                                value = settings.clipboardFloatBlurRadiusDp.toFloat(),
+                                valueRange = AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MIN_DP.toFloat()..
+                                    AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MAX_DP.toFloat(),
+                                enabled = settings.overlayBlurEnabled,
+                                label = "${settings.clipboardFloatBlurRadiusDp}dp",
+                                formatLabel = { "${it.roundToInt()}dp" },
+                                onValueChange = { onClipboardFloatBlurRadiusChange(it.roundToInt()) },
+                            )
+                        },
+                    )
+                }
                 add(
                     settingsCardScopeItem("float-auto-dim") {
                         SettingSwitchRow(

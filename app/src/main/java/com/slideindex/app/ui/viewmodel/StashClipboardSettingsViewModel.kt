@@ -137,6 +137,27 @@ class StashClipboardSettingsViewModel @Inject constructor(
         }
     }
 
+    fun setClipboardFloatBlurEnabled(enabled: Boolean) = launchOptimisticSettingsWrite(
+        optimisticUpdate = { it.copy(clipboard = it.clipboard.copy(clipboardFloatBlurEnabled = enabled)) },
+    ) {
+        settingsRepository.setClipboardFloatBlurEnabled(enabled)
+    }
+
+    fun setClipboardFloatBlurRadiusDp(value: Int) = launchOptimisticSettingsWrite(
+        optimisticUpdate = {
+            it.copy(
+                clipboard = it.clipboard.copy(
+                    clipboardFloatBlurRadiusDp = value.coerceIn(
+                        AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MIN_DP,
+                        AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MAX_DP,
+                    ),
+                ),
+            )
+        },
+    ) {
+        settingsRepository.setClipboardFloatBlurRadiusDp(value)
+    }
+
     fun setStashPanelBackgroundBlurEnabled(enabled: Boolean) = launchOptimisticSettingsWrite(
         optimisticUpdate = { it.copy(clipboard = it.clipboard.copy(stashPanelBackgroundBlurEnabled = enabled)) },
     ) {

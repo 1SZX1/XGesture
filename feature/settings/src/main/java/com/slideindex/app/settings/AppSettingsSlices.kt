@@ -409,6 +409,14 @@ data class ClipboardSettings(
     val clipboardFloatAlpha: Float = 1.0f,
     val clipboardFloatAutoDimWhenUnfocused: Boolean = false,
     val clipboardFloatAutoCloseSeconds: Int = 0,
+    /**
+     * 剪贴板浮窗（chip 与大窗）背后的跨窗模糊（API 31+）。
+     *
+     * 默认关闭：模糊会让 chip 在纯色桌面上看起来只是一块 tint，且老用户升级后观感突变。
+     * 真正能不能糊还要过 [com.slideindex.app.overlay.OverlayBlurGate]（总开关 × 系统能力）。
+     */
+    val clipboardFloatBlurEnabled: Boolean = false,
+    val clipboardFloatBlurRadiusDp: Int = AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_DEFAULT_DP,
     /** Cross-window blur behind stash/history side panel (API 31+). */
     val stashPanelBackgroundBlurEnabled: Boolean = false,
     val stashPanelBackgroundBlurRadiusDp: Int = AppSettings.STASH_PANEL_BLUR_RADIUS_DEFAULT_DP,

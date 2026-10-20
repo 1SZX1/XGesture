@@ -684,6 +684,8 @@ internal object SettingsPreferenceKeys {
     val CLIPBOARD_FLOAT_ALPHA = floatPreferencesKey("clipboard_float_alpha")
     val CLIPBOARD_FLOAT_AUTO_DIM_UNFOCUSED = booleanPreferencesKey("clipboard_float_auto_dim_unfocused")
     val CLIPBOARD_FLOAT_AUTO_CLOSE_SECONDS = intPreferencesKey("clipboard_float_auto_close_seconds")
+    val CLIPBOARD_FLOAT_BLUR_ENABLED = booleanPreferencesKey("clipboard_float_blur_enabled")
+    val CLIPBOARD_FLOAT_BLUR_RADIUS_DP = intPreferencesKey("clipboard_float_blur_radius_dp")
     val STASH_PANEL_BACKGROUND_BLUR_ENABLED = booleanPreferencesKey("stash_panel_background_blur_enabled")
     val STASH_PANEL_BACKGROUND_BLUR_RADIUS_DP = intPreferencesKey("stash_panel_background_blur_radius_dp")
 

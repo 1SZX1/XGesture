@@ -3711,6 +3711,10 @@
     <string name="clipboard_float_blacklist_remove">إزالة</string>
     <string name="clipboard_float_blacklist_section_add">إضافة تطبيق</string>
     <string name="clipboard_float_opacity_title">شفافية النافذة العائمة</string>
+    <string name="clipboard_float_blur_title">ضبابية الخلفية</string>
+    <string name="clipboard_float_blur_desc">يموّه المحتوى خلف النافذة العائمة (Android 12 فأحدث)، ويعود إلى خلفية صلبة عند عدم توفّر التمويه</string>
+    <string name="clipboard_float_blur_desc_overlay_off">فعّل مفتاح «ضبابية اللوحات العائمة» أولاً</string>
+    <string name="clipboard_float_blur_radius_title">قوة الضبابية</string>
     <string name="clipboard_float_auto_dim_title">شبه شفافية تلقائية عند فقدان التركيز</string>
     <string name="clipboard_float_auto_dim_desc">في حالة التثبيت، انقر خارج الشاشة لتصبح شبه شفافة تلقائياً، انقر على النافذة العائمة للاستعادة</string>
     <string name="clipboard_float_auto_close_title">تأخير الإغلاق التلقائي عند عدم التثبيت</string>

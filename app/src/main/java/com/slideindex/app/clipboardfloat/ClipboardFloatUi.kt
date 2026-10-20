@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,15 +61,18 @@ import com.slideindex.app.settings.ClipboardFloatEntryLongPressAction
 import com.slideindex.app.settings.ClipboardFloatListStyle
 import androidx.compose.runtime.Composable
 import kotlin.math.roundToInt
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -106,6 +110,9 @@ import com.slideindex.app.clipboard.ClipboardThumbnailCache
 import com.slideindex.app.clipboard.ClipboardWriter
 import com.slideindex.app.clipboard.displayTypeLabelKey
 import com.slideindex.app.clipboard.hasImageContent
+import com.slideindex.app.di.OverlayDependencyAccess
+import com.slideindex.app.overlay.LocalFrostedGlassBackdrop
+import com.slideindex.app.overlay.canBlurInOverlay
 import com.slideindex.app.overlay.history.HistoryEntryDragHelper
 import com.slideindex.app.overlay.history.HistoryPanelColors
 import com.slideindex.app.overlay.history.recordHistoryCardSnapshot
@@ -136,7 +143,76 @@ enum class ClipboardFloatDisplayMode {
 private val ClipboardFloatPanelCornerRadius =
     ClipboardFloatWindowMetrics.PANEL_CORNER_RADIUS_DP.dp
 private val ClipboardFloatPanelShape = RoundedCornerShape(ClipboardFloatPanelCornerRadius)
-private val ClipboardFloatChipShape = RoundedCornerShape(16.dp)
+private val ClipboardFloatChipCornerRadius = 16.dp
+private val ClipboardFloatChipShape = RoundedCornerShape(ClipboardFloatChipCornerRadius)
+
+/**
+ * 剪贴板浮窗的「玻璃底」参数，经 [LocalClipboardFloatGlass] 下发给 chip / 大窗 / 条目卡。
+ *
+ * 只表达**最终能不能糊**：本项开关 × 半径 > 0 × 全局「悬浮窗模糊」开关 × 系统跨窗模糊能力，
+ * 全部条件在 [rememberClipboardFloatGlass] 里一次算完。调用点不做二次判断 —— 否则
+ * 「底色按能糊画成半透明、backdrop 却退化成实色」这类错配会立刻变成一片灰。
+ */
+private data class ClipboardFloatGlass(
+    val active: Boolean = false,
+    val radiusDp: Int = 0,
+)
+
+private val LocalClipboardFloatGlass = staticCompositionLocalOf { ClipboardFloatGlass() }
+
+/** 与大窗同一套磨砂 tint（对齐收纳面板 `HistoryPanelScreen` 的取值）。 */
+private val ClipboardFloatGlassTintDark = 0x661C1C1E
+private val ClipboardFloatGlassTintLight = 0x66F5F5F7
+
+/**
+ * 玻璃态下面板底色压到多实。
+ *
+ * 这层**在**磨砂层之下，太实（比如直接沿用不透明的 `panelChrome()`，或收纳面板那档 0.72）
+ * 会把 blur 整个盖掉，开关看起来就"没反应"；太透又会看不清文字。0.42 是这两者的中点。
+ */
+private const val ClipboardFloatGlassBaseAlpha = 0.42f
+
+/**
+ * 玻璃态下条目卡的底色透明度。
+ *
+ * 卡片本身不透明时，面板底糊得再好也会被一张张卡片盖住，用户只会看到卡片缝里那点模糊。
+ */
+private const val ClipboardFloatGlassCardAlpha = 0.62f
+
+@Composable
+private fun clipboardFloatCardColor(glassActive: Boolean): Color {
+    val base = HistoryPanelColors.cardBackground(starred = false)
+    return if (glassActive) base.copy(alpha = ClipboardFloatGlassCardAlpha) else base
+}
+
+/**
+ * 读设置并做模糊决策。
+ *
+ * 走 `settingsRepository.settings` 而不是服务启动时的快照：设置页改完开关，已经开着的浮窗
+ * 要立刻跟着变（服务侧那条快照只在建窗时读一次）。
+ */
+@Composable
+private fun rememberClipboardFloatGlass(): ClipboardFloatGlass {
+    val context = LocalContext.current
+    val settingsFlow = remember(context) {
+        OverlayDependencyAccess.overlayDependencies(context)?.settingsRepository?.settings
+    }
+    var enabled by remember { mutableStateOf(false) }
+    var radiusDp by remember { mutableIntStateOf(0) }
+    LaunchedEffect(settingsFlow) {
+        settingsFlow?.collect { settings ->
+            enabled = settings.clipboardFloatBlurEnabled
+            radiusDp = settings.clipboardFloatBlurRadiusDp
+        }
+    }
+    // 系统那半边（总开关 + ROM 跨窗模糊）交给 OverlayBlurGate 的唯一入口，这里不问第二遍。
+    val systemAllows = canBlurInOverlay()
+    return if (enabled && radiusDp > 0 && systemAllows) {
+        ClipboardFloatGlass(active = true, radiusDp = radiusDp)
+    } else {
+        ClipboardFloatGlass()
+    }
+}
 
 @Composable
 fun ClipboardFloatRoot(
@@ -165,51 +241,54 @@ fun ClipboardFloatRoot(
     onEntryDragEnd: () -> Unit,
     onUserInteraction: () -> Unit = {}
 ) {
+    val glass = rememberClipboardFloatGlass()
     OverlayAwareModuleTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            if (event.type == PointerEventType.Press) {
-                                onUserInteraction()
+        CompositionLocalProvider(LocalClipboardFloatGlass provides glass) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Press) {
+                                    onUserInteraction()
+                                }
                             }
                         }
                     }
+            ) {
+                when (mode) {
+                    ClipboardFloatDisplayMode.Chip -> ClipboardFloatChip(
+                        onClick = onOpenExpanded,
+                        onDragWindow = onDragWindow,
+                        onDragWindowStart = onDragWindowStart,
+                        onDragWindowEnd = onDragWindowEnd
+                    )
+                    ClipboardFloatDisplayMode.Expanded -> ClipboardFloatExpandedChrome(
+                        pinned = pinned,
+                        panelAlpha = panelAlpha,
+                        listController = listController,
+                        windowWidthDp = windowWidthDp,
+                        listStyle = listStyle,
+                        entryLongPressAction = entryLongPressAction,
+                        onTogglePin = onTogglePin,
+                        onAlphaChange = onAlphaChange,
+                        onOpenStashPanel = onOpenStashPanel,
+                        onToggleListStyle = onToggleListStyle,
+                        onCollapse = onCollapse,
+                        onClose = onClose,
+                        onDragWindow = onDragWindow,
+                        onDragWindowStart = onDragWindowStart,
+                        onDragWindowEnd = onDragWindowEnd,
+                        onResizeWindow = onResizeWindow,
+                        onSearchActiveChanged = onSearchActiveChanged,
+                        onEntryClick = onEntryClick,
+                        onEntryLongClick = onEntryLongClick,
+                        onEntryDragStart = onEntryDragStart,
+                        onEntryDragEnd = onEntryDragEnd,
+                    )
                 }
-        ) {
-            when (mode) {
-                ClipboardFloatDisplayMode.Chip -> ClipboardFloatChip(
-                    onClick = onOpenExpanded,
-                    onDragWindow = onDragWindow,
-                    onDragWindowStart = onDragWindowStart,
-                    onDragWindowEnd = onDragWindowEnd
-                )
-                ClipboardFloatDisplayMode.Expanded -> ClipboardFloatExpandedChrome(
-                    pinned = pinned,
-                    panelAlpha = panelAlpha,
-                    listController = listController,
-                    windowWidthDp = windowWidthDp,
-                    listStyle = listStyle,
-                    entryLongPressAction = entryLongPressAction,
-                    onTogglePin = onTogglePin,
-                    onAlphaChange = onAlphaChange,
-                    onOpenStashPanel = onOpenStashPanel,
-                    onToggleListStyle = onToggleListStyle,
-                    onCollapse = onCollapse,
-                    onClose = onClose,
-                    onDragWindow = onDragWindow,
-                    onDragWindowStart = onDragWindowStart,
-                    onDragWindowEnd = onDragWindowEnd,
-                    onResizeWindow = onResizeWindow,
-                    onSearchActiveChanged = onSearchActiveChanged,
-                    onEntryClick = onEntryClick,
-                    onEntryLongClick = onEntryLongClick,
-                    onEntryDragStart = onEntryDragStart,
-                    onEntryDragEnd = onEntryDragEnd,
-                )
             }
         }
     }
@@ -242,6 +321,7 @@ private fun ClipboardFloatChip(
     onDragWindowEnd: () -> Unit
 ) {
     val scheme = MiuixTheme.colorScheme
+    val glass = LocalClipboardFloatGlass.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -256,7 +336,13 @@ private fun ClipboardFloatChip(
                     clip = false
                 )
                 .clip(ClipboardFloatChipShape)
-                .background(scheme.surfaceContainer)
+                .background(
+                    if (glass.active) {
+                        scheme.surfaceContainer.copy(alpha = ClipboardFloatGlassBaseAlpha)
+                    } else {
+                        scheme.surfaceContainer
+                    }
+                )
                 .border(0.5.dp, scheme.onSurface.copy(alpha = 0.12f), ClipboardFloatChipShape)
                 .clipboardFloatDragHandle(onDragWindowStart, onDragWindow, onDragWindowEnd)
                 .clickable(
@@ -266,6 +352,15 @@ private fun ClipboardFloatChip(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            if (glass.active) {
+                // chip 只有 44dp：用大窗那档半径会糊成一块纯 tint，这里单独压到 16dp。
+                ClipboardFloatGlassBackdrop(
+                    cornerRadiusDp = ClipboardFloatChipCornerRadius.value.roundToInt(),
+                    radiusDp = glass.radiusDp.coerceAtMost(
+                        ClipboardFloatWindowMetrics.CHIP_BLUR_MAX_RADIUS_DP,
+                    ),
+                )
+            }
             Icon(
                 imageVector = Icons.Default.ContentPaste,
                 contentDescription = stringResource(R.string.clipboard_float_open),
@@ -274,6 +369,27 @@ private fun ClipboardFloatChip(
             )
         }
     }
+}
+
+/**
+ * 面板/大窗共用的磨砂底。
+ *
+ * 必须画在 `.background(...)` 之后、内容之前：它的 bounds 就是圆角面板本身，
+ * 放到 clip 外面会漏出一圈方角模糊。
+ */
+@Composable
+private fun BoxScope.ClipboardFloatGlassBackdrop(cornerRadiusDp: Int, radiusDp: Int) {
+    val density = LocalDensity.current
+    LocalFrostedGlassBackdrop(
+        modifier = Modifier.matchParentSize(),
+        cornerRadiusPx = with(density) { cornerRadiusDp.dp.toPx() },
+        blurRadiusPx = with(density) { radiusDp.dp.toPx() }.roundToInt(),
+        tintColor = if (isSystemInDarkTheme()) {
+            ClipboardFloatGlassTintDark
+        } else {
+            ClipboardFloatGlassTintLight
+        },
+    )
 }
 
 @Composable
@@ -301,6 +417,7 @@ private fun ClipboardFloatExpandedChrome(
     onEntryDragEnd: () -> Unit,
 ) {
     val scheme = MiuixTheme.colorScheme
+    val glass = LocalClipboardFloatGlass.current
     val searchQuery by listController.searchQuery.collectAsState()
     var searchExpanded by remember { mutableStateOf(false) }
     var showAlphaSlider by remember { mutableStateOf(false) }
@@ -327,9 +444,22 @@ private fun ClipboardFloatExpandedChrome(
                     clip = false
                 )
                 .clip(ClipboardFloatPanelShape)
-                .background(HistoryPanelColors.panelChrome())
+                .background(
+                    if (glass.active) {
+                        // 这层在磨砂层之下，透明度决定"看得到多少模糊"：见 ClipboardFloatGlassBaseAlpha。
+                        scheme.surfaceContainer.copy(alpha = ClipboardFloatGlassBaseAlpha)
+                    } else {
+                        HistoryPanelColors.panelChrome()
+                    }
+                )
                 .border(0.5.dp, scheme.onSurface.copy(alpha = 0.10f), ClipboardFloatPanelShape)
         ) {
+            if (glass.active) {
+                ClipboardFloatGlassBackdrop(
+                    cornerRadiusDp = ClipboardFloatWindowMetrics.PANEL_CORNER_RADIUS_DP,
+                    radiusDp = glass.radiusDp,
+                )
+            }
             Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
@@ -466,7 +596,11 @@ private fun ClipboardFloatExpandedChrome(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .background(HistoryPanelColors.listBackground())
+                    // 玻璃态下这一层**不铺底色**：它画在磨砂层之上，铺了就把模糊盖住了，
+                    // 只剩列表边缘一圈能看到糊（= 开关看起来没反应）。
+                    .background(
+                        if (glass.active) Color.Transparent else HistoryPanelColors.listBackground()
+                    )
             ) {
                 ClipboardFloatContentSection(
                     listController = listController,
@@ -684,7 +818,7 @@ private fun ClipboardFloatSingleLineRow(
                 }
             ),
         shape = RoundedCornerShape(8.dp),
-        color = HistoryPanelColors.cardBackground(starred = false),
+        color = clipboardFloatCardColor(LocalClipboardFloatGlass.current.active),
         border = androidx.compose.foundation.BorderStroke(1.dp, scheme.onSurface.copy(alpha = 0.05f))
     ) {
         Column(
@@ -856,7 +990,7 @@ private fun ClipboardFloatEntryCard(
                 }
             ),
         shape = RoundedCornerShape(12.dp),
-        color = HistoryPanelColors.cardBackground(starred = false),
+        color = clipboardFloatCardColor(LocalClipboardFloatGlass.current.active),
         border = androidx.compose.foundation.BorderStroke(1.dp, scheme.onSurface.copy(alpha = 0.06f))
     ) {
         Column(

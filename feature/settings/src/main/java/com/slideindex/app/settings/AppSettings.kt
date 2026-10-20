@@ -384,6 +384,8 @@ data class AppSettings(
     val clipboardFloatAlpha get() = clipboard.clipboardFloatAlpha
     val clipboardFloatAutoDimWhenUnfocused get() = clipboard.clipboardFloatAutoDimWhenUnfocused
     val clipboardFloatAutoCloseSeconds get() = clipboard.clipboardFloatAutoCloseSeconds
+    val clipboardFloatBlurEnabled get() = clipboard.clipboardFloatBlurEnabled
+    val clipboardFloatBlurRadiusDp get() = clipboard.clipboardFloatBlurRadiusDp
     val stashPanelBackgroundBlurEnabled get() = clipboard.stashPanelBackgroundBlurEnabled
     val stashPanelBackgroundBlurRadiusDp get() = clipboard.stashPanelBackgroundBlurRadiusDp
     val stashPanelHandleOpenTab get() = clipboard.stashPanelHandleOpenTab
@@ -435,6 +437,15 @@ data class AppSettings(
         const val STASH_PANEL_BLUR_RADIUS_MIN_DP = HoneycombDisplaySettings.MIN_BLUR_DP
         const val STASH_PANEL_BLUR_RADIUS_MAX_DP = HoneycombDisplaySettings.MAX_BLUR_DP
         const val STASH_PANEL_BLUR_RADIUS_DEFAULT_DP = HoneycombDisplaySettings.DEFAULT_BLUR_DP
+        /**
+         * 剪贴板浮窗模糊半径。
+         *
+         * 下限不是 0：半径 0 只剩 tint，观感等于"糊坏了"，想要实色应该关开关。
+         * 上限与收纳面板/搜索面板同一套（72dp），超过之后系统那边也看不出差别。
+         */
+        const val CLIPBOARD_FLOAT_BLUR_RADIUS_MIN_DP = 4
+        const val CLIPBOARD_FLOAT_BLUR_RADIUS_MAX_DP = HoneycombDisplaySettings.MAX_BLUR_DP
+        const val CLIPBOARD_FLOAT_BLUR_RADIUS_DEFAULT_DP = 24
         const val SEARCH_PANEL_DIM_MIN_PERCENT = HoneycombDisplaySettings.MIN_DIM_PERCENT
         const val SEARCH_PANEL_DIM_MAX_PERCENT = HoneycombDisplaySettings.MAX_DIM_PERCENT
         const val SEARCH_PANEL_DIM_DEFAULT_PERCENT = HoneycombDisplaySettings.DEFAULT_DIM_PERCENT

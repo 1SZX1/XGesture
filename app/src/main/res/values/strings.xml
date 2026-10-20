@@ -3868,6 +3868,10 @@ Questions: open a GitHub Issue on the project repository.</string>
     <string name="clipboard_float_blacklist_remove">Remove</string>
     <string name="clipboard_float_blacklist_section_add">Add app</string>
     <string name="clipboard_float_opacity_title">Floating window opacity</string>
+    <string name="clipboard_float_blur_title">Background blur</string>
+    <string name="clipboard_float_blur_desc">Blurs the content behind the floating window (Android 12+); falls back to a solid background where blur is unavailable</string>
+    <string name="clipboard_float_blur_desc_overlay_off">Enable the “Panel blur” master switch first</string>
+    <string name="clipboard_float_blur_radius_title">Blur strength</string>
     <string name="clipboard_float_auto_dim_title">Auto-dim when unfocused</string>
     <string name="clipboard_float_auto_dim_desc">Automatically dim when touching outside while pinned, and restore when tapping</string>
     <string name="clipboard_float_auto_close_title">Auto-close delay (unpinned)</string>

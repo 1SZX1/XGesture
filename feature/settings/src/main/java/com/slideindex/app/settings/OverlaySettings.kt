@@ -180,6 +180,8 @@ data class OverlaySettings(
     val clipboardFloatAlpha: Float = 1.0f,
     val clipboardFloatAutoDimWhenUnfocused: Boolean = false,
     val clipboardFloatAutoCloseSeconds: Int = 0,
+    val clipboardFloatBlurEnabled: Boolean = false,
+    val clipboardFloatBlurRadiusDp: Int = AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_DEFAULT_DP,
     val stashPanelBackgroundBlurEnabled: Boolean = false,
     val stashPanelBackgroundBlurRadiusDp: Int = AppSettings.STASH_PANEL_BLUR_RADIUS_DEFAULT_DP,
     /** 从贴边指示条打开收纳面板时先显示哪个页签，见 [StashPanelHandleOpenTab]。 */
@@ -405,6 +407,8 @@ data class OverlaySettings(
             clipboardFloatAlpha = settings.clipboardFloatAlpha,
             clipboardFloatAutoDimWhenUnfocused = settings.clipboardFloatAutoDimWhenUnfocused,
             clipboardFloatAutoCloseSeconds = settings.clipboardFloatAutoCloseSeconds,
+            clipboardFloatBlurEnabled = settings.clipboardFloatBlurEnabled,
+            clipboardFloatBlurRadiusDp = settings.clipboardFloatBlurRadiusDp,
             stashPanelBackgroundBlurEnabled = settings.stashPanelBackgroundBlurEnabled,
             stashPanelBackgroundBlurRadiusDp = settings.stashPanelBackgroundBlurRadiusDp,
             stashPanelHandleOpenTab = settings.stashPanelHandleOpenTab,

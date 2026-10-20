@@ -786,6 +786,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setClipboardFloatAutoCloseSeconds(seconds: Int) =
         overlay.setClipboardFloatAutoCloseSeconds(seconds)
 
+    suspend fun setClipboardFloatBlurEnabled(enabled: Boolean) =
+        overlay.setClipboardFloatBlurEnabled(enabled)
+
+    suspend fun setClipboardFloatBlurRadiusDp(value: Int) =
+        overlay.setClipboardFloatBlurRadiusDp(value)
+
     suspend fun setClipboardFloatGeometry(
         x: Int,
         y: Int,

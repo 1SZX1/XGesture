@@ -33,6 +33,14 @@ object ClipboardFloatWindowMetrics {
     /** chip 默认锚点：在键盘顶缘之上额外抬高，避免被键盘遮挡 */
     const val CHIP_ABOVE_IME_EXTRA_DP = 56
 
+    /**
+     * chip 背景模糊半径上限。
+     *
+     * chip 只有 44dp，大窗那档半径（默认 24dp、上限 72dp）糊上去等于一块纯 tint，
+     * 看不出"背后是什么"；压到 16dp 才能既透出内容又不像实色。
+     */
+    const val CHIP_BLUR_MAX_RADIUS_DP = 16
+
     /** 大窗默认锚点：相对屏幕垂直居中再向上偏移 */
     const val PANEL_DEFAULT_ABOVE_CENTER_DP = 72
 

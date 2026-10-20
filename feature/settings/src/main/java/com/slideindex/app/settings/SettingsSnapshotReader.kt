@@ -659,6 +659,15 @@ internal object SettingsSnapshotReader {
                 prefs[SettingsPreferenceKeys.CLIPBOARD_FLOAT_AUTO_DIM_UNFOCUSED] ?: false,
             clipboardFloatAutoCloseSeconds =
                 (prefs[SettingsPreferenceKeys.CLIPBOARD_FLOAT_AUTO_CLOSE_SECONDS] ?: 0).coerceAtLeast(0),
+            clipboardFloatBlurEnabled =
+                prefs[SettingsPreferenceKeys.CLIPBOARD_FLOAT_BLUR_ENABLED] ?: false,
+            clipboardFloatBlurRadiusDp = (
+                prefs[SettingsPreferenceKeys.CLIPBOARD_FLOAT_BLUR_RADIUS_DP]
+                    ?: AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_DEFAULT_DP
+                ).coerceIn(
+                AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MIN_DP,
+                AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MAX_DP,
+            ),
             stashPanelBackgroundBlurEnabled =
                 prefs[SettingsPreferenceKeys.STASH_PANEL_BACKGROUND_BLUR_ENABLED] ?: false,
             stashPanelBackgroundBlurRadiusDp = (

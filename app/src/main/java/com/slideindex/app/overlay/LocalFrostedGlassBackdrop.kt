@@ -108,7 +108,7 @@ private fun SolidPanelBackdrop(
  * 现象。所以系统那半边必须一起问，问不到就按实色降级。
  */
 @Composable
-private fun canBlurInOverlay(): Boolean {
+internal fun canBlurInOverlay(): Boolean {
     if (!rememberOverlayBlurEnabled()) return false
     val context = LocalContext.current
     val windowManager = remember(context) {

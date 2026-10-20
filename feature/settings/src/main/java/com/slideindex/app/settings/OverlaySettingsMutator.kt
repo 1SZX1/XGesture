@@ -1240,6 +1240,17 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.CLIPBOARD_FLOAT_AUTO_CLOSE_SECONDS] = seconds.coerceAtLeast(0)
     }
 
+    suspend fun setClipboardFloatBlurEnabled(enabled: Boolean) = editor.edit {
+        it[SettingsPreferenceKeys.CLIPBOARD_FLOAT_BLUR_ENABLED] = enabled
+    }
+
+    suspend fun setClipboardFloatBlurRadiusDp(value: Int) = editor.edit {
+        it[SettingsPreferenceKeys.CLIPBOARD_FLOAT_BLUR_RADIUS_DP] = value.coerceIn(
+            AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MIN_DP,
+            AppSettings.CLIPBOARD_FLOAT_BLUR_RADIUS_MAX_DP,
+        )
+    }
+
     suspend fun setClipboardFloatGeometry(
         x: Int,
         y: Int,

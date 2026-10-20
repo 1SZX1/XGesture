@@ -3968,6 +3968,10 @@
     <string name="clipboard_float_blacklist_remove">移除</string>
     <string name="clipboard_float_blacklist_section_add">添加应用</string>
     <string name="clipboard_float_opacity_title">悬浮窗透明度</string>
+    <string name="clipboard_float_blur_title">背景模糊</string>
+    <string name="clipboard_float_blur_desc">模糊浮窗背后的内容（Android 12+）；不支持时回落实色面板</string>
+    <string name="clipboard_float_blur_desc_overlay_off">请先打开「悬浮窗模糊」总开关</string>
+    <string name="clipboard_float_blur_radius_title">模糊强度</string>
     <string name="clipboard_float_auto_dim_title">失焦自动半透明</string>
     <string name="clipboard_float_auto_dim_desc">钉住状态下点击屏幕外部自动变半透明，点击悬浮窗恢复</string>
     <string name="clipboard_float_auto_close_title">未钉住自动退出延时</string>

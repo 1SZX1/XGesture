@@ -3736,6 +3736,10 @@
     <string name="clipboard_float_blacklist_remove">削除</string>
     <string name="clipboard_float_blacklist_section_add">アプリを追加</string>
     <string name="clipboard_float_opacity_title">フローティングウィンドウの不透明度</string>
+    <string name="clipboard_float_blur_title">背景ぼかし</string>
+    <string name="clipboard_float_blur_desc">フローティングウィンドウ背後の内容をぼかします（Android 12 以降）。利用できない場合は単色背景にフォールバックします</string>
+    <string name="clipboard_float_blur_desc_overlay_off">先に「フローティングパネルのぼかし」をオンにしてください</string>
+    <string name="clipboard_float_blur_radius_title">ぼかしの強さ</string>
     <string name="clipboard_float_auto_dim_title">非フォーカス時に自動減光</string>
     <string name="clipboard_float_auto_dim_desc">固定中に外側をタッチすると自動的に暗くし、タップで復元</string>
     <string name="clipboard_float_auto_close_title">自動クローズ遅延（非固定）</string>
