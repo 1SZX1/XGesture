@@ -39,6 +39,10 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.DARK_BACKGROUND_STYLE] = style.id
     }
 
+    suspend fun setIconPlateMode(mode: IconPlateMode) = editor.edit {
+        it[SettingsPreferenceKeys.ICON_PLATE_MODE] = mode.id
+    }
+
     suspend fun setThemeColorSpec(spec: AppColorSpec) = editor.edit {
         it[SettingsPreferenceKeys.THEME_COLOR_SPEC] = spec.id
     }

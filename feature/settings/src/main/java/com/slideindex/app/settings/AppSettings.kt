@@ -49,6 +49,7 @@ data class AppSettings(
     val dynamicColorEnabled: Boolean = true,
     val freeWindow: FreeWindowSettings = FreeWindowSettings(),
     val launcher: LauncherSettings = LauncherSettings(),
+    val iconPlateModeId: Int = IconPlateMode.SYSTEM_DARK.id,
     val themeColorArgb: Int = 0xFF6750A4.toInt(),
     val themePaletteStyleId: Int = ThemePaletteStyle.TONAL_SPOT.id,
     val themeModeId: Int = AppThemeMode.SYSTEM.id,

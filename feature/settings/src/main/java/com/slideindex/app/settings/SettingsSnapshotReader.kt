@@ -286,6 +286,9 @@ internal object SettingsSnapshotReader {
             darkBackgroundStyleId = prefs[SettingsPreferenceKeys.DARK_BACKGROUND_STYLE]
                 ?: DarkBackgroundStyle.QUIET_BLUE.id,
             themeColorSpecId = prefs[SettingsPreferenceKeys.THEME_COLOR_SPEC] ?: AppColorSpec.SPEC_2025.id,
+            iconPlateModeId = IconPlateMode.fromId(
+                prefs[SettingsPreferenceKeys.ICON_PLATE_MODE] ?: IconPlateMode.SYSTEM_DARK.id,
+            ).id,
             uiDensityScale = UiDensityScaleLimits.normalize(
                 prefs[SettingsPreferenceKeys.UI_DENSITY_SCALE] ?: UiDensityScaleLimits.DEFAULT_SCALE,
             ),

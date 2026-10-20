@@ -17,6 +17,10 @@ import com.slideindex.app.util.QuickLauncherIconResolver
 internal object RingLauncherSlotIconBitmap {
     private val cache = object : LruCache<String, Bitmap>(96) {}
 
+    fun clear() {
+        cache.evictAll()
+    }
+
     fun get(
         context: Context,
         item: QuickLauncherItem,
@@ -29,7 +33,7 @@ internal object RingLauncherSlotIconBitmap {
         iconOverride: FvRingLauncherSlotIconOverride? = null,
     ): Bitmap {
         // 图标覆盖变更后必须换 key，否则一直是旧缓存
-        val cacheKey = "${item.type}:${item.payload}:${item.label}:$sizePx:${iconOverride?.iconPath}:${iconOverride?.textIcon}:${com.slideindex.app.ui.GlobalIconStore.revision}"
+        val cacheKey = "${item.type}:${item.payload}:${item.label}:$sizePx:${iconOverride?.iconPath}:${iconOverride?.textIcon}:${com.slideindex.app.ui.GlobalIconStore.revision}:${com.slideindex.app.ui.IconPlateModeState.mode}:${com.slideindex.app.ui.IconPlateModeState.lastResolvedDark}"
         cache.get(cacheKey)?.let { return it }
         val bitmap = resolveBitmap(
             context = context,

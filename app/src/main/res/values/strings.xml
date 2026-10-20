@@ -2837,6 +2837,11 @@
     <string name="global_icon_custom">Custom</string>
     <string name="extension_icon_library_title">Icon library</string>
     <string name="extension_icon_library_subtitle">Set icons for action types and apps globally</string>
+    <string name="icon_plate_mode_section">Icon plate</string>
+    <string name="icon_plate_mode_dark">Dark</string>
+    <string name="icon_plate_mode_light">Light</string>
+    <string name="icon_plate_mode_system">Follow system</string>
+    <string name="icon_plate_mode_desc">Background style for action icons inside overlay panels</string>
     <string name="action_icon_library_title">Choose icon</string>
     <string name="action_icon_all">All</string>
     <string name="action_icon_count">%1$d icons</string>

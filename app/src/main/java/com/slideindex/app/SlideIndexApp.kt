@@ -160,7 +160,13 @@ class SlideIndexApp : Application(), androidx.work.Configuration.Provider {
             // 主进程读一次最新语言并写入系统 LocaleManager（其它进程从轻量缓存取）
             runBlocking(Dispatchers.IO) {
                 val language = AppUiLanguage.fromStorageTag(
-                    runCatching { deps.settingsRepository.readFreshSnapshot().appUiLanguageTag }.getOrDefault("")
+                    runCatching {
+                val snapshot = deps.settingsRepository.readFreshSnapshot()
+                com.slideindex.app.ui.IconPlateModeState.init(this@SlideIndexApp)
+                com.slideindex.app.ui.IconPlateModeState.mode =
+                    com.slideindex.app.settings.IconPlateMode.fromId(snapshot.iconPlateModeId)
+                snapshot.appUiLanguageTag
+            }.getOrDefault("")
                 )
                 AppLocaleApplier.apply(this@SlideIndexApp, language)
             }

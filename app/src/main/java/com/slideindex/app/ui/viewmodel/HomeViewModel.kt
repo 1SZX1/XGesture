@@ -128,6 +128,14 @@ class HomeViewModel @AssistedInject constructor(
         settingsRepository.setDarkBackgroundStyle(style)
     }
 
+    fun setIconPlateMode(mode: com.slideindex.app.settings.IconPlateMode) = launchSettingsWrite {
+        com.slideindex.app.ui.IconPlateModeState.mode = mode
+        // 清图标缓存并让两个悬浮窗立即重绘，否则面板上还是旧底色
+        runCatching { com.slideindex.app.util.GestureActionIconBitmap.clear() }
+        runCatching { com.slideindex.app.overlay.ringlauncher.RingLauncherOverlayWindow.refreshFromSettings() }
+        settingsRepository.setIconPlateMode(mode)
+    }
+
     fun setThemeColorSpec(spec: AppColorSpec) = launchSettingsWrite {
         settingsRepository.setThemeColorSpec(spec)
     }

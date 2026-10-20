@@ -91,4 +91,9 @@ internal object OverlayIconLoader {
     fun submit(block: () -> Unit) {
         bulkExecutor.execute { runCatching { block() } }
     }
+
+    fun clear() {
+        cache.evictAll()
+        missing.clear()
+    }
 }

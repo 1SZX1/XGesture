@@ -289,7 +289,10 @@ internal class QuickLauncherRenderer(
 
     private fun quickLauncherIconKey(item: QuickLauncherItem, size: Int): String =
         "${ctrl.quickLauncherItemCacheKey(item)}\u0000$size\u0000$quickLauncherIconShape" +
-            "\u0000v35\u0000${quickLauncherIconCatalogStamp()}\u0000${ctrl.quickLauncherAppsRevision}"
+            "\u0000v35\u0000${quickLauncherIconCatalogStamp()}\u0000${ctrl.quickLauncherAppsRevision}" +
+            "\u0000${com.slideindex.app.ui.GlobalIconStore.revision}" +
+            "\u0000${com.slideindex.app.ui.IconPlateModeState.mode}" +
+            "\u0000${com.slideindex.app.ui.IconPlateModeState.lastResolvedDark}"
 
     private var cachedShortcutCatalog: List<ActivityShortcut>? = null
     private var cachedShellCatalog: List<ShellCommand>? = null

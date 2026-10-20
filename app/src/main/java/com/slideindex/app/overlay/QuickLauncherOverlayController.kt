@@ -36,6 +36,14 @@ import kotlinx.coroutines.SupervisorJob
 internal class QuickLauncherOverlayController(
     internal val host: Host
 ) {
+    init {
+        com.slideindex.app.ui.IconPlateModeState.addPlateModeListener {
+            invalidateQuickLauncherDerivedCaches()
+            OverlayIconLoader.clear()
+            host.invalidate()
+        }
+    }
+
     private val motionScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     internal val quickLauncherPageSnapMotion = OverlayFloatSpringMotion(motionScope)
     interface Host : OverlayPanelLayoutHost {

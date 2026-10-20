@@ -1715,6 +1715,11 @@
     <string name="global_icon_custom">自定义</string>
     <string name="extension_icon_library_title">图标库</string>
     <string name="extension_icon_library_subtitle">全局设置动作类型与应用的图标</string>
+    <string name="icon_plate_mode_section">图标底板</string>
+    <string name="icon_plate_mode_dark">深色</string>
+    <string name="icon_plate_mode_light">浅色</string>
+    <string name="icon_plate_mode_system">跟随系统</string>
+    <string name="icon_plate_mode_desc">悬浮窗面板里动作图标的底板配色</string>
     <string name="action_icon_library_title">选择图标</string>
     <string name="action_icon_all">全部</string>
     <string name="action_icon_count">%1$d 个图标</string>

@@ -38,6 +38,10 @@ object QuickLauncherIconResolver {
         (Runtime.getRuntime().maxMemory() / 1024 / 24).toInt().coerceIn(48, 256)
     ) {}
 
+    fun clear() {
+        bitmapCache.evictAll()
+    }
+
     fun iconBitmap(
         item: QuickLauncherItem,
         appsByPackage: Map<String, AppInfo>,
@@ -54,6 +58,8 @@ object QuickLauncherIconResolver {
             append('\u0000').append(shellCommands.size).append(':').append(shellCommands.hashCode())
             // 图标覆盖变更后必须换 key，否则会一直命中改图标前的旧缓存
             append('\u0000').append(com.slideindex.app.ui.GlobalIconStore.revision)
+            append('\u0000').append(com.slideindex.app.ui.IconPlateModeState.mode)
+            append('\u0000').append(com.slideindex.app.ui.IconPlateModeState.lastResolvedDark)
         }
         bitmapCache.get(cacheKey)?.let { return it }
         val bitmap = resolveIconBitmap(

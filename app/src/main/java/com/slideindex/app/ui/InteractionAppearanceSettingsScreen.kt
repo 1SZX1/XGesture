@@ -2,6 +2,24 @@ package com.slideindex.app.ui
 
 import android.os.Build
 import androidx.compose.foundation.layout.fillMaxWidth
+import com.slideindex.app.ui.miuix.MiuixTabRowWithContourInCard
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
+import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import com.slideindex.app.ui.settings.components.MiuixNavigationRow
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.InvertColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -41,6 +59,8 @@ fun InteractionAppearanceSettingsScreen(
     onKeyboardTriggerBehaviorChange: (KeyboardTriggerBehavior) -> Unit,
     onKeyboardTriggerNarrowPercentChange: (Int) -> Unit,
     onBack: () -> Unit,
+    onIconPlateModeChange: (com.slideindex.app.settings.IconPlateMode) -> Unit = {},
+    iconPlateMode: com.slideindex.app.settings.IconPlateMode = com.slideindex.app.settings.IconPlateMode.SYSTEM_DARK,
     onHapticEnabledChange: (Boolean) -> Unit,
     onHapticStrengthChange: (Int) -> Unit,
     onHapticGestureTriggerEnabledChange: (Boolean) -> Unit,
@@ -67,6 +87,17 @@ fun InteractionAppearanceSettingsScreen(
     overlayBlurEnabled: Boolean = true,
     onOverlayBlurEnabledChange: (Boolean) -> Unit = {},
 ) {
+
+    // LazyListScope 里不能调用 stringResource，先在这里取好
+    val iconPlateSectionTitle = stringResource(R.string.icon_plate_mode_section)
+    val iconPlateModeDescText = stringResource(R.string.icon_plate_mode_desc)
+    val iconPlateTabLabels = listOf(
+        stringResource(R.string.icon_plate_mode_dark),
+        stringResource(R.string.icon_plate_mode_light),
+        stringResource(R.string.icon_plate_mode_system),
+    )
+
+
     val view = LocalView.current
     val hapticLightLabel = stringResource(R.string.haptic_strength_light)
     val hapticMediumLabel = stringResource(R.string.haptic_strength_medium)
@@ -133,6 +164,8 @@ fun InteractionAppearanceSettingsScreen(
                     ,
             )
         }
+
+
         groupedCardItems(
             keyPrefix = "interaction_appearance_general",
             items = languageItems,
@@ -160,6 +193,21 @@ fun InteractionAppearanceSettingsScreen(
                         checked = overlayBlurEnabled,
                         enabled = true,
                         onCheckedChange = onOverlayBlurEnabledChange,
+                    )
+                },
+                settingsCardScopeItem("icon-plate") {
+                    OverlayDropdownPreference(
+                        title = iconPlateSectionTitle,
+                        items = iconPlateTabLabels,
+                        selectedIndex = com.slideindex.app.settings.IconPlateMode
+                            .entries
+                            .indexOf(iconPlateMode)
+                            .coerceAtLeast(0),
+                        onSelectedIndexChange = { index ->
+                            onIconPlateModeChange(
+                                com.slideindex.app.settings.IconPlateMode.entries[index],
+                            )
+                        },
                     )
                 },
             ),

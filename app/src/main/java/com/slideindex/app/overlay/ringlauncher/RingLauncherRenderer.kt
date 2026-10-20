@@ -304,7 +304,12 @@ internal object RingLauncherRenderer {
         iconDstRect.set(left, top, right, bottom)
         val cornerRadius = diameter * cornerRadiusRatio
 
-        iconPlatePaint.color = ICON_PLATE
+        // 浅色模式下底板也要跟着变浅
+        iconPlatePaint.color = if (com.slideindex.app.ui.IconPlateModeState.currentDark()) {
+            ICON_PLATE
+        } else {
+            0xFFF1F3F7.toInt()
+        }
         iconPlatePaint.alpha = 255
         if (cornerRadiusRatio >= 0.49f) {
             canvas.drawCircle(centerX, centerY, radius, iconPlatePaint)
@@ -509,7 +514,12 @@ internal object RingLauncherRenderer {
             )
         }
 
-        iconPlatePaint.color = ICON_PLATE
+        // 浅色模式下底板也要跟着变浅
+        iconPlatePaint.color = if (com.slideindex.app.ui.IconPlateModeState.currentDark()) {
+            ICON_PLATE
+        } else {
+            0xFFF1F3F7.toInt()
+        }
         iconPlatePaint.alpha = 255
         if (cornerRadiusRatio >= 0.49f) {
             canvas.drawCircle(centerX, iconCenterY, iconRadius, iconPlatePaint)

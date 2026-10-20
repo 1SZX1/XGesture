@@ -58,3 +58,62 @@ object GlobalIconStore {
             .filter { it.key.startsWith(APP_PREFIX) && it.value is String }
             .associate { it.key.removePrefix(APP_PREFIX) to (it.value as String) }
 }
+
+/**
+ * 悬浮窗里动作图标底板的当前模式。
+ *
+ * 渲染发生在 Canvas/非 Compose 场景，拿不到 Compose 状态，所以这里放一个进程级当前值：
+ * 设置保存时更新，渲染时用 [isDark] 判断该用深色还是浅色底板。
+ */
+object IconPlateModeState {
+    private val listeners = mutableListOf<() -> Unit>()
+
+    /** 注册模式变更回调（悬浮窗刷新用）。 */
+    fun addPlateModeListener(listener: () -> Unit) {
+        listeners += listener
+    }
+
+    @Volatile
+    var mode: com.slideindex.app.settings.IconPlateMode = com.slideindex.app.settings.IconPlateMode.SYSTEM_DARK
+        set(value) {
+            field = value
+            appContext?.let { isDark(it) }
+            com.slideindex.app.util.GestureActionIconBitmap.clear()
+            com.slideindex.app.util.QuickLauncherIconResolver.clear()
+            com.slideindex.app.overlay.ringlauncher.RingLauncherSlotIconBitmap.clear()
+            com.slideindex.app.overlay.corner.CornerSlotIconBitmap.clear()
+            listeners.toList().forEach { runCatching(it) }
+        }
+
+    /** 最近一次解析出的明暗（渲染侧没有 context 时用它）。 */
+    @Volatile
+    var lastResolvedDark: Boolean = true
+        private set
+
+    /** 首次调用时缓存 Application context，之后渲染侧可以随时重新解析。 */
+    @Volatile
+    private var appContext: android.content.Context? = null
+
+    /** 启动时调用一次，给渲染侧准备 context（否则 currentDark 只能保守地当深色）。 */
+    fun init(context: android.content.Context) {
+        appContext = context.applicationContext
+        isDark(context)
+    }
+
+    /** 渲染侧用：每次调用都重新解析（不依赖上次缓存的值）。 */
+    fun currentDark(): Boolean = appContext?.let { isDark(it) }
+        ?: (mode != com.slideindex.app.settings.IconPlateMode.LIGHT)
+
+    fun isDark(context: android.content.Context): Boolean = run {
+        appContext = context.applicationContext
+        when (mode) {
+            com.slideindex.app.settings.IconPlateMode.DARK -> true
+            com.slideindex.app.settings.IconPlateMode.LIGHT -> false
+            com.slideindex.app.settings.IconPlateMode.SYSTEM_DARK -> {
+                val night = context.resources.configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                night == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+    }.also { lastResolvedDark = it }
+}

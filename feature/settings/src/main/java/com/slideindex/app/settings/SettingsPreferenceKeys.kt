@@ -297,6 +297,7 @@ internal object SettingsPreferenceKeys {
     val CUSTOM_COLOR_ENABLED = booleanPreferencesKey("custom_color_enabled")
     val DARK_BACKGROUND_STYLE = intPreferencesKey("dark_background_style_id")
     val THEME_COLOR_SPEC = intPreferencesKey("theme_color_spec_id")
+    val ICON_PLATE_MODE = intPreferencesKey("icon_plate_mode_id")
     val UI_DENSITY_SCALE = floatPreferencesKey("ui_density_scale")
     val BOTTOM_NAV_STYLE = intPreferencesKey("bottom_nav_style_id")
     val BOTTOM_NAV_MODE = intPreferencesKey("bottom_nav_mode_id")

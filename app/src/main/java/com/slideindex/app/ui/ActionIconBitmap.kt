@@ -26,12 +26,13 @@ object ActionIconBitmap {
         tintArgb: Int = Color.WHITE,
         withPlate: Boolean = false,
     ): Bitmap? {
+        val darkPlate = IconPlateModeState.isDark(context)
         val key = GlobalIconStore.actionIcon(context, action.type.name)
             ?: (action as? GestureAction.LaunchApp)?.let {
                 GlobalIconStore.appIcon(context, it.packageName)
             }
             ?: return null
-        return loadByKey(context, key, sizePx, tintArgb, withPlate)
+        return loadByKey(context, key, sizePx, tintArgb, withPlate, action, darkPlate)
     }
 
     fun loadByKey(
@@ -40,6 +41,8 @@ object ActionIconBitmap {
         sizePx: Int,
         tintArgb: Int = Color.WHITE,
         withPlate: Boolean = false,
+        action: GestureAction? = null,
+        darkPlate: Boolean = true,
     ): Bitmap? {
         if (sizePx <= 0) return null
         // 1) 图片文件
@@ -51,7 +54,7 @@ object ActionIconBitmap {
         }
         // 2) 文字图标
         if (key.startsWith("t:")) {
-            return renderText(key.removePrefix("t:"), sizePx, null, tintArgb, withPlate)
+            return renderText(key.removePrefix("t:"), sizePx, null, tintArgb, withPlate, action, darkPlate)
         }
         // 3) 字体图标
         val library = IconFontLibrary.fromKey(key) ?: return null
@@ -60,7 +63,15 @@ object ActionIconBitmap {
             ?: return null
         val typeface = runCatching { ResourcesCompat.getFont(context, library.fontRes) }.getOrNull()
             ?: return null
-        return renderText(String(Character.toChars(item.codePoint)), sizePx, typeface, tintArgb, withPlate)
+        return renderText(
+            String(Character.toChars(item.codePoint)),
+            sizePx,
+            typeface,
+            tintArgb,
+            withPlate,
+            action,
+            darkPlate,
+        )
     }
 
     private fun renderText(
@@ -69,19 +80,32 @@ object ActionIconBitmap {
         typeface: Typeface?,
         tintArgb: Int,
         withPlate: Boolean,
+        action: GestureAction?,
+        darkPlate: Boolean = true,
     ): Bitmap? {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         // 与内置动作图标一致的"黑底方块"，否则自定义图标没有底板、线条也不变白
         if (withPlate) {
             val platePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.argb(0xE6, 0x1C, 0x1C, 0x1E)
+                // 用该动作类型的内置底板渐变，而不是死黑，否则和旁边默认图标不协调
+                if (action != null) {
+                    val (start, end) = com.slideindex.app.util.GestureActionIconBitmap
+                        .plateGradient(action, darkPlate)
+                    shader = android.graphics.LinearGradient(
+                        0f, 0f, 0f, sizePx.toFloat(),
+                        start, end,
+                        android.graphics.Shader.TileMode.CLAMP,
+                    )
+                } else {
+                    color = Color.argb(0xE6, 0x1C, 0x1C, 0x1E)
+                }
             }
             val corner = sizePx * 0.22f
             canvas.drawRoundRect(0f, 0f, sizePx.toFloat(), sizePx.toFloat(), corner, corner, platePaint)
         }
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = tintArgb
+            color = if (darkPlate) tintArgb else Color.BLACK
             // 与内置图标一致：带底时占 0.54，裸图标占 0.75（见 GestureActionIconBitmap）
             textSize = sizePx * (if (withPlate) 0.54f else 0.75f)
             this.typeface = typeface

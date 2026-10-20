@@ -85,10 +85,32 @@ object GestureActionIconBitmap {
         withPlate: Boolean,
         plateShape: GestureActionPlateShape,
     ): String =
-        "$CACHE_VERSION:${action.type.id}:${action.payload}:$sizePx:$tintArgb:$outlined:$withPlate:$plateShape"
+        "$CACHE_VERSION:${action.type.id}:${action.payload}:$sizePx:$tintArgb:$outlined:$withPlate:$plateShape:${com.slideindex.app.ui.IconPlateModeState.mode}:${com.slideindex.app.ui.IconPlateModeState.lastResolvedDark}"
 
-    private fun plateColorsForAction(action: GestureAction): Pair<Int, Int> {
-        return when (action.type) {
+    /**
+     * 该动作类型的底板渐变色（start → end）。
+     *
+     * dark = false 时把同一套色相提亮成浅色版（同色系反转），供"浅色"底板使用。
+     */
+    fun plateGradient(action: GestureAction, dark: Boolean = true): Pair<Int, Int> {
+        val base = plateColorsForAction(action)
+        if (dark) return base
+        return lighten(base.first) to lighten(base.second)
+    }
+
+    private fun lighten(argb: Int): Int {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(argb, hsv)
+        hsv[1] = (hsv[1] * 0.22f).coerceIn(0f, 1f)
+        hsv[2] = 0.94f
+        return android.graphics.Color.HSVToColor(android.graphics.Color.alpha(argb), hsv)
+    }
+
+    private fun plateColorsForAction(
+        action: GestureAction,
+        dark: Boolean = true,
+    ): Pair<Int, Int> {
+        val raw = when (action.type) {
             GestureActionType.BACK,
             GestureActionType.HOME,
             GestureActionType.RECENTS,
@@ -139,6 +161,7 @@ object GestureActionIconBitmap {
                 0xFF2F323A.toInt() to 0xFF1E2026.toInt()
             }
         }
+        return if (dark) raw else lighten(raw.first) to lighten(raw.second)
     }
 
     private fun render(
@@ -158,7 +181,11 @@ object GestureActionIconBitmap {
             val center = sizePx / 2f
             val plateRadius = center
 
-            val (topColor, bottomColor) = plateColorsForAction(action)
+            val isDark = com.slideindex.app.ui.IconPlateModeState.currentDark()
+            val (topColor, bottomColor) = plateColorsForAction(
+                action,
+                dark = isDark,
+            )
             val shader = LinearGradient(
                 0f, 0f, 0f, sizePx.toFloat(),
                 topColor, bottomColor,
@@ -177,7 +204,7 @@ object GestureActionIconBitmap {
             val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
                 strokeWidth = (sizePx / 64f).coerceIn(1f, 2.5f)
-                color = 0x33FFFFFF.toInt()
+                color = if (isDark) 0x33FFFFFF.toInt() else 0x1A000000.toInt()
             }
             val inset = strokePaint.strokeWidth / 2f
             when (plateShape) {
@@ -195,7 +222,17 @@ object GestureActionIconBitmap {
             plateShape == GestureActionPlateShape.CIRCLE -> CONTENT_SCALE_CIRCLE_PLATE
             else -> CONTENT_SCALE_PLATE
         }
-        val effectiveTint = if (withPlate) android.graphics.Color.WHITE else tintArgb
+        // 浅色底板必须配深色线条，否则白线画在浅底上会灰蒙蒙
+        val effectiveTint = if (withPlate) {
+            val isDark = com.slideindex.app.ui.IconPlateModeState.currentDark()
+            if (!isDark) {
+                android.graphics.Color.BLACK
+            } else {
+                android.graphics.Color.WHITE
+            }
+        } else {
+            tintArgb
+        }
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = effectiveTint
         }

@@ -7,7 +7,20 @@ import com.slideindex.app.gesture.GestureTriggerMode
 import com.slideindex.app.translate.TranslateTargetLanguages
 
 /** 浮层、悬浮球、主题与 App 内外观相关设置子集（窄 Flow 订阅用）。 */
+/** 悬浮窗里动作图标的底板配色：深色 / 浅色 / 跟随系统深色模式。 */
+enum class IconPlateMode(val id: Int) {
+    DARK(0),
+    LIGHT(1),
+    SYSTEM_DARK(2),
+    ;
+
+    companion object {
+        fun fromId(id: Int): IconPlateMode = entries.firstOrNull { it.id == id } ?: SYSTEM_DARK
+    }
+}
+
 data class OverlaySettings(
+    val iconPlateModeId: Int = IconPlateMode.SYSTEM_DARK.id,
     val themeColorArgb: Int = 0xFF6750A4.toInt(),
     val dynamicColorEnabled: Boolean = true,
     val themePaletteStyleId: Int = ThemePaletteStyle.TONAL_SPOT.id,

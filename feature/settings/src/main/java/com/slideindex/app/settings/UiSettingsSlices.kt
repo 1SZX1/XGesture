@@ -10,6 +10,7 @@ import com.slideindex.app.widget.WidgetPanelPage
 
 /** 首页主屏展示所需设置子集。 */
 data class HomeMainSettings(
+    val iconPlateModeId: Int = IconPlateMode.SYSTEM_DARK.id,
     val serviceEnabled: Boolean = false,
     val hideFromRecents: Boolean = false,
     val accessibilityKeepAliveEnabled: Boolean = false,
@@ -58,6 +59,7 @@ data class HomeMainSettings(
 
     companion object {
         fun from(settings: AppSettings): HomeMainSettings = HomeMainSettings(
+        iconPlateModeId = settings.iconPlateModeId,
             serviceEnabled = settings.serviceEnabled,
             hideFromRecents = settings.hideFromRecents,
             accessibilityKeepAliveEnabled = settings.accessibilityKeepAliveEnabled,

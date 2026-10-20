@@ -18,6 +18,10 @@ import com.slideindex.app.util.GestureActionPlateShape
 internal object CornerSlotIconBitmap {
     private val appIconCache = object : LruCache<String, Bitmap>(64) {}
 
+    fun clear() {
+        appIconCache.evictAll()
+    }
+
     fun get(
         context: Context,
         action: GestureAction,

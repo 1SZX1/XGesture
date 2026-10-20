@@ -222,6 +222,8 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
                 viewModel.setKeyboardTriggerNarrowPercent(percent, isLandscape)
             },
             onBack = { ctx.navigateBackTo(AppNavKey.HomeMain) },
+            onIconPlateModeChange = viewModel::setIconPlateMode,
+            iconPlateMode = com.slideindex.app.settings.IconPlateMode.fromId(settings.iconPlateModeId),
             onHapticEnabledChange = viewModel::setHapticEnabled,
             onHapticStrengthChange = viewModel::setHapticStrength,
             onHapticGestureTriggerEnabledChange = viewModel::setHapticGestureTriggerEnabled,
