@@ -100,6 +100,16 @@ class ClipboardFloatService : Service(), LifecycleOwner, SavedStateRegistryOwner
     private var panelAlpha by mutableFloatStateOf(1.0f)
     private var autoDimWhenUnfocused by mutableStateOf(false)
     private var autoCloseSeconds by mutableIntStateOf(0)
+    /**
+     * 玻璃底（背景模糊）的开/关与半径。
+     *
+     * 必须**建窗前**从快照读好、作为首帧入参交给 [ClipboardFloatRoot]：这扇窗是冷启动的
+     * （弹键盘 → `startService` → 新建窗 + 新 Surface），等 Compose 里那条设置 Flow 首次
+     * emit 再挂磨砂层的话，首帧只剩 0.42 半透明底，且窗口就位后完全静止、没有任何事务，
+     * 那一帧会一直停在屏幕上，直到用户碰一下窗口。
+     */
+    private var blurEnabled by mutableStateOf(false)
+    private var blurRadiusDp by mutableIntStateOf(0)
     private var isDimmed = false
     private var screenOffReceiver: BroadcastReceiver? = null
     private var isLandscape = false
@@ -273,6 +283,8 @@ class ClipboardFloatService : Service(), LifecycleOwner, SavedStateRegistryOwner
         listStyle = snapshot.clipboardFloatListStyle
         pasteHapticEnabled = snapshot.clipboardFloatPasteHapticEnabled
         panelAlpha = snapshot.clipboardFloatAlpha
+        blurEnabled = snapshot.clipboardFloatBlurEnabled
+        blurRadiusDp = snapshot.clipboardFloatBlurRadiusDp
         autoDimWhenUnfocused = snapshot.clipboardFloatAutoDimWhenUnfocused
         autoCloseSeconds = snapshot.clipboardFloatAutoCloseSeconds
         isLandscape = isLandscapeNow()
@@ -474,6 +486,8 @@ class ClipboardFloatService : Service(), LifecycleOwner, SavedStateRegistryOwner
                     mode = displayMode,
                     pinned = panelPinned,
                     panelAlpha = panelAlpha,
+                    blurEnabled = blurEnabled,
+                    blurRadiusDp = blurRadiusDp,
                     listController = listController,
                     windowWidthDp = panelWidthDp,
                     listStyle = listStyle,

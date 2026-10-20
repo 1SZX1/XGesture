@@ -192,13 +192,19 @@ private fun clipboardFloatCardColor(glassActive: Boolean): Color {
  * 要立刻跟着变（服务侧那条快照只在建窗时读一次）。
  */
 @Composable
-private fun rememberClipboardFloatGlass(): ClipboardFloatGlass {
+private fun rememberClipboardFloatGlass(
+    initialEnabled: Boolean,
+    initialRadiusDp: Int,
+): ClipboardFloatGlass {
     val context = LocalContext.current
     val settingsFlow = remember(context) {
         OverlayDependencyAccess.overlayDependencies(context)?.settingsRepository?.settings
     }
-    var enabled by remember { mutableStateOf(false) }
-    var radiusDp by remember { mutableIntStateOf(0) }
+    // 初值来自建窗前的快照（服务已经读过），不能从 false 起步：这扇窗是冷启动的，
+    // 首帧没有 backdrop 就会先画出 0.42 半透明底，而窗口就位后完全静止、不会再有一帧
+    // 把它纠正过来（见 ClipboardFloatService.blurEnabled 的注释）。
+    var enabled by remember { mutableStateOf(initialEnabled) }
+    var radiusDp by remember { mutableIntStateOf(initialRadiusDp) }
     LaunchedEffect(settingsFlow) {
         settingsFlow?.collect { settings ->
             enabled = settings.clipboardFloatBlurEnabled
@@ -219,6 +225,9 @@ fun ClipboardFloatRoot(
     mode: ClipboardFloatDisplayMode,
     pinned: Boolean,
     panelAlpha: Float = 1.0f,
+    /** 建窗快照里的玻璃底状态；首帧就要带上，见 [rememberClipboardFloatGlass]。 */
+    blurEnabled: Boolean = false,
+    blurRadiusDp: Int = 0,
     listController: ClipboardFloatListController,
     windowWidthDp: Int,
     listStyle: ClipboardFloatListStyle,
@@ -241,7 +250,10 @@ fun ClipboardFloatRoot(
     onEntryDragEnd: () -> Unit,
     onUserInteraction: () -> Unit = {}
 ) {
-    val glass = rememberClipboardFloatGlass()
+    val glass = rememberClipboardFloatGlass(
+        initialEnabled = blurEnabled,
+        initialRadiusDp = blurRadiusDp,
+    )
     OverlayAwareModuleTheme {
         CompositionLocalProvider(LocalClipboardFloatGlass provides glass) {
             Box(

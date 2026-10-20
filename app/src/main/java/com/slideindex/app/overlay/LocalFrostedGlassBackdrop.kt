@@ -65,6 +65,11 @@ fun LocalFrostedGlassBackdrop(
                     override fun onPreDraw(): Boolean {
                         viewTreeObserver.removeOnPreDrawListener(this)
                         setupBackgroundBlur(this@apply, cornerRadiusPx, blurRadiusPx, tintColor)
+                        // 模糊区域要随**一次 surface 事务**才会被合成器采纳。浮窗是冷启动窗口
+                        // （弹键盘 → 新建窗 + 新 Surface），首帧画完可能再也没有下一帧 ——
+                        // chip 就位后完全静止，观感就永远停在「只有半透明底色」上，直到用户
+                        // 碰一下窗口才补上那次事务。这里自己补一帧，不等用户。
+                        postInvalidateOnAnimation()
                         return true
                     }
                 })
@@ -117,14 +122,34 @@ internal fun canBlurInOverlay(): Boolean {
     return OverlayBlurGate.isSystemBlurEnabled(windowManager)
 }
 
-internal fun setupBackgroundBlur(view: View, cornerRadiusPx: Float, blurRadiusPx: Int, @ColorInt tintColor: Int) {
+internal fun setupBackgroundBlur(
+    view: View,
+    cornerRadiusPx: Float,
+    blurRadiusPx: Int,
+    @ColorInt tintColor: Int,
+    /** 拿不到 drawable 时最多补 post 重试几次（见下）。 */
+    retriesLeft: Int = 1,
+) {
     runCatching {
         val blurDrawable = view.background?.takeIf {
             it.javaClass.name.contains("BackgroundBlurDrawable")
         } ?: run {
-            val d = LocalFrostedGlassDrawable.createBlurDrawable(view) ?: return
-            view.background = d
-            d
+            val created = LocalFrostedGlassDrawable.createBlurDrawable(view)
+            if (created == null) {
+                // 窗口刚 add、`ViewRootImpl` 还没就绪时只能拿到 null。update 只在重组时跑，
+                // 不补这一次重试，这扇窗整个生命周期都不会有 backdrop（只剩半透明底色）。
+                // 只补一次：`post` 一定跑在 add 之后，仍拿不到就是该窗口不支持，重试无意义。
+                if (retriesLeft > 0) {
+                    view.post {
+                        if (view.isAttachedToWindow) {
+                            setupBackgroundBlur(view, cornerRadiusPx, blurRadiusPx, tintColor, retriesLeft - 1)
+                        }
+                    }
+                }
+                return
+            }
+            view.background = created
+            created
         }
         val setBlurRadius = blurDrawable.javaClass.getMethod("setBlurRadius", java.lang.Integer.TYPE)
         val setCornerRadius = blurDrawable.javaClass.getMethod("setCornerRadius", java.lang.Float.TYPE)
