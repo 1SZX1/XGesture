@@ -291,6 +291,41 @@ internal object ThinActionIcons {
         }
     }
 
+    val QuickMenu: ImageVector by lazy {
+        createThinIcon("ThinQuickMenu") {
+            path(
+                stroke = strokeBrush,
+                strokeLineWidth = STROKE_WIDTH,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                // 外框计算器/小工具机身
+                moveTo(6.5f, 2.5f)
+                lineTo(17.5f, 2.5f)
+                curveTo(18.6f, 2.5f, 19.5f, 3.4f, 19.5f, 4.5f)
+                lineTo(19.5f, 19.5f)
+                curveTo(19.5f, 20.6f, 18.6f, 21.5f, 17.5f, 21.5f)
+                lineTo(6.5f, 21.5f)
+                curveTo(5.4f, 21.5f, 4.5f, 20.6f, 4.5f, 19.5f)
+                lineTo(4.5f, 4.5f)
+                curveTo(4.5f, 3.4f, 5.4f, 2.5f, 6.5f, 2.5f)
+                close()
+                // 顶部显示屏
+                moveTo(8f, 6.5f)
+                lineTo(16f, 6.5f)
+                // 按键阵列：小圆点 + 竖条操作键，通透留白不粘连
+                moveTo(8f, 10.5f); lineTo(8.05f, 10.5f)
+                moveTo(12f, 10.5f); lineTo(12.05f, 10.5f)
+                moveTo(16f, 10.5f); lineTo(16.05f, 10.5f)
+                moveTo(8f, 14.5f); lineTo(8.05f, 14.5f)
+                moveTo(12f, 14.5f); lineTo(12.05f, 14.5f)
+                moveTo(8f, 18f); lineTo(8.05f, 18f)
+                moveTo(12f, 18f); lineTo(12.05f, 18f)
+                moveTo(16f, 14.5f); lineTo(16f, 18f)
+            }
+        }
+    }
+
     val Widgets: ImageVector by lazy {
         createThinIcon("ThinWidgets") {
             path(
