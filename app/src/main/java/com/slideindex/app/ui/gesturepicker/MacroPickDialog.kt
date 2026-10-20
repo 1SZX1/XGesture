@@ -44,6 +44,8 @@ fun MacroPickOverlay(
     onDismissRequest: () -> Unit,
     onPick: (Macro) -> Unit,
     modifier: Modifier = Modifier,
+    /** 当前已绑定（或正在编辑）的宏 id：列表里给它上色，换宏时不用自己找。 */
+    selectedMacroId: String? = null,
 ) {
     val context = LocalContext.current
     val macros = remember { MacroStore.all(context) }
@@ -82,9 +84,15 @@ fun MacroPickOverlay(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     macros.forEach { macro ->
+                        val selected = macro.id == selectedMacroId
                         Text(
                             text = macro.name.ifBlank { Macro.FALLBACK_NAME },
                             style = MaterialTheme.typography.bodyLarge,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onPick(macro) }
@@ -110,6 +118,8 @@ fun MacroPickDialog(
     show: Boolean,
     onDismissRequest: () -> Unit,
     onPick: (Macro) -> Unit,
+    /** 当前已绑定（或正在编辑）的宏 id：列表里给它上色，换宏时不用自己找。 */
+    selectedMacroId: String? = null,
 ) {
     if (!show) return
     val context = LocalContext.current
@@ -135,6 +145,7 @@ fun MacroPickDialog(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     macros.forEach { macro ->
+                        val selected = macro.id == selectedMacroId
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -144,6 +155,11 @@ fun MacroPickDialog(
                             Text(
                                 text = macro.name.ifBlank { Macro.FALLBACK_NAME },
                                 style = MaterialTheme.typography.bodyLarge,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
                             )
                             Text(
                                 text = stringResource(

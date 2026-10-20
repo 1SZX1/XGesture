@@ -440,6 +440,8 @@ fun GestureActionPickerScreen(
                     macroPickVisible = false
                     safeSelect(GestureAction.RunMacro(macro.id))
                 },
+                // 已经绑着某条宏时，把它标出来（换宏时不用自己在列表里找）。
+                selectedMacroId = (current as? GestureAction.RunMacro)?.macroId,
             )
         }
     }

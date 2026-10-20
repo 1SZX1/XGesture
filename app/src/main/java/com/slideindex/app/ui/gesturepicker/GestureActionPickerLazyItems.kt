@@ -53,8 +53,8 @@ internal const val ACTION_GRID_COLUMNS = 4
 /**
  * 这个动作"选完还有参数要配"吗？
  *
- * 有参数的在格子上打一个小角标，点它进详情页；没有的直接选中退出。
- * 新增带配置页的动作类型时，把类型加进这里。
+ * 有参数的在格子上打一个小角标，点它进详情页（或先弹二级选择框，如「运行宏」挑宏）；
+ * 没有的直接选中退出。新增带配置页 / 二级选择器的动作类型时，把类型加进这里。
  */
 internal fun actionHasDetailParams(type: GestureActionType): Boolean = when (type) {
     GestureActionType.QUICK_LAUNCHER,
@@ -62,6 +62,9 @@ internal fun actionHasDetailParams(type: GestureActionType): Boolean = when (typ
     GestureActionType.EXECUTE_SHELL_COMMAND,
     GestureActionType.OPEN_LINK,
     GestureActionType.SIMULATE_KEY_EVENT,
+    // 「运行宏」不是详情页而是一个二级弹窗（MacroPickDialog / MacroPickOverlay），
+    // 但语义一样：点下去还没完，得先挑一条宏 —— 所以同样打点，别让它看起来像"一下就选中"的动作。
+    GestureActionType.RUN_MACRO,
     -> true
     else -> false
 }
