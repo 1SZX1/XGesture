@@ -4,15 +4,18 @@ package com.slideindex.app.ui
 
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.automirrored.filled.Shortcut
@@ -35,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.lerp
@@ -147,6 +151,40 @@ fun Md3PickerSectionHeader(title: String, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * 行尾的状态胶囊：同色文字 + 14% 同色底（深色主题下也看得清，不依赖 container 配色）。
+ *
+ * 只用来标「例外」——未导出、入口这类少数行。像「已导出」这种恒真的状态不该上胶囊：
+ * 满屏同色胶囊会互相稀释，真要扫视时反而找不到重点。
+ */
+@Composable
+fun PickerStatusChip(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        color = color,
+        style = MaterialTheme.typography.labelMedium,
+        maxLines = 1,
+        softWrap = false,
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = 0.14f))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
+
+/** 行尾状态胶囊的内容与配色。 */
+data class PickerChipSpec(val text: String, val color: Color)
+
+/** 行尾槽位：`endActions` 是必填闭包，没有胶囊时这里什么都不画，别让调用点各写一份空判断。 */
+@Composable
+private fun RowScope.PickerRowEndSlot(chip: PickerChipSpec?) {
+    chip?.let { PickerStatusChip(text = it.text, color = it.color) }
+}
+
 /** 闪烁时卡片底色最多往 primary 方向拉多少（再大就开始压文字的对比度了）。 */
 private const val HighlightPulseMaxTint = 0.22f
 
@@ -165,6 +203,12 @@ fun Md3PickerListRow(
     trailingIcon: ImageVector? = null,
     trailingIconDescription: String? = null,
     onTrailingClick: (() -> Unit)? = null,
+    /**
+     * 行尾（右侧、选中标记左边）的状态胶囊，用于标「未导出」「入口」这类例外。
+     *
+     * 空值不占位：四档 trailingMode 里都走同一个空判断，调用点不用各写一遍。
+     */
+    trailingChip: PickerChipSpec? = null,
     enabled: Boolean = true,
     /**
      * 「定位到已绑定的那一项」时的闪烁强度（0..1，由调用方用 `Animatable` 驱动）。
@@ -203,6 +247,7 @@ fun Md3PickerListRow(
                 onClick = click,
                 enabled = enabled,
                 startAction = { leadingContent() },
+                endActions = { PickerRowEndSlot(trailingChip) },
                 radioButtonLocation = RadioButtonLocation.End,
                 bottomAction = bottomAction,
             )
@@ -217,6 +262,7 @@ fun Md3PickerListRow(
                 onCheckedChange = { click() },
                 enabled = enabled,
                 startAction = { leadingContent() },
+                endActions = { PickerRowEndSlot(trailingChip) },
                 checkboxLocation = CheckboxLocation.End,
                 bottomAction = bottomAction,
             )
@@ -233,6 +279,7 @@ fun Md3PickerListRow(
                 onClick = rowClick,
                 startAction = { leadingContent() },
                 endActions = {
+                    PickerRowEndSlot(trailingChip)
                     IconButton(onClick = trailingClick) {
                         MiuixIcon(
                             imageVector = icon,
@@ -251,6 +298,7 @@ fun Md3PickerListRow(
                 enabled = enabled,
                 onClick = onClick,
                 startAction = { leadingContent() },
+                endActions = { PickerRowEndSlot(trailingChip) },
                 bottomAction = bottomAction,
             )
         }

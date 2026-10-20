@@ -2220,6 +2220,8 @@
     <string name="search_engine_activity_search_hint">بحث عن اسم أو فئة Activity</string>
     <string name="search_engine_activity_empty">لم يتم العثور على Activity</string>
     <string name="search_engine_activity_not_exported">غير مصدّر</string>
+    <string name="search_engine_activity_needs_privilege">يحتاج امتياز</string>
+    <string name="search_engine_activity_entry">مدخل</string>
     <string name="search_engine_fetch_favicon">جلب أيقونة الموقع</string>
     <string name="search_engine_fetch_favicon_loading">جارٍ جلب أيقونة الموقع…</string>
     <string name="search_engine_fetch_favicon_failed">فشل جلب أيقونة الموقع، يرجى التحقق من رابط البحث أو الشبكة</string>

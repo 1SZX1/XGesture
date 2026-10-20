@@ -1,6 +1,7 @@
 package com.slideindex.app.util
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
@@ -11,6 +12,8 @@ data class ExportedActivityInfo(
     val className: String,
     val label: String,
     val exported: Boolean,
+    /** 是否该包的 MAIN/LAUNCHER 入口，也就是点桌面图标会进的那个。 */
+    val launcherEntry: Boolean = false,
 )
 
 object PackageActivityResolver {
@@ -38,6 +41,7 @@ object PackageActivityResolver {
         } catch (_: PackageManager.NameNotFoundException) {
             return emptyList()
         }
+        val entryClassNames = launcherEntryClassNames(pm, packageName)
         return activities
             .asSequence()
             .map { info ->
@@ -50,11 +54,29 @@ object PackageActivityResolver {
                     className = className,
                     label = info.loadLabel(pm).toString().ifBlank { className },
                     exported = info.exported,
+                    launcherEntry = className in entryClassNames,
                 )
             }
             .sortedWith(compareBy({ !it.exported }, { it.className }, { it.label }))
             .toList()
             .also { listCache.put(packageName, it) }
+    }
+
+    /**
+     * 该包 MAIN/LAUNCHER 入口的类名集合，用来在列表里标「入口」。
+     *
+     * 用 `queryIntentActivities` 而不是翻 `IntentFilter`：前者已经做过 intent-filter 匹配，
+     * 与桌面实际能点到的入口一致；老设备/新设备共用 [queryIntentActivitiesCompat]。
+     */
+    private fun launcherEntryClassNames(pm: PackageManager, packageName: String): Set<String> {
+        val intent = Intent(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .setPackage(packageName)
+        return runCatching {
+            pm.queryIntentActivitiesCompat(intent, 0)
+                .mapNotNull { it.activityInfo?.name }
+                .toSet()
+        }.getOrDefault(emptySet())
     }
 
     fun isActivityExported(context: Context, packageName: String, className: String): Boolean {

@@ -2227,6 +2227,8 @@
     <string name="search_engine_activity_search_hint">アクティビティ名またはクラスを検索</string>
     <string name="search_engine_activity_empty">アクティビティが見つかりません</string>
     <string name="search_engine_activity_not_exported">非エクスポート</string>
+    <string name="search_engine_activity_needs_privilege">特権が必要</string>
+    <string name="search_engine_activity_entry">エントリ</string>
     <string name="search_engine_fetch_favicon">Web サイトアイコンを取得</string>
     <string name="search_engine_fetch_favicon_loading">Web サイトアイコンを取得中…</string>
     <string name="search_engine_fetch_favicon_failed">Web サイトアイコンの取得に失敗しました。検索 URL またはネットワークを確認してください。</string>

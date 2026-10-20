@@ -1,6 +1,7 @@
 package com.slideindex.app.ui.picker
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -37,6 +39,7 @@ import com.slideindex.app.data.AppInfo
 import com.slideindex.app.ui.Md3PickerActivityLeading
 import com.slideindex.app.ui.Md3PickerAppLeading
 import com.slideindex.app.ui.Md3PickerListRow
+import com.slideindex.app.ui.PickerChipSpec
 import com.slideindex.app.ui.PickerListHorizontalPadding
 import com.slideindex.app.ui.PickerSearchListHeader
 import com.slideindex.app.ui.PickerTrailingMode
@@ -191,7 +194,7 @@ fun ActivityShortcutPickActivityScreen(
         PackageActivityResolver.searchActivities(activities, query)
     }
 
-    val notExportedLabel = stringResource(R.string.search_engine_activity_not_exported)
+    val chipStyle = rememberActivityChipStyle()
 
     if (embedInParentChrome) {
         EmbeddedActivityPickActivityList(
@@ -199,7 +202,7 @@ fun ActivityShortcutPickActivityScreen(
             onQueryChange = { query = it },
             loading = loading,
             filtered = filtered,
-            notExportedLabel = notExportedLabel,
+            chipStyle = chipStyle,
             selectedClassName = selectedClassName,
             onSelectActivity = onSelectActivity,
         )
@@ -219,7 +222,7 @@ fun ActivityShortcutPickActivityScreen(
         activityPickerActivityListBody(
             loading = loading,
             filtered = filtered,
-            notExportedLabel = notExportedLabel,
+            chipStyle = chipStyle,
             selectedClassName = selectedClassName,
             onSelectActivity = onSelectActivity,
             emptyText = emptyActivitiesText,
@@ -268,7 +271,7 @@ private fun LazyListScope.activityPickerAppListBody(
 private fun LazyListScope.activityPickerActivityListBody(
     loading: Boolean,
     filtered: List<ExportedActivityInfo>,
-    notExportedLabel: String,
+    chipStyle: ActivityChipStyle,
     selectedClassName: String?,
     onSelectActivity: (ExportedActivityInfo) -> Unit,
     emptyText: String,
@@ -283,18 +286,14 @@ private fun LazyListScope.activityPickerActivityListBody(
                 key = { _, activity -> activity.className },
             ) { index, activity ->
                 val selected = selectedClassName != null && activity.className == selectedClassName
-                val subtitle = if (activity.exported) {
-                    activity.className
-                } else {
-                    "${activity.className} · $notExportedLabel"
-                }
                 Md3PickerListRow(
                     segmentIndex = index,
                     segmentCount = segmentCount,
                     title = activity.label,
-                    subtitle = subtitle,
+                    subtitle = activity.className,
                     selected = selected,
                     onClick = { onSelectActivity(activity) },
+                    trailingChip = activityChipSpec(activity, chipStyle),
                     leadingContent = {
                         Md3PickerActivityLeading(
                             packageName = activity.packageName,
@@ -311,6 +310,49 @@ private fun LazyListScope.activityPickerActivityListBody(
             }
         }
     }
+}
+
+/**
+ * 行尾胶囊的文案与配色。
+ *
+ * 「需特权」用琥珀而不是错误红：未导出的 Activity 我们仍能通过 Shizuku/Root 拉起，
+ * 它不是故障；红色在这套 UI 里代表失败，用错了比不上色更误导。
+ * 深色主题下要整体提亮，否则琥珀压在深底上读不出来。
+ */
+private data class ActivityChipStyle(
+    val needsPrivilegeLabel: String,
+    val needsPrivilegeColor: Color,
+    val entryLabel: String,
+    val entryColor: Color,
+)
+
+@Composable
+private fun rememberActivityChipStyle(): ActivityChipStyle {
+    val needsPrivilegeColor = if (isSystemInDarkTheme()) {
+        Color(0xFFFFB74D)
+    } else {
+        Color(0xFFB26A00)
+    }
+    return ActivityChipStyle(
+        needsPrivilegeLabel = stringResource(R.string.search_engine_activity_needs_privilege),
+        needsPrivilegeColor = needsPrivilegeColor,
+        entryLabel = stringResource(R.string.search_engine_activity_entry),
+        entryColor = MiuixTheme.colorScheme.primary,
+    )
+}
+
+/**
+ * 每行最多一个胶囊：「未导出」压过「入口」——能不能点开比「这是哪个入口」更要紧。
+ *
+ * 「已导出」这种恒真状态刻意不标：满屏同色胶囊会互相稀释，扫视时反而找不到重点。
+ */
+private fun activityChipSpec(
+    activity: ExportedActivityInfo,
+    style: ActivityChipStyle,
+): PickerChipSpec? = when {
+    !activity.exported -> PickerChipSpec(style.needsPrivilegeLabel, style.needsPrivilegeColor)
+    activity.launcherEntry -> PickerChipSpec(style.entryLabel, style.entryColor)
+    else -> null
 }
 
 private fun LazyListScope.activityPickerLoadingItem() {
@@ -438,7 +480,7 @@ private fun EmbeddedActivityPickActivityList(
     onQueryChange: (String) -> Unit,
     loading: Boolean,
     filtered: List<ExportedActivityInfo>,
-    notExportedLabel: String,
+    chipStyle: ActivityChipStyle,
     selectedClassName: String?,
     onSelectActivity: (ExportedActivityInfo) -> Unit,
 ) {
@@ -476,18 +518,14 @@ private fun EmbeddedActivityPickActivityList(
                     val activity = filtered[index]
                     val selected = selectedClassName != null &&
                         activity.className == selectedClassName
-                    val subtitle = if (activity.exported) {
-                        activity.className
-                    } else {
-                        "${activity.className} · $notExportedLabel"
-                    }
                     Md3PickerListRow(
                         segmentIndex = index,
                         segmentCount = filtered.size,
                         title = activity.label,
-                        subtitle = subtitle,
+                        subtitle = activity.className,
                         selected = selected,
                         onClick = { onSelectActivity(activity) },
+                        trailingChip = activityChipSpec(activity, chipStyle),
                         leadingContent = {
                             Md3PickerActivityLeading(
                                 packageName = activity.packageName,
