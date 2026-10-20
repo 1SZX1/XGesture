@@ -102,4 +102,15 @@ object ActionIconStorage {
 
     private fun globalFileName(key: String): String =
         key.hashCode().toUInt().toString(16) + ".png"
+
+    /** 全局图标：把 Bitmap（如应用图标）按任意 key 落盘。 */
+    fun saveBitmapForGlobalKey(context: Context, key: String, bitmap: Bitmap): String? {
+        val target = File(dir(context), globalFileName(key))
+        val ok = runCatching {
+            FileOutputStream(target).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+        }.isSuccess
+        return if (ok) target.absolutePath else null
+    }
 }

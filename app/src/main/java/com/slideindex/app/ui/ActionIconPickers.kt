@@ -80,6 +80,8 @@ internal fun ActionIconView(
     iconKey: String?,
     sizeDp: Int,
     modifier: Modifier = Modifier,
+    /** false = 不画底色（调用方容器已经有底，比如网格格子）。 */
+    showBackground: Boolean = true,
 ) {
     val context = LocalContext.current
     val shape = RoundedCornerShape((sizeDp / 3).dp)
@@ -103,14 +105,14 @@ internal fun ActionIconView(
         modifier = modifier
             .size(sizeDp.dp)
             .clip(shape)
-            .background(MiuixTheme.colorScheme.surfaceContainerHigh),
+            .let { if (showBackground) it.background(MiuixTheme.colorScheme.surfaceContainerHigh) else it },
         contentAlignment = Alignment.Center,
     ) {
         when {
             fontIcon != null -> Text(
                 text = fontIcon.second,
                 fontFamily = fontIcon.first,
-                fontSize = (sizeDp * 0.5f).sp,
+                fontSize = (sizeDp * 0.75f).sp,
                 color = MiuixTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
@@ -485,6 +487,8 @@ internal fun ActionAppIconPickerDialog(
     action: GestureAction,
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
+    /** 全局图标场景传自己的 key，避免所有行写同一个文件。 */
+    storageKey: String? = null,
 ) {
     val context = LocalContext.current
     val apps = remember { loadInstalledAppIcons(context) }
@@ -505,7 +509,13 @@ internal fun ActionAppIconPickerDialog(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .clickable {
-                                val path = saveAppIcon(context, action, app)
+                                val path = if (storageKey != null) {
+                                    app.icon?.toBitmapSafe()?.let {
+                                        ActionIconStorage.saveBitmapForGlobalKey(context, storageKey, it)
+                                    }
+                                } else {
+                                    saveAppIcon(context, action, app)
+                                }
                                 if (path != null) onPick(ActionIconKeyCodec.file(path)) else onDismiss()
                             }
                             .padding(vertical = 4.dp),

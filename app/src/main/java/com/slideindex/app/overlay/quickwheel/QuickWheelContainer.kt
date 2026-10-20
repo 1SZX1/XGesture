@@ -292,11 +292,9 @@ internal fun QuickWheelSlotIcon(
                 modifier = Modifier.size(rasterDp),
             )
 
-            fallbackAction != null -> Icon(
-                imageVector = gestureActionIcon(fallbackAction, outlined = true),
-                contentDescription = slot.name.ifBlank { null },
-                tint = tint,
-                modifier = Modifier.size(builtinDp),
+            fallbackAction != null -> com.slideindex.app.ui.ActionIconSlot(
+                action = fallbackAction,
+                sizeDp = builtinDp.value.toInt(),
             )
 
             slot.name.isNotBlank() -> Text(

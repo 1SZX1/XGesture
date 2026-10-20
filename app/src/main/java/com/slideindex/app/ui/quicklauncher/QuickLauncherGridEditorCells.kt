@@ -225,13 +225,10 @@ internal fun QuickLauncherGridCell(
                             .clip(iconClip),
                     )
                 } else if (action != null) {
-                    Icon(
-                        imageVector = gestureActionIcon(action, outlined = true),
-                        contentDescription = label,
-                        modifier = Modifier
-                            .size(iconSize)
-                            .clip(iconClip),
-                        tint = actionIconTint,
+                    com.slideindex.app.ui.ActionIconSlot(
+                        action = action,
+                        sizeDp = iconSize.value.toInt(),
+                        modifier = Modifier.clip(iconClip),
                     )
                 } else {
                     Box(

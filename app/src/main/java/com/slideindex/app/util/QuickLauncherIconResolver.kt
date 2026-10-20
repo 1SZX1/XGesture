@@ -52,6 +52,8 @@ object QuickLauncherIconResolver {
             append('\u0000').append(size).append('\u0000').append(actionIconTintArgb)
             append('\u0000').append(activityShortcuts.size).append(':').append(activityShortcuts.hashCode())
             append('\u0000').append(shellCommands.size).append(':').append(shellCommands.hashCode())
+            // 图标覆盖变更后必须换 key，否则会一直命中改图标前的旧缓存
+            append('\u0000').append(com.slideindex.app.ui.GlobalIconStore.revision)
         }
         bitmapCache.get(cacheKey)?.let { return it }
         val bitmap = resolveIconBitmap(
@@ -76,7 +78,20 @@ object QuickLauncherIconResolver {
         activityShortcuts: List<ActivityShortcut>,
         shellCommands: List<ShellCommand>,
     ): Bitmap? {
-        if (item.type == QuickLauncherItemType.FOLDER) {
+        // 全局图标覆盖优先（扩展 → 图标库）：面板格子是 Canvas 绘制，这里先转 Bitmap
+    if (item.type == QuickLauncherItemType.ACTION && context != null) {
+        QuickLauncherItemCodec.parseActionPayload(item.payload)?.let { action ->
+            com.slideindex.app.ui.ActionIconBitmap.load(
+                context = context,
+                action = action,
+                sizePx = size,
+                tintArgb = android.graphics.Color.WHITE,
+                withPlate = true,
+            )?.let { return it }
+        }
+    }
+
+    if (item.type == QuickLauncherItemType.FOLDER) {
             return renderFolderBitmap(
                 item = item,
                 appsByPackage = appsByPackage,
@@ -109,6 +124,20 @@ object QuickLauncherIconResolver {
         activityShortcuts: List<ActivityShortcut> = emptyList(),
         shellCommands: List<ShellCommand> = emptyList(),
     ): Drawable? {
+        // 全局图标覆盖优先（蜂窝启动器等走 Drawable 路径）
+        if (item.type == QuickLauncherItemType.ACTION && context != null) {
+            QuickLauncherItemCodec.parseActionPayload(item.payload)?.let { action ->
+                com.slideindex.app.ui.ActionIconBitmap.load(
+                    context = context,
+                    action = action,
+                    sizePx = 96,
+                    tintArgb = android.graphics.Color.WHITE,
+                    withPlate = true,
+                )?.let { bmp ->
+                    return android.graphics.drawable.BitmapDrawable(context.resources, bmp)
+                }
+            }
+        }
         return when (item.type) {
             QuickLauncherItemType.FOLDER -> {
                 val bmp = renderFolderBitmap(

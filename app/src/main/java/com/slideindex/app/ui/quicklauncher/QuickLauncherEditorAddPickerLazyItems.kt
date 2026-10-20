@@ -172,11 +172,9 @@ fun LazyListScope.quickLauncherAddPickerActionItems(
                         },
                         modifier = Modifier.weight(1f),
                     ) {
-                        androidx.compose.material3.Icon(
-                            imageVector = gestureActionIcon(action, outlined = true),
-                            contentDescription = null,
-                            tint = MiuixTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(27.dp),
+                        com.slideindex.app.ui.ActionIconSlot(
+                            action = action,
+                            sizeDp = 27,
                         )
                     }
                 }

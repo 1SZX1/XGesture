@@ -192,6 +192,19 @@ internal class QuickLauncherRenderer(
         activityShortcuts: List<ActivityShortcut>,
         shellCommands: List<ShellCommand>
     ): Bitmap? {
+        // 全局图标覆盖优先：这条路径（shouldUseGestureVectorIcon）原本直接画默认矢量图标，
+        // 会绕过 QuickLauncherIconResolver，所以必须在这里先查一次覆盖。
+        if (item.type == QuickLauncherItemType.ACTION) {
+            QuickLauncherItemCodec.parseActionPayload(item.payload)?.let { action ->
+                com.slideindex.app.ui.ActionIconBitmap.load(
+                    context = context,
+                    action = action,
+                    sizePx = size,
+                    tintArgb = android.graphics.Color.WHITE,
+                    withPlate = true,
+                )?.let { return it }
+            }
+        }
         if (item.type == QuickLauncherItemType.ACTION &&
             QuickLauncherIconResolver.shouldUseGestureVectorIcon(item, shellCommands)
         ) {

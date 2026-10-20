@@ -27,6 +27,14 @@ internal object CornerSlotIconBitmap {
         shellCommands: List<ShellCommand> = emptyList(),
         appRepository: AppRepository? = null,
     ): Bitmap {
+        // 全局图标覆盖优先（扩展 → 图标库）
+        com.slideindex.app.ui.ActionIconBitmap.load(
+            context = context,
+            action = action,
+            sizePx = sizePx,
+            tintArgb = android.graphics.Color.WHITE,
+            withPlate = true,
+        )?.let { return it }
         if (action is GestureAction.LaunchApp) {
             val cacheKey = "app:${action.packageName}:$sizePx"
             appIconCache.get(cacheKey)?.let { return it }

@@ -21,6 +21,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -557,10 +559,9 @@ fun QuickLauncherShellCommandActionRow(
         selected = false,
         onClick = onOpenConfig,
         leadingContent = {
-            Md3PickerIconLeading(
-                icon = gestureActionIcon(action, outlined = true),
-                selected = false,
-            )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            com.slideindex.app.ui.ActionIconSlot(action = action, sizeDp = 24)
+        }
         },
         trailingMode = PickerTrailingMode.None,
     )
@@ -585,10 +586,9 @@ fun QuickLauncherActionRow(
         selected = if (singleSelect) false else added,
         onClick = onToggle,
         leadingContent = {
-            Md3PickerIconLeading(
-                icon = gestureActionIcon(action, outlined = true),
-                selected = if (singleSelect) false else added,
-            )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            com.slideindex.app.ui.ActionIconSlot(action = action, sizeDp = 24)
+        }
         },
         trailingMode = if (singleSelect) PickerTrailingMode.None else PickerTrailingMode.Toggle,
         onTrailingClick = if (singleSelect) null else onToggle,

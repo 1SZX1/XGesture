@@ -501,6 +501,18 @@ fun Md3PickerPackageLeading(
 @Composable
 fun Md3PickerAppLeading(app: AppInfo) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    // 全局图标覆盖优先（扩展 → 图标库 → 应用图标）
+    val iconOverride = remember(app.packageName) {
+        GlobalIconStore.appIcon(context, app.packageName)
+    }
+    if (iconOverride != null) {
+        ActionIconView(
+            action = com.slideindex.app.gesture.GestureAction.LaunchApp(app.packageName),
+            iconKey = iconOverride,
+            sizeDp = 40,
+        )
+        return
+    }
     var bitmap by remember(app.packageName) {
         mutableStateOf(PickerAppIconBitmap.peek(app.packageName))
     }

@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Shortcut
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,10 +55,9 @@ internal fun ActionPickerOpenLinkRow(
         highlightPulse = highlightPulse,
         onClick = onOpenConfig,
         leadingContent = {
-            Md3PickerIconLeading(
-                icon = gestureActionIcon(action, outlined = true),
-                selected = false,
-            )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            com.slideindex.app.ui.ActionIconSlot(action = action, sizeDp = 24)
+        }
         },
         trailingMode = PickerTrailingMode.None,
     )
@@ -84,10 +87,9 @@ internal fun ActionPickerQuickWheelRow(
         highlightPulse = if (selected) highlightPulse else 0f,
         onClick = onOpenConfig,
         leadingContent = {
-            Md3PickerIconLeading(
-                icon = gestureActionIcon(action, outlined = true),
-                selected = selected,
-            )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            com.slideindex.app.ui.ActionIconSlot(action = action, sizeDp = 24)
+        }
         },
         trailingMode = PickerTrailingMode.Radio,
     )
@@ -112,10 +114,9 @@ internal fun ActionPickerExecuteShellCommandRow(
         highlightPulse = highlightPulse,
         onClick = onOpenConfig,
         leadingContent = {
-            Md3PickerIconLeading(
-                icon = gestureActionIcon(action, outlined = true),
-                selected = false,
-            )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            com.slideindex.app.ui.ActionIconSlot(action = action, sizeDp = 24)
+        }
         },
         trailingMode = PickerTrailingMode.None,
     )
@@ -140,10 +141,9 @@ internal fun ActionPickerSimulateKeyEventRow(
         highlightPulse = highlightPulse,
         onClick = onOpenConfig,
         leadingContent = {
-            Md3PickerIconLeading(
-                icon = gestureActionIcon(action, outlined = true),
-                selected = false,
-            )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            com.slideindex.app.ui.ActionIconSlot(action = action, sizeDp = 24)
+        }
         },
         trailingMode = PickerTrailingMode.None,
     )
@@ -168,10 +168,9 @@ internal fun ActionPickerActionRow(
         highlightPulse = if (selected) highlightPulse else 0f,
         onClick = onClick,
         leadingContent = {
-            Md3PickerIconLeading(
-                icon = gestureActionIcon(action, outlined = true),
-                selected = selected,
-            )
+            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            com.slideindex.app.ui.ActionIconSlot(action = action, sizeDp = 24)
+        }
         },
         trailingMode = PickerTrailingMode.Radio,
     )

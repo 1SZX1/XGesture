@@ -28,7 +28,8 @@ internal object RingLauncherSlotIconBitmap {
         appRepository: AppRepository? = null,
         iconOverride: FvRingLauncherSlotIconOverride? = null,
     ): Bitmap {
-        val cacheKey = "${item.type}:${item.payload}:${item.label}:$sizePx:${iconOverride?.iconPath}:${iconOverride?.textIcon}"
+        // 图标覆盖变更后必须换 key，否则一直是旧缓存
+        val cacheKey = "${item.type}:${item.payload}:${item.label}:$sizePx:${iconOverride?.iconPath}:${iconOverride?.textIcon}:${com.slideindex.app.ui.GlobalIconStore.revision}"
         cache.get(cacheKey)?.let { return it }
         val bitmap = resolveBitmap(
             context = context,

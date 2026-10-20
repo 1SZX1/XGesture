@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -25,6 +26,24 @@ fun GestureSlotActionIcon(
     settings: AppSettings,
     contentDescription: String?,
 ) {
+    // 全局图标覆盖优先（扩展 → 图标库）：动作槽位/悬浮球/FV/角手势的图标都走这里
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val revision = GlobalIconStore.revision
+    val overrideKey = remember(action, revision) {
+        GlobalIconStore.actionIcon(context, action.type.name)
+            ?: (action as? GestureAction.LaunchApp)?.let {
+                GlobalIconStore.appIcon(context, it.packageName)
+            }
+    }
+    if (overrideKey != null) {
+        ActionIconView(
+            action = action,
+            iconKey = overrideKey,
+            sizeDp = 24,
+            showBackground = false,
+        )
+        return
+    }
     when (action) {
         is GestureAction.LaunchApp -> {
             Md3PickerPackageLeading(

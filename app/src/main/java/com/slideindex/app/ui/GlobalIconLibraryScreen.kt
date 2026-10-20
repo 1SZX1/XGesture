@@ -356,6 +356,7 @@ private fun GlobalIconRow(
     if (appDialogOpen) {
         ActionAppIconPickerDialog(
             action = GestureAction.None,
+            storageKey = resetKey,
             onPick = { picked ->
                 appDialogOpen = false
                 key = picked

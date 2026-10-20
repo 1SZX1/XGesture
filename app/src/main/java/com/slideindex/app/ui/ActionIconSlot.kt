@@ -30,7 +30,9 @@ fun ActionIconSlot(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val override = remember(action) {
+    // 读 revision：图标设置后触发重组（否则 remember 会缓存旧值）
+    val revision = GlobalIconStore.revision
+    val override = remember(action, revision) {
         GlobalIconStore.actionIcon(context, action.type.name)
             ?: (action as? GestureAction.LaunchApp)?.let {
                 GlobalIconStore.appIcon(context, it.packageName)
@@ -38,7 +40,7 @@ fun ActionIconSlot(
     }
 
     if (override != null) {
-        ActionIconView(action = action, iconKey = override, sizeDp = sizeDp, modifier = modifier)
+        ActionIconView(action = action, iconKey = override, sizeDp = sizeDp, modifier = modifier, showBackground = false)
     } else {
         Box(
             modifier = modifier.size(sizeDp.dp),

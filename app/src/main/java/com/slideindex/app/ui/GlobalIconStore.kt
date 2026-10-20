@@ -1,6 +1,8 @@
 package com.slideindex.app.ui
 
 import android.content.Context
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /**
  * **全局图标覆盖**：按「动作类型」或「应用包名」指定图标。
@@ -12,6 +14,10 @@ import android.content.Context
  * 存储仍是 SharedPreferences（纯展示层覆盖，不影响动作载荷）。
  */
 object GlobalIconStore {
+
+    /** 变更计数器：图标设置后自增，读取方靠它触发重组（SharedPreferences 本身不是 Compose 状态）。 */
+    var revision by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
 
     private const val PREFS = "global_icon_overrides"
     private const val ACTION_PREFIX = "action:"
@@ -28,6 +34,7 @@ object GlobalIconStore {
         if (iconKey.isNullOrBlank()) editor.remove(ACTION_PREFIX + typeId)
         else editor.putString(ACTION_PREFIX + typeId, iconKey)
         editor.apply()
+        revision++
     }
 
     fun appIcon(context: Context, packageName: String): String? =
@@ -38,6 +45,7 @@ object GlobalIconStore {
         if (iconKey.isNullOrBlank()) editor.remove(APP_PREFIX + packageName)
         else editor.putString(APP_PREFIX + packageName, iconKey)
         editor.apply()
+        revision++
     }
 
     fun allActionIcons(context: Context): Map<String, String> =
