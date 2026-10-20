@@ -454,7 +454,9 @@ private fun DisclaimerScreenPage(
     onNext: () -> Unit,
 ) {
     val isDark = LocalAppDarkTheme.current
-    val scrollState = rememberScrollState()
+    // 内容区可滚动：小屏 / "显示大小"或字体放大时靠滚动兜底。
+    // 底部按钮独立占位（50dp），不再和卡片抢高度，否则矮屏上会被压成 0 高。
+    val contentScrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
@@ -462,108 +464,119 @@ private fun DisclaimerScreenPage(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(modifier = Modifier.weight(0.6f))
-
-        // Staggered Entrance for 4-Facet Shield Illustration
-        StaggeredEntrance(
-            delayMillis = 60,
-            initialOffsetY = (-24).dp,
-            initialScale = 0.86f,
+        // 可滚动内容区：内容不足时居中，超出时可滚动
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center,
         ) {
-            BoxProxyFacetShield(
-                modifier = Modifier.size(108.dp),
-                palette = if (isDark) {
-                    FacetShieldPalette(
-                        topLeft = Color(0xFFA898DE),
-                        topRight = Color(0xFF7F67BD),
-                        bottomLeft = Color(0xFF7F67BD),
-                        bottomRight = Color(0xFF5E45A0),
-                    )
-                } else {
-                    FacetShieldPalette(
-                        topLeft = Color(0xFFC4B6EE),
-                        topRight = Color(0xFF9881D4),
-                        bottomLeft = Color(0xFF9881D4),
-                        bottomRight = Color(0xFF7256B8),
-                    )
-                },
-            )
-        }
-
-        Spacer(modifier = Modifier.height(26.dp))
-
-        // Staggered Entrance for Floating Terms Card
-        StaggeredEntrance(
-            delayMillis = 150,
-            initialOffsetY = 32.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Card(
-                cornerRadius = 24.dp,
-                insideMargin = PaddingValues(22.dp),
-                colors = CardDefaults.defaultColors(
-                    color = if (isDark) Color(0xFF1E1E24).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f),
-                ),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(24.dp),
-                        spotColor = Color(0x16000000),
-                    ),
+                    .verticalScroll(contentScrollState),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Column(
-                    modifier = Modifier.verticalScroll(scrollState),
+                // Staggered Entrance for 4-Facet Shield Illustration
+                StaggeredEntrance(
+                    delayMillis = 60,
+                    initialOffsetY = (-24).dp,
+                    initialScale = 0.86f,
                 ) {
-                    Text(
-                        text = stringResource(R.string.onboarding_disclaimer_title),
-                        style = MiuixTheme.textStyles.title1.copy(
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
+                    BoxProxyFacetShield(
+                        modifier = Modifier.size(108.dp),
+                        palette = if (isDark) {
+                            FacetShieldPalette(
+                                topLeft = Color(0xFFA898DE),
+                                topRight = Color(0xFF7F67BD),
+                                bottomLeft = Color(0xFF7F67BD),
+                                bottomRight = Color(0xFF5E45A0),
+                            )
+                        } else {
+                            FacetShieldPalette(
+                                topLeft = Color(0xFFC4B6EE),
+                                topRight = Color(0xFF9881D4),
+                                bottomLeft = Color(0xFF9881D4),
+                                bottomRight = Color(0xFF7256B8),
+                            )
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(26.dp))
+
+                // Staggered Entrance for Floating Terms Card
+                StaggeredEntrance(
+                    delayMillis = 150,
+                    initialOffsetY = 32.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Card(
+                        cornerRadius = 24.dp,
+                        insideMargin = PaddingValues(22.dp),
+                        colors = CardDefaults.defaultColors(
+                            color = if (isDark) Color(0xFF1E1E24).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f),
                         ),
-                        color = MiuixTheme.colorScheme.onSurface,
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = stringResource(R.string.onboarding_disclaimer_body),
-                        style = MiuixTheme.textStyles.body1.copy(fontSize = 14.sp),
-                        color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                        lineHeight = 22.sp,
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Agreement Checkbox Row
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { onAgreeChange(!isAgreed) },
-                    ) {
-                        Checkbox(
-                            state = ToggleableState(isAgreed),
-                            onClick = { onAgreeChange(!isAgreed) },
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = stringResource(R.string.onboarding_disclaimer_agree),
-                            style = MiuixTheme.textStyles.body1.copy(
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp,
+                            .shadow(
+                                elevation = 12.dp,
+                                shape = RoundedCornerShape(24.dp),
+                                spotColor = Color(0x16000000),
                             ),
-                            color = MiuixTheme.colorScheme.onSurface,
-                        )
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.onboarding_disclaimer_title),
+                                style = MiuixTheme.textStyles.title1.copy(
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                ),
+                                color = MiuixTheme.colorScheme.onSurface,
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text(
+                                text = stringResource(R.string.onboarding_disclaimer_body),
+                                style = MiuixTheme.textStyles.body1.copy(fontSize = 14.sp),
+                                color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                                lineHeight = 22.sp,
+                            )
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            // Agreement Checkbox Row
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                    ) { onAgreeChange(!isAgreed) },
+                            ) {
+                                Checkbox(
+                                    state = ToggleableState(isAgreed),
+                                    onClick = { onAgreeChange(!isAgreed) },
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = stringResource(R.string.onboarding_disclaimer_agree),
+                                    style = MiuixTheme.textStyles.body1.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp,
+                                    ),
+                                    color = MiuixTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.weight(0.9f))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Staggered Entrance for Bottom Action Buttons
         StaggeredEntrance(
@@ -628,7 +641,8 @@ private fun PermissionsScreenPage(
 ) {
     val context = LocalContext.current
     val isDark = LocalAppDarkTheme.current
-    val scrollState = rememberScrollState()
+    // 同免责声明页：内容区可滚动，底部按钮固定占位，避免矮屏上按钮被挤没。
+    val contentScrollState = rememberScrollState()
 
     var isAppListGranted by remember { mutableStateOf(PermissionHelper.hasAppListPermission(context)) }
 
@@ -649,160 +663,171 @@ private fun PermissionsScreenPage(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(modifier = Modifier.weight(0.6f))
-
-        // Staggered Entrance for Shield Illustration with Avatar Badge
-        StaggeredEntrance(
-            delayMillis = 60,
-            initialOffsetY = (-24).dp,
-            initialScale = 0.86f,
+        // 可滚动内容区：内容不足时居中，超出时可滚动
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier.size(108.dp),
-                contentAlignment = Alignment.Center,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(contentScrollState),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                BoxProxyFacetShield(
-                    modifier = Modifier.fillMaxSize(),
-                    palette = if (isDark) {
-                        FacetShieldPalette(
-                            topLeft = Color(0xFFA898DE),
-                            topRight = Color(0xFF7F67BD),
-                            bottomLeft = Color(0xFF7F67BD),
-                            bottomRight = Color(0xFF5E45A0),
-                        )
-                    } else {
-                        FacetShieldPalette(
-                            topLeft = Color(0xFFC4B6EE),
-                            topRight = Color(0xFF9881D4),
-                            bottomLeft = Color(0xFF9881D4),
-                            bottomRight = Color(0xFF7256B8),
-                        )
-                    },
-                )
-
-                // Bottom-Right User Avatar Badge with White Border
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 4.dp, bottom = 4.dp)
-                        .size(44.dp)
-                        .shadow(6.dp, CircleShape, spotColor = Color(0x28000000))
-                        .clip(CircleShape)
-                        .background(Color.White),
-                    contentAlignment = Alignment.Center,
+                // Staggered Entrance for Shield Illustration with Avatar Badge
+                StaggeredEntrance(
+                    delayMillis = 60,
+                    initialOffsetY = (-24).dp,
+                    initialScale = 0.86f,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF9881D4), Color(0xFF7256B8)),
-                                ),
-                            ),
+                        modifier = Modifier.size(108.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp),
+                        BoxProxyFacetShield(
+                            modifier = Modifier.fillMaxSize(),
+                            palette = if (isDark) {
+                                FacetShieldPalette(
+                                    topLeft = Color(0xFFA898DE),
+                                    topRight = Color(0xFF7F67BD),
+                                    bottomLeft = Color(0xFF7F67BD),
+                                    bottomRight = Color(0xFF5E45A0),
+                                )
+                            } else {
+                                FacetShieldPalette(
+                                    topLeft = Color(0xFFC4B6EE),
+                                    topRight = Color(0xFF9881D4),
+                                    bottomLeft = Color(0xFF9881D4),
+                                    bottomRight = Color(0xFF7256B8),
+                                )
+                            },
                         )
+
+                        // Bottom-Right User Avatar Badge with White Border
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 4.dp, bottom = 4.dp)
+                                .size(44.dp)
+                                .shadow(6.dp, CircleShape, spotColor = Color(0x28000000))
+                                .clip(CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF9881D4), Color(0xFF7256B8)),
+                                        ),
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Person,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(26.dp))
+
+                // Staggered Entrance for Floating Card
+                StaggeredEntrance(
+                    delayMillis = 150,
+                    initialOffsetY = 32.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Card(
+                        cornerRadius = 24.dp,
+                        insideMargin = PaddingValues(22.dp),
+                        colors = CardDefaults.defaultColors(
+                            color = if (isDark) Color(0xFF1E1E24).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f),
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(
+                                elevation = 12.dp,
+                                shape = RoundedCornerShape(24.dp),
+                                spotColor = Color(0x16000000),
+                            ),
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.onboarding_core_permissions_title),
+                                style = MiuixTheme.textStyles.title1.copy(
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                ),
+                                color = MiuixTheme.colorScheme.onSurface,
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = stringResource(R.string.onboarding_core_permissions_body),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                                lineHeight = 20.sp,
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Permission item 1: Overlay
+                            PermissionStatusRow(
+                                title = stringResource(R.string.onboarding_overlay_title),
+                                description = stringResource(R.string.onboarding_permission_overlay_short),
+                                isGranted = permissions.overlayGranted,
+                                onRequest = onRequestOverlay,
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Permission item 2: Accessibility
+                            PermissionStatusRow(
+                                title = stringResource(R.string.onboarding_accessibility_title),
+                                description = stringResource(R.string.onboarding_permission_accessibility_short),
+                                isGranted = permissions.accessibilityGranted,
+                                onRequest = onRequestAccessibility,
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Permission item 3: Query Installed Apps
+                            PermissionStatusRow(
+                                title = stringResource(R.string.onboarding_permission_app_list_title),
+                                description = stringResource(R.string.onboarding_permission_app_list_short),
+                                isGranted = isAppListGranted,
+                                onRequest = {
+                                    PermissionHelper.requestAppListPermission(context)
+                                    isAppListGranted = PermissionHelper.hasAppListPermission(context)
+                                },
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Permission item 4: Notification
+                            PermissionStatusRow(
+                                title = stringResource(R.string.onboarding_permission_notification_title),
+                                description = stringResource(R.string.onboarding_permission_notification_short),
+                                isGranted = permissions.notificationGranted,
+                                onRequest = onRequestNotification,
+                            )
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(26.dp))
-
-        // Staggered Entrance for Floating Card
-        StaggeredEntrance(
-            delayMillis = 150,
-            initialOffsetY = 32.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Card(
-                cornerRadius = 24.dp,
-                insideMargin = PaddingValues(22.dp),
-                colors = CardDefaults.defaultColors(
-                    color = if (isDark) Color(0xFF1E1E24).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f),
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(24.dp),
-                        spotColor = Color(0x16000000),
-                    ),
-            ) {
-                Column(
-                    modifier = Modifier.verticalScroll(scrollState),
-                ) {
-                    Text(
-                        text = stringResource(R.string.onboarding_core_permissions_title),
-                        style = MiuixTheme.textStyles.title1.copy(
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                        color = MiuixTheme.colorScheme.onSurface,
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = stringResource(R.string.onboarding_core_permissions_body),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                        lineHeight = 20.sp,
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Permission item 1: Overlay
-                    PermissionStatusRow(
-                        title = stringResource(R.string.onboarding_overlay_title),
-                        description = stringResource(R.string.onboarding_permission_overlay_short),
-                        isGranted = permissions.overlayGranted,
-                        onRequest = onRequestOverlay,
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Permission item 2: Accessibility
-                    PermissionStatusRow(
-                        title = stringResource(R.string.onboarding_accessibility_title),
-                        description = stringResource(R.string.onboarding_permission_accessibility_short),
-                        isGranted = permissions.accessibilityGranted,
-                        onRequest = onRequestAccessibility,
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Permission item 3: Query Installed Apps
-                    PermissionStatusRow(
-                        title = stringResource(R.string.onboarding_permission_app_list_title),
-                        description = stringResource(R.string.onboarding_permission_app_list_short),
-                        isGranted = isAppListGranted,
-                        onRequest = {
-                            PermissionHelper.requestAppListPermission(context)
-                            isAppListGranted = PermissionHelper.hasAppListPermission(context)
-                        },
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Permission item 4: Notification
-                    PermissionStatusRow(
-                        title = stringResource(R.string.onboarding_permission_notification_title),
-                        description = stringResource(R.string.onboarding_permission_notification_short),
-                        isGranted = permissions.notificationGranted,
-                        onRequest = onRequestNotification,
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(0.9f))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Staggered Entrance for Bottom Action Buttons
         StaggeredEntrance(
