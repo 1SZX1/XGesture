@@ -1224,7 +1224,8 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             action = currentAction,
             trigger = trigger,
             sideDefaultMode = settings.defaultTriggerModeFor(configSide),
-            includeDefaultOption = true,
+            // 触钮不再提供「默认」模式：每个动作初始就是具体模式
+            includeDefaultOption = false,
             onBack = { ctx.navigateBackTo(slotConfigKey) },
             onSelect = { mode ->
                 triggerScope.mutate(

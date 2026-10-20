@@ -1,17 +1,31 @@
 package com.slideindex.app.ui.gesturepicker
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.slideindex.app.R
 import com.slideindex.app.activity.ActivityShortcut
 import com.slideindex.app.data.AppInfo
@@ -30,6 +44,91 @@ import com.slideindex.app.ui.picker.systemShortcutCatalogItems
 import com.slideindex.app.ui.requestPermissionForAdjustAction
 import com.slideindex.app.util.AppShortcutLoader
 import com.slideindex.app.util.ShortcutScanProgress
+import com.slideindex.app.ui.gestureActionIcon
+import top.yukonga.miuix.kmp.basic.Icon
+
+/** 动作网格列数（列表排布与「定位到当前动作」的下标计算共用，改这里两处一起变）。 */
+internal const val ACTION_GRID_COLUMNS = 4
+
+/**
+ * 这个动作"选完还有参数要配"吗？
+ *
+ * 有参数的在格子上打一个小角标，点它进详情页；没有的直接选中退出。
+ * 新增带配置页的动作类型时，把类型加进这里。
+ */
+internal fun actionHasDetailParams(type: GestureActionType): Boolean = when (type) {
+    GestureActionType.QUICK_LAUNCHER,
+    GestureActionType.QUICK_WHEEL,
+    GestureActionType.EXECUTE_SHELL_COMMAND,
+    GestureActionType.OPEN_LINK,
+    GestureActionType.SIMULATE_KEY_EVENT,
+    -> true
+    else -> false
+}
+
+/**
+ * 动作网格格子：图标 + 1 行标题 + 右上角"有参数"小圆点，选中时描边。
+ *
+ * 原来的行内副标题（动作描述 / 当前配置摘要，如"钉住·仅本应用"、Shell 命令预览）在网格里没有
+ * 位置，统一由动作详情页承载 —— 这也是"网格化"必须和"详情页"一起做的原因。
+ */
+@Composable
+private fun ActionPickerGridCell(
+    action: GestureAction,
+    selected: Boolean,
+    hasParams: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (selected) {
+                            accent.copy(alpha = 0.16f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                com.slideindex.app.ui.ActionIconSlot(
+                    action = action,
+                    sizeDp = 24,
+                )
+            }
+            if (hasParams) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(accent),
+                )
+            }
+        }
+        Text(
+            text = gestureActionLabel(action),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) accent else MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 6.dp, start = 2.dp, end = 2.dp),
+        )
+    }
+}
 
 @Composable
 fun rememberActionPickerFilteredActions(
@@ -117,105 +216,53 @@ fun LazyListScope.actionPickerActionItems(
         item(key = "action-cat-${section.category.name}") {
             com.slideindex.app.ui.Md3PickerSectionHeader(stringResource(section.category.titleRes))
         }
-        items(
-            count = section.actions.size,
-            key = { index -> "action-${section.category.name}-${section.actions[index].type.id}" },
-        ) { index ->
-            val action = section.actions[index]
-            val context = LocalContext.current
-            if (action.type == GestureActionType.OPEN_LINK) {
-                val linkSubtitle = if (current is GestureAction.OpenLink) {
-                    gestureActionSettingSubtitle(current)
-                } else {
-                    gestureActionDescription(action)
-                }
-                ActionPickerOpenLinkRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    subtitle = linkSubtitle,
-                    onOpenConfig = onOpenOpenLink,
-                    highlightPulse = if (current is GestureAction.OpenLink) highlightPulse else 0f,
-                )
-            } else if (action.type == GestureActionType.EXECUTE_SHELL_COMMAND) {
-                val shellSubtitle = if (
-                    current is GestureAction.ExecuteShellCommand &&
-                    current.command.isNotBlank()
+        // 网格：每行 4 个。动作类型有近百个，纵向列表要滚很久；网格一屏能看 12~16 个。
+        //
+        // 格子里只留「图标 + 标题 + 状态角标」—— 原来行内的副标题（描述 / 当前配置摘要）
+        // 全部交给动作详情页承载，否则网格一定会挤成两行文字参差不齐。
+        // 点格子 = 进详情页（有参数的动作）或直接选中（返回/桌面/截屏这类无参数动作）。
+        section.actions.chunked(ACTION_GRID_COLUMNS).forEachIndexed { rowIndex, rowActions ->
+            item(key = "action-row-${section.category.name}-$rowIndex") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    gestureActionSettingSubtitle(current)
-                } else {
-                    gestureActionDescription(action)
+                    rowActions.forEach { action ->
+                        val context = LocalContext.current
+                        val selected = when {
+                            action.type == GestureActionType.LAUNCH_APP ||
+                                action.type == GestureActionType.LAUNCH_SHORTCUT -> false
+                            else -> action.type == current.type
+                        }
+                        ActionPickerGridCell(
+                            action = action,
+                            selected = selected,
+                            hasParams = actionHasDetailParams(action.type),
+                            onClick = {
+                                requestPermissionForAdjustAction(context, action)
+                                when {
+                                    action.type == GestureActionType.OPEN_LINK -> onOpenOpenLink()
+                                    action.type == GestureActionType.EXECUTE_SHELL_COMMAND ->
+                                        onOpenExecuteShellCommand()
+                                    action.type == GestureActionType.SIMULATE_KEY_EVENT &&
+                                        onOpenSimulateKeyEvent != null -> onOpenSimulateKeyEvent()
+                                    action.type == GestureActionType.QUICK_WHEEL &&
+                                        onOpenQuickWheel != null -> onOpenQuickWheel()
+                                    action.type == GestureActionType.QUICK_LAUNCHER &&
+                                        onOpenQuickLauncher != null -> onOpenQuickLauncher()
+                                    else -> onSelect(action)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    // 最后一行不足 4 个时补空位，保证格子等宽。
+                    repeat(ACTION_GRID_COLUMNS - rowActions.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
-                ActionPickerExecuteShellCommandRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    subtitle = shellSubtitle,
-                    onOpenConfig = {
-                        requestPermissionForAdjustAction(context, action)
-                        onOpenExecuteShellCommand()
-                    },
-                    highlightPulse = if (current is GestureAction.ExecuteShellCommand) highlightPulse else 0f,
-                )
-            } else if (action.type == GestureActionType.SIMULATE_KEY_EVENT && onOpenSimulateKeyEvent != null) {
-                val keySubtitle = if (current is GestureAction.SimulateKeyEvent) {
-                    gestureActionSettingSubtitle(current)
-                } else {
-                    gestureActionDescription(action)
-                }
-                ActionPickerSimulateKeyEventRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    subtitle = keySubtitle,
-                    onOpenConfig = {
-                        requestPermissionForAdjustAction(context, action)
-                        onOpenSimulateKeyEvent()
-                    },
-                    highlightPulse = if (current is GestureAction.SimulateKeyEvent) highlightPulse else 0f,
-                )
-            } else if (action.type == GestureActionType.QUICK_WHEEL && onOpenQuickWheel != null) {
-                // 快捷轮盘要先选「哪个轮盘 + 以什么形态呼出」，所以点它是打开配置而不是直接选中；
-                // 但"当前就是这个动作"时必须按已选中显示（主色标题 + 打勾），与其它动作一致。
-                ActionPickerQuickWheelRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    subtitle = gestureActionDescription(action),
-                    selected = current is GestureAction.QuickWheel,
-                    onOpenConfig = onOpenQuickWheel,
-                    highlightPulse = highlightPulse,
-                )
-            } else if (action.type == GestureActionType.QUICK_LAUNCHER && onOpenQuickLauncher != null) {
-                // 快速启动器要先选「哪个面板 + 是否钉住」，所以点它同样是打开配置而不是直接选中。
-                ActionPickerActionRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    selected = current is GestureAction.QuickLauncher,
-                    onClick = {
-                        requestPermissionForAdjustAction(context, action)
-                        onOpenQuickLauncher()
-                    },
-                    highlightPulse = if (current is GestureAction.QuickLauncher) highlightPulse else 0f,
-                )
-            } else {
-                ActionPickerActionRow(
-                    action = action,
-                    segmentIndex = index,
-                    segmentCount = section.actions.size,
-                    selected = when {
-                        action.type == current.type &&
-                            action.type != GestureActionType.LAUNCH_APP &&
-                            action.type != GestureActionType.LAUNCH_SHORTCUT -> true
-                        else -> false
-                    },
-                    onClick = {
-                        requestPermissionForAdjustAction(context, action)
-                        onSelect(action)
-                    },
-                    highlightPulse = highlightPulse,
-                )
             }
         }
     }
@@ -319,8 +366,9 @@ internal fun actionPickerIndexOfCurrent(
     var index = 0
     for (section in GestureActionCatalog.groupIntoSections(filtered)) {
         val offset = section.actions.indexOfFirst { it.type == current.type }
-        if (offset >= 0) return index + 1 + offset // +1 = 本分组那行标题
-        index += 1 + section.actions.size
+        // 网格里一个分组占 1 行标题 + ceil(N / 列数) 行格子。
+        if (offset >= 0) return index + 1 + offset / ACTION_GRID_COLUMNS
+        index += 1 + (section.actions.size + ACTION_GRID_COLUMNS - 1) / ACTION_GRID_COLUMNS
     }
     return null
 }

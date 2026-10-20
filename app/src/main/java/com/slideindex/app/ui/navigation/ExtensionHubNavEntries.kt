@@ -68,7 +68,14 @@ fun NavEntryBuilder.extensionHubNavEntries(ctx: MainNavContext) {
             onOpenSettingsBackup = { ctx.navigate(AppNavKey.ExtensionBackup) },
             onOpenNativeEnginePacks = { ctx.navigate(AppNavKey.NativeEnginePacks) },
             onOpenDiagnosticLogs = { ctx.navigate(AppNavKey.ExtensionDiagnosticLogs) },
+            onOpenIconLibrary = { ctx.navigate(AppNavKey.GlobalIconLibrary) },
             onOpenAbout = { ctx.navigate(AppNavKey.ExtensionAbout) },
+        )
+    }
+
+    hiltEntry<AppNavKey.GlobalIconLibrary> {
+        com.slideindex.app.ui.GlobalIconLibraryScreen(
+            onBack = { ctx.navigateBackTo(AppNavKey.ExtensionHub) },
         )
     }
 

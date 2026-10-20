@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 import com.slideindex.app.R
+import com.slideindex.app.gesture.requiresContinuousTriggerOnly
 
 import com.slideindex.app.gesture.GestureAction
 
@@ -124,7 +125,14 @@ fun SideGestureSlotConfigScreen(
 
     val selectedAction = settings.slotAction(configSide, selectedTrigger, handleId)
 
-    val selectedMode = settings.slotTriggerMode(configSide, selectedTrigger, handleId)
+    val storedMode = settings.slotTriggerMode(configSide, selectedTrigger, handleId)
+    val sideDefaultMode = settings.defaultTriggerModeFor(configSide)
+    // 「默认」已不对用户暴露：未设置过时按松手触发；只能持续触发的动作固定为持续触发。
+    val selectedMode = when {
+        storedMode != GestureTriggerMode.DEFAULT -> storedMode
+        selectedAction.requiresContinuousTriggerOnly() -> GestureTriggerMode.CONTINUOUS
+        else -> GestureTriggerMode.ON_RELEASE
+    }
 
     var localAppCarouselSettings by remember(appCarouselSettings) {
         mutableStateOf(appCarouselSettings)
@@ -132,8 +140,6 @@ fun SideGestureSlotConfigScreen(
     LaunchedEffect(appCarouselSettings) {
         localAppCarouselSettings = appCarouselSettings
     }
-
-    val sideDefaultMode = settings.defaultTriggerModeFor(configSide)
 
     val screenTitle = triggerSlotLabel(side, selectedTrigger)
 
@@ -200,20 +206,11 @@ fun SideGestureSlotConfigScreen(
 
                         SettingNavigationRow(
 
-                            icon = { label ->
-
-                                Icon(
-
-                                    imageVector = gestureActionImageVector(selectedAction, outlined = true),
-
-                                    contentDescription = label,
-
-                                    modifier = Modifier.size(24.dp),
-
-                                    tint = MaterialTheme.colorScheme.onSurface,
-
+                            icon = { _ ->
+                                com.slideindex.app.ui.ActionIconSlot(
+                                    action = selectedAction,
+                                    sizeDp = 24,
                                 )
-
                             },
 
                             title = gestureActionLabel(selectedAction, settings),

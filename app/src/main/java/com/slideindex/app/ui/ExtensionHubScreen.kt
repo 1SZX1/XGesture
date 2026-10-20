@@ -48,6 +48,7 @@ fun ExtensionHubScreen(
     onOpenShellCommands: () -> Unit,
     onOpenWidgetPanel: () -> Unit,
     onOpenStashClipboard: () -> Unit,
+    onOpenIconLibrary: () -> Unit = {},
     onOpenFreezer: () -> Unit = {},
     onOpenMacro: () -> Unit = {},
     onOpenPageScroll: () -> Unit = {},
@@ -213,6 +214,16 @@ fun ExtensionHubScreen(
                             title = stringResource(R.string.extension_freezer_title),
                             subtitle = stringResource(R.string.extension_freezer_subtitle),
                             onClick = onOpenFreezer
+                        )
+                    }
+                )
+                add(
+                    settingsCardScopeItem("icon-library") {
+                        SettingNavigationRow(
+                            icon = { label -> Icon(Icons.Outlined.AcUnit, contentDescription = label) },
+                            title = stringResource(R.string.extension_icon_library_title),
+                            subtitle = stringResource(R.string.extension_icon_library_subtitle),
+                            onClick = onOpenIconLibrary
                         )
                     }
                 )

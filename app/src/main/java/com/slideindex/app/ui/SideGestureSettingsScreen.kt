@@ -282,16 +282,6 @@ fun SideGestureSettingsScreen(
         groupedCardItems(
             keyPrefix = "side-gesture-trigger-mode",
             items = buildList {
-                add(
-                    settingsCardScopeItem("default-trigger-mode") {
-                        // 与同卡的开关行一样不带 M3 图标（纯 Miuix 箭头行）。
-                        MiuixNavigationRow(
-                            title = stringResource(R.string.default_trigger_mode),
-                            summary = triggerModeLabel(settings.defaultTriggerModeFor(slotSide), includeDefault = false),
-                            onClick = onOpenDefaultModePick,
-                        )
-                    },
-                )
                 if (showAlignGesturesSwitch) {
                     add(
                         settingsCardScopeItem("align-opposite-gestures") {
