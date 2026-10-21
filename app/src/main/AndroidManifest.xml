@@ -517,6 +517,7 @@
             android:name=".service.SearchPanelTrampolineActivity"
             android:excludeFromRecents="true"
             android:exported="true"
+            android:label="@string/app_name"
             android:launchMode="singleTask"
             android:noHistory="true"
             android:taskAffinity=""
@@ -532,6 +533,10 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="com.slideindex.app.action.OPEN_SEARCH_PANEL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.WEB_SEARCH" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

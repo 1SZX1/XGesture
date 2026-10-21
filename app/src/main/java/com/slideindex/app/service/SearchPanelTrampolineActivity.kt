@@ -1,5 +1,6 @@
 package com.slideindex.app.service
 
+import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -41,6 +42,9 @@ class SearchPanelTrampolineActivity : ComponentActivity() {
 
     private fun handleOpenIntent(intent: Intent?) {
         val searchQuery = StashClipboardTrampolineActivity.resolveSearchQuery(intent)
+            ?: intent?.getStringExtra(SearchManager.QUERY)?.trim()?.takeIf { it.isNotEmpty() }
+            ?: intent?.getStringExtra(Intent.EXTRA_TEXT)?.trim()?.takeIf { it.isNotEmpty() }
+            ?: intent?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
         lifecycleScope.launch {
             if (!PermissionHelper.isAccessibilityServiceEnabledForOverlays(this@SearchPanelTrampolineActivity)) {
                 toast(R.string.gesture_action_stash_panel_permission)
