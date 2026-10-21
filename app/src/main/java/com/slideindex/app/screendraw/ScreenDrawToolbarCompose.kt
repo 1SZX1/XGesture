@@ -36,12 +36,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.CropSquare
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,8 +59,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -75,6 +82,16 @@ import com.slideindex.app.overlay.rememberOverlayBlurEnabled
 import kotlin.math.roundToInt
 
 internal enum class ScreenDrawOrientation { HORIZONTAL, VERTICAL }
+
+internal enum class ScreenDrawFinishAction {
+    EDIT,       // 进入内置图片编辑器编辑
+    OCR,        // 当前屏幕绘制进入取词面板
+    COPY,       // 复制到剪贴板
+    SAVE,       // 保存
+    SAVE_TEMP,  // 临时保存（长按）
+    SHARE,      // 分享
+    PIN,        // 钉住
+}
 
 private val PRESET_COLORS = intArrayOf(
     0xFFFFFFFF.toInt(), // 白
@@ -106,6 +123,7 @@ internal fun ScreenDrawMainToolbarCompose(
     canRedo: Boolean,
     currentTool: ScreenDrawTool,
     shape: ScreenDrawShape,
+    isFinishActionsShowing: Boolean = false,
     onToolClick: (ScreenDrawTool) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
@@ -207,7 +225,7 @@ internal fun ScreenDrawMainToolbarCompose(
                     ToolButton(painterResource(R.drawable.ic_iconoir_one_finger_gesture), passthrough) {
                         onTogglePassthrough()
                     }
-                    ToolButton(painterResource(R.drawable.ic_iconoir_check), false) { onFinish() }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_check), isFinishActionsShowing) { onFinish() }
                     ToolButton(painterResource(R.drawable.ic_iconoir_xmark), false) { onExit() }
                 }
             }
@@ -276,7 +294,7 @@ internal fun ScreenDrawMainToolbarCompose(
                     ToolButton(painterResource(R.drawable.ic_iconoir_one_finger_gesture), passthrough) {
                         onTogglePassthrough()
                     }
-                    ToolButton(painterResource(R.drawable.ic_iconoir_check), false) { onFinish() }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_check), isFinishActionsShowing) { onFinish() }
                     ToolButton(painterResource(R.drawable.ic_iconoir_xmark), false) { onExit() }
                 }
             }
@@ -285,8 +303,262 @@ internal fun ScreenDrawMainToolbarCompose(
 }
 
 /**
+ * 屏幕绘制完成导出操作栏（毛玻璃单行操作行）：
+ * 包含 6 个动作按钮：
+ * 1. 进入内置图片编辑器编辑
+ * 2. 当前屏幕绘制进入取词面板
+ * 3. 复制到剪贴板
+ * 4. 保存（点击保存，长按临时保存）
+ * 5. 分享
+ * 6. 钉住
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun ScreenDrawFinishActionsCard(
+    orientation: ScreenDrawOrientation,
+    onAction: (ScreenDrawFinishAction) -> Unit,
+) {
+    val blurEnabled = rememberOverlayBlurEnabled()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isSystemInDarkTheme()
+    val containerColor = if (isDark) {
+        if (blurEnabled) Color(0xFF1E2024).copy(alpha = 0.65f) else Color(0xFF22242A).copy(alpha = 0.92f)
+    } else {
+        if (blurEnabled) Color(0xFFF0F2F5).copy(alpha = 0.82f) else Color(0xFFF7F8FA).copy(alpha = 0.96f)
+    }
+    val borderColor = scheme.outline.copy(alpha = 0.18f)
+    val capsuleShadow = if (blurEnabled) 16.dp else 10.dp
+    val isVertical = orientation == ScreenDrawOrientation.VERTICAL
+
+    val panelWidth = if (isVertical) 52.dp else 264.dp
+    val panelHeight = if (isVertical) 264.dp else 52.dp
+
+    val haptic = LocalHapticFeedback.current
+
+    val imageEditorIcon = rememberVectorPainter(ImageEditorActionIcon)
+    val ocrScanIcon = rememberVectorPainter(OcrScanActionIcon)
+    val copyIcon = painterResource(R.drawable.ic_baseline_content_copy_24)
+    val saveIcon = rememberVectorPainter(SaveActionIcon)
+    val shareIcon = rememberVectorPainter(Icons.Outlined.Share)
+    val pinIcon = rememberVectorPainter(Icons.Outlined.PushPin)
+
+    GlassCapsule(containerColor, borderColor, capsuleShadow) {
+        if (isVertical) {
+            Column(
+                modifier = Modifier
+                    .width(panelWidth)
+                    .height(panelHeight)
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ActionIconButton(imageEditorIcon, "图片编辑") { onAction(ScreenDrawFinishAction.EDIT) }
+                ActionIconButton(ocrScanIcon, "取词") { onAction(ScreenDrawFinishAction.OCR) }
+                ActionIconButton(copyIcon, "复制") { onAction(ScreenDrawFinishAction.COPY) }
+                ActionIconButton(
+                    icon = saveIcon,
+                    contentDescription = "保存（长按临时保存）",
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAction(ScreenDrawFinishAction.SAVE_TEMP)
+                    },
+                    onClick = { onAction(ScreenDrawFinishAction.SAVE) },
+                )
+                ActionIconButton(shareIcon, "分享") { onAction(ScreenDrawFinishAction.SHARE) }
+                ActionIconButton(pinIcon, "钉住") { onAction(ScreenDrawFinishAction.PIN) }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .width(panelWidth)
+                    .height(panelHeight)
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ActionIconButton(imageEditorIcon, "图片编辑") { onAction(ScreenDrawFinishAction.EDIT) }
+                ActionIconButton(ocrScanIcon, "取词") { onAction(ScreenDrawFinishAction.OCR) }
+                ActionIconButton(copyIcon, "复制") { onAction(ScreenDrawFinishAction.COPY) }
+                ActionIconButton(
+                    icon = saveIcon,
+                    contentDescription = "保存（长按临时保存）",
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAction(ScreenDrawFinishAction.SAVE_TEMP)
+                    },
+                    onClick = { onAction(ScreenDrawFinishAction.SAVE) },
+                )
+                ActionIconButton(shareIcon, "分享") { onAction(ScreenDrawFinishAction.SHARE) }
+                ActionIconButton(pinIcon, "钉住") { onAction(ScreenDrawFinishAction.PIN) }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ActionIconButton(
+    icon: Painter,
+    contentDescription: String,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                }
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(20.dp),
+            tint = scheme.onSurface.copy(alpha = 0.88f),
+        )
+    }
+}
+
+private val OcrScanActionIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "OcrScanAction",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.8f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            // 左上扫描角
+            moveTo(4f, 8f); lineTo(4f, 5f); curveTo(4f, 4.45f, 4.45f, 4f, 5f, 4f); lineTo(8f, 4f)
+            // 右上扫描角
+            moveTo(16f, 4f); lineTo(19f, 4f); curveTo(19.55f, 4f, 20f, 4.45f, 20f, 5f); lineTo(20f, 8f)
+            // 左下扫描角
+            moveTo(4f, 16f); lineTo(4f, 19f); curveTo(4f, 19.55f, 4.45f, 20f, 5f, 20f); lineTo(8f, 20f)
+            // 右下扫描角
+            moveTo(16f, 20f); lineTo(19f, 20f); curveTo(19.55f, 20f, 20f, 19.55f, 20f, 19f); lineTo(20f, 16f)
+            // 中心字母 T
+            moveTo(7.5f, 8.5f); lineTo(16.5f, 8.5f)
+            moveTo(12f, 8.5f); lineTo(12f, 16.5f)
+        }
+    }.build()
+}
+
+private val ImageEditorActionIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "ImageEditorAction",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.8f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            // 1. 完整的外相框（闭合圆角矩形，绝不残缺）
+            moveTo(5f, 4f)
+            lineTo(19f, 4f)
+            curveTo(19.8f, 4f, 20.5f, 4.7f, 20.5f, 5.5f)
+            lineTo(20.5f, 18.5f)
+            curveTo(20.5f, 19.3f, 19.8f, 20f, 19f, 20f)
+            lineTo(5f, 20f)
+            curveTo(4.2f, 20f, 3.5f, 19.3f, 3.5f, 18.5f)
+            lineTo(3.5f, 5.5f)
+            curveTo(3.5f, 4.7f, 4.2f, 4f, 5f, 4f)
+            close()
+            // 2. 内部山丘
+            moveTo(3.5f, 15f)
+            lineTo(8f, 10.5f)
+            lineTo(12.5f, 15f)
+            // 3. 完整的倾斜编辑画笔
+            moveTo(12f, 17.5f)
+            lineTo(17.5f, 12f)
+            curveTo(18.2f, 11.3f, 19.3f, 11.3f, 20f, 12f)
+            curveTo(20.7f, 12.7f, 20.7f, 13.8f, 20f, 14.5f)
+            lineTo(14.5f, 20f)
+            lineTo(11.5f, 20.5f)
+            lineTo(12f, 17.5f)
+        }
+    }.build()
+}
+
+private val SaveActionIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "SaveAction",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.8f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            // 下方空心托盘
+            moveTo(4.5f, 14.5f)
+            lineTo(4.5f, 19f)
+            curveTo(4.5f, 19.55f, 4.95f, 20f, 5.5f, 20f)
+            lineTo(18.5f, 20f)
+            curveTo(19.05f, 20f, 19.5f, 19.55f, 19.5f, 19f)
+            lineTo(19.5f, 14.5f)
+            // 竖向向下箭头
+            moveTo(12f, 4f)
+            lineTo(12f, 14.5f)
+            moveTo(8f, 10.5f)
+            lineTo(12f, 14.5f)
+            lineTo(16f, 10.5f)
+        }
+    }.build()
+}
+
+/**
+ * 动态计算各工具配置面板的实际适配合适高度：
+ * - 马赛克：单行滑杆，56dp
+ * - 画笔/橡皮擦/文字/激光笔：双行控件，96dp
+ * - 序号/图形：三行控件，142dp
+ * - 竖排模式：与工具栏齐高 316dp
+ */
+internal fun getOptionsPanelHeightDp(
+    orientation: ScreenDrawOrientation,
+    tool: ScreenDrawTool?,
+    isFinishActions: Boolean = false,
+): Float {
+    if (isFinishActions) {
+        return if (orientation == ScreenDrawOrientation.VERTICAL) 264f else 52f
+    }
+    if (orientation == ScreenDrawOrientation.VERTICAL) {
+        return 316f
+    }
+    return when (tool) {
+        ScreenDrawTool.MOSAIC -> 56f
+        ScreenDrawTool.PEN, ScreenDrawTool.ERASER, ScreenDrawTool.TEXT, ScreenDrawTool.LASER -> 96f
+        ScreenDrawTool.NUMBER, ScreenDrawTool.SHAPE -> 142f
+        else -> 96f
+    }
+}
+
+/**
  * 独立的配置面板卡片：
- * - 横排模式：尺寸为 316dp × 148dp
+ * - 横排模式：尺寸根据实际工具内容高度自适应（56dp ~ 142dp）
  * - 竖排模式：尺寸为 148dp × 316dp（高度匹配竖排工具栏，内容垂直排布）
  * - 内部 Crossfade 淡入淡出切换选项
  */
@@ -327,13 +599,14 @@ internal fun ScreenDrawOptionsPanelCompose(
     val isVertical = orientation == ScreenDrawOrientation.VERTICAL
 
     val panelWidth = if (isVertical) 148.dp else 316.dp
-    val panelHeight = if (isVertical) 316.dp else 148.dp
+    val panelHeight = getOptionsPanelHeightDp(orientation, activeTool, false).dp
 
     GlassCapsule(containerColor, borderColor, capsuleShadow) {
         Box(
             modifier = Modifier
                 .width(panelWidth)
                 .height(panelHeight)
+                .animateContentSize(animationSpec = tween(140))
                 .padding(
                     horizontal = if (isVertical) 12.dp else 14.dp,
                     vertical = if (isVertical) 14.dp else 10.dp,
@@ -571,7 +844,6 @@ private fun ColorPickerGroup(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun OptionSliderRow(
     label: String,
@@ -614,10 +886,9 @@ private fun OptionSliderRow(
                 },
                 valueRange = range,
                 modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = scheme.primary,
-                    activeTrackColor = scheme.primary,
-                    inactiveTrackColor = scheme.onSurface.copy(alpha = 0.18f),
+                colors = SliderDefaults.sliderColors(
+                    foregroundColor = scheme.primary,
+                    backgroundColor = scheme.onSurface.copy(alpha = 0.14f),
                 ),
             )
         }
@@ -642,10 +913,9 @@ private fun OptionSliderRow(
                 },
                 valueRange = range,
                 modifier = Modifier.weight(1f),
-                colors = SliderDefaults.colors(
-                    thumbColor = scheme.primary,
-                    activeTrackColor = scheme.primary,
-                    inactiveTrackColor = scheme.onSurface.copy(alpha = 0.18f),
+                colors = SliderDefaults.sliderColors(
+                    foregroundColor = scheme.primary,
+                    backgroundColor = scheme.onSurface.copy(alpha = 0.14f),
                 ),
             )
             Text(

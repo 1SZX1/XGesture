@@ -28,8 +28,10 @@ import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import com.slideindex.app.R
+import com.slideindex.app.imageeditor.ImageEditorSavedImageDeleteScheduler
 import com.slideindex.app.overlay.FloatBallOverlay
 import com.slideindex.app.overlay.FloatBallPickResultPanel
+import com.slideindex.app.overlay.FloatBallTextPick
 import com.slideindex.app.overlay.FloatingPointerOverlayWindow
 import com.slideindex.app.overlay.GlobalOverlayDismissHelper
 import com.slideindex.app.overlay.OverlayCompose
@@ -39,7 +41,9 @@ import com.slideindex.app.overlay.OverlayPanelTheme
 import com.slideindex.app.overlay.OverlayScreenMetrics
 import com.slideindex.app.overlay.OverlayWindowTypes
 import com.slideindex.app.overlay.ScreenOffDismissReceiver
+import com.slideindex.app.overlay.ScreenPinManager
 import com.slideindex.app.overlay.screenshot.ScreenshotStorage
+import com.slideindex.app.overlay.screenshot.SmartScreenshotOcr
 import com.slideindex.app.service.ScreenshotCaptureOutcome
 import com.slideindex.app.service.SlideIndexAccessibilityService
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
@@ -57,7 +61,10 @@ object ScreenDrawOverlay {
     private const val TAG = "ScreenDraw"
     private const val CAPTURE_DELAY_MS = 150L
 
-    private enum class ExportAction { SAVE, COPY, SHARE }
+    private data class ComposedScreenDraw(
+        val bitmap: Bitmap,
+        val screenRect: Rect?,
+    )
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -73,6 +80,7 @@ object ScreenDrawOverlay {
     private val orientationState = mutableStateOf(ScreenDrawOrientation.HORIZONTAL)
     private val currentToolState = mutableStateOf(ScreenDrawTool.PEN)
     private val popupOptionsToolState = mutableStateOf<ScreenDrawTool?>(null)
+    private val isFinishActionsShowingState = mutableStateOf(false)
     private var isOptionsPopupShowing = false
     private var optionsPopupView: View? = null
     private var optionsOwner: OverlayComposeOwner? = null
@@ -181,55 +189,64 @@ object ScreenDrawOverlay {
             visibility = View.GONE
             setContent {
                 OverlayAwareModuleTheme {
-                    ScreenDrawOptionsPanelCompose(
-                        orientation = orientationState.value,
-                        activeTool = popupOptionsToolState.value,
-                        shape = shapeState.value,
-                        color = colorState.value,
-                        widthDp = strokeWidthState.value,
-                        textFontSizeSp = textFontSizeState.value,
-                        numberStyle = numberStyleState.value,
-                        numberSizeDp = numberSizeState.value,
-                        mosaicRadiusDp = mosaicRadiusState.value,
-                        eraserMode = eraserModeState.value,
-                        eraserRadiusDp = eraserRadiusState.value,
-                        onShape = {
-                            shapeState.value = it
-                            canvas?.shape = it
-                        },
-                        onColor = {
-                            colorState.value = it
-                            canvas?.color = it
-                        },
-                        onWidth = {
-                            strokeWidthState.value = it
-                            canvas?.widthPx = it * density
-                        },
-                        onTextFontSize = {
-                            textFontSizeState.value = it
-                            canvas?.textFontSizeSp = it
-                        },
-                        onNumberStyle = {
-                            numberStyleState.value = it
-                            canvas?.numberStyle = it
-                        },
-                        onNumberSize = {
-                            numberSizeState.value = it
-                            canvas?.numberSizePx = it * density
-                        },
-                        onMosaicRadius = {
-                            mosaicRadiusState.value = it
-                            canvas?.mosaicRadiusPx = it * density
-                        },
-                        onEraserMode = {
-                            eraserModeState.value = it
-                            canvas?.eraserMode = it
-                        },
-                        onEraserRadius = {
-                            eraserRadiusState.value = it
-                            canvas?.eraserRadiusPx = it * density
-                        },
-                    )
+                    if (isFinishActionsShowingState.value) {
+                        ScreenDrawFinishActionsCard(
+                            orientation = orientationState.value,
+                            onAction = { action ->
+                                handleFinishAction(action)
+                            },
+                        )
+                    } else {
+                        ScreenDrawOptionsPanelCompose(
+                            orientation = orientationState.value,
+                            activeTool = popupOptionsToolState.value,
+                            shape = shapeState.value,
+                            color = colorState.value,
+                            widthDp = strokeWidthState.value,
+                            textFontSizeSp = textFontSizeState.value,
+                            numberStyle = numberStyleState.value,
+                            numberSizeDp = numberSizeState.value,
+                            mosaicRadiusDp = mosaicRadiusState.value,
+                            eraserMode = eraserModeState.value,
+                            eraserRadiusDp = eraserRadiusState.value,
+                            onShape = {
+                                shapeState.value = it
+                                canvas?.shape = it
+                            },
+                            onColor = {
+                                colorState.value = it
+                                canvas?.color = it
+                            },
+                            onWidth = {
+                                strokeWidthState.value = it
+                                canvas?.widthPx = it * density
+                            },
+                            onTextFontSize = {
+                                textFontSizeState.value = it
+                                canvas?.textFontSizeSp = it
+                            },
+                            onNumberStyle = {
+                                numberStyleState.value = it
+                                canvas?.numberStyle = it
+                            },
+                            onNumberSize = {
+                                numberSizeState.value = it
+                                canvas?.numberSizePx = it * density
+                            },
+                            onMosaicRadius = {
+                                mosaicRadiusState.value = it
+                                canvas?.mosaicRadiusPx = it * density
+                            },
+                            onEraserMode = {
+                                eraserModeState.value = it
+                                canvas?.eraserMode = it
+                            },
+                            onEraserRadius = {
+                                eraserRadiusState.value = it
+                                canvas?.eraserRadiusPx = it * density
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -310,6 +327,7 @@ object ScreenDrawOverlay {
                         canRedo = canRedoState.value,
                         currentTool = currentToolState.value,
                         shape = shapeState.value,
+                        isFinishActionsShowing = isFinishActionsShowingState.value,
                         onToolClick = { target ->
                             handleToolClick(target)
                         },
@@ -319,7 +337,7 @@ object ScreenDrawOverlay {
                         onTogglePassthrough = { setPassthrough(!passthrough) },
                         onToggleOrientation = { toggleOrientation() },
                         onMinimize = { minimizeDraw() },
-                        onFinish = { export(ExportAction.SAVE) },
+                        onFinish = { toggleFinishActions() },
                         onExit = { dismiss() },
                         onBlurEnabled = { setToolbarBlur(it) },
                         onMoveBy = { dx, dy -> moveToolbarBy(dx, dy) },
@@ -379,19 +397,27 @@ object ScreenDrawOverlay {
         canvasView.tool = target
         currentToolState.value = target
 
+        if (isFinishActionsShowingState.value) {
+            hideOptionsPopup()
+        }
+
         if (target == ScreenDrawTool.BOX_SELECT) {
             hideOptionsPopup()
             return
         }
 
         if (current == target) {
-            if (isOptionsPopupShowing) {
+            if (isOptionsPopupShowing && !isFinishActionsShowingState.value) {
                 hideOptionsPopup()
             } else {
                 showOptionsPopup(target)
             }
         } else {
-            hideOptionsPopup()
+            if (isOptionsPopupShowing && !isFinishActionsShowingState.value) {
+                showOptionsPopup(target)
+            } else {
+                hideOptionsPopup()
+            }
         }
     }
 
@@ -402,7 +428,7 @@ object ScreenDrawOverlay {
         val tbWidth = tbParams.width
         val tbHeight = tbParams.height
         val panelWidth = if (isVertical) dp(148f) else dp(316f)
-        val panelHeight = if (isVertical) dp(316f) else dp(148f)
+        val panelHeight = dp(getOptionsPanelHeightDp(orientationState.value, tool, false))
         val gap = dp(8f)
 
         val lp = popup.layoutParams as? FrameLayout.LayoutParams
@@ -427,13 +453,13 @@ object ScreenDrawOverlay {
             val rawY = tbParams.y + (tbHeight - panelHeight) / 2f
             targetY = rawY.coerceIn(dp(16f).toFloat(), (screenHeight - panelHeight - dp(16f)).toFloat())
         } else {
-            // 横排模式：工具栏宽 316dp，高 80dp。面板在上方或下方，宽度 316dp
+            // 横排模式：工具栏宽 316dp，高 80dp。面板在上方或下方，高度根据工具内容自适应
             val tbCenterY = tbParams.y + tbHeight / 2f
             if (tbCenterY > screenHeight * 0.45f) {
-                // 工具栏在下半部，面板在上方
+                // 工具栏在下半部，面板在上方，面板底部紧贴工具栏上方（相距 8dp）
                 targetY = (tbParams.y - panelHeight - gap).toFloat()
             } else {
-                // 工具栏在上半部，面板在下方
+                // 工具栏在上半部，面板在下方，面板顶部紧贴工具栏下方（相距 8dp）
                 targetY = (tbParams.y + tbHeight + gap).toFloat()
             }
             // 水平居中对齐工具栏，限制在安全屏幕内
@@ -441,9 +467,65 @@ object ScreenDrawOverlay {
             targetX = rawX.coerceIn(dp(12f).toFloat(), (screenWidth - panelWidth - dp(12f)).toFloat())
         }
 
+        isFinishActionsShowingState.value = false
+        popupOptionsToolState.value = tool
+        if (!isOptionsPopupShowing) {
+            popup.translationX = targetX
+            popup.translationY = targetY
+            popup.alpha = 0f
+            popup.visibility = View.VISIBLE
+            popup.animate().alpha(1f).setDuration(140L).start()
+            isOptionsPopupShowing = true
+        } else {
+            popup.animate().translationX(targetX).translationY(targetY).alpha(1f).setDuration(140L).start()
+        }
+    }
+
+    private fun showFinishActionsPopup() {
+        val popup = optionsPopupView ?: return
+        val tbParams = toolbarParams ?: return
+        val isVertical = orientationState.value == ScreenDrawOrientation.VERTICAL
+        val tbWidth = tbParams.width
+        val tbHeight = tbParams.height
+        val panelWidth = if (isVertical) dp(52f) else dp(264f)
+        val panelHeight = if (isVertical) dp(264f) else dp(52f)
+        val gap = dp(8f)
+
+        val lp = popup.layoutParams as? FrameLayout.LayoutParams
+        if (lp != null && (lp.width != panelWidth || lp.height != panelHeight)) {
+            lp.width = panelWidth
+            lp.height = panelHeight
+            popup.layoutParams = lp
+        }
+
+        val targetX: Float
+        val targetY: Float
+
+        if (isVertical) {
+            val tbCenterX = tbParams.x + tbWidth / 2f
+            val rawX = if (tbCenterX > screenWidth / 2f) {
+                (tbParams.x - panelWidth - gap).toFloat()
+            } else {
+                (tbParams.x + tbWidth + gap).toFloat()
+            }
+            targetX = rawX.coerceIn(dp(10f).toFloat(), (screenWidth - panelWidth - dp(10f)).toFloat())
+            val rawY = tbParams.y + (tbHeight - panelHeight) / 2f
+            targetY = rawY.coerceIn(dp(16f).toFloat(), (screenHeight - panelHeight - dp(16f)).toFloat())
+        } else {
+            val tbCenterY = tbParams.y + tbHeight / 2f
+            if (tbCenterY > screenHeight * 0.45f) {
+                targetY = (tbParams.y - panelHeight - gap).toFloat()
+            } else {
+                targetY = (tbParams.y + tbHeight + gap).toFloat()
+            }
+            val rawX = tbParams.x + (tbWidth - panelWidth) / 2f
+            targetX = rawX.coerceIn(dp(12f).toFloat(), (screenWidth - panelWidth - dp(12f)).toFloat())
+        }
+
         popup.translationX = targetX
         popup.translationY = targetY
-        popupOptionsToolState.value = tool
+        popupOptionsToolState.value = null
+        isFinishActionsShowingState.value = true
         if (!isOptionsPopupShowing) {
             popup.alpha = 0f
             popup.visibility = View.VISIBLE
@@ -452,8 +534,17 @@ object ScreenDrawOverlay {
         }
     }
 
+    private fun toggleFinishActions() {
+        if (isFinishActionsShowingState.value && isOptionsPopupShowing) {
+            hideOptionsPopup()
+        } else {
+            showFinishActionsPopup()
+        }
+    }
+
     private fun hideOptionsPopup() {
         val popup = optionsPopupView ?: return
+        isFinishActionsShowingState.value = false
         if (!isOptionsPopupShowing) return
         isOptionsPopupShowing = false
         popup.animate().alpha(0f).setDuration(120L).withEndAction {
@@ -855,16 +946,14 @@ object ScreenDrawOverlay {
         hideTextEditor()
     }
 
-    private fun export(action: ExportAction) {
+    private fun handleFinishAction(action: ScreenDrawFinishAction) {
         if (saving) return
         val drawCanvas = canvas ?: return
         val host = hostContext ?: return
-        if (!drawCanvas.hasContent) {
-            toast(host, R.string.screen_draw_empty)
-            return
-        }
+
         saving = true
         hideTextEditor()
+        hideOptionsPopup()
         toolbar?.visibility = View.GONE
         drawCanvas.visibility = View.INVISIBLE
         suppressOtherOverlays()
@@ -873,45 +962,14 @@ object ScreenDrawOverlay {
             val accepted = SlideIndexAccessibilityService.captureDisplayBitmap { outcome ->
                 when (outcome) {
                     is ScreenshotCaptureOutcome.Success -> {
-                        val composed = compose(drawCanvas, outcome.bitmap)
+                        val composedResult = compose(drawCanvas, outcome.bitmap)
                         outcome.bitmap.recycle()
-                        if (composed != null) {
-                            val ok = when (action) {
-                                ExportAction.SAVE -> {
-                                    val uri = ScreenshotStorage.saveToGallery(host, composed)
-                                    uri != null
-                                }
-
-                                ExportAction.COPY -> {
-                                    val uri = ScreenshotStorage.createClipboardUri(host, composed)
-                                    uri != null && ScreenshotStorage.copyToClipboard(host, uri)
-                                }
-
-                                ExportAction.SHARE -> {
-                                    val uri = ScreenshotStorage.createShareUri(host, composed)
-                                    uri != null && ScreenshotStorage.share(host, uri)
-                                }
-                            }
-                            composed.recycle()
-                            if (ok) {
-                                toast(
-                                    host,
-                                    when (action) {
-                                        ExportAction.SAVE -> R.string.screen_draw_saved
-                                        ExportAction.COPY -> R.string.screen_draw_copied
-                                        ExportAction.SHARE -> R.string.screen_draw_shared
-                                    },
-                                )
-                                restoreOtherOverlays()
-                                dismiss()
-                            } else {
-                                failSave()
-                            }
+                        if (composedResult != null) {
+                            dispatchFinishAction(host, action, composedResult.bitmap, composedResult.screenRect)
                         } else {
                             failSave()
                         }
                     }
-
                     else -> failSave()
                 }
             }
@@ -919,7 +977,92 @@ object ScreenDrawOverlay {
         }, CAPTURE_DELAY_MS)
     }
 
-    private fun compose(canvasView: ScreenDrawCanvasView, screenshot: Bitmap): Bitmap? {
+    private fun dispatchFinishAction(
+        host: Context,
+        action: ScreenDrawFinishAction,
+        composed: Bitmap,
+        screenRect: Rect?,
+    ) {
+        when (action) {
+            ScreenDrawFinishAction.EDIT -> {
+                val ok = FloatBallTextPick.openBuiltinImageEditor(host, composed, screenRect, null)
+                composed.recycle()
+                if (ok) {
+                    restoreOtherOverlays()
+                    dismiss()
+                } else {
+                    failSave()
+                }
+            }
+
+            ScreenDrawFinishAction.OCR -> {
+                SmartScreenshotOcr.pickTextFromBitmap(host, composed, screenRect, null)
+                composed.recycle()
+                restoreOtherOverlays()
+                dismiss()
+            }
+
+            ScreenDrawFinishAction.COPY -> {
+                val uri = ScreenshotStorage.createClipboardUri(host, composed)
+                val ok = uri != null && ScreenshotStorage.copyToClipboard(host, uri)
+                composed.recycle()
+                if (ok) {
+                    toast(host, R.string.screen_draw_copied)
+                    restoreOtherOverlays()
+                    dismiss()
+                } else {
+                    failSave()
+                }
+            }
+
+            ScreenDrawFinishAction.SAVE -> {
+                val uri = ScreenshotStorage.saveToGallery(host, composed)
+                composed.recycle()
+                if (uri != null) {
+                    toast(host, R.string.screen_draw_saved)
+                    restoreOtherOverlays()
+                    dismiss()
+                } else {
+                    failSave()
+                }
+            }
+
+            ScreenDrawFinishAction.SAVE_TEMP -> {
+                val uri = FloatBallTextPick.saveScreenshotReturningUri(host, composed, ingestToHistory = false)
+                composed.recycle()
+                if (uri != null) {
+                    ImageEditorSavedImageDeleteScheduler.scheduleDeleteAfterMinutes(host, uri, 5L)
+                    toast(host, R.string.inspire_image_edit_save_auto_delete)
+                    restoreOtherOverlays()
+                    dismiss()
+                } else {
+                    failSave()
+                }
+            }
+
+            ScreenDrawFinishAction.SHARE -> {
+                val uri = ScreenshotStorage.createShareUri(host, composed)
+                val ok = uri != null && ScreenshotStorage.share(host, uri)
+                composed.recycle()
+                if (ok) {
+                    toast(host, R.string.screen_draw_shared)
+                    restoreOtherOverlays()
+                    dismiss()
+                } else {
+                    failSave()
+                }
+            }
+
+            ScreenDrawFinishAction.PIN -> {
+                ScreenPinManager.pinImage(host, composed, screenRect, null)
+                composed.recycle()
+                restoreOtherOverlays()
+                dismiss()
+            }
+        }
+    }
+
+    private fun compose(canvasView: ScreenDrawCanvasView, screenshot: Bitmap): ComposedScreenDraw? {
         val strokes = canvasView.snapshotBitmap() ?: return null
         val result = screenshot.copy(Bitmap.Config.ARGB_8888, true) ?: return null
         val target = Canvas(result)
@@ -932,7 +1075,7 @@ object ScreenDrawOverlay {
         )
         strokes.recycle()
 
-        // 若用户框选了区域，则截取该局部区域截图输出
+        // 若用户框选了区域，则截取该局部区域截图输出，并返回对应的 screenRect
         val boxRect = canvasView.currentBoxSelectRect()
         if (boxRect != null && boxRect.width() > 10f && boxRect.height() > 10f) {
             val left = boxRect.left.toInt().coerceIn(0, result.width - 1)
@@ -944,10 +1087,10 @@ object ScreenDrawOverlay {
             if (cropW > 0 && cropH > 0) {
                 val cropped = Bitmap.createBitmap(result, left, top, cropW, cropH)
                 result.recycle()
-                return cropped
+                return ComposedScreenDraw(cropped, Rect(left, top, right, bottom))
             }
         }
-        return result
+        return ComposedScreenDraw(result, Rect(0, 0, result.width, result.height))
     }
 
     private fun startDragAndDropShare(cropRect: RectF?): Boolean {
