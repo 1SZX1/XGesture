@@ -1,35 +1,53 @@
 package com.slideindex.app.screendraw
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.CropSquare
 import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,377 +55,784 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
-import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.unit.sp
 import com.slideindex.app.R
 import com.slideindex.app.overlay.LocalFrostedGlassBackdrop
 import com.slideindex.app.overlay.rememberOverlayBlurEnabled
+import kotlin.math.roundToInt
 
 internal enum class ScreenDrawOrientation { HORIZONTAL, VERTICAL }
 
-internal enum class ScreenDrawOptions { SHAPE, BRUSH }
+private val PRESET_COLORS = intArrayOf(
+    0xFFFFFFFF.toInt(), // 白
+    0xFF000000.toInt(), // 黑
+    0xFF8E8E93.toInt(), // 灰
+    0xFFFF3B30.toInt(), // 红
+    0xFFFF9500.toInt(), // 橙
+    0xFFFFCC00.toInt(), // 黄
+    0xFF34C759.toInt(), // 绿
+    0xFF0A84FF.toInt(), // 蓝
+    0xFFAF52DE.toInt(), // 紫
+)
 
 /**
- * 一墨 2.0.5 的绘制工具栏（12 项）。
- *
- * 横向：两行玻璃胶囊，每行 6 项；竖向：一列玻璃胶囊。
- * 形状/笔刷不再用 Popup，而是在工具栏下方新增一行。
+ * 一墨 1:1 风格的屏幕绘制工具栏与上下文属性悬浮面板：
+ * - 2 行 × 7 列工具栏（14 个按钮）
+ * - 选中当前画笔再次点击弹出专属毛玻璃配置面板
+ */
+/**
+ * 主工具栏（纯净胶囊，尺寸永久固定，零抖动）：
+ * - 横排：316dp × 80dp，2 行 × 7 列
+ * - 竖排：96dp × 316dp，2 列 × 7 行
  */
 @Composable
-internal fun ScreenDrawToolbarCompose(
+internal fun ScreenDrawMainToolbarCompose(
     orientation: ScreenDrawOrientation,
     passthrough: Boolean,
-    toolbarScreenY: Int,
-    optionsMode: ScreenDrawOptions?,
-    initialTool: ScreenDrawTool,
-    initialShape: ScreenDrawShape,
-    initialColor: Int,
-    initialWidthDp: Float,
-    onTool: (ScreenDrawTool) -> Unit,
-    onShape: (ScreenDrawShape) -> Unit,
-    onColor: (Int) -> Unit,
-    onWidth: (Float) -> Unit,
+    canUndo: Boolean,
+    canRedo: Boolean,
+    currentTool: ScreenDrawTool,
+    shape: ScreenDrawShape,
+    onToolClick: (ScreenDrawTool) -> Unit,
     onUndo: () -> Unit,
+    onRedo: () -> Unit,
     onClear: () -> Unit,
-    onToggleOrientation: () -> Unit,
     onTogglePassthrough: () -> Unit,
+    onToggleOrientation: () -> Unit,
     onMinimize: () -> Unit,
     onFinish: () -> Unit,
     onExit: () -> Unit,
-    onShapeOptions: () -> Unit,
-    onBrushOptions: () -> Unit,
     onBlurEnabled: (Boolean) -> Unit,
     onMoveBy: (Float, Float) -> Unit,
     onMoveFinished: () -> Unit,
 ) {
-    var tool by remember { mutableStateOf(initialTool) }
-    var shape by remember { mutableStateOf(initialShape) }
-    var color by remember { mutableStateOf(initialColor) }
-    var widthDp by remember { mutableStateOf(initialWidthDp) }
-    val density = LocalDensity.current.density
-    val screenHeightPx = LocalContext.current.resources.displayMetrics.heightPixels
     val blurEnabled = rememberOverlayBlurEnabled()
-
     LaunchedEffect(blurEnabled) { onBlurEnabled(blurEnabled) }
 
-    fun select(next: ScreenDrawTool) {
-        tool = next
-        onTool(next)
-    }
-
-    fun selectShape(next: ScreenDrawShape) {
-        shape = next
-        onShape(next)
-        select(ScreenDrawTool.SHAPE)
-    }
-
-    fun selectColor(next: Int) {
-        color = next
-        onColor(next)
-    }
-
-    fun selectWidth(next: Float) {
-        widthDp = next
-        onWidth(next * density)
-    }
-
-    val containerColor = if (blurEnabled) {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isSystemInDarkTheme()
+    val containerColor = if (isDark) {
+        if (blurEnabled) Color(0xFF1E2024).copy(alpha = 0.65f) else Color(0xFF22242A).copy(alpha = 0.92f)
     } else {
-        MaterialTheme.colorScheme.surface
+        if (blurEnabled) Color(0xFFF0F2F5).copy(alpha = 0.82f) else Color(0xFFF7F8FA).copy(alpha = 0.96f)
     }
-    val borderColor = MaterialTheme.colorScheme.outline.copy(
-        alpha = if (blurEnabled) 0.16f else 0.12f,
-    )
-    val capsuleShadow = if (blurEnabled) 12.dp else 6.dp
+    val borderColor = scheme.outline.copy(alpha = 0.18f)
+    val capsuleShadow = if (blurEnabled) 18.dp else 12.dp
 
-    Box {
-        if (orientation == ScreenDrawOrientation.HORIZONTAL) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            ToolbarCapsule(containerColor, borderColor, capsuleShadow, onMoveBy, onMoveFinished) {
-                ToolButton(painterResource(R.drawable.ic_iconoir_edit_pencil), tool == ScreenDrawTool.PEN) {
-                    select(ScreenDrawTool.PEN)
-                }
-                ToolButton(shapePainter(shape), tool == ScreenDrawTool.SHAPE) {
-                    if (tool != ScreenDrawTool.SHAPE) {
-                        select(ScreenDrawTool.SHAPE)
-                    } else {
-                        onShapeOptions()
-                    }
-                }
-                ToolButton(painterResource(R.drawable.ic_remix_eraser), tool == ScreenDrawTool.ERASER) {
-                    select(ScreenDrawTool.ERASER)
-                }
-                ToolButton(painterResource(R.drawable.ic_remix_magic_line), tool == ScreenDrawTool.LASER) {
-                    select(ScreenDrawTool.LASER)
-                }
-                ToolButton(painterResource(R.drawable.ic_iconoir_palette), optionsMode == ScreenDrawOptions.BRUSH) {
-                    onBrushOptions()
-                }
-                ToolButton(painterResource(R.drawable.ic_iconoir_undo), false) { onUndo() }
-            }
-
-            ToolbarCapsule(containerColor, borderColor, capsuleShadow, onMoveBy, onMoveFinished) {
-                ToolButton(painterResource(R.drawable.ic_iconoir_trash), false) { onClear() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_refresh), false) { onToggleOrientation() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_one_finger_gesture), passthrough) {
-                    onTogglePassthrough()
-                }
-                ToolButton(painterResource(R.drawable.ic_iconoir_reduce), false) { onMinimize() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_check), false) { onFinish() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_xmark), false) { onExit() }
-            }
+    val haptic = LocalHapticFeedback.current
+    val dragModifier = Modifier.pointerInput(Unit) {
+        detectDragGesturesAfterLongPress(
+            onDragStart = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+            onDragEnd = { onMoveFinished() },
+            onDragCancel = { onMoveFinished() },
+        ) { change, dragAmount ->
+            change.consume()
+            onMoveBy(dragAmount.x, dragAmount.y)
         }
-    } else {
-        val scroll = rememberScrollState()
-        Column(
-            modifier = Modifier.verticalScroll(scroll),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            ToolbarCapsule(
-                containerColor = containerColor,
-                borderColor = borderColor,
-                shadowElevation = capsuleShadow,
-                onMoveBy = onMoveBy,
-                onMoveFinished = onMoveFinished,
-                vertical = true,
+    }
+
+    GlassCapsule(containerColor, borderColor, capsuleShadow) {
+        if (orientation == ScreenDrawOrientation.VERTICAL) {
+            // 竖排：2 列 × 7 行（宽 86dp，高 316dp，两列宽各 34dp，左右 padding 各 7dp）
+            Row(
+                modifier = Modifier
+                    .width(86.dp)
+                    .height(316.dp)
+                    .padding(horizontal = 7.dp, vertical = 8.dp)
+                    .then(dragModifier),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                ToolButton(painterResource(R.drawable.ic_iconoir_edit_pencil), tool == ScreenDrawTool.PEN) {
-                    select(ScreenDrawTool.PEN)
-                }
-                ToolButton(shapePainter(shape), tool == ScreenDrawTool.SHAPE) {
-                    if (tool != ScreenDrawTool.SHAPE) {
-                        select(ScreenDrawTool.SHAPE)
-                    } else {
-                        onShapeOptions()
+                Column(
+                    modifier = Modifier
+                        .width(34.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    ToolButton(painterResource(R.drawable.ic_iconoir_edit_pencil), currentTool == ScreenDrawTool.PEN) {
+                        onToolClick(ScreenDrawTool.PEN)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_remix_eraser), currentTool == ScreenDrawTool.ERASER) {
+                        onToolClick(ScreenDrawTool.ERASER)
+                    }
+                    ToolButton(shapePainter(shape), currentTool == ScreenDrawTool.SHAPE) {
+                        onToolClick(ScreenDrawTool.SHAPE)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_text), currentTool == ScreenDrawTool.TEXT) {
+                        onToolClick(ScreenDrawTool.TEXT)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_mosaic), currentTool == ScreenDrawTool.MOSAIC) {
+                        onToolClick(ScreenDrawTool.MOSAIC)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_number), currentTool == ScreenDrawTool.NUMBER) {
+                        onToolClick(ScreenDrawTool.NUMBER)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_frame), currentTool == ScreenDrawTool.BOX_SELECT) {
+                        onToolClick(ScreenDrawTool.BOX_SELECT)
                     }
                 }
-                ToolButton(painterResource(R.drawable.ic_remix_eraser), tool == ScreenDrawTool.ERASER) {
-                    select(ScreenDrawTool.ERASER)
+                Column(
+                    modifier = Modifier
+                        .width(34.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    ToolButton(painterResource(R.drawable.ic_iconoir_trash), false) { onClear() }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_undo), false, enabled = canUndo) { onUndo() }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_redo), false, enabled = canRedo) { onRedo() }
+                    ToolButton(
+                        icon = painterResource(R.drawable.ic_iconoir_reduce),
+                        selected = false,
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onToggleOrientation()
+                        },
+                        onClick = { onMinimize() },
+                    )
+                    ToolButton(painterResource(R.drawable.ic_iconoir_one_finger_gesture), passthrough) {
+                        onTogglePassthrough()
+                    }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_check), false) { onFinish() }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_xmark), false) { onExit() }
                 }
-                ToolButton(painterResource(R.drawable.ic_remix_magic_line), tool == ScreenDrawTool.LASER) {
-                    select(ScreenDrawTool.LASER)
-                }
-                ToolButton(painterResource(R.drawable.ic_iconoir_palette), optionsMode == ScreenDrawOptions.BRUSH) {
-                    onBrushOptions()
-                }
-                ToolButton(painterResource(R.drawable.ic_iconoir_undo), false) { onUndo() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_trash), false) { onClear() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_refresh), false) { onToggleOrientation() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_one_finger_gesture), passthrough) {
-                    onTogglePassthrough()
-                }
-                ToolButton(painterResource(R.drawable.ic_iconoir_reduce), false) { onMinimize() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_check), false) { onFinish() }
-                ToolButton(painterResource(R.drawable.ic_iconoir_xmark), false) { onExit() }
             }
-        }
+        } else {
+            // 横排：2 行 × 7 列（宽 316dp，高 86dp，两行高各 34dp，上下 padding 各 7dp，上下严格对称）
+            Column(
+                modifier = Modifier
+                    .width(316.dp)
+                    .height(86.dp)
+                    .padding(horizontal = 8.dp, vertical = 7.dp)
+                    .then(dragModifier),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                // 第一行：7 个绘制工具（高 34dp）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ToolButton(painterResource(R.drawable.ic_iconoir_edit_pencil), currentTool == ScreenDrawTool.PEN) {
+                        onToolClick(ScreenDrawTool.PEN)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_remix_eraser), currentTool == ScreenDrawTool.ERASER) {
+                        onToolClick(ScreenDrawTool.ERASER)
+                    }
+                    ToolButton(shapePainter(shape), currentTool == ScreenDrawTool.SHAPE) {
+                        onToolClick(ScreenDrawTool.SHAPE)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_text), currentTool == ScreenDrawTool.TEXT) {
+                        onToolClick(ScreenDrawTool.TEXT)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_mosaic), currentTool == ScreenDrawTool.MOSAIC) {
+                        onToolClick(ScreenDrawTool.MOSAIC)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_number), currentTool == ScreenDrawTool.NUMBER) {
+                        onToolClick(ScreenDrawTool.NUMBER)
+                    }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_frame), currentTool == ScreenDrawTool.BOX_SELECT) {
+                        onToolClick(ScreenDrawTool.BOX_SELECT)
+                    }
+                }
+
+                // 第二行：7 个操作与控制按钮（高 34dp）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ToolButton(painterResource(R.drawable.ic_iconoir_trash), false) { onClear() }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_undo), false, enabled = canUndo) { onUndo() }
+                    ToolButton(painterResource(R.drawable.ic_screen_draw_redo), false, enabled = canRedo) { onRedo() }
+                    ToolButton(
+                        icon = painterResource(R.drawable.ic_iconoir_reduce),
+                        selected = false,
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onToggleOrientation()
+                        },
+                        onClick = { onMinimize() },
+                    )
+                    ToolButton(painterResource(R.drawable.ic_iconoir_one_finger_gesture), passthrough) {
+                        onTogglePassthrough()
+                    }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_check), false) { onFinish() }
+                    ToolButton(painterResource(R.drawable.ic_iconoir_xmark), false) { onExit() }
+                }
+            }
         }
     }
 }
+
+/**
+ * 独立的配置面板卡片：
+ * - 横排模式：尺寸为 316dp × 148dp
+ * - 竖排模式：尺寸为 148dp × 316dp（高度匹配竖排工具栏，内容垂直排布）
+ * - 内部 Crossfade 淡入淡出切换选项
+ */
+@Composable
+internal fun ScreenDrawOptionsPanelCompose(
+    orientation: ScreenDrawOrientation,
+    activeTool: ScreenDrawTool?,
+    shape: ScreenDrawShape,
+    color: Int,
+    widthDp: Float,
+    textFontSizeSp: Float,
+    numberStyle: ScreenDrawNumberStyle,
+    numberSizeDp: Float,
+    mosaicRadiusDp: Float,
+    eraserMode: ScreenDrawEraserMode,
+    eraserRadiusDp: Float,
+    onShape: (ScreenDrawShape) -> Unit,
+    onColor: (Int) -> Unit,
+    onWidth: (Float) -> Unit,
+    onTextFontSize: (Float) -> Unit,
+    onNumberStyle: (ScreenDrawNumberStyle) -> Unit,
+    onNumberSize: (Float) -> Unit,
+    onMosaicRadius: (Float) -> Unit,
+    onEraserMode: (ScreenDrawEraserMode) -> Unit,
+    onEraserRadius: (Float) -> Unit,
+) {
+    if (activeTool == null || activeTool == ScreenDrawTool.BOX_SELECT) return
+
+    val blurEnabled = rememberOverlayBlurEnabled()
+    val scheme = MaterialTheme.colorScheme
+    val containerColor = if (blurEnabled) {
+        scheme.surface.copy(alpha = 0.65f)
+    } else {
+        scheme.surface.copy(alpha = 0.90f)
+    }
+    val borderColor = scheme.outline.copy(alpha = 0.18f)
+    val capsuleShadow = if (blurEnabled) 16.dp else 10.dp
+    val isVertical = orientation == ScreenDrawOrientation.VERTICAL
+
+    val panelWidth = if (isVertical) 148.dp else 316.dp
+    val panelHeight = if (isVertical) 316.dp else 148.dp
+
+    GlassCapsule(containerColor, borderColor, capsuleShadow) {
+        Box(
+            modifier = Modifier
+                .width(panelWidth)
+                .height(panelHeight)
+                .padding(
+                    horizontal = if (isVertical) 12.dp else 14.dp,
+                    vertical = if (isVertical) 14.dp else 10.dp,
+                ),
+            contentAlignment = if (isVertical) Alignment.TopCenter else Alignment.Center,
+        ) {
+            Crossfade(targetState = activeTool, animationSpec = tween(140)) { target ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (isVertical) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                    verticalArrangement = Arrangement.spacedBy(if (isVertical) 12.dp else 8.dp),
+                ) {
+                    when (target) {
+                        ScreenDrawTool.PEN -> {
+                            ColorPickerGroup(color, isVertical, onColor)
+                            OptionSliderRow("粗细", widthDp, 1f..24f, isVertical, onWidth)
+                        }
+                        ScreenDrawTool.ERASER -> {
+                            SegmentedButtonsGroup(
+                                items = listOf(
+                                    "整笔擦除" to ScreenDrawEraserMode.STROKE,
+                                    "像素擦除" to ScreenDrawEraserMode.PIXEL,
+                                ),
+                                selected = eraserMode,
+                                isVertical = isVertical,
+                                onSelect = onEraserMode,
+                            )
+                            OptionSliderRow("半径", eraserRadiusDp, 6f..50f, isVertical, onEraserRadius)
+                        }
+                        ScreenDrawTool.SHAPE -> {
+                            ShapeSelectorGroup(shape, isVertical, onShape)
+                            ColorPickerGroup(color, isVertical, onColor)
+                            OptionSliderRow("粗细", widthDp, 1f..20f, isVertical, onWidth)
+                        }
+                        ScreenDrawTool.TEXT -> {
+                            ColorPickerGroup(color, isVertical, onColor)
+                            OptionSliderRow("字号", textFontSizeSp, 12f..72f, isVertical, onTextFontSize)
+                        }
+                        ScreenDrawTool.MOSAIC -> {
+                            OptionSliderRow("半径", mosaicRadiusDp, 10f..50f, isVertical, onMosaicRadius)
+                        }
+                        ScreenDrawTool.NUMBER -> {
+                            NumberStyleSelectorGroup(numberStyle, isVertical, onNumberStyle)
+                            ColorPickerGroup(color, isVertical, onColor)
+                            OptionSliderRow("大小", numberSizeDp, 24f..72f, isVertical, onNumberSize)
+                        }
+                        ScreenDrawTool.LASER -> {
+                            ColorPickerGroup(color, isVertical, onColor)
+                            OptionSliderRow("粗细", widthDp, 2f..20f, isVertical, onWidth)
+                        }
+                        ScreenDrawTool.BOX_SELECT -> Unit
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ================= 组件子项 =================
 
 @Composable
 private fun GlassCapsule(
     containerColor: Color,
     borderColor: Color,
-    shadowElevation: androidx.compose.ui.unit.Dp,
+    shadowElevation: Dp,
     content: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(24.dp)
+    val isDark = isSystemInDarkTheme()
+    // 柔光微透双轨高光边框：暗色模式采用晶莹白光，亮色模式下沿引入深色环境折射，解决纯白背景下隐形无边框感的问题
+    val softGlassBorder = if (isDark) {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.40f),
+                Color.White.copy(alpha = 0.16f),
+                Color.White.copy(alpha = 0.08f),
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.90f),
+                Color(0xFF8E8E93).copy(alpha = 0.22f),
+                Color.Black.copy(alpha = 0.18f),
+            )
+        )
+    }
+    // 柔光表面微透反射渐变
+    val softGlassSurface = if (isDark) {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.15f),
+                Color.White.copy(alpha = 0.03f),
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.25f),
+                Color.White.copy(alpha = 0.04f),
+            )
+        )
+    }
+
     Box(
         modifier = Modifier
-            .shadow(shadowElevation, shape)
+            .shadow(
+                elevation = shadowElevation,
+                shape = shape,
+                ambientColor = Color.Black.copy(alpha = if (isDark) 0.12f else 0.16f),
+                spotColor = Color.Black.copy(alpha = if (isDark) 0.18f else 0.26f),
+            )
             .clip(shape)
-            .border(1.dp, borderColor, shape),
+            .border(BorderStroke(1.dp, softGlassBorder), shape),
     ) {
         LocalFrostedGlassBackdrop(
             modifier = Modifier.matchParentSize(),
             cornerRadiusPx = with(LocalDensity.current) { 24.dp.toPx() },
-            blurRadiusPx = 24,
+            blurRadiusPx = 28,
             tintColor = containerColor.toArgb(),
             solidFallbackColor = MaterialTheme.colorScheme.surface.toArgb(),
+        )
+        // 柔光漫反射覆层
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(softGlassSurface)
         )
         content()
     }
 }
 
-@Composable
-private fun ToolbarCapsule(
-    containerColor: Color,
-    borderColor: Color,
-    shadowElevation: androidx.compose.ui.unit.Dp,
-    onMoveBy: (Float, Float) -> Unit,
-    onMoveFinished: () -> Unit,
-    vertical: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    val haptic = LocalHapticFeedback.current
-    GlassCapsule(containerColor, borderColor, shadowElevation) {
-        val dragModifier = Modifier.pointerInput(Unit) {
-            detectDragGesturesAfterLongPress(
-                onDragStart = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                },
-                onDragEnd = { onMoveFinished() },
-                onDragCancel = { onMoveFinished() },
-            ) { change, dragAmount ->
-                change.consume()
-                onMoveBy(dragAmount.x, dragAmount.y)
-            }
-        }
-        if (vertical) {
-            Column(
-                modifier = Modifier.padding(4.dp).then(dragModifier),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                content()
-            }
-        } else {
-            Row(
-                modifier = Modifier.padding(4.dp).then(dragModifier),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                content()
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionCapsule(
-    containerColor: Color,
-    borderColor: Color,
-    shadowElevation: androidx.compose.ui.unit.Dp,
-    content: @Composable () -> Unit,
-) {
-    GlassCapsule(containerColor, borderColor, shadowElevation) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun ShapeOption(
-    value: ScreenDrawShape,
-    current: ScreenDrawShape,
-    onSelect: (ScreenDrawShape) -> Unit,
-) {
-    ToolButton(shapeIconPainter(value), value == current) { onSelect(value) }
-}
-
-@Composable
-private fun BrushOptions(
-    color: Int,
-    widthDp: Float,
-    onColor: (Int) -> Unit,
-    onWidth: (Float) -> Unit,
-) {
-    COLORS.forEach { swatch ->
-        ColorDot(swatch, color == swatch) { onColor(swatch) }
-    }
-    Box(
-        modifier = Modifier
-            .width(1.dp)
-            .height(22.dp)
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)),
-    )
-    WIDTHS.forEach { value ->
-        WidthDot(value, widthDp == value) { onWidth(value) }
-    }
-}
-
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ToolButton(
     icon: Painter,
     selected: Boolean,
+    enabled: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val activeColor = scheme.primary
+    val contentColor = if (selected) Color.White else scheme.onSurface.copy(alpha = if (enabled) 0.88f else 0.35f)
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(if (selected) activeColor.copy(alpha = 0.92f) else Color.Transparent)
+            .combinedClickable(
+                enabled = enabled,
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            modifier = Modifier.size(19.dp),
+            tint = contentColor,
+        )
+    }
+}
+
+@Composable
+private fun ColorCircleItem(
+    color: Int,
+    isSelected: Boolean,
+    onSelect: (Int) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
-            .size(40.dp)
+            .size(28.dp)
             .clip(CircleShape)
-            .background(
-                if (selected) scheme.primary.copy(alpha = 0.65f) else Color.Transparent,
+            .clickable { onSelect(color) },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .border(2.dp, scheme.primary, CircleShape),
             )
-            .clickable(onClick = onClick),
+        }
+        Box(
+            modifier = Modifier
+                .size(if (isSelected) 20.dp else 24.dp)
+                .clip(CircleShape)
+                .background(Color(color))
+                .border(
+                    0.8.dp,
+                    if (color == 0xFFFFFFFF.toInt()) scheme.onSurface.copy(alpha = 0.25f) else scheme.outline.copy(alpha = 0.15f),
+                    CircleShape,
+                ),
+        )
+    }
+}
+
+@Composable
+private fun ColorPickerGroup(
+    selectedColor: Int,
+    isVertical: Boolean,
+    onSelect: (Int) -> Unit,
+) {
+    if (!isVertical) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PRESET_COLORS.forEach { c ->
+                ColorCircleItem(c, selectedColor == c, onSelect)
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            PRESET_COLORS.toList().chunked(4).forEach { rowColors ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    rowColors.forEach { c ->
+                        ColorCircleItem(c, selectedColor == c, onSelect)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OptionSliderRow(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    isVertical: Boolean,
+    onValueChange: (Float) -> Unit,
+) {
+    var sliderPos by remember(value) { mutableFloatStateOf(value) }
+    val scheme = MaterialTheme.colorScheme
+
+    if (isVertical) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = label,
+                    color = scheme.onSurface.copy(alpha = 0.85f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = "${sliderPos.roundToInt()}",
+                    color = scheme.primary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Slider(
+                value = sliderPos.coerceIn(range.start, range.endInclusive),
+                onValueChange = {
+                    sliderPos = it
+                    onValueChange(it)
+                },
+                valueRange = range,
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = scheme.primary,
+                    activeTrackColor = scheme.primary,
+                    inactiveTrackColor = scheme.onSurface.copy(alpha = 0.18f),
+                ),
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = label,
+                color = scheme.onSurface.copy(alpha = 0.85f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.width(32.dp),
+            )
+            Slider(
+                value = sliderPos.coerceIn(range.start, range.endInclusive),
+                onValueChange = {
+                    sliderPos = it
+                    onValueChange(it)
+                },
+                valueRange = range,
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = scheme.primary,
+                    activeTrackColor = scheme.primary,
+                    inactiveTrackColor = scheme.onSurface.copy(alpha = 0.18f),
+                ),
+            )
+            Text(
+                text = sliderPos.roundToInt().toString(),
+                color = scheme.onSurface,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.width(28.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun <T> SegmentedButtonsGroup(
+    items: List<Pair<String, T>>,
+    selected: T,
+    isVertical: Boolean,
+    onSelect: (T) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(12.dp)
+    if (!isVertical) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            items.forEach { (title, value) ->
+                val isSelected = selected == value
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(30.dp)
+                        .clip(shape)
+                        .background(if (isSelected) scheme.primary else Color.Transparent)
+                        .clickable { onSelect(value) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = title,
+                        color = if (isSelected) Color.White else scheme.onSurface.copy(alpha = 0.75f),
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                }
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(scheme.onSurface.copy(alpha = 0.08f))
+                .padding(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            items.forEach { (title, value) ->
+                val isSelected = selected == value
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .clip(shape)
+                        .background(if (isSelected) scheme.primary else Color.Transparent)
+                        .clickable { onSelect(value) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = title,
+                        color = if (isSelected) Color.White else scheme.onSurface.copy(alpha = 0.75f),
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShapeItem(
+    shape: ScreenDrawShape,
+    icon: Painter,
+    isSelected: Boolean,
+    onSelect: (ScreenDrawShape) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isSelected) scheme.primary.copy(alpha = 0.85f) else scheme.onSurface.copy(alpha = 0.08f))
+            .clickable { onSelect(shape) },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = icon,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = if (selected) Color.White else scheme.onSurface.copy(alpha = 0.82f),
+            tint = if (isSelected) Color.White else scheme.onSurface.copy(alpha = 0.85f),
         )
     }
 }
 
 @Composable
-private fun ColorDot(color: Int, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(24.dp)
-            .clip(CircleShape)
-            .background(Color(color))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(Color.White),
-            )
+private fun ShapeSelectorGroup(
+    current: ScreenDrawShape,
+    isVertical: Boolean,
+    onSelect: (ScreenDrawShape) -> Unit,
+) {
+    val list = listOf(
+        ScreenDrawShape.RECTANGLE to painterResource(R.drawable.ic_iconoir_square),
+        ScreenDrawShape.OVAL to rememberVectorPainter(Icons.Outlined.Circle),
+        ScreenDrawShape.TRIANGLE to painterResource(R.drawable.ic_screen_draw_triangle),
+        ScreenDrawShape.LINE to rememberVectorPainter(Icons.Outlined.Remove),
+        ScreenDrawShape.DASHED_LINE to painterResource(R.drawable.ic_screen_draw_dashed_line),
+        ScreenDrawShape.ARROW to rememberVectorPainter(Icons.AutoMirrored.Outlined.ArrowForward),
+    )
+    if (!isVertical) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            list.forEach { (shape, icon) ->
+                ShapeItem(shape, icon, current == shape, onSelect)
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            list.chunked(3).forEach { rowShapes ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    rowShapes.forEach { (shape, icon) ->
+                        ShapeItem(shape, icon, current == shape, onSelect)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun WidthDot(widthDp: Float, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.65f) else Color.Transparent,
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+private fun NumberStyleSelectorGroup(
+    current: ScreenDrawNumberStyle,
+    isVertical: Boolean,
+    onSelect: (ScreenDrawNumberStyle) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val list = listOf(
+        ScreenDrawNumberStyle.SOLID_CIRCLE to "❶",
+        ScreenDrawNumberStyle.HOLLOW_CIRCLE to "①",
+        ScreenDrawNumberStyle.PURE_NUMBER to "1",
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isVertical) Arrangement.SpaceBetween else Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size((2f * widthDp + 4f).dp)
-                .clip(CircleShape)
-                .background(
-                    if (selected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                ),
-        )
+        list.forEach { (style, label) ->
+            val isSelected = current == style
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) scheme.primary.copy(alpha = 0.85f) else scheme.onSurface.copy(alpha = 0.08f))
+                    .clickable { onSelect(style) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) Color.White else scheme.onSurface.copy(alpha = 0.85f),
+                )
+            }
+        }
     }
 }
 
@@ -415,19 +840,128 @@ private fun WidthDot(widthDp: Float, selected: Boolean, onClick: () -> Unit) {
 private fun shapePainter(shape: ScreenDrawShape): Painter = when (shape) {
     ScreenDrawShape.RECTANGLE -> painterResource(R.drawable.ic_iconoir_square)
     ScreenDrawShape.OVAL -> rememberVectorPainter(Icons.Outlined.Circle)
+    ScreenDrawShape.TRIANGLE -> painterResource(R.drawable.ic_screen_draw_triangle)
     ScreenDrawShape.LINE -> rememberVectorPainter(Icons.Outlined.Remove)
-    ScreenDrawShape.ARROW -> rememberVectorPainter(Icons.Outlined.ArrowForward)
+    ScreenDrawShape.DASHED_LINE -> painterResource(R.drawable.ic_screen_draw_dashed_line)
+    ScreenDrawShape.ARROW -> rememberVectorPainter(Icons.AutoMirrored.Outlined.ArrowForward)
 }
 
+/**
+ * 屏幕绘制缩小后的精致小巧柔光玻璃悬浮球：
+ * - 尺寸 48dp
+ * - 背景柔光高斯毛玻璃，高透微光漫反射
+ * - 中心根据当前工具展示对应图标
+ * - 右下角带白色微描边的当前颜色指示圆点
+ */
 @Composable
-private fun shapeIconPainter(shape: ScreenDrawShape): Painter = shapePainter(shape)
+internal fun ScreenDrawMinimizedBallCompose(
+    currentTool: ScreenDrawTool,
+    shape: ScreenDrawShape,
+    color: Int,
+    onClick: () -> Unit,
+) {
+    val blurEnabled = rememberOverlayBlurEnabled()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isSystemInDarkTheme()
+    val containerColor = if (isDark) {
+        if (blurEnabled) Color(0xFF1E2024).copy(alpha = 0.65f) else Color(0xFF22242A).copy(alpha = 0.92f)
+    } else {
+        if (blurEnabled) Color(0xFFF0F2F5).copy(alpha = 0.82f) else Color(0xFFF7F8FA).copy(alpha = 0.96f)
+    }
+    val iconPainter = when (currentTool) {
+        ScreenDrawTool.PEN -> painterResource(R.drawable.ic_iconoir_edit_pencil)
+        ScreenDrawTool.ERASER -> painterResource(R.drawable.ic_remix_eraser)
+        ScreenDrawTool.LASER -> painterResource(R.drawable.ic_remix_magic_line)
+        ScreenDrawTool.SHAPE -> shapePainter(shape)
+        ScreenDrawTool.TEXT -> painterResource(R.drawable.ic_screen_draw_text)
+        ScreenDrawTool.MOSAIC -> painterResource(R.drawable.ic_screen_draw_mosaic)
+        ScreenDrawTool.NUMBER -> painterResource(R.drawable.ic_screen_draw_number)
+        ScreenDrawTool.BOX_SELECT -> painterResource(R.drawable.ic_screen_draw_frame)
+    }
 
-private val COLORS = intArrayOf(
-    0xFFFF3B30.toInt(),
-    0xFFFFCC00.toInt(),
-    0xFF34C759.toInt(),
-    0xFF0A84FF.toInt(),
-    0xFFFFFFFF.toInt(),
-)
+    val hasColorBadge = when (currentTool) {
+        ScreenDrawTool.PEN, ScreenDrawTool.SHAPE, ScreenDrawTool.TEXT, ScreenDrawTool.NUMBER -> true
+        else -> false
+    }
 
-private val WIDTHS = floatArrayOf(1.5f, 3f, 6f)
+    val softGlassBorder = if (isDark) {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.45f),
+                Color.White.copy(alpha = 0.18f),
+                Color.White.copy(alpha = 0.10f),
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.92f),
+                Color(0xFF8E8E93).copy(alpha = 0.25f),
+                Color.Black.copy(alpha = 0.22f),
+            )
+        )
+    }
+    val softGlassSurface = if (isDark) {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.16f),
+                Color.White.copy(alpha = 0.04f),
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.28f),
+                Color.White.copy(alpha = 0.06f),
+            )
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .shadow(
+                elevation = if (blurEnabled) 16.dp else 10.dp,
+                shape = CircleShape,
+                ambientColor = Color.Black.copy(alpha = if (isDark) 0.12f else 0.18f),
+                spotColor = Color.Black.copy(alpha = if (isDark) 0.20f else 0.28f),
+            )
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .border(BorderStroke(1.2.dp, softGlassBorder), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        LocalFrostedGlassBackdrop(
+            modifier = Modifier.matchParentSize(),
+            cornerRadiusPx = with(LocalDensity.current) { 24.dp.toPx() },
+            blurRadiusPx = 28,
+            tintColor = containerColor.toArgb(),
+            solidFallbackColor = MaterialTheme.colorScheme.surface.toArgb(),
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(softGlassSurface)
+        )
+
+        Icon(
+            painter = iconPainter,
+            contentDescription = "恢复屏幕绘制",
+            modifier = Modifier.size(22.dp),
+            tint = scheme.onSurface.copy(alpha = 0.88f),
+        )
+
+        if (hasColorBadge) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 5.dp, bottom = 5.dp)
+                    .size(11.dp)
+                    .shadow(1.5.dp, CircleShape)
+                    .background(Color.White, CircleShape)
+                    .padding(1.2.dp)
+                    .background(Color(color), CircleShape)
+            )
+        }
+    }
+}

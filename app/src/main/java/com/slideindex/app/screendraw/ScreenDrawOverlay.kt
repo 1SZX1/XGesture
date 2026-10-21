@@ -1,5 +1,6 @@
 package com.slideindex.app.screendraw
 
+import android.content.ClipData
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -7,8 +8,8 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
@@ -22,6 +23,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
@@ -46,22 +48,14 @@ import kotlin.math.roundToInt
 /**
  * 「屏幕绘制」：全屏实时标注层。
  *
- * 画布是透明全屏窗口，直接盖在实时屏幕上（不是先截图）；只有导出时才调用无障碍截图，
- * 把画布位图叠到截图上再存相册。
+ * 画布是透明全屏窗口，直接盖在实时屏幕上；
+ * 工具栏包含 14 项完整操作，工具配置面板通过 Compose 磨砂胶囊实时展开，
+ * 包含文字变换、序号角标、马赛克、框选矩形高亮等完整功能。
  */
 object ScreenDrawOverlay {
 
     private const val TAG = "ScreenDraw"
-    private const val TOOLBAR_MARGIN_DP = 24f
     private const val CAPTURE_DELAY_MS = 150L
-    private val COLORS_FOR_OPTIONS = intArrayOf(
-        0xFFFF3B30.toInt(),
-        0xFFFFCC00.toInt(),
-        0xFF34C759.toInt(),
-        0xFF0A84FF.toInt(),
-        0xFFFFFFFF.toInt(),
-    )
-    private val WIDTHS_FOR_OPTIONS = floatArrayOf(1.5f, 3f, 6f)
 
     private enum class ExportAction { SAVE, COPY, SHARE }
 
@@ -76,20 +70,34 @@ object ScreenDrawOverlay {
     private var toolbarParams: WindowManager.LayoutParams? = null
     private var toolbarOwner: OverlayComposeOwner? = null
     private var toolbarBlurEnabled = false
-    private val optionsModeState = mutableStateOf<ScreenDrawOptions?>(null)
-    private var optionsView: View? = null
-    private var optionsParams: WindowManager.LayoutParams? = null
-    private var orientationState = mutableStateOf(ScreenDrawOrientation.HORIZONTAL)
-    private val toolbarScreenYState = mutableStateOf(0)
+    private val orientationState = mutableStateOf(ScreenDrawOrientation.HORIZONTAL)
+    private val currentToolState = mutableStateOf(ScreenDrawTool.PEN)
+    private val popupOptionsToolState = mutableStateOf<ScreenDrawTool?>(null)
+    private var isOptionsPopupShowing = false
+    private var optionsPopupView: View? = null
+    private var optionsOwner: OverlayComposeOwner? = null
     private val passthroughState = mutableStateOf(false)
+    private val canUndoState = mutableStateOf(false)
+    private val canRedoState = mutableStateOf(false)
+    private val strokeWidthState = mutableStateOf(3f)
+    private val textFontSizeState = mutableStateOf(24f)
+    private val numberSizeState = mutableStateOf(48f)
+    private val mosaicRadiusState = mutableStateOf(28f)
+    private val eraserRadiusState = mutableStateOf(20f)
+    private val colorState = mutableStateOf(ScreenDrawCanvasView.DEFAULT_COLOR)
+    private val shapeState = mutableStateOf(ScreenDrawShape.RECTANGLE)
+    private val numberStyleState = mutableStateOf(ScreenDrawNumberStyle.SOLID_CIRCLE)
+    private val eraserModeState = mutableStateOf(ScreenDrawEraserMode.STROKE)
     private var passthrough = false
     private var minimized = false
     private var ballView: View? = null
     private var ballParams: WindowManager.LayoutParams? = null
+    private var ballOwner: OverlayComposeOwner? = null
+    private var ballLastX: Int? = null
+    private var ballLastY: Int? = null
     private var textEditor: LinearLayout? = null
     private var textInput: EditText? = null
-    private var textAnchorX = 0f
-    private var textAnchorY = 0f
+    private var textCallback: ((String) -> Unit)? = null
 
     private var density = 1f
     private var screenWidth = 1
@@ -135,11 +143,27 @@ object ScreenDrawOverlay {
         saving = false
         passthrough = false
         passthroughState.value = false
+        canUndoState.value = false
+        canRedoState.value = false
         minimized = false
         orientationState.value = ScreenDrawOrientation.HORIZONTAL
-        toolbarScreenYState.value = 0
+        currentToolState.value = ScreenDrawTool.PEN
+        popupOptionsToolState.value = null
+        isOptionsPopupShowing = false
+        strokeWidthState.value = 3f
+        textFontSizeState.value = 24f
+        numberSizeState.value = 48f
+        mosaicRadiusState.value = 28f
+        eraserRadiusState.value = 20f
+        colorState.value = ScreenDrawCanvasView.DEFAULT_COLOR
+        shapeState.value = ScreenDrawShape.RECTANGLE
+        numberStyleState.value = ScreenDrawNumberStyle.SOLID_CIRCLE
+        eraserModeState.value = ScreenDrawEraserMode.STROKE
 
         val drawCanvas = ScreenDrawCanvasView(host) { dismiss() }
+        drawCanvas.onTouchDown = {
+            hideOptionsPopup()
+        }
         val canvasHost = FrameLayout(host).apply {
             addView(
                 drawCanvas,
@@ -149,6 +173,73 @@ object ScreenDrawOverlay {
                 ),
             )
         }
+
+        // 独立的配置面板卡片（挂在全屏透明 canvasHost 内，横排 316×148dp，竖排 148×316dp，默认 GONE，决不自动打开）
+        val optionsOwner = OverlayComposeOwner()
+        OverlayCompose.bindOwners(canvasHost, optionsOwner)
+        val optionsView = OverlayCompose.createComposeView(host, optionsOwner).apply {
+            visibility = View.GONE
+            setContent {
+                OverlayAwareModuleTheme {
+                    ScreenDrawOptionsPanelCompose(
+                        orientation = orientationState.value,
+                        activeTool = popupOptionsToolState.value,
+                        shape = shapeState.value,
+                        color = colorState.value,
+                        widthDp = strokeWidthState.value,
+                        textFontSizeSp = textFontSizeState.value,
+                        numberStyle = numberStyleState.value,
+                        numberSizeDp = numberSizeState.value,
+                        mosaicRadiusDp = mosaicRadiusState.value,
+                        eraserMode = eraserModeState.value,
+                        eraserRadiusDp = eraserRadiusState.value,
+                        onShape = {
+                            shapeState.value = it
+                            canvas?.shape = it
+                        },
+                        onColor = {
+                            colorState.value = it
+                            canvas?.color = it
+                        },
+                        onWidth = {
+                            strokeWidthState.value = it
+                            canvas?.widthPx = it * density
+                        },
+                        onTextFontSize = {
+                            textFontSizeState.value = it
+                            canvas?.textFontSizeSp = it
+                        },
+                        onNumberStyle = {
+                            numberStyleState.value = it
+                            canvas?.numberStyle = it
+                        },
+                        onNumberSize = {
+                            numberSizeState.value = it
+                            canvas?.numberSizePx = it * density
+                        },
+                        onMosaicRadius = {
+                            mosaicRadiusState.value = it
+                            canvas?.mosaicRadiusPx = it * density
+                        },
+                        onEraserMode = {
+                            eraserModeState.value = it
+                            canvas?.eraserMode = it
+                        },
+                        onEraserRadius = {
+                            eraserRadiusState.value = it
+                            canvas?.eraserRadiusPx = it * density
+                        },
+                    )
+                }
+            }
+        }
+        canvasHost.addView(
+            optionsView,
+            FrameLayout.LayoutParams(dp(316f), dp(148f)),
+        )
+        this.optionsPopupView = optionsView
+        this.optionsOwner = optionsOwner
+
         val editor = buildTextEditor(host)
         canvasHost.addView(
             editor,
@@ -156,9 +247,10 @@ object ScreenDrawOverlay {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT,
             ).apply {
-                gravity = Gravity.CENTER
-                leftMargin = dp(24f)
-                rightMargin = dp(24f)
+                gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+                topMargin = (screenHeight * 0.22f).roundToInt()
+                leftMargin = dp(28f)
+                rightMargin = dp(28f)
             },
         )
         val canvasLayout = WindowManager.LayoutParams(
@@ -188,45 +280,47 @@ object ScreenDrawOverlay {
         textEditor = editor
         drawCanvas.requestFocus()
 
+        drawCanvas.onContentChanged = {
+            canUndoState.value = drawCanvas.canUndo
+            canRedoState.value = drawCanvas.canRedo
+        }
+        drawCanvas.onRequestTextInput = { x, y, initial, onDone ->
+            showTextEditor(x, y, initial, onDone)
+        }
+        drawCanvas.onRequestDragAndDrop = { cropRect ->
+            startDragAndDropShare(cropRect)
+        }
+
+        // 异步获取当前屏幕底图供马赛克打码使用
+        SlideIndexAccessibilityService.captureDisplayBitmap { outcome ->
+            if (outcome is ScreenshotCaptureOutcome.Success) {
+                drawCanvas.backgroundSnapshot = outcome.bitmap
+            }
+        }
+
+        // 独立的主工具栏窗口（尺寸永久固定，零抖动，零重排）
         val toolbarOwner = OverlayComposeOwner()
         val drawToolbar = OverlayCompose.createComposeView(host, toolbarOwner).apply {
             setContent {
                 OverlayAwareModuleTheme {
-                    ScreenDrawToolbarCompose(
+                    ScreenDrawMainToolbarCompose(
                         orientation = orientationState.value,
                         passthrough = passthroughState.value,
-                        toolbarScreenY = toolbarScreenYState.value,
-                        optionsMode = optionsModeState.value,
-                        initialTool = canvas?.tool ?: ScreenDrawTool.PEN,
-                        initialShape = canvas?.shape ?: ScreenDrawShape.RECTANGLE,
-                        initialColor = canvas?.color ?: ScreenDrawCanvasView.DEFAULT_COLOR,
-                        initialWidthDp = (canvas?.widthPx ?: (3f * density)) / density,
-                        onTool = { canvas?.tool = it },
-                        onShape = { canvas?.shape = it },
-                        onColor = { canvas?.color = it },
-                        onWidth = { canvas?.widthPx = it },
-                        onUndo = { canvas?.undo() },
-                        onClear = { canvas?.clear() },
-                        onToggleOrientation = {
-                            toolbar?.visibility = View.INVISIBLE
-                            orientationState.value =
-                                if (orientationState.value == ScreenDrawOrientation.HORIZONTAL) {
-                                    ScreenDrawOrientation.VERTICAL
-                                } else {
-                                    ScreenDrawOrientation.HORIZONTAL
-                                }
-                            mainHandler.postDelayed({
-                                positionToolbar()
-                                toolbar?.visibility = View.VISIBLE
-                                toolbar?.alpha = 1f
-                            }, 180L)
+                        canUndo = canUndoState.value,
+                        canRedo = canRedoState.value,
+                        currentTool = currentToolState.value,
+                        shape = shapeState.value,
+                        onToolClick = { target ->
+                            handleToolClick(target)
                         },
+                        onUndo = { canvas?.undo() },
+                        onRedo = { canvas?.redo() },
+                        onClear = { canvas?.clear() },
                         onTogglePassthrough = { setPassthrough(!passthrough) },
+                        onToggleOrientation = { toggleOrientation() },
                         onMinimize = { minimizeDraw() },
                         onFinish = { export(ExportAction.SAVE) },
                         onExit = { dismiss() },
-                        onShapeOptions = { toggleOptions(ScreenDrawOptions.SHAPE) },
-                        onBrushOptions = { toggleOptions(ScreenDrawOptions.BRUSH) },
                         onBlurEnabled = { setToolbarBlur(it) },
                         onMoveBy = { dx, dy -> moveToolbarBy(dx, dy) },
                         onMoveFinished = {},
@@ -234,9 +328,12 @@ object ScreenDrawOverlay {
                 }
             }
         }
+
+        val tbWidth = dp(316f)
+        val tbHeight = dp(86f)
         val toolbarLayout = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            tbWidth,
+            tbHeight,
             OverlayWindowTypes.overlayWindowType(host),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -245,6 +342,8 @@ object ScreenDrawOverlay {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
+            x = ((screenWidth - tbWidth) / 2).coerceAtLeast(0)
+            y = (screenHeight - tbHeight - dp(28f)).coerceAtLeast(0)
             layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             OverlayWindowTypes.ensureNoBrightnessOverride(this)
@@ -263,96 +362,140 @@ object ScreenDrawOverlay {
         toolbarParams = toolbarLayout
         this.toolbarOwner = toolbarOwner
         setToolbarBlur(toolbarBlurEnabled)
-        drawToolbar.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
-            override fun onLayoutChange(
-                v: View,
-                left: Int,
-                top: Int,
-                right: Int,
-                bottom: Int,
-                oldLeft: Int,
-                oldTop: Int,
-                oldRight: Int,
-                oldBottom: Int,
-            ) {
-                if (drawToolbar.width <= 0 || drawToolbar.height <= 0) return
-                drawToolbar.removeOnLayoutChangeListener(this)
-                positionToolbar()
-                drawToolbar.animate().alpha(1f).setDuration(120L).start()
-            }
-        })
-        drawToolbar.post {
-            if (drawToolbar.width > 0 && drawToolbar.height > 0) {
-                positionToolbar()
-                drawToolbar.animate().alpha(1f).setDuration(120L).start()
-            }
-        }
+        drawToolbar.animate().alpha(1f).setDuration(120L).start()
 
         screenOffReceiver = ScreenOffDismissReceiver { dismiss() }.also { it.register(host) }
         rotationMonitor = OverlayDisplayRotationMonitor(host) { dismiss() }.also { it.start() }
 
-        // 悬浮指针/悬浮球是 TYPE_APPLICATION_OVERLAY，层级高于无障碍绘制层；
-        // 不收起会全屏吞触摸，画布收不到事件。
         suppressOtherOverlays()
 
         Log.i(TAG, "shown")
         return true
     }
 
+    private fun handleToolClick(target: ScreenDrawTool) {
+        val current = currentToolState.value
+        val canvasView = canvas ?: return
+        canvasView.tool = target
+        currentToolState.value = target
+
+        if (target == ScreenDrawTool.BOX_SELECT) {
+            hideOptionsPopup()
+            return
+        }
+
+        if (current == target) {
+            if (isOptionsPopupShowing) {
+                hideOptionsPopup()
+            } else {
+                showOptionsPopup(target)
+            }
+        } else {
+            hideOptionsPopup()
+        }
+    }
+
+    private fun showOptionsPopup(tool: ScreenDrawTool) {
+        val popup = optionsPopupView ?: return
+        val tbParams = toolbarParams ?: return
+        val isVertical = orientationState.value == ScreenDrawOrientation.VERTICAL
+        val tbWidth = tbParams.width
+        val tbHeight = tbParams.height
+        val panelWidth = if (isVertical) dp(148f) else dp(316f)
+        val panelHeight = if (isVertical) dp(316f) else dp(148f)
+        val gap = dp(8f)
+
+        val lp = popup.layoutParams as? FrameLayout.LayoutParams
+        if (lp != null && (lp.width != panelWidth || lp.height != panelHeight)) {
+            lp.width = panelWidth
+            lp.height = panelHeight
+            popup.layoutParams = lp
+        }
+
+        val targetX: Float
+        val targetY: Float
+
+        if (isVertical) {
+            // 竖排模式：工具栏高 316dp，宽 96dp。面板在左方或右方，高度 316dp，与工具栏齐高
+            val tbCenterX = tbParams.x + tbWidth / 2f
+            val rawX = if (tbCenterX > screenWidth / 2f) {
+                (tbParams.x - panelWidth - gap).toFloat()
+            } else {
+                (tbParams.x + tbWidth + gap).toFloat()
+            }
+            targetX = rawX.coerceIn(dp(10f).toFloat(), (screenWidth - panelWidth - dp(10f)).toFloat())
+            val rawY = tbParams.y + (tbHeight - panelHeight) / 2f
+            targetY = rawY.coerceIn(dp(16f).toFloat(), (screenHeight - panelHeight - dp(16f)).toFloat())
+        } else {
+            // 横排模式：工具栏宽 316dp，高 80dp。面板在上方或下方，宽度 316dp
+            val tbCenterY = tbParams.y + tbHeight / 2f
+            if (tbCenterY > screenHeight * 0.45f) {
+                // 工具栏在下半部，面板在上方
+                targetY = (tbParams.y - panelHeight - gap).toFloat()
+            } else {
+                // 工具栏在上半部，面板在下方
+                targetY = (tbParams.y + tbHeight + gap).toFloat()
+            }
+            // 水平居中对齐工具栏，限制在安全屏幕内
+            val rawX = tbParams.x + (tbWidth - panelWidth) / 2f
+            targetX = rawX.coerceIn(dp(12f).toFloat(), (screenWidth - panelWidth - dp(12f)).toFloat())
+        }
+
+        popup.translationX = targetX
+        popup.translationY = targetY
+        popupOptionsToolState.value = tool
+        if (!isOptionsPopupShowing) {
+            popup.alpha = 0f
+            popup.visibility = View.VISIBLE
+            popup.animate().alpha(1f).setDuration(140L).start()
+            isOptionsPopupShowing = true
+        }
+    }
+
+    private fun hideOptionsPopup() {
+        val popup = optionsPopupView ?: return
+        if (!isOptionsPopupShowing) return
+        isOptionsPopupShowing = false
+        popup.animate().alpha(0f).setDuration(120L).withEndAction {
+            popup.visibility = View.GONE
+            popupOptionsToolState.value = null
+        }.start()
+    }
+
+    private fun toggleOrientation() {
+        hideOptionsPopup()
+        val isVertical = orientationState.value == ScreenDrawOrientation.VERTICAL
+        val nextOrientation = if (isVertical) ScreenDrawOrientation.HORIZONTAL else ScreenDrawOrientation.VERTICAL
+        orientationState.value = nextOrientation
+
+        val view = toolbar ?: return
+        val params = toolbarParams ?: return
+        val wm = windowManager ?: return
+
+        if (nextOrientation == ScreenDrawOrientation.VERTICAL) {
+            params.width = dp(86f)
+            params.height = dp(316f)
+            params.x = (screenWidth - dp(86f) - dp(16f)).coerceAtLeast(0)
+            params.y = ((screenHeight - dp(316f)) / 2).coerceAtLeast(0)
+        } else {
+            params.width = dp(316f)
+            params.height = dp(86f)
+            params.x = ((screenWidth - dp(316f)) / 2).coerceAtLeast(0)
+            params.y = (screenHeight - dp(86f) - dp(28f)).coerceAtLeast(0)
+        }
+        runCatching { wm.updateViewLayout(view, params) }
+    }
+
     private fun moveToolbarBy(dx: Float, dy: Float) {
         val view = toolbar ?: return
         val params = toolbarParams ?: return
         val wm = windowManager ?: return
-        val width = view.width.coerceAtLeast(1)
-        val height = view.height.coerceAtLeast(1)
-        if (orientationState.value == ScreenDrawOrientation.HORIZONTAL) {
-            // BOTTOM gravity：选项行出现时窗口向上长，底边不动，不抖。
-            params.gravity = Gravity.BOTTOM or Gravity.START
-            params.x = (params.x + dx.roundToInt())
-                .coerceIn(0, (screenWidth - width).coerceAtLeast(0))
-            params.y = (params.y - dy.roundToInt())
-                .coerceIn(0, (screenHeight - height).coerceAtLeast(0))
-        } else {
-            params.gravity = Gravity.TOP or Gravity.END
-            params.x = (params.x - dx.roundToInt())
-                .coerceIn(0, (screenWidth - width).coerceAtLeast(0))
-            params.y = (params.y + dy.roundToInt())
-                .coerceIn(0, (screenHeight - height).coerceAtLeast(0))
-        }
+        val width = params.width
+        val height = params.height
+        params.x = (params.x + dx.roundToInt()).coerceIn(0, (screenWidth - width).coerceAtLeast(0))
+        params.y = (params.y + dy.roundToInt()).coerceIn(0, (screenHeight - height).coerceAtLeast(0))
         runCatching { wm.updateViewLayout(view, params) }
-        updateToolbarScreenY()
-        if (optionsView != null) positionOptions()
-    }
-
-    private fun updateToolbarScreenY() {
-        val view = toolbar ?: return
-        val params = toolbarParams ?: return
-        val height = view.height.coerceAtLeast(1)
-        toolbarScreenYState.value = if (orientationState.value == ScreenDrawOrientation.HORIZONTAL) {
-            (screenHeight - params.y - height).coerceAtLeast(0)
-        } else {
-            params.y
-        }
-    }
-
-    private fun positionToolbar() {
-        val view = toolbar ?: return
-        val params = toolbarParams ?: return
-        val wm = windowManager ?: return
-        val width = view.width.coerceAtLeast(1)
-        val height = view.height.coerceAtLeast(1)
-        if (orientationState.value == ScreenDrawOrientation.HORIZONTAL) {
-            params.gravity = Gravity.BOTTOM or Gravity.START
-            params.x = ((screenWidth - width) / 2).coerceAtLeast(0)
-            params.y = dp(28f)
-        } else {
-            params.gravity = Gravity.TOP or Gravity.END
-            params.x = dp(16f)
-            params.y = ((screenHeight - height) * 0.62f).roundToInt().coerceAtLeast(0)
-        }
-        runCatching { wm.updateViewLayout(view, params) }
-        updateToolbarScreenY()
-        if (optionsView != null) positionOptions()
+        hideOptionsPopup()
     }
 
     private fun setToolbarBlur(enabled: Boolean) {
@@ -373,291 +516,232 @@ object ScreenDrawOverlay {
         runCatching { wm.updateViewLayout(view, params) }
     }
 
-    private fun toggleOptions(mode: ScreenDrawOptions) {
-        if (optionsModeState.value == mode) {
-            hideOptions()
-        } else {
-            showOptions(mode)
+    private fun minimizeDraw() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { minimizeDraw() }
+            return
         }
-    }
-
-    private fun showOptions(mode: ScreenDrawOptions) {
-        hideOptions()
-        val host = hostContext ?: return
+        if (minimized) return
+        minimized = true
+        Log.i(TAG, "minimizeDraw: minimizing screen draw")
+        hideOptionsPopup()
+        val cView = canvasHost
+        val cParams = canvasParams
         val wm = windowManager ?: return
-        optionsModeState.value = mode
-        val row = buildOptionsView(host, mode).apply { alpha = 0f }
+        if (cView != null && cParams != null) {
+            cView.visibility = View.GONE
+            cParams.flags = cParams.flags or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            runCatching { wm.updateViewLayout(cView, cParams) }
+                .onFailure { Log.e(TAG, "minimizeDraw: cView updateViewLayout failed", it) }
+        }
+        val tView = toolbar
+        val tParams = toolbarParams
+        if (tView != null && tParams != null) {
+            tView.visibility = View.GONE
+            tParams.flags = tParams.flags or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            runCatching { wm.updateViewLayout(tView, tParams) }
+                .onFailure { Log.e(TAG, "minimizeDraw: tView updateViewLayout failed", it) }
+        }
+
+        val host = hostContext ?: return
+        val size = dp(48f)
+
+        val owner = OverlayComposeOwner()
+        val ballComposeView = OverlayCompose.createComposeView(host, owner).apply {
+            setContent {
+                OverlayAwareModuleTheme {
+                    ScreenDrawMinimizedBallCompose(
+                        currentTool = currentToolState.value,
+                        shape = shapeState.value,
+                        color = colorState.value,
+                        onClick = {
+                            Log.i(TAG, "ball Compose onClick triggered")
+                            restoreDraw()
+                        },
+                    )
+                }
+            }
+        }
+
+        val ballContainer = object : FrameLayout(host) {
+            private var downRawX = 0f
+            private var downRawY = 0f
+            private var startWindowX = 0
+            private var startWindowY = 0
+            private var isDragging = false
+            private val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
+
+            override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+                val p = ballParams ?: return super.dispatchTouchEvent(ev)
+                when (ev.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        downRawX = ev.rawX
+                        downRawY = ev.rawY
+                        startWindowX = p.x
+                        startWindowY = p.y
+                        isDragging = false
+                        super.dispatchTouchEvent(ev)
+                        return true
+                    }
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val dx = ev.rawX - downRawX
+                        val dy = ev.rawY - downRawY
+                        if (!isDragging && (dx * dx + dy * dy > slop * slop)) {
+                            isDragging = true
+                            val cancel = android.view.MotionEvent.obtain(ev).apply {
+                                action = android.view.MotionEvent.ACTION_CANCEL
+                            }
+                            super.dispatchTouchEvent(cancel)
+                            cancel.recycle()
+                        }
+                        if (isDragging) {
+                            p.x = (startWindowX + dx.roundToInt())
+                                .coerceIn(0, (screenWidth - size).coerceAtLeast(0))
+                            p.y = (startWindowY + dy.roundToInt())
+                                .coerceIn(0, (screenHeight - size).coerceAtLeast(0))
+                            ballLastX = p.x
+                            ballLastY = p.y
+                            runCatching { wm.updateViewLayout(this, p) }
+                            return true
+                        }
+                        return super.dispatchTouchEvent(ev)
+                    }
+                    android.view.MotionEvent.ACTION_UP -> {
+                        if (isDragging) {
+                            isDragging = false
+                            return true
+                        }
+                        return super.dispatchTouchEvent(ev)
+                    }
+                    android.view.MotionEvent.ACTION_CANCEL -> {
+                        isDragging = false
+                        return super.dispatchTouchEvent(ev)
+                    }
+                }
+                return super.dispatchTouchEvent(ev)
+            }
+        }.apply {
+            OverlayCompose.bindOwners(this, owner)
+            addView(
+                ballComposeView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
+
+        val defaultX = (screenWidth - size - dp(12f)).coerceAtLeast(0)
+        val defaultY = ((screenHeight - size) / 2).coerceAtLeast(0)
+        val targetX = (ballLastX ?: defaultX).coerceIn(0, (screenWidth - size).coerceAtLeast(0))
+        val targetY = (ballLastY ?: defaultY).coerceIn(0, (screenHeight - size).coerceAtLeast(0))
+
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            size,
+            size,
             OverlayWindowTypes.overlayWindowType(host),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            alpha = 1f
+            x = targetX
+            y = targetY
+            layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            OverlayWindowTypes.ensureNoBrightnessOverride(this)
         }
-        optionsView = row
-        optionsParams = params
-        row.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
-            override fun onLayoutChange(
-                v: View,
-                left: Int,
-                top: Int,
-                right: Int,
-                bottom: Int,
-                oldLeft: Int,
-                oldTop: Int,
-                oldRight: Int,
-                oldBottom: Int,
-            ) {
-                if (v.width <= 0 || v.height <= 0) return
-                v.removeOnLayoutChangeListener(this)
-                positionOptions()
-                v.animate().alpha(1f).setDuration(120L).start()
-            }
-        })
-        runCatching { wm.addView(row, params) }
-        optionsView = row
-        optionsParams = params
-    }
 
-    private fun hideOptions() {
-        optionsModeState.value = null
-        optionsView?.let { view -> runCatching { windowManager?.removeView(view) } }
-        optionsView = null
-        optionsParams = null
-    }
-
-    private fun positionOptions() {
-        val view = optionsView ?: return
-        val toolbarView = toolbar ?: return
-        val params = optionsParams ?: return
-        val wm = windowManager ?: return
-        val loc = IntArray(2)
-        toolbarView.getLocationOnScreen(loc)
-        val toolbarWidth = toolbarView.width.coerceAtLeast(1)
-        val toolbarHeight = toolbarView.height.coerceAtLeast(1)
-        val optionsWidth = view.width.coerceAtLeast(1)
-        val optionsHeight = view.height.coerceAtLeast(1)
-        val centerY = loc[1] + toolbarHeight / 2
-        val above = centerY >= screenHeight / 2
-        params.x = (loc[0] + (toolbarWidth - optionsWidth) / 2)
-            .coerceIn(0, (screenWidth - optionsWidth).coerceAtLeast(0))
-        params.y = if (above) {
-            (loc[1] - optionsHeight - dp(6f)).coerceAtLeast(0)
-        } else {
-            (loc[1] + toolbarHeight + dp(6f))
-                .coerceAtMost((screenHeight - optionsHeight).coerceAtLeast(0))
-        }
-        runCatching { wm.updateViewLayout(view, params) }
-    }
-
-    private fun buildOptionsView(host: Context, mode: ScreenDrawOptions): View {
-        val row = LinearLayout(host).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(dp(8f), dp(4f), dp(8f), dp(4f))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 24f * density
-                setColor(withAlpha(OverlayPanelTheme.colors(host).panelBackground, 245))
-                setStroke(dp(1f), withAlpha(OverlayPanelTheme.colors(host).cardBorder, 120))
-            }
-        }
-        if (mode == ScreenDrawOptions.SHAPE) {
-            val options = listOf(
-                "□" to ScreenDrawShape.RECTANGLE,
-                "○" to ScreenDrawShape.OVAL,
-                "／" to ScreenDrawShape.LINE,
-                "→" to ScreenDrawShape.ARROW,
-            )
-            options.forEach { (label, shape) ->
-                val item = android.widget.TextView(host).apply {
-                    text = label
-                    textSize = 20f
-                    gravity = Gravity.CENTER
-                    setTextColor(OverlayPanelTheme.colors(host).textPrimary)
-                    setOnClickListener {
-                        canvas?.shape = shape
-                        canvas?.tool = ScreenDrawTool.SHAPE
-                        hideOptions()
-                    }
-                }
-                row.addView(item, LinearLayout.LayoutParams(dp(40f), dp(40f)))
-            }
-        } else {
-            COLORS_FOR_OPTIONS.forEach { swatch ->
-                val dot = View(host).apply {
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(swatch)
-                        setStroke(dp(1f), 0x33000000)
-                    }
-                    setOnClickListener {
-                        canvas?.color = swatch
-                        showOptions(ScreenDrawOptions.BRUSH)
-                    }
-                }
-                row.addView(dot, LinearLayout.LayoutParams(dp(28f), dp(28f)).apply {
-                    marginStart = dp(4f)
-                    marginEnd = dp(4f)
-                })
-            }
-            row.addView(View(host).apply {
-                setBackgroundColor(withAlpha(OverlayPanelTheme.colors(host).divider, 120))
-            }, LinearLayout.LayoutParams(dp(1f), dp(22f)).apply {
-                marginStart = dp(4f)
-                marginEnd = dp(4f)
-            })
-            WIDTHS_FOR_OPTIONS.forEach { widthDp ->
-                val cell = android.widget.FrameLayout(host).apply {
-                    setOnClickListener {
-                        canvas?.widthPx = widthDp * density
-                        showOptions(ScreenDrawOptions.BRUSH)
-                    }
-                }
-                val dot = View(host).apply {
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(OverlayPanelTheme.colors(host).textPrimary)
-                    }
-                }
-                cell.addView(dot, android.widget.FrameLayout.LayoutParams(
-                    dp(2f * widthDp + 4f),
-                    dp(2f * widthDp + 4f),
-                ).apply { gravity = Gravity.CENTER })
-                row.addView(cell, LinearLayout.LayoutParams(dp(36f), dp(36f)))
-            }
-        }
-        return row
-    }
-
-    private fun minimizeDraw() {
-        if (minimized) return
-        hideOptions()
-        minimized = true
-        canvasHost?.visibility = View.GONE
-        toolbar?.visibility = View.GONE
-        val host = hostContext ?: return
-        val wm = windowManager ?: return
-        val size = dp(60f)
-        val tool = canvas?.tool ?: ScreenDrawTool.PEN
-        val iconRes = when (tool) {
-            ScreenDrawTool.PEN -> R.drawable.ic_iconoir_edit_pencil
-            ScreenDrawTool.ERASER -> R.drawable.ic_remix_eraser
-            ScreenDrawTool.LASER -> R.drawable.ic_remix_magic_line
-            ScreenDrawTool.SHAPE -> R.drawable.ic_iconoir_square
-        }
-        val ball = android.widget.ImageView(host).apply {
-            setImageResource(iconRes)
-            imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
-            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(16f), dp(16f), dp(16f), dp(16f))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xFF3A3F4A.toInt())
-                setStroke(dp(1f), 0x33FFFFFF)
-            }
-            elevation = dp(10f).toFloat()
-            contentDescription = "恢复绘制"
-            val self = this
-            var downX = 0f
-            var downY = 0f
-            var lastX = 0f
-            var lastY = 0f
-            var dragging = false
-            val slop = android.view.ViewConfiguration.get(host).scaledTouchSlop
-            setOnTouchListener { _, event ->
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        downX = event.rawX
-                        downY = event.rawY
-                        lastX = event.rawX
-                        lastY = event.rawY
-                        dragging = false
-                        true
-                    }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        if (kotlin.math.abs(event.rawX - downX) > slop ||
-                            kotlin.math.abs(event.rawY - downY) > slop
-                        ) {
-                            dragging = true
-                        }
-                        if (dragging) {
-                            val p = ballParams ?: return@setOnTouchListener true
-                            p.x = (p.x + (event.rawX - lastX).toInt())
-                                .coerceIn(0, (screenWidth - size).coerceAtLeast(0))
-                            p.y = (p.y + (event.rawY - lastY).toInt())
-                                .coerceIn(0, (screenHeight - size).coerceAtLeast(0))
-                            runCatching { wm.updateViewLayout(self, p) }
-                        }
-                        lastX = event.rawX
-                        lastY = event.rawY
-                        true
-                    }
-                    android.view.MotionEvent.ACTION_UP -> {
-                        if (!dragging) restoreDraw()
-                        true
-                    }
-                    else -> true
-                }
-            }
-        }
-        val params = WindowManager.LayoutParams(
-            size,
-            size,
-            OverlayWindowTypes.overlayWindowType(host),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = screenWidth - size - dp(12f)
-            y = (screenHeight - size) / 2
-        }
-        runCatching { wm.addView(ball, params) }
-        ballView = ball
+        runCatching { wm.addView(ballContainer, params) }
+            .onSuccess { Log.i(TAG, "minimizeDraw: ballContainer added at ($targetX, $targetY)") }
+            .onFailure { Log.e(TAG, "minimizeDraw: wm.addView ball failed", it) }
+        ballView = ballContainer
         ballParams = params
+        ballOwner = owner
     }
 
     private fun restoreDraw() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { restoreDraw() }
+            return
+        }
         if (!minimized) return
         minimized = false
-        ballView?.let { view -> runCatching { windowManager?.removeView(view) } }
+        Log.i(TAG, "restoreDraw: restoring screen draw full canvas and toolbar")
+        val view = ballView
+        val owner = ballOwner
+        val compose = (view as? FrameLayout)?.getChildAt(0) as? ComposeView ?: view as? ComposeView
+        view?.let { v ->
+            runCatching { windowManager?.removeView(v) }
+            OverlayCompose.clearViewTreeOwners(v)
+        }
+        OverlayCompose.teardownOverlayCompose(compose, owner)
         ballView = null
         ballParams = null
-        canvasHost?.visibility = View.VISIBLE
-        toolbar?.visibility = View.VISIBLE
-        toolbar?.post { positionToolbar() }
+        ballOwner = null
+        val cView = canvasHost
+        val cParams = canvasParams
+        val wm = windowManager
+        if (cView != null && cParams != null && wm != null) {
+            cView.visibility = View.VISIBLE
+            if (!passthrough) {
+                cParams.flags = cParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+            }
+            cParams.flags = cParams.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+            runCatching { wm.updateViewLayout(cView, cParams) }
+                .onFailure { Log.e(TAG, "restoreDraw: cView updateViewLayout failed", it) }
+        }
+        val tView = toolbar
+        val tParams = toolbarParams
+        if (tView != null && tParams != null && wm != null) {
+            val isVertical = orientationState.value == ScreenDrawOrientation.VERTICAL
+            tParams.width = if (isVertical) dp(86f) else dp(316f)
+            tParams.height = if (isVertical) dp(316f) else dp(86f)
+            tView.visibility = View.VISIBLE
+            tParams.flags = tParams.flags and
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+            runCatching { wm.updateViewLayout(tView, tParams) }
+                .onFailure { Log.e(TAG, "restoreDraw: tView updateViewLayout failed", it) }
+        }
     }
 
     private fun buildTextEditor(context: Context): LinearLayout {
-        val colors = OverlayPanelTheme.colors(context)
         val container = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14f), dp(10f), dp(14f), dp(8f))
+            setPadding(dp(16f), dp(16f), dp(16f), dp(14f))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 18f * density
-                setColor(withAlpha(colors.panelBackground, 250))
-                setStroke((1f * density).roundToInt(), withAlpha(colors.cardBorder, 150))
+                cornerRadius = 20f * density
+                setColor(0xEE20232A.toInt()) // 深色半透明磨砂质感
+                setStroke((1f * density).roundToInt(), 0x33FFFFFF)
             }
-            elevation = 14f * density
+            elevation = 16f * density
             visibility = View.GONE
             isClickable = true
         }
 
         val input = EditText(context).apply {
             hint = "输入文字"
-            setSingleLine(true)
+            setSingleLine(false)
+            maxLines = 4
             textSize = 16f
-            setTextColor(colors.textPrimary)
-            setHintTextColor(colors.textMuted)
-            background = null
-            inputType = InputType.TYPE_CLASS_TEXT
+            setTextColor(0xFFFFFFFF.toInt())
+            setHintTextColor(0x77FFFFFF.toInt())
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 12f * density
+                setColor(0x33000000)
+                setStroke((1f * density).roundToInt(), 0x22FFFFFF)
+            }
+            setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             imeOptions = EditorInfo.IME_ACTION_DONE
             setOnEditorActionListener { _, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
@@ -679,35 +763,72 @@ object ScreenDrawOverlay {
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
-        }
-        val cancel = Button(context).apply {
-            text = context.getString(android.R.string.cancel)
-            isAllCaps = false
-            setOnClickListener { hideTextEditor() }
-        }
-        val confirm = Button(context).apply {
-            text = context.getString(android.R.string.ok)
-            isAllCaps = false
-            setOnClickListener { confirmText() }
-        }
-        row.addView(cancel)
-        row.addView(confirm)
-        container.addView(
-            row,
-            LinearLayout.LayoutParams(
+            val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            ),
+            ).apply {
+                topMargin = dp(12f)
+            }
+            layoutParams = lp
+        }
+
+        val cancel = TextView(context).apply {
+            text = context.getString(android.R.string.cancel)
+            textSize = 14f
+            setTextColor(0xCCFFFFFF.toInt())
+            gravity = Gravity.CENTER
+            setPadding(dp(16f), dp(8f), dp(16f), dp(8f))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 18f * density
+                setColor(0x22FFFFFF)
+            }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { hideTextEditor() }
+        }
+
+        val confirm = TextView(context).apply {
+            text = context.getString(android.R.string.ok)
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setTextColor(0xFFFFFFFF.toInt())
+            gravity = Gravity.CENTER
+            setPadding(dp(18f), dp(8f), dp(18f), dp(8f))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 18f * density
+                setColor(0xFF3897F0.toInt())
+            }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { confirmText() }
+        }
+
+        row.addView(cancel)
+        row.addView(
+            confirm,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                leftMargin = dp(10f)
+            },
         )
+        container.addView(row)
         textInput = input
         return container
     }
 
-    private fun showTextEditor(x: Float, y: Float) {
-        textAnchorX = x
-        textAnchorY = y
+    private fun showTextEditor(x: Float, y: Float, initial: String = "", onDone: (String) -> Unit) {
+        textCallback = onDone
         val editor = textEditor ?: return
-        textInput?.setText("")
+        textInput?.setText(initial)
+        if (initial.isNotEmpty()) {
+            textInput?.setSelection(initial.length)
+        }
+        // 隐藏工具栏，避让软键盘
+        toolbar?.visibility = View.GONE
         editor.visibility = View.VISIBLE
         textInput?.requestFocus()
         val input = textInput ?: return
@@ -717,6 +838,8 @@ object ScreenDrawOverlay {
 
     private fun hideTextEditor() {
         textEditor?.visibility = View.GONE
+        // 恢复工具栏悬浮窗
+        toolbar?.visibility = View.VISIBLE
         val input = textInput
         val imm = hostContext?.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         if (input != null) {
@@ -727,7 +850,8 @@ object ScreenDrawOverlay {
 
     private fun confirmText() {
         val text = textInput?.text?.toString().orEmpty()
-        if (text.isNotBlank()) canvas?.addText(textAnchorX, textAnchorY, text)
+        textCallback?.invoke(text)
+        textCallback = null
         hideTextEditor()
     }
 
@@ -806,7 +930,91 @@ object ScreenDrawOverlay {
             Rect(0, 0, result.width, result.height),
             paint,
         )
+        strokes.recycle()
+
+        // 若用户框选了区域，则截取该局部区域截图输出
+        val boxRect = canvasView.currentBoxSelectRect()
+        if (boxRect != null && boxRect.width() > 10f && boxRect.height() > 10f) {
+            val left = boxRect.left.toInt().coerceIn(0, result.width - 1)
+            val top = boxRect.top.toInt().coerceIn(0, result.height - 1)
+            val right = boxRect.right.toInt().coerceIn(left + 1, result.width)
+            val bottom = boxRect.bottom.toInt().coerceIn(top + 1, result.height)
+            val cropW = right - left
+            val cropH = bottom - top
+            if (cropW > 0 && cropH > 0) {
+                val cropped = Bitmap.createBitmap(result, left, top, cropW, cropH)
+                result.recycle()
+                return cropped
+            }
+        }
         return result
+    }
+
+    private fun startDragAndDropShare(cropRect: RectF?): Boolean {
+        val drawCanvas = canvas ?: return false
+        val host = hostContext ?: return false
+        val screenshot = drawCanvas.backgroundSnapshot
+        val strokes = drawCanvas.snapshotBitmap() ?: return false
+        val base = screenshot?.copy(Bitmap.Config.ARGB_8888, true)
+            ?: Bitmap.createBitmap(drawCanvas.width, drawCanvas.height, Bitmap.Config.ARGB_8888)
+        val cvs = Canvas(base)
+        cvs.drawBitmap(strokes, 0f, 0f, Paint(Paint.FILTER_BITMAP_FLAG))
+        strokes.recycle()
+
+        val finalBitmap: Bitmap
+        if (cropRect != null && cropRect.width() > 10f && cropRect.height() > 10f) {
+            val l = cropRect.left.toInt().coerceIn(0, base.width - 1)
+            val t = cropRect.top.toInt().coerceIn(0, base.height - 1)
+            val r = cropRect.right.toInt().coerceIn(l + 1, base.width)
+            val b = cropRect.bottom.toInt().coerceIn(t + 1, base.height)
+            val w = r - l
+            val h = b - t
+            if (w <= 0 || h <= 0) {
+                base.recycle()
+                return false
+            }
+            finalBitmap = Bitmap.createBitmap(base, l, t, w, h)
+            base.recycle()
+        } else {
+            finalBitmap = base
+        }
+
+        val shareUri = ScreenshotStorage.createShareUri(host, finalBitmap)
+        if (shareUri == null) {
+            finalBitmap.recycle()
+            return false
+        }
+
+        val clipData = ClipData.newUri(host.contentResolver, "Screenshot", shareUri)
+        val shadowBuilder = object : View.DragShadowBuilder(drawCanvas) {
+            override fun onProvideShadowMetrics(outShadowSize: android.graphics.Point, outShadowTouchPoint: android.graphics.Point) {
+                val maxW = (screenWidth * 0.40f).toInt().coerceAtLeast(120)
+                val maxH = (screenHeight * 0.40f).toInt().coerceAtLeast(120)
+                val scale = minOf(maxW.toFloat() / finalBitmap.width, maxH.toFloat() / finalBitmap.height, 1f)
+                val sw = (finalBitmap.width * scale).toInt().coerceAtLeast(1)
+                val sh = (finalBitmap.height * scale).toInt().coerceAtLeast(1)
+                outShadowSize.set(sw, sh)
+                outShadowTouchPoint.set(sw / 2, sh / 2)
+            }
+            override fun onDrawShadow(canvas: Canvas) {
+                val maxW = (screenWidth * 0.40f).toInt().coerceAtLeast(120)
+                val maxH = (screenHeight * 0.40f).toInt().coerceAtLeast(120)
+                val scale = minOf(maxW.toFloat() / finalBitmap.width, maxH.toFloat() / finalBitmap.height, 1f)
+                val sw = (finalBitmap.width * scale).toInt().coerceAtLeast(1)
+                val sh = (finalBitmap.height * scale).toInt().coerceAtLeast(1)
+                val dest = Rect(0, 0, sw, sh)
+                canvas.drawBitmap(finalBitmap, null, dest, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG).apply {
+                    alpha = 230
+                })
+            }
+        }
+
+        val flags = View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ
+        val success = drawCanvas.startDragAndDrop(clipData, shadowBuilder, null, flags)
+        if (success) {
+            toast(host, "已抓起，可拖拽发送至其他应用")
+        }
+        return success
     }
 
     private fun failSave() {
@@ -840,11 +1048,20 @@ object ScreenDrawOverlay {
             return
         }
         restoreOtherOverlays()
-        hideOptions()
         val wm = windowManager
-        ballView?.let { view -> runCatching { wm?.removeView(view) } }
+        val bView = ballView
+        val bOwner = ballOwner
+        val bCompose = (bView as? FrameLayout)?.getChildAt(0) as? ComposeView ?: bView as? ComposeView
+        bView?.let { view ->
+            runCatching { wm?.removeView(view) }
+            OverlayCompose.clearViewTreeOwners(view)
+        }
+        OverlayCompose.teardownOverlayCompose(bCompose, bOwner)
         ballView = null
         ballParams = null
+        ballOwner = null
+        ballLastX = null
+        ballLastY = null
         minimized = false
         val toolbarView = toolbar
         toolbarView?.let { view -> runCatching { wm?.removeView(view) } }
@@ -852,7 +1069,13 @@ object ScreenDrawOverlay {
         toolbar = null
         toolbarParams = null
         toolbarOwner = null
-        canvasHost?.let { view -> runCatching { wm?.removeView(view) } }
+        val hostView = canvasHost
+        hostView?.let { view -> runCatching { wm?.removeView(view) } }
+        hideOptionsPopup()
+        OverlayCompose.teardownOverlayCompose(optionsPopupView as? ComposeView, optionsOwner)
+        hostView?.let { OverlayCompose.clearViewTreeOwners(it) }
+        optionsPopupView = null
+        optionsOwner = null
         canvasHost = null
         canvas = null
         textEditor = null
@@ -873,6 +1096,12 @@ object ScreenDrawOverlay {
     private fun toast(context: Context, resId: Int) {
         runCatching {
             Toast.makeText(context.applicationContext, context.getString(resId), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun toast(context: Context, text: CharSequence) {
+        runCatching {
+            Toast.makeText(context.applicationContext, text, Toast.LENGTH_SHORT).show()
         }
     }
 
