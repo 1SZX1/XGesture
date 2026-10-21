@@ -145,11 +145,11 @@ internal class ScreenControlPanelView(
                 ScreenControlDirection.LEFT,
                 ScreenControlDirection.RIGHT,
             ),
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(34f)),
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(37f)),
         )
         content.addView(
             navRow(),
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(34f)).apply {
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(37f)).apply {
                 topMargin = dp(4f)
             },
         )
@@ -285,7 +285,7 @@ internal class ScreenControlPanelView(
             val slot = FrameLayout(context).apply {
                 addView(
                     key,
-                    FrameLayout.LayoutParams(dp(34f), dp(34f)).apply {
+                    FrameLayout.LayoutParams(dp(37f), dp(37f)).apply {
                         gravity = Gravity.CENTER
                     },
                 )
@@ -319,7 +319,7 @@ internal class ScreenControlPanelView(
             val slot = FrameLayout(context).apply {
                 addView(
                     key,
-                    FrameLayout.LayoutParams(dp(34f), dp(34f)).apply {
+                    FrameLayout.LayoutParams(dp(37f), dp(37f)).apply {
                         gravity = Gravity.CENTER
                     },
                 )
@@ -339,7 +339,7 @@ internal class ScreenControlPanelView(
         val minimizeSlot = FrameLayout(context).apply {
             addView(
                 minimize,
-                FrameLayout.LayoutParams(dp(34f), dp(34f)).apply {
+                FrameLayout.LayoutParams(dp(37f), dp(37f)).apply {
                     gravity = Gravity.CENTER
                 },
             )
