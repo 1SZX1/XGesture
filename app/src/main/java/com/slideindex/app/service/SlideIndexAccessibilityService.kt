@@ -115,6 +115,33 @@ class SlideIndexAccessibilityService : AccessibilityService() {
     private lateinit var watchdog: SlideIndexAccessibilityWatchdog
     private var lastOrientation = Configuration.ORIENTATION_UNDEFINED
 
+    private var lastImeWindowsChangedWorkAtMs = 0L
+    private var imeWindowsChangedWorkScheduled = false
+    private val coalescedImeWindowsChangedWork = Runnable {
+        imeWindowsChangedWorkScheduled = false
+        lastImeWindowsChangedWorkAtMs = android.os.SystemClock.uptimeMillis()
+        ClipboardFloatImeCoordinator.onWindowsChanged(this)
+        KeyboardTriggerImeCoordinator.onWindowsChanged(this)
+    }
+
+    private fun handleImeWindowsChanged() {
+        val now = android.os.SystemClock.uptimeMillis()
+        val elapsed = now - lastImeWindowsChangedWorkAtMs
+        if (elapsed >= IME_WINDOWS_CHANGED_COALESCE_MS) {
+            lastImeWindowsChangedWorkAtMs = now
+            if (imeWindowsChangedWorkScheduled) {
+                mainHandler.removeCallbacks(coalescedImeWindowsChangedWork)
+                imeWindowsChangedWorkScheduled = false
+            }
+            ClipboardFloatImeCoordinator.onWindowsChanged(this)
+            KeyboardTriggerImeCoordinator.onWindowsChanged(this)
+            return
+        }
+        if (imeWindowsChangedWorkScheduled) return
+        imeWindowsChangedWorkScheduled = true
+        mainHandler.postDelayed(coalescedImeWindowsChangedWork, IME_WINDOWS_CHANGED_COALESCE_MS - elapsed)
+    }
+
     @SuppressLint("SwitchIntDef") // Only handle the event types this service cares about
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
@@ -132,8 +159,7 @@ class SlideIndexAccessibilityService : AccessibilityService() {
                 // 注意：这里**不**失效前台包名缓存。WINDOWS_CHANGED 由输入法/弹窗/Toast 高频触发，
                 // 用它失效会让缓存失去意义；前台正确性由 WINDOW_STATE_CHANGED + TTL 双重保证。
                 foregroundTracker.handleWindowsChanged()
-                ClipboardFloatImeCoordinator.onWindowsChanged(this)
-                KeyboardTriggerImeCoordinator.onWindowsChanged(this)
+                handleImeWindowsChanged()
             }
         }
     }
@@ -159,6 +185,7 @@ class SlideIndexAccessibilityService : AccessibilityService() {
         fun overlayHostGeneration(): Int = instanceGeneration
 
         private val mainHandler = Handler(Looper.getMainLooper())
+        private const val IME_WINDOWS_CHANGED_COALESCE_MS = 200L
 
         fun dispatchExternalGestureAction(
             action: GestureAction,
@@ -1085,6 +1112,7 @@ class SlideIndexAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(coalescedImeWindowsChangedWork)
         mainHandler.removeCallbacks(configChangeSuppressionRunnable)
         mainHandler.removeCallbacks(configChangeFinalSettleRunnable)
         stopOverlayHostLease()

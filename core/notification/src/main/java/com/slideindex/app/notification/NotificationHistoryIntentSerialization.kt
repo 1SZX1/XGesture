@@ -170,6 +170,11 @@ internal object NotificationHistoryIntentSerialization {
     }
 
     fun serializeNotificationExtras(extras: Bundle?): String? {
+        if (extras == null || extras.isEmpty) return null
+        if (extras.containsKey("android.mediaSession") || extras.containsKey("android.mediaRemoteControlClient")) {
+            val filtered = filterSerializableExtras(extras) ?: return null
+            return serializeBundle(filtered, "notification.extras.filtered")
+        }
         serializeBundle(extras, "notification.extras")?.let { return it }
         val filtered = filterSerializableExtras(extras) ?: return null
         return serializeBundle(filtered, "notification.extras.filtered")

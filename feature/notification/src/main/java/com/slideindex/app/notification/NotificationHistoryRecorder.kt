@@ -29,6 +29,8 @@ class NotificationHistoryRecorder @Inject constructor(
     private val shadeActions: NotificationShadeActions,
     private val otpSideEffects: NotificationOtpSideEffects,
 ) {
+    private val ongoingFingerprints = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     fun onListenerConnected(
         listener: NotificationListenerService,
         notifications: Array<StatusBarNotification>,
@@ -49,6 +51,21 @@ class NotificationHistoryRecorder @Inject constructor(
         if (title.isBlank() && text.isBlank()) return false
 
         NotificationSbnCache.cacheActive(sbn)
+
+        // 媒体播放器、进度条或持续型前台通知高频刷新时，若核心文本（歌名/歌手/内容）未变，
+        // 则纯属时间戳或播放进度微跳，跳过昂贵的 Intent 抓取、序列化与数据库写入。
+        val isOngoing = sbn.isOngoing || (notification.flags and android.app.Notification.FLAG_ONGOING_EVENT) != 0
+        val isMediaOrProgress = notification.category == android.app.Notification.CATEGORY_TRANSPORT ||
+            extras.containsKey("android.mediaSession") ||
+            extras.getInt(android.app.Notification.EXTRA_PROGRESS_MAX, 0) > 0
+        if (isOngoing && isMediaOrProgress) {
+            val fingerprint = "$title\u0000$text"
+            val last = ongoingFingerprints[sbn.key]
+            if (last == fingerprint) {
+                return false
+            }
+            ongoingFingerprints[sbn.key] = fingerprint
+        }
 
         val matchingRules = filterRepository.findMatchingRules(sbn)
         val shouldHide = shouldHideNotification(context, sbn)
@@ -154,6 +171,7 @@ class NotificationHistoryRecorder @Inject constructor(
     }
 
     fun onRemoved(context: Context, sbn: StatusBarNotification, reason: Int) {
+        ongoingFingerprints.remove(sbn.key)
         NotificationSbnCache.onRemoved(sbn, reason)
 
         val captured = NotificationHistoryIntentCapture.capture(sbn, context)
