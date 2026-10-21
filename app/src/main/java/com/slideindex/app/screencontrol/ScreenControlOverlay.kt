@@ -209,10 +209,53 @@ object ScreenControlOverlay {
 
         ensurePointerOutsidePanel()
         screenOffReceiver = ScreenOffDismissReceiver { dismiss() }.also { it.register(host) }
-        rotationMonitor = OverlayDisplayRotationMonitor(host) { dismiss() }.also { it.start() }
+        rotationMonitor = OverlayDisplayRotationMonitor(host) { handleRotationChanged() }.also { it.start() }
 
         Log.i(TAG, "shown panel=${panelWidthDp}x${panelHeightDp}dp at ($panelX,$panelY)")
         return true
+    }
+
+    private fun handleRotationChanged() {
+        val host = hostContext ?: return
+        val metrics = OverlayScreenMetrics.sizePx(host)
+        val newW = metrics.first.coerceAtLeast(1)
+        val newH = metrics.second.coerceAtLeast(1)
+        if (newW == screenWidth && newH == screenHeight) return
+        screenWidth = newW
+        screenHeight = newH
+        density = host.resources.displayMetrics.density
+
+        val panelW = dp(panelWidthDp)
+        val panelH = dp(panelHeightDp)
+        savedPanelX = savedPanelX.coerceIn(0, (screenWidth - panelW).coerceAtLeast(0))
+        savedPanelY = savedPanelY.coerceIn(0, (screenHeight - panelH).coerceAtLeast(0))
+
+        if (minimized) {
+            val ballSize = dp(BALL_SIZE_DP)
+            val margin = dp(10f)
+            panelX = if (panelX + ballSize / 2 < screenWidth / 2) {
+                margin
+            } else {
+                screenWidth - ballSize - margin
+            }.coerceIn(0, (screenWidth - ballSize).coerceAtLeast(0))
+            panelY = panelY.coerceIn(0, (screenHeight - ballSize).coerceAtLeast(0))
+            panelParams?.x = panelX
+            panelParams?.y = panelY
+            windowManager?.let { wm ->
+                panelView?.let { view -> runCatching { wm.updateViewLayout(view, panelParams) } }
+            }
+        } else {
+            panelX = panelX.coerceIn(0, (screenWidth - panelW).coerceAtLeast(0))
+            panelY = panelY.coerceIn(0, (screenHeight - panelH).coerceAtLeast(0))
+            updatePanelLayout()
+            pointerX = pointerX.coerceIn(POINTER_EDGE_PX, screenWidth - POINTER_EDGE_PX)
+            pointerY = pointerY.coerceIn(POINTER_EDGE_PX, screenHeight - POINTER_EDGE_PX)
+            pointerState?.let {
+                it.x = pointerX
+                it.y = pointerY
+            }
+            ensurePointerOutsidePanel()
+        }
     }
 
     private val panelListener = object : ScreenControlPanelView.Listener {
@@ -507,6 +550,8 @@ object ScreenControlOverlay {
         params.height = ballSize
         params.x = left
         params.y = top
+        panelX = left
+        panelY = top
         // 这里不能走 updatePanelLayout()，它会把 x/y 重置回面板位置。
         windowManager?.let { wm ->
             panelView?.let { view -> runCatching { wm.updateViewLayout(view, params) } }
@@ -517,10 +562,12 @@ object ScreenControlOverlay {
         if (!minimized) return
         minimized = false
         panelView?.setMinimized(false)
-        panelParams?.width = dp(panelWidthDp)
-        panelParams?.height = dp(panelHeightDp)
-        panelX = savedPanelX
-        panelY = savedPanelY
+        val width = dp(panelWidthDp)
+        val height = dp(panelHeightDp)
+        panelParams?.width = width
+        panelParams?.height = height
+        panelX = savedPanelX.coerceIn(0, (screenWidth - width).coerceAtLeast(0))
+        panelY = savedPanelY.coerceIn(0, (screenHeight - height).coerceAtLeast(0))
         updatePanelLayout()
         pointerView?.visibility = View.VISIBLE
         ensurePointerOutsidePanel()

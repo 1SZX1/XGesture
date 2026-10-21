@@ -87,17 +87,21 @@ internal class ScreenControlPanelView(
 
     init {
         background = if (blurEnabled) null else panelBackground()
-        clipToOutline = false
+        clipToOutline = true
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
-                outline.setRoundRect(0, 0, view.width, view.height, 24f * density)
+                if (minimized) {
+                    outline.setOval(0, 0, view.width, view.height)
+                } else {
+                    outline.setRoundRect(0, 0, view.width, view.height, 18f * density)
+                }
             }
         }
         elevation = 16f * density
 
         content = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(7f), dp(4f), dp(7f), dp(0f))
+            setPadding(dp(10f), dp(5f), dp(10f), dp(0f))
         }
         addView(content, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
@@ -122,7 +126,7 @@ internal class ScreenControlPanelView(
             clipToOutline = true
             outlineProvider = object : ViewOutlineProvider() {
                 override fun getOutline(view: View, outline: Outline) {
-                    outline.setRoundRect(0, 0, view.width, view.height, 20f * density)
+                    outline.setRoundRect(0, 0, view.width, view.height, 12f * density)
                 }
             }
         }
@@ -174,11 +178,15 @@ internal class ScreenControlPanelView(
             },
         )
 
-        ball = BallView(context, object : BallListener {
-            override fun onMove(dx: Float, dy: Float) = listener.onBallMove(dx, dy)
-            override fun onMoveFinished() = listener.onBallMoveFinished()
-            override fun onRestore() = listener.onRestore()
-        }).apply {
+        ball = BallView(
+            context = context,
+            listener = object : BallListener {
+                override fun onMove(dx: Float, dy: Float) = listener.onBallMove(dx, dy)
+                override fun onMoveFinished() = listener.onBallMoveFinished()
+                override fun onRestore() = listener.onRestore()
+            },
+            blurEnabled = blurEnabled,
+        ).apply {
             visibility = GONE
         }
         addView(ball, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -192,6 +200,28 @@ internal class ScreenControlPanelView(
     }
 
     private fun applyPanelBackground() {
+        if (minimized) {
+            if (!blurEnabled) {
+                background = ballBackground()
+                return
+            }
+            background = null
+            val rad = width.coerceAtLeast(1) / 2f
+            setupBackgroundBlur(
+                view = this,
+                cornerRadiusPx = if (rad > 0f) rad else 28f * density,
+                blurRadiusPx = (28f * density).roundToInt(),
+                tintColor = Color.argb(120, 235, 244, 255),
+            )
+            post {
+                val bg = background
+                if (bg == null || !bg.javaClass.name.contains("BackgroundBlurDrawable")) {
+                    background = ballBackground()
+                }
+            }
+            return
+        }
+
         if (!blurEnabled) {
             background = panelBackground()
             return
@@ -199,9 +229,9 @@ internal class ScreenControlPanelView(
         background = null
         setupBackgroundBlur(
             view = this,
-            cornerRadiusPx = 24f * density,
-            blurRadiusPx = (24f * density).roundToInt(),
-            tintColor = withAlpha(themeColors.panelBackground, 120),
+            cornerRadiusPx = 18f * density,
+            blurRadiusPx = (32f * density).roundToInt(),
+            tintColor = Color.argb(170, 248, 250, 255),
         )
         post {
             val bg = background
@@ -218,15 +248,14 @@ internal class ScreenControlPanelView(
             content.visibility = GONE
             resizeHandle.visibility = GONE
             ball.visibility = VISIBLE
-            background = null
-            clipToOutline = false
+            applyPanelBackground()
         } else {
             content.visibility = VISIBLE
             resizeHandle.visibility = VISIBLE
             ball.visibility = GONE
             applyPanelBackground()
-            clipToOutline = false
         }
+        invalidateOutline()
         requestLayout()
         invalidate()
     }
@@ -236,8 +265,14 @@ internal class ScreenControlPanelView(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        directions.forEachIndexed { index, direction ->
-            val key = iconKey(iconFor(direction)).apply {
+        directions.forEach { direction ->
+            val iconType = when (direction) {
+                ScreenControlDirection.UP -> HairlineIconType.UP
+                ScreenControlDirection.DOWN -> HairlineIconType.DOWN
+                ScreenControlDirection.LEFT -> HairlineIconType.LEFT
+                ScreenControlDirection.RIGHT -> HairlineIconType.RIGHT
+            }
+            val key = HairlineKeyIconView(context, iconType).apply {
                 background = rippleKey(selected = false)
                 setOnTouchListener(
                     RepeatKeyTouchListener(
@@ -247,11 +282,17 @@ internal class ScreenControlPanelView(
                     ),
                 )
             }
+            val slot = FrameLayout(context).apply {
+                addView(
+                    key,
+                    FrameLayout.LayoutParams(dp(34f), dp(34f)).apply {
+                        gravity = Gravity.CENTER
+                    },
+                )
+            }
             row.addView(
-                key,
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
-                    marginStart = if (index == 0) 0 else dp(6f)
-                },
+                slot,
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f),
             )
         }
         return row
@@ -263,111 +304,122 @@ internal class ScreenControlPanelView(
             gravity = Gravity.CENTER
         }
         val items = listOf(
-            R.drawable.ic_iconoir_undo to ScreenControlNav.BACK,
-            R.drawable.ic_iconoir_view_grid to ScreenControlNav.RECENTS,
-            R.drawable.ic_iconoir_home to ScreenControlNav.HOME,
+            HairlineIconType.BACK to ScreenControlNav.BACK,
+            HairlineIconType.RECENTS to ScreenControlNav.RECENTS,
+            HairlineIconType.HOME to ScreenControlNav.HOME,
         )
-        items.forEachIndexed { index, (icon, nav) ->
-            val key = iconKey(icon).apply {
+        items.forEach { (iconType, nav) ->
+            val key = HairlineKeyIconView(context, iconType).apply {
                 background = rippleKey(selected = false)
                 setOnClickListener {
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     listener.onNav(nav)
                 }
             }
+            val slot = FrameLayout(context).apply {
+                addView(
+                    key,
+                    FrameLayout.LayoutParams(dp(34f), dp(34f)).apply {
+                        gravity = Gravity.CENTER
+                    },
+                )
+            }
             row.addView(
-                key,
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
-                    marginStart = if (index == 0) 0 else dp(8f)
-                },
+                slot,
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f),
             )
         }
-        val minimize = iconKey(R.drawable.ic_circle_dot, tint = Color.WHITE).apply {
-            background = rippleKey(selected = true, accent = true)
+        val minimize = HairlineKeyIconView(context, HairlineIconType.MINIMIZE).apply {
+            background = rippleKey(selected = false, accent = false)
             setOnClickListener {
                 performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 listener.onMinimize()
             }
         }
+        val minimizeSlot = FrameLayout(context).apply {
+            addView(
+                minimize,
+                FrameLayout.LayoutParams(dp(34f), dp(34f)).apply {
+                    gravity = Gravity.CENTER
+                },
+            )
+        }
         row.addView(
-            minimize,
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
-                marginStart = dp(8f)
-            },
+            minimizeSlot,
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f),
         )
         return row
     }
 
-    private fun iconFor(direction: ScreenControlDirection): Int = when (direction) {
-        ScreenControlDirection.UP -> R.drawable.ic_iconoir_nav_arrow_up
-        ScreenControlDirection.DOWN -> R.drawable.ic_iconoir_nav_arrow_down
-        ScreenControlDirection.LEFT -> R.drawable.ic_iconoir_nav_arrow_left
-        ScreenControlDirection.RIGHT -> R.drawable.ic_iconoir_nav_arrow_right
+    private val panelBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 0.85f * density
+        color = Color.argb(135, 255, 255, 255)
     }
+    // 外层极微深色轮廓，在纯白背景下形成立体边界，防止面板边缘被吞噬
+    private val panelOuterShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1f * density
+        color = Color.argb(32, 0, 0, 0)
+    }
+    private val panelBorderRect = RectF()
 
-    private fun iconKey(iconRes: Int, tint: Int = themeColors.textPrimary): ImageView =
-        ImageView(context).apply {
-            setImageResource(iconRes)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
-            imageTintList = ColorStateList.valueOf(tint)
-            isClickable = true
-            isFocusable = true
-            contentDescription = null
+    override fun dispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+        if (!minimized && width > 0 && height > 0) {
+            // 1. 最外层微暗灰轮廓（0.5dp 偏移），保证纯白底色下轮廓清晰立体
+            val outerInset = panelOuterShadowPaint.strokeWidth / 2f
+            panelBorderRect.set(outerInset, outerInset, width - outerInset, height - outerInset)
+            canvas.drawRoundRect(panelBorderRect, 18f * density, 18f * density, panelOuterShadowPaint)
+
+            // 2. 内沿高光白反光边
+            val inset = panelBorderPaint.strokeWidth / 2f + 0.5f * density
+            panelBorderRect.set(inset, inset, width - inset, height - inset)
+            canvas.drawRoundRect(panelBorderRect, 17.5f * density, 17.5f * density, panelBorderPaint)
         }
-
-    private fun keyView(label: String): TextView = TextView(context).apply {
-        text = label
-        gravity = Gravity.CENTER
-        textSize = 21f
-        setTextColor(themeColors.textPrimary)
-        isClickable = true
-        isFocusable = true
-        contentDescription = label
-    }
-
-    private fun labelOf(direction: ScreenControlDirection): String = when (direction) {
-        ScreenControlDirection.UP -> "↑"
-        ScreenControlDirection.DOWN -> "↓"
-        ScreenControlDirection.LEFT -> "←"
-        ScreenControlDirection.RIGHT -> "→"
     }
 
     private fun panelBackground(): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = 24f * density
-        colors = intArrayOf(
-            withAlpha(themeColors.panelBackground, if (blurEnabled) 150 else 255),
-            withAlpha(themeColors.panelBackground, if (blurEnabled) 150 else 255),
-        )
-        orientation = GradientDrawable.Orientation.TOP_BOTTOM
-        setStroke((1f * density).roundToInt(), withAlpha(themeColors.cardBorder, 150))
+        cornerRadius = 18f * density
+        setColor(Color.argb(if (blurEnabled) 165 else 248, 245, 247, 252))
+        setStroke((1f * density).roundToInt(), Color.argb(35, 0, 0, 0))
+    }
+
+    private fun ballBackground(): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(Color.argb(if (blurEnabled) 130 else 220, 235, 240, 248))
+        setStroke((0.9f * density).roundToInt(), Color.argb(110, 255, 255, 255))
     }
 
     private fun padBackground(): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
-        cornerRadius = 20f * density
-        setColor(withAlpha(themeColors.panelBackground, if (blurEnabled) 110 else 255))
-        setStroke((1f * density).roundToInt(), withAlpha(themeColors.divider, 55))
+        cornerRadius = 12f * density
+        // 纯净高亮浅白，在毛玻璃上稍微带一点点微阶梯对比度
+        setColor(Color.argb(if (blurEnabled) 60 else 185, 255, 255, 255))
+        // 关键：0.85dp 双层对比感细腻边框——用极轻的半透明灰边（14% 暗灰），在纯白背景下立刻把触控区勾勒出来
+        setStroke((0.85f * density).roundToInt(), Color.argb(38, 0, 0, 0))
     }
 
     private fun rippleKey(selected: Boolean = false, accent: Boolean = false): RippleDrawable {
         val content = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = 12f * density
+            cornerRadius = 8f * density
             setColor(
                 when {
                     accent -> themeColors.accent
                     selected -> withAlpha(themeColors.accentSoft, 220)
-                    else -> withAlpha(themeColors.textPrimary, 12)
+                    blurEnabled -> Color.argb(70, 255, 255, 255)
+                    else -> withAlpha(themeColors.cardBackground, 180)
                 }
             )
             setStroke(
-                (1f * density).roundToInt(),
-                withAlpha(
-                    if (accent || selected) themeColors.accent else themeColors.textPrimary,
-                    if (accent || selected) 140 else 18,
-                ),
+                (0.85f * density).roundToInt(),
+                when {
+                    accent || selected -> themeColors.accent
+                    // 微暗灰轮廓+白光混合（22% 暗灰），让按键在白底上边缘清晰可辨，不再费眼
+                    else -> Color.argb(32, 0, 0, 0)
+                }
             )
         }
         return RippleDrawable(
@@ -375,6 +427,158 @@ internal class ScreenControlPanelView(
             content,
             null,
         )
+    }
+
+    private enum class HairlineIconType {
+        UP, DOWN, LEFT, RIGHT, BACK, RECENTS, HOME, MINIMIZE
+    }
+
+    private class HairlineKeyIconView(
+        context: Context,
+        private val type: HairlineIconType,
+    ) : View(context) {
+        private val density = resources.displayMetrics.density
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.BLACK
+            style = Paint.Style.STROKE
+            strokeWidth = 1.35f * density
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
+        private val iconPath = android.graphics.Path()
+        private val arcRect = RectF()
+
+        init {
+            setWillNotDraw(false)
+            isClickable = true
+            isFocusable = true
+        }
+
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            val h = measuredHeight
+            val w = measuredWidth
+            // 取高和宽的合理值，若行高已确定（比如34dp），按键维持 1:1 正方形
+            val size = if (h > 0) h else w
+            setMeasuredDimension(size, size)
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val cx = width / 2f
+            val cy = height / 2f
+            iconPath.reset()
+
+            when (type) {
+                HairlineIconType.UP -> {
+                    iconPath.moveTo(cx - 5.5f * density, cy + 2.2f * density)
+                    iconPath.lineTo(cx, cy - 3.2f * density)
+                    iconPath.lineTo(cx + 5.5f * density, cy + 2.2f * density)
+                    canvas.drawPath(iconPath, strokePaint)
+                }
+                HairlineIconType.DOWN -> {
+                    iconPath.moveTo(cx - 5.5f * density, cy - 2.2f * density)
+                    iconPath.lineTo(cx, cy + 3.2f * density)
+                    iconPath.lineTo(cx + 5.5f * density, cy - 2.2f * density)
+                    canvas.drawPath(iconPath, strokePaint)
+                }
+                HairlineIconType.LEFT -> {
+                    iconPath.moveTo(cx + 2.2f * density, cy - 5.5f * density)
+                    iconPath.lineTo(cx - 3.2f * density, cy)
+                    iconPath.lineTo(cx + 2.2f * density, cy + 5.5f * density)
+                    canvas.drawPath(iconPath, strokePaint)
+                }
+                HairlineIconType.RIGHT -> {
+                    iconPath.moveTo(cx - 2.2f * density, cy - 5.5f * density)
+                    iconPath.lineTo(cx + 3.2f * density, cy)
+                    iconPath.lineTo(cx - 2.2f * density, cy + 5.5f * density)
+                    canvas.drawPath(iconPath, strokePaint)
+                }
+                HairlineIconType.BACK -> {
+                    // 1. 箭头尖端
+                    iconPath.moveTo(cx - 2.5f * density, cy - 4.5f * density)
+                    iconPath.lineTo(cx - 6.2f * density, cy - 1f * density)
+                    iconPath.lineTo(cx - 2.5f * density, cy + 2.5f * density)
+
+                    // 2. 水平向右线段
+                    iconPath.moveTo(cx - 6.2f * density, cy - 1f * density)
+                    iconPath.lineTo(cx + 1.5f * density, cy - 1f * density)
+
+                    // 3. 右下圆角弯钩（无缝平滑，绝无交叉）
+                    val corner = 4.2f * density
+                    arcRect.set(
+                        cx + 1.5f * density - corner,
+                        cy - 1f * density,
+                        cx + 1.5f * density + corner,
+                        cy - 1f * density + 2f * corner,
+                    )
+                    iconPath.arcTo(arcRect, 270f, 90f, false)
+                    iconPath.lineTo(cx + 1.5f * density + corner, cy + 4.8f * density)
+                    canvas.drawPath(iconPath, strokePaint)
+                }
+                HairlineIconType.RECENTS -> {
+                    // ViewCarousel：标准任务切换器（纯单线全镂空，中央主卡片 + 左右对称侧卡片，无任何白块）
+                    val centerW = 6.8f * density
+                    val centerH = 10.5f * density
+                    val centerR = 1.6f * density
+
+                    // 1. 中央主任务卡片（纯单线圆角矩形）
+                    arcRect.set(
+                        cx - centerW / 2f,
+                        cy - centerH / 2f,
+                        cx + centerW / 2f,
+                        cy + centerH / 2f,
+                    )
+                    canvas.drawRoundRect(arcRect, centerR, centerR, strokePaint)
+
+                    // 2. 左右两侧对称的侧翼任务卡片（高度略收敛，上下右/左各一折线，全镂空）
+                    val sideGap = 2.0f * density
+                    val sideW = 2.4f * density
+                    val sideTop = cy - 3.8f * density
+                    val sideBottom = cy + 3.8f * density
+
+                    // 左侧翼
+                    val leftEdge = cx - centerW / 2f - sideGap
+                    iconPath.moveTo(leftEdge, sideTop)
+                    iconPath.lineTo(leftEdge - sideW, sideTop)
+                    iconPath.lineTo(leftEdge - sideW, sideBottom)
+                    iconPath.lineTo(leftEdge, sideBottom)
+                    canvas.drawPath(iconPath, strokePaint)
+
+                    // 右侧翼
+                    iconPath.reset()
+                    val rightEdge = cx + centerW / 2f + sideGap
+                    iconPath.moveTo(rightEdge, sideTop)
+                    iconPath.lineTo(rightEdge + sideW, sideTop)
+                    iconPath.lineTo(rightEdge + sideW, sideBottom)
+                    iconPath.lineTo(rightEdge, sideBottom)
+                    canvas.drawPath(iconPath, strokePaint)
+                }
+                HairlineIconType.HOME -> {
+                    iconPath.moveTo(cx - 6.2f * density, cy - 1f * density)
+                    iconPath.lineTo(cx, cy - 6f * density)
+                    iconPath.lineTo(cx + 6.2f * density, cy - 1f * density)
+                    canvas.drawPath(iconPath, strokePaint)
+
+                    iconPath.reset()
+                    iconPath.moveTo(cx - 4.5f * density, cy - 1f * density)
+                    iconPath.lineTo(cx - 4.5f * density, cy + 5.5f * density)
+                    iconPath.lineTo(cx + 4.5f * density, cy + 5.5f * density)
+                    iconPath.lineTo(cx + 4.5f * density, cy - 1f * density)
+                    canvas.drawPath(iconPath, strokePaint)
+                }
+                HairlineIconType.MINIMIZE -> {
+                    val techBlue = Color.parseColor("#0A84FF")
+                    strokePaint.color = techBlue
+                    fillPaint.color = techBlue
+                    canvas.drawCircle(cx, cy, 6f * density, strokePaint)
+                    canvas.drawCircle(cx, cy, 2.2f * density, fillPaint)
+                }
+            }
+        }
     }
 
     private fun withAlpha(color: Int, alpha: Int): Int =
@@ -696,16 +900,19 @@ internal class ScreenControlPanelView(
             super.onDraw(canvas)
             val density = resources.displayMetrics.density
             val themeColors = OverlayPanelTheme.colors(context)
-            val lineWidth = 2f * density
+            val lineWidth = 2.2f * density
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = withAlpha(themeColors.accent, 200)
+                color = withAlpha(themeColors.accent, 220)
                 style = Paint.Style.STROKE
                 strokeWidth = lineWidth
                 strokeCap = Paint.Cap.ROUND
             }
-            val radius = minOf(width, height).toFloat() - lineWidth / 2f
+            val cornerR = 18f * density
+            val cx = width - cornerR
+            val cy = height - cornerR
+            val r = cornerR - lineWidth / 2f - 0.85f * density
             canvas.drawArc(
-                RectF(-radius, -radius, radius, radius),
+                RectF(cx - r, cy - r, cx + r, cy + r),
                 0f,
                 90f,
                 false,
@@ -719,7 +926,6 @@ internal class ScreenControlPanelView(
 
     private class DotsPill(context: Context) : View(context) {
         private val density = resources.displayMetrics.density
-        private val themeColors = OverlayPanelTheme.colors(context)
 
         init {
             setWillNotDraw(false)
@@ -728,11 +934,11 @@ internal class ScreenControlPanelView(
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.argb(150, 70, 80, 100)
+                color = Color.argb(225, 28, 30, 36)
                 style = Paint.Style.FILL
             }
             val radius = 1.8f * density
-            val gap = 6f * density
+            val gap = 5.5f * density
             val cx = width / 2f
             val cy = height / 2f
             canvas.drawCircle(cx - gap, cy, radius, dot)
@@ -750,12 +956,12 @@ internal class ScreenControlPanelView(
     private class BallView(
         context: Context,
         private val listener: BallListener,
+        private val blurEnabled: Boolean = false,
     ) : View(context) {
 
         private val density = resources.displayMetrics.density
-        private val themeColors = OverlayPanelTheme.colors(context)
         private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
-        private val icon = context.getDrawable(R.drawable.ic_circle_dot)?.mutate()
+        private val techBlue = Color.parseColor("#0A84FF")
 
         private var downRawX = 0f
         private var downRawY = 0f
@@ -835,30 +1041,26 @@ internal class ScreenControlPanelView(
             val cy = height / 2f
             val radius = minOf(width, height) / 2f - 1f * density
 
-            val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = withAlpha(themeColors.panelBackground, 242)
-                style = Paint.Style.FILL
-            }
+            // 外圈柔白高光微描边
             val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = withAlpha(themeColors.cardBorder, 150)
+                color = Color.argb(85, 255, 255, 255)
                 style = Paint.Style.STROKE
-                strokeWidth = 1f * density
+                strokeWidth = 0.9f * density
             }
-            canvas.drawCircle(cx, cy, radius, fill)
             canvas.drawCircle(cx, cy, radius, border)
 
-            // 一墨挂起球：48dp 玻璃圆 + 24dp 圆点图标。
-            icon?.let { drawable ->
-                val size = 24f * density
-                drawable.setBounds(
-                    (cx - size / 2f).toInt(),
-                    (cy - size / 2f).toInt(),
-                    (cx + size / 2f).toInt(),
-                    (cy + size / 2f).toInt(),
-                )
-                drawable.setTint(withAlpha(themeColors.textPrimary, 220))
-                drawable.draw(canvas)
+            // 科技蓝同心圆图标（外细环 + 居中实心小点）
+            val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = techBlue
+                style = Paint.Style.STROKE
+                strokeWidth = 1.5f * density
             }
+            val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = techBlue
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(cx, cy, 7.5f * density, ringPaint)
+            canvas.drawCircle(cx, cy, 2.5f * density, dotPaint)
         }
 
         private fun withAlpha(color: Int, alpha: Int): Int =
