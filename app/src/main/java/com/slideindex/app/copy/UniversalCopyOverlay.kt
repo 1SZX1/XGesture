@@ -78,6 +78,10 @@ object UniversalCopyOverlay {
     private var currentOcrJob: Job? = null
 
     private val currentBlocks = mutableListOf<SelectableBlock>()
+    private val cachedA11yBlocks = mutableListOf<SelectableBlock>()
+    private val cachedOcrBlocks = mutableListOf<SelectableBlock>()
+    private enum class ExtractMode { A11Y, OCR }
+    private var currentMode: ExtractMode = ExtractMode.A11Y
     private var isRecognizing: Boolean = false
     private var isDismissing: Boolean = false
 
@@ -86,6 +90,7 @@ object UniversalCopyOverlay {
     private var hideStatusRunnable: Runnable? = null
 
     private var selectAllButton: WeakReference<ImageView>? = null
+    private var screenshotButton: WeakReference<ImageView>? = null
     private var pickButton: WeakReference<ImageView>? = null
     private var ocrButton: WeakReference<ImageView>? = null
     private var translateButton: WeakReference<ImageView>? = null
@@ -99,7 +104,12 @@ object UniversalCopyOverlay {
     fun show(context: Context, blocks: List<UniversalCopyBlock>) {
         handler.post {
             dismiss(animated = false)
-            addOverlay(context, blocks.map { SelectableBlock(it.text, Rect(it.bounds)) })
+            val selectable = blocks.map { SelectableBlock(it.text, Rect(it.bounds)) }
+            cachedA11yBlocks.clear()
+            cachedA11yBlocks.addAll(selectable)
+            cachedOcrBlocks.clear()
+            currentMode = ExtractMode.A11Y
+            addOverlay(context, selectable)
         }
     }
 
@@ -123,10 +133,14 @@ object UniversalCopyOverlay {
         translateButton = null
         pickButton = null
         selectAllButton = null
+        screenshotButton = null
         ocrButton = null
         closeButton = null
         textBlocksViewRef = null
         currentBlocks.clear()
+        cachedA11yBlocks.clear()
+        cachedOcrBlocks.clear()
+        currentMode = ExtractMode.A11Y
 
         val overlay = currentOverlay?.get() ?: return
         if (isDismissing) return
@@ -386,7 +400,50 @@ object UniversalCopyOverlay {
         selectAllButton = WeakReference(selectAll)
         dock.addView(selectAll)
 
-        // 2. 分词
+        // 2. 智能截图（一键无缝唤起系统智能截图，支持全屏/选区/贴图/编辑）
+        val screenshot = createDockIconButton(
+            context, density,
+            icon = CopyActionIconDrawable(CopyActionIconDrawable.IconType.SCREENSHOT, density, tintColor = primaryIconColor),
+            tooltip = context.getString(R.string.universal_copy_screenshot)
+        ) {
+            dismiss(animated = false)
+            SlideIndexAccessibilityService.performSmartScreenshot()
+        }
+        screenshotButton = WeakReference(screenshot)
+        dock.addView(screenshot)
+
+        // 3. OCR 识图 / 无障碍 双向切换
+        val ocr = createDockIconButton(
+            context, density,
+            icon = CopyActionIconDrawable(CopyActionIconDrawable.IconType.OCR_SCAN, density, tintColor = primaryIconColor),
+            tooltip = context.getString(R.string.universal_copy_ocr)
+        ) {
+            if (currentMode == ExtractMode.A11Y) {
+                if (cachedOcrBlocks.isNotEmpty()) {
+                    // 已有 OCR 缓存，直接秒切
+                    currentMode = ExtractMode.OCR
+                    currentBlocks.clear()
+                    currentBlocks.addAll(cachedOcrBlocks.map { SelectableBlock(it.text, Rect(it.bounds), false) })
+                    textBlocksViewRef?.get()?.setBlocks(currentBlocks)
+                    showStatus(context.getString(R.string.universal_copy_switched_ocr), autoDismissMs = 2000)
+                    updateToolbarState()
+                } else {
+                    performScreenOcr(context)
+                }
+            } else {
+                // 当前是 OCR，切回无障碍
+                currentMode = ExtractMode.A11Y
+                currentBlocks.clear()
+                currentBlocks.addAll(cachedA11yBlocks.map { SelectableBlock(it.text, Rect(it.bounds), false) })
+                textBlocksViewRef?.get()?.setBlocks(currentBlocks)
+                showStatus(context.getString(R.string.universal_copy_switched_a11y), autoDismissMs = 2000)
+                updateToolbarState()
+            }
+        }
+        ocrButton = WeakReference(ocr)
+        dock.addView(ocr)
+
+        // 4. 分词
         val pick = createDockIconButton(
             context, density,
             icon = CopyActionIconDrawable(CopyActionIconDrawable.IconType.SEGMENT, density, tintColor = primaryIconColor),
@@ -404,18 +461,7 @@ object UniversalCopyOverlay {
         pickButton = WeakReference(pick)
         dock.addView(pick)
 
-        // 3. OCR 识图
-        val ocr = createDockIconButton(
-            context, density,
-            icon = CopyActionIconDrawable(CopyActionIconDrawable.IconType.OCR_SCAN, density, tintColor = primaryIconColor),
-            tooltip = context.getString(R.string.universal_copy_ocr)
-        ) {
-            performScreenOcr(context)
-        }
-        ocrButton = WeakReference(ocr)
-        dock.addView(ocr)
-
-        // 4. 翻译（采用工整饱满等宽矢量，彻底告别发虚甩尾毛刺）
+        // 5. 翻译（采用工整饱满等宽矢量，彻底告别发虚甩尾毛刺）
         val translate = createDockIconButton(
             context, density,
             icon = CopyActionIconDrawable(CopyActionIconDrawable.IconType.TRANSLATE, density, tintColor = primaryIconColor),
@@ -571,9 +617,14 @@ object UniversalCopyOverlay {
         val dp = { value: Int -> (value * density + 0.5f).toInt() }
         val primaryIconColor = 0xDE1F2024.toInt()
 
+        val isA11yMode = currentMode == ExtractMode.A11Y
+        val ocrIconType = if (isA11yMode) CopyActionIconDrawable.IconType.OCR_SCAN else CopyActionIconDrawable.IconType.ACCESSIBILITY
+        val ocrTooltip = if (isA11yMode) context.getString(R.string.universal_copy_ocr) else context.getString(R.string.universal_copy_switch_to_a11y)
+
         if (currentBlocks.isEmpty()) {
             showStatus(context.getString(R.string.universal_copy_empty_prompt), autoDismissMs = 0)
             selectAllButton?.get()?.visibility = View.GONE
+            screenshotButton?.get()?.visibility = View.VISIBLE
             copyButton?.get()?.visibility = View.GONE
             searchButton?.get()?.visibility = View.GONE
             translateButton?.get()?.visibility = View.GONE
@@ -582,19 +633,18 @@ object UniversalCopyOverlay {
                 visibility = View.VISIBLE
                 alpha = 1f
                 isEnabled = true
+                contentDescription = ocrTooltip
                 background = GradientDrawable().apply {
                     setColor("#326D32".toColorInt())
                     cornerRadius = dp(20).toFloat()
                 }
-                (drawable as? CopyActionIconDrawable)?.apply {
-                    tintColor = Color.WHITE
-                    invalidateSelf()
-                }
+                setImageDrawable(CopyActionIconDrawable(ocrIconType, density, tintColor = Color.WHITE))
             }
             return
         }
 
         selectAllButton?.get()?.visibility = View.VISIBLE
+        screenshotButton?.get()?.visibility = View.VISIBLE
         copyButton?.get()?.visibility = View.VISIBLE
         searchButton?.get()?.visibility = View.VISIBLE
         translateButton?.get()?.visibility = View.VISIBLE
@@ -603,14 +653,12 @@ object UniversalCopyOverlay {
             visibility = View.VISIBLE
             alpha = 1f
             isEnabled = true
+            contentDescription = ocrTooltip
             background = GradientDrawable().apply {
                 setColor(Color.TRANSPARENT)
                 cornerRadius = dp(20).toFloat()
             }
-            (drawable as? CopyActionIconDrawable)?.apply {
-                tintColor = primaryIconColor
-                invalidateSelf()
-            }
+            setImageDrawable(CopyActionIconDrawable(ocrIconType, density, tintColor = primaryIconColor))
         }
 
         val hasSelection = count > 0
@@ -758,7 +806,11 @@ object UniversalCopyOverlay {
                     }
                 } else {
                     val newBlocks = lines.map { SelectableBlock(it.text, Rect(it.bounds)) }
+                    cachedOcrBlocks.clear()
+                    cachedOcrBlocks.addAll(newBlocks)
+                    currentMode = ExtractMode.OCR
                     applyRecognizedBlocks(newBlocks)
+                    showStatus(context.getString(R.string.universal_copy_switched_ocr), autoDismissMs = 2000)
                 }
             } catch (_: CancellationException) {
                 root.visibility = View.VISIBLE
@@ -781,6 +833,7 @@ object UniversalCopyOverlay {
                 isEnabled = false
             }
             selectAllButton?.get()?.isEnabled = false
+            screenshotButton?.get()?.isEnabled = false
             copyButton?.get()?.isEnabled = false
             searchButton?.get()?.isEnabled = false
             translateButton?.get()?.isEnabled = false
@@ -791,6 +844,7 @@ object UniversalCopyOverlay {
                 isEnabled = true
             }
             selectAllButton?.get()?.isEnabled = true
+            screenshotButton?.get()?.isEnabled = true
             copyButton?.get()?.isEnabled = true
             searchButton?.get()?.isEnabled = true
             translateButton?.get()?.isEnabled = true
@@ -1048,8 +1102,10 @@ object UniversalCopyOverlay {
     ) : Drawable() {
         enum class IconType {
             SELECT_ALL,
+            SCREENSHOT,
             SEGMENT,
             OCR_SCAN,
+            ACCESSIBILITY,
             SEARCH,
             TRANSLATE
         }
@@ -1067,6 +1123,18 @@ object UniversalCopyOverlay {
         private val selectAllPath: Path? by lazy {
             runCatching {
                 PathParser.createPathFromPathData("M3,5h2V3c-1.1,0 -2,0.9 -2,2zM3,13h2v-2H3v2zM7,21h2v-2H7v2zM3,9h2V7H3v2zM13,3h-2v2h2V3zM19,3v2h2c0,-1.1 -0.9,-2 -2,-2zM5,21v-2H3c0,1.1 0.9,2 2,2zM3,17h2v-2H3v2zM9,3H7v2h2V3zM11,21h2v-2h-2v2zM19,13h2v-2h-2v2zM19,21c1.1,0 2,-0.9 2,-2h-2v2zM19,9h2V7h-2v2zM19,17h2v-2h-2v2zM15,21h2v-2h-2v2zM15,5h2V3h-2v2zM7,17h10V7H7v10zM9,9h6v6H9V9z")
+            }.getOrNull()
+        }
+
+        private val screenshotPath: Path? by lazy {
+            runCatching {
+                PathParser.createPathFromPathData("M17,15h2V7c0,-1.1 -0.9,-2 -2,-2H9v2h8v8zM7,17V1H5v4H1v2h4v10c0,1.1 0.9,2 2,2h10v4h2v-4h4v-2H7z")
+            }.getOrNull()
+        }
+
+        private val accessibilityPath: Path? by lazy {
+            runCatching {
+                PathParser.createPathFromPathData("M12,2c1.1,0 2,0.9 2,2s-0.9,2 -2,2 -2,-0.9 -2,-2 0.9,-2 2,-2zM21,9h-6v13h-2v-6h-2v6H9V9H3V7h18v2z")
             }.getOrNull()
         }
 
@@ -1096,6 +1164,17 @@ object UniversalCopyOverlay {
             when (iconType) {
                 IconType.SELECT_ALL -> {
                     val p = selectAllPath
+                    if (p != null) {
+                        canvas.save()
+                        canvas.translate(cx - 12f * density * scale, cy - 12f * density * scale)
+                        canvas.scale(density * scale, density * scale)
+                        fillPaint.alpha = alpha
+                        canvas.drawPath(p, fillPaint)
+                        canvas.restore()
+                    }
+                }
+                IconType.SCREENSHOT -> {
+                    val p = screenshotPath
                     if (p != null) {
                         canvas.save()
                         canvas.translate(cx - 12f * density * scale, cy - 12f * density * scale)
@@ -1145,6 +1224,17 @@ object UniversalCopyOverlay {
                     canvas.drawLine(cx - 3.2f * density * scale, cy - 3.0f * density * scale, cx + 3.2f * density * scale, cy - 3.0f * density * scale, strokePaint)
                     canvas.drawLine(cx, cy - 3.0f * density * scale, cx, cy + 4.2f * density * scale, strokePaint)
                     strokePaint.strokeWidth = 1.8f * density * scale
+                }
+                IconType.ACCESSIBILITY -> {
+                    val p = accessibilityPath
+                    if (p != null) {
+                        canvas.save()
+                        canvas.translate(cx - 12f * density * scale, cy - 12f * density * scale)
+                        canvas.scale(density * scale, density * scale)
+                        fillPaint.alpha = alpha
+                        canvas.drawPath(p, fillPaint)
+                        canvas.restore()
+                    }
                 }
                 IconType.SEARCH -> {
                     val p = searchPath

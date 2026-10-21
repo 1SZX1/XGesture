@@ -1834,6 +1834,10 @@
     <string name="universal_copy_ocr_recognizing">Recognizing…</string>
     <string name="universal_copy_empty_prompt">No screen text found</string>
     <string name="universal_copy_ocr_no_text">No text recognized</string>
+    <string name="universal_copy_screenshot">Smart Screenshot</string>
+    <string name="universal_copy_switch_to_a11y">Accessibility Text</string>
+    <string name="universal_copy_switched_a11y">Switched to accessibility text</string>
+    <string name="universal_copy_switched_ocr">Switched to OCR</string>
     <string name="gesture_action_freezer_panel">App freezer</string>
     <string name="gesture_action_freezer_panel_desc">Open freezer overlay</string>
     <string name="gesture_action_refreeze">Re-freeze apps</string>

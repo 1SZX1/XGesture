@@ -1114,6 +1114,10 @@
     <string name="universal_copy_ocr_recognizing">認識中…</string>
     <string name="universal_copy_empty_prompt">画面テキストが見つかりません</string>
     <string name="universal_copy_ocr_no_text">テキストが認識されませんでした</string>
+    <string name="universal_copy_screenshot">スマートスクリーンショット</string>
+    <string name="universal_copy_switch_to_a11y">アクセシビリティテキスト</string>
+    <string name="universal_copy_switched_a11y">アクセシビリティテキストに戻しました</string>
+    <string name="universal_copy_switched_ocr">文字認識（OCR）に切り替えました</string>
     <string name="gesture_action_freezer_panel">アプリフリーザー</string>
     <string name="gesture_action_freezer_panel_desc">フリーザーオーバーレイを開く</string>
     <string name="gesture_action_refreeze">アプリを再フリーズ</string>
@@ -4606,6 +4610,11 @@
     <string name="global_icon_custom">カスタム</string>
     <string name="extension_icon_library_title">アイコンライブラリ</string>
     <string name="extension_icon_library_subtitle">アクションの種類とアプリのアイコンを一括設定</string>
+    <string name="icon_plate_mode_section">アイコンプレート</string>
+    <string name="icon_plate_mode_dark">ダーク</string>
+    <string name="icon_plate_mode_light">ライト</string>
+    <string name="icon_plate_mode_system">システムに従う</string>
+    <string name="icon_plate_mode_desc">オーバーレイパネル内アクションアイコンの背景配色</string>
     <string name="action_icon_library_title">アイコンを選択</string>
     <string name="action_icon_all">すべて</string>
     <string name="action_icon_count">%1$d 個のアイコン</string>

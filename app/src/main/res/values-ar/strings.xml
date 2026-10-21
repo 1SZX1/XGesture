@@ -1097,6 +1097,10 @@
     <string name="universal_copy_ocr_recognizing">جارٍ التعرف…</string>
     <string name="universal_copy_empty_prompt">لم يتم العثور على نص الشاشة</string>
     <string name="universal_copy_ocr_no_text">لم يتم التعرف على أي نص</string>
+    <string name="universal_copy_screenshot">لقطة شاشة ذكية</string>
+    <string name="universal_copy_switch_to_a11y">نص إمكانية الوصول</string>
+    <string name="universal_copy_switched_a11y">تم الرجوع إلى نص إمكانية الوصول</string>
+    <string name="universal_copy_switched_ocr">تم التبديل إلى التعرف الضوئي (OCR)</string>
     <string name="gesture_action_freezer_panel">المُجمّد</string>
     <string name="gesture_action_freezer_panel_desc">فتح النافذة العائمة للمُجمّد</string>
     <string name="gesture_action_refreeze">إعادة تجميد التطبيق</string>
@@ -4610,6 +4614,11 @@
     <string name="global_icon_custom">مخصص</string>
     <string name="extension_icon_library_title">مكتبة الأيقونات</string>
     <string name="extension_icon_library_subtitle">تعيين أيقونات أنواع الإجراءات والتطبيقات عالميًا</string>
+    <string name="icon_plate_mode_section">لوحة الأيقونة</string>
+    <string name="icon_plate_mode_dark">داكن</string>
+    <string name="icon_plate_mode_light">فاتح</string>
+    <string name="icon_plate_mode_system">اتباع النظام</string>
+    <string name="icon_plate_mode_desc">نمط خلفية أيقونات الإجراءات في لوحات التراكب</string>
     <string name="action_icon_library_title">اختيار أيقونة</string>
     <string name="action_icon_all">الكل</string>
     <string name="action_icon_count">%1$d أيقونة</string>
