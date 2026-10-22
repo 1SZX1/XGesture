@@ -555,6 +555,7 @@
     <string name="interaction_appearance_settings_entry_desc">触覚、戻るジェスチャー、テーマ、ナビゲーションバー</string>
     <string name="settings_section_navigation_back">ナビゲーションと戻る</string>
     <string name="settings_section_theme_appearance">テーマと外観</string>
+    <string name="settings_section_overlay_visual">オーバーレイの外観</string>
     <string name="settings_section_general">一般</string>
     <string name="settings_app_language_title">アプリの言語</string>
     <string name="settings_app_language_system">システムに従う</string>
@@ -2265,6 +2266,12 @@
     <string name="search_engine_pick_share_text_target_title">テキスト共有ハンドラを選択</string>
     <string name="search_engine_share_text_target_search_hint">アプリまたはアクティビティを検索</string>
     <string name="search_engine_share_text_target_empty">共有テキストを受け取れるアプリがありません</string>
+    <string name="search_engine_share_file_target_section">ファイル共有先</string>
+    <string name="search_engine_share_file_target_not_set">ファイル共有先が選択されていません</string>
+    <string name="search_engine_pick_share_file_target">ファイル共有先を選択</string>
+    <string name="search_engine_pick_share_file_target_title">ファイル共有ハンドラを選択</string>
+    <string name="search_engine_share_file_target_search_hint">アプリまたはアクティビティを検索</string>
+    <string name="search_engine_share_file_target_empty">共有ファイルを受け取れるアプリがありません</string>
     <string name="image_search_engine_settings_title">画像検索エンジン</string>
     <string name="image_search_engine_settings_subtitle">画像検索とスクリーンショット共有</string>
     <string name="image_search_engine_aggregated_hint">長押しでタブを並べ替え。エンジンをタップして表示とプリロード設定。</string>

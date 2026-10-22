@@ -555,6 +555,7 @@
     <string name="interaction_appearance_settings_entry_desc">الاهتزاز، إيماءة الرجوع، السمة، ونمط شريط التنقل</string>
     <string name="settings_section_navigation_back">التنقل والعودة</string>
     <string name="settings_section_theme_appearance">المظهر والسمة</string>
+    <string name="settings_section_overlay_visual">مظهر الطبقات العائمة</string>
     <string name="settings_section_general">عام</string>
     <string name="settings_app_language_title">لغة التطبيق</string>
     <string name="settings_app_language_system">اتباع النظام</string>
@@ -2258,6 +2259,12 @@
     <string name="search_engine_pick_share_text_target_title">اختيار واجهة مشاركة النصوص</string>
     <string name="search_engine_share_text_target_search_hint">بحث عن تطبيق أو Activity</string>
     <string name="search_engine_share_text_target_empty">لا توجد تطبيقات تستقبل مشاركة النصوص</string>
+    <string name="search_engine_share_file_target_section">هدف مشاركة الملفات</string>
+    <string name="search_engine_share_file_target_not_set">لم يتم اختيار تطبيق لاستقبال مشاركة الملفات</string>
+    <string name="search_engine_pick_share_file_target">اختيار تطبيق لاستقبال مشاركة الملفات</string>
+    <string name="search_engine_pick_share_file_target_title">اختيار واجهة مشاركة الملفات</string>
+    <string name="search_engine_share_file_target_search_hint">بحث عن تطبيق أو Activity</string>
+    <string name="search_engine_share_file_target_empty">لا توجد تطبيقات تستقبل مشاركة الملفات</string>
     <string name="image_search_engine_settings_title">محركات البحث عن الصور</string>
     <string name="image_search_engine_settings_subtitle">البحث عن الصور ومشاركة لقطات الشاشة</string>
     <string name="image_search_engine_aggregated_hint">اضغط مطولاً لسحب وضبط ترتيب علامات التبويب. انقر للدخول إلى إعدادات التفاصيل وعرض البحث المتوازي</string>
