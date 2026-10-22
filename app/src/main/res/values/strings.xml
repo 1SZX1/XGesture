@@ -864,6 +864,12 @@
     <string name="search_engine_pick_share_text_target_title">Choose text share handler</string>
     <string name="search_engine_share_text_target_search_hint">Search apps or activities</string>
     <string name="search_engine_share_text_target_empty">No apps can receive shared text</string>
+    <string name="search_engine_share_file_target_section">File share target</string>
+    <string name="search_engine_share_file_target_not_set">No file share target selected</string>
+    <string name="search_engine_pick_share_file_target">Choose file share target</string>
+    <string name="search_engine_pick_share_file_target_title">Choose file share handler</string>
+    <string name="search_engine_share_file_target_search_hint">Search apps or activities</string>
+    <string name="search_engine_share_file_target_empty">No apps can receive shared files</string>
     <string name="image_search_engine_settings_title">Image search engines</string>
     <string name="image_search_engine_settings_subtitle">Image search and screenshot sharing</string>
     <string name="image_search_engine_aggregated_hint">Long-press to reorder tabs. Tap an engine for show and preload settings.</string>

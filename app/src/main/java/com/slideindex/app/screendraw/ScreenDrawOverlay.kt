@@ -1155,9 +1155,32 @@ object ScreenDrawOverlay {
         val flags = View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ
         val success = drawCanvas.startDragAndDrop(clipData, shadowBuilder, null, flags)
         if (success) {
-            toast(host, "已抓起，可拖拽发送至其他应用")
+            tempHideForDragFlow()
+            toast(host, "已抓起，可拖拽流转至操作栏")
         }
         return success
+    }
+
+    fun tempHideForDragFlow() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { tempHideForDragFlow() }
+            return
+        }
+        if (canvasHost == null) return
+        hideOptionsPopup()
+        canvasHost?.visibility = View.GONE
+        toolbar?.visibility = View.GONE
+    }
+
+    fun restoreFromDragFlow() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { restoreFromDragFlow() }
+            return
+        }
+        if (canvasHost == null) return
+        canvasHost?.visibility = View.VISIBLE
+        toolbar?.visibility = View.VISIBLE
+        canvas?.requestFocus()
     }
 
     private fun failSave() {

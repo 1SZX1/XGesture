@@ -16,6 +16,8 @@ object SearchEngineValidator {
                 !engine.targetPackage.isNullOrBlank() && !engine.targetActivity.isNullOrBlank()
             SearchEngineType.SHARE_IMAGE_TO_APP ->
                 !engine.targetPackage.isNullOrBlank() && !engine.targetActivity.isNullOrBlank()
+            SearchEngineType.SHARE_FILE_TO_APP ->
+                !engine.targetPackage.isNullOrBlank()
         }
     }
 }

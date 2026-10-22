@@ -48,6 +48,7 @@ fun ExtensionHubScreen(
     onOpenShellCommands: () -> Unit,
     onOpenWidgetPanel: () -> Unit,
     onOpenStashClipboard: () -> Unit,
+    onOpenDragDropFlow: () -> Unit = {},
     onOpenIconLibrary: () -> Unit = {},
     onOpenFreezer: () -> Unit = {},
     onOpenMacro: () -> Unit = {},
@@ -231,6 +232,25 @@ fun ExtensionHubScreen(
                     settingsCardScopeItem("macro") {
                         MacroEntryCard(onClick = onOpenMacro)
                         PageScrollEntryCard(onClick = onOpenPageScroll)
+                    }
+                )
+                add(
+                    settingsCardScopeItem("drag-drop-flow") {
+                        val flowSub = if (settings.dragDropFlowEnabled) {
+                            when (settings.dragDropFlowPositionId) {
+                                1 -> "已开启 · 左侧纵向"
+                                2 -> "已开启 · 右侧纵向"
+                                else -> "已开启 · 底边横向"
+                            }
+                        } else {
+                            "未启用 · 长按拖拽快速流转与图搜"
+                        }
+                        SettingNavigationRow(
+                            icon = { label -> Icon(ThinActionIcons.Drag, contentDescription = label) },
+                            title = "全局拖拽流转",
+                            subtitle = flowSub,
+                            onClick = onOpenDragDropFlow,
+                        )
                     }
                 )
             }

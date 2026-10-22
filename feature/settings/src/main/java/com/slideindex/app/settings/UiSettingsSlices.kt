@@ -129,6 +129,8 @@ data class ExtensionHubSettings(
     /** 全息启动器的应用来源模式，用于 Hub 卡片副标题。 */
     val holographicAppModeId: Int = HolographicAppMode.DEFAULT.id,
     val fvRingLauncherConfiguredCount: Int = 0,
+    val dragDropFlowEnabled: Boolean = false,
+    val dragDropFlowPositionId: Int = DragDropFlowPosition.BOTTOM.id,
 ) {
     companion object {
         fun from(settings: AppSettings): ExtensionHubSettings = ExtensionHubSettings(
@@ -150,6 +152,8 @@ data class ExtensionHubSettings(
             holographicAppCount = settings.holographicLauncher.selectedAppPackages.size,
             holographicAppModeId = settings.holographicLauncher.appMode.id,
             fvRingLauncherConfiguredCount = settings.launcher.fvRingLauncherVertical.configuredCount(),
+            dragDropFlowEnabled = settings.dragDropFlowEnabled,
+            dragDropFlowPositionId = settings.dragDropFlowPositionId,
         )
     }
 }

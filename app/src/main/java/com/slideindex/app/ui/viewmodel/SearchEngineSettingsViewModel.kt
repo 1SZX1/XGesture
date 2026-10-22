@@ -491,6 +491,16 @@ class SearchEngineSettingsViewModel @Inject constructor(
         }
     }
 
+    fun reorderFileShareEngines(ordered: List<SearchEngineConfig>) {
+        viewModelScope.launch {
+            val sorted = settings.value.searchEngines.sortedBy { it.sortOrder }
+            val orderedIds = ordered.map { it.id }.toSet()
+            val remaining = sorted.filter { it.id !in orderedIds }
+            val merged = ordered + remaining
+            persistEngines(merged.mapIndexed { index, engine -> engine.copy(sortOrder = index) })
+        }
+    }
+
     fun reorderAggregatedImageSearchEngines(ordered: List<AggregatedImageSearchEngineConfig>) {
         viewModelScope.launch {
             persistAggregatedEngines(ordered.mapIndexed { index, config -> config.copy(sortOrder = index) })

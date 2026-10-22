@@ -335,6 +335,9 @@ sealed interface AppNavKey : NavKey {
     @Serializable data object ExtensionExternalInvocations : AppNavKey
     @Serializable data object ExtensionLauncherShortcutMenu : AppNavKey
     @Serializable data object ExtensionAbout : AppNavKey
+    @Serializable data object DragDropFlowSettings : AppNavKey
+    @Serializable data object FileShareEngineSettings : AppNavKey
+    @Serializable data object FileSharePickApp : AppNavKey
 
 @Serializable data object GlobalIconLibrary : AppNavKey
     @Serializable data object ExtensionDiagnosticLogs : AppNavKey

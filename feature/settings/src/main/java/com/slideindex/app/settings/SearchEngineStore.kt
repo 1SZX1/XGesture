@@ -30,9 +30,50 @@ object SearchEngineStore {
             it.engineType == SearchEngineType.SHARE_IMAGE_TO_APP && it.showInPickPanel
         }.sortedBy { it.sortOrder }
 
+    fun fileSharePanelEngines(engines: List<SearchEngineConfig>): List<SearchEngineConfig> {
+        val configured = engines.filter {
+            it.engineType == SearchEngineType.SHARE_FILE_TO_APP && it.showInPickPanel
+        }.sortedBy { it.sortOrder }
+        if (configured.isNotEmpty()) return configured
+        return defaultFileShareEngines()
+    }
+
+    fun defaultFileShareEngines(): List<SearchEngineConfig> = listOf(
+        SearchEngineConfig(
+            id = "file_share_wechat",
+            name = "发送给微信",
+            targetPackage = "com.tencent.mm",
+            engineType = SearchEngineType.SHARE_FILE_TO_APP,
+            sortOrder = 0,
+        ),
+        SearchEngineConfig(
+            id = "file_share_qq",
+            name = "发送给QQ",
+            targetPackage = "com.tencent.mobileqq",
+            engineType = SearchEngineType.SHARE_FILE_TO_APP,
+            sortOrder = 1,
+        ),
+        SearchEngineConfig(
+            id = "file_share_dingtalk",
+            name = "发送给钉钉",
+            targetPackage = "com.alibaba.android.rimet",
+            engineType = SearchEngineType.SHARE_FILE_TO_APP,
+            sortOrder = 2,
+        ),
+        SearchEngineConfig(
+            id = "file_share_lark",
+            name = "发送给飞书",
+            targetPackage = "com.ss.android.lark",
+            engineType = SearchEngineType.SHARE_FILE_TO_APP,
+            sortOrder = 3,
+        ),
+    )
+
     fun textSettingsEngines(engines: List<SearchEngineConfig>): List<SearchEngineConfig> =
-        engines.filter { it.engineType != SearchEngineType.SHARE_IMAGE_TO_APP }
-            .sortedBy { it.sortOrder }
+        engines.filter {
+            it.engineType != SearchEngineType.SHARE_IMAGE_TO_APP &&
+                it.engineType != SearchEngineType.SHARE_FILE_TO_APP
+        }.sortedBy { it.sortOrder }
 
     /**
      * 按 id 解析文本搜索引擎。

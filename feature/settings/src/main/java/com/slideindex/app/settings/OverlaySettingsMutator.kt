@@ -1912,4 +1912,16 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.HOLOGRAPHIC_LAUNCHER_APP_PACKAGES] =
             HolographicLauncherAppPackagesCodec.encode(packageNames)
     }
+
+    suspend fun setDragDropFlowEnabled(enabled: Boolean) = editor.edit {
+        it[SettingsPreferenceKeys.DRAG_DROP_FLOW_ENABLED] = enabled
+    }
+
+    suspend fun setDragDropFlowPosition(position: DragDropFlowPosition) = editor.edit {
+        it[SettingsPreferenceKeys.DRAG_DROP_FLOW_POSITION] = position.id
+    }
+
+    suspend fun setDragDropFlowHapticEnabled(enabled: Boolean) = editor.edit {
+        it[SettingsPreferenceKeys.DRAG_DROP_FLOW_HAPTIC] = enabled
+    }
 }

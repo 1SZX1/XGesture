@@ -691,6 +691,12 @@ internal object SettingsSnapshotReader {
             overlayBlur = OverlayBlurSettings(
                 overlayBlurEnabled = prefs[SettingsPreferenceKeys.OVERLAY_BLUR_ENABLED] ?: true,
             ),
+            dragDropFlow = DragDropFlowSettings(
+                dragDropFlowEnabled = prefs[SettingsPreferenceKeys.DRAG_DROP_FLOW_ENABLED] ?: false,
+                dragDropFlowPositionId = prefs[SettingsPreferenceKeys.DRAG_DROP_FLOW_POSITION]
+                    ?: DragDropFlowPosition.BOTTOM.id,
+                dragDropFlowHapticEnabled = prefs[SettingsPreferenceKeys.DRAG_DROP_FLOW_HAPTIC] ?: true,
+            ),
             independentAppGestureEnabled =
                 prefs[SettingsPreferenceKeys.INDEPENDENT_APP_GESTURE_ENABLED] ?: false,
             gestureProfiles = readGestureProfiles(prefs),

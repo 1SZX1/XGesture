@@ -789,4 +789,8 @@ internal object SettingsPreferenceKeys {
      * 随本地备份一起导出，也能被恢复回来（换机后不必重新填网盘口令）。
      */
     val CLOUD_STORAGE_SETTINGS_JSON = stringPreferencesKey("cloud_storage_settings_json")
+
+    val DRAG_DROP_FLOW_ENABLED = booleanPreferencesKey("drag_drop_flow_enabled")
+    val DRAG_DROP_FLOW_POSITION = intPreferencesKey("drag_drop_flow_position")
+    val DRAG_DROP_FLOW_HAPTIC = booleanPreferencesKey("drag_drop_flow_haptic")
 }

@@ -743,7 +743,8 @@ private fun EditorTypeFields(
             }
         }
 
-        SearchEngineType.SHARE_IMAGE_TO_APP -> Unit
+        SearchEngineType.SHARE_IMAGE_TO_APP,
+        SearchEngineType.SHARE_FILE_TO_APP -> Unit
             }
         }
     }
@@ -921,6 +922,7 @@ private fun engineTypeLabel(type: SearchEngineType): String {
         SearchEngineType.EXTERN_JUMP_LINK -> stringResource(R.string.search_engine_type_extern_jump)
         SearchEngineType.SHARE_TO_APP -> stringResource(R.string.search_engine_type_share)
         SearchEngineType.SHARE_IMAGE_TO_APP -> stringResource(R.string.search_engine_type_share_image)
+        SearchEngineType.SHARE_FILE_TO_APP -> "文件分享"
     }
 }
 

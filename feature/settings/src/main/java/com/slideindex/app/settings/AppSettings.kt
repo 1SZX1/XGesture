@@ -86,6 +86,7 @@ data class AppSettings(
     val imageEditorDelayDeleteEnabled: Boolean = false,
     val searchPanel: SearchPanelSettings = SearchPanelSettings(),
     val overlayBlur: OverlayBlurSettings = OverlayBlurSettings(),
+    val dragDropFlow: DragDropFlowSettings = DragDropFlowSettings(),
     /**
      * 侧滑手势「按应用分档」总开关。
      *
@@ -426,6 +427,11 @@ data class AppSettings(
     val aggregatedImageSearchEngines get() = searchPanel.aggregatedImageSearchEngines
 
     val overlayBlurEnabled get() = overlayBlur.overlayBlurEnabled
+
+    val dragDropFlowEnabled get() = dragDropFlow.dragDropFlowEnabled
+    val dragDropFlowPositionId get() = dragDropFlow.dragDropFlowPositionId
+    val dragDropFlowPosition: DragDropFlowPosition get() = DragDropFlowPosition.fromId(dragDropFlow.dragDropFlowPositionId)
+    val dragDropFlowHapticEnabled get() = dragDropFlow.dragDropFlowHapticEnabled
 
     // endregion
 

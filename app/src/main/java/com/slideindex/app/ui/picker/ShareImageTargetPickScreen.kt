@@ -23,6 +23,7 @@ import com.slideindex.app.R
 import com.slideindex.app.search.ShareImageTarget
 import com.slideindex.app.search.ShareImageTargetResolver
 import com.slideindex.app.search.ShareTextTargetResolver
+import com.slideindex.app.search.ShareFileTargetResolver
 import com.slideindex.app.ui.Md3PickerDrawableLeading
 import com.slideindex.app.ui.Md3PickerListRow
 import com.slideindex.app.ui.PickerListHorizontalPadding
@@ -46,6 +47,108 @@ fun ShareImageTargetPickScreen(
         onBack = onBack,
         onSelectTarget = onSelectTarget,
     )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ShareFileTargetPickScreen(
+    selectedPackageName: String = "",
+    selectedActivityClassName: String = "",
+    onBack: () -> Unit,
+    onSelectTarget: (ShareImageTarget) -> Unit,
+) {
+    val context = LocalContext.current
+    var targets by remember { mutableStateOf<List<ShareImageTarget>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var query by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        loading = true
+        targets = withContext(Dispatchers.IO) {
+            ShareFileTargetResolver.listTargets(context)
+        }
+        loading = false
+    }
+
+    val filtered = remember(targets, query) {
+        ShareFileTargetResolver.searchTargets(targets, query)
+    }
+
+    SettingsLazyScreenScaffoldWithExpandableSearch(
+        title = stringResource(R.string.search_engine_pick_share_file_target_title),
+        pageHint = stringResource(R.string.search_engine_pick_share_file_target),
+        searchQuery = query,
+        onSearchQueryChange = { query = it },
+        onBack = onBack,
+        hintResId = R.string.search_engine_share_file_target_search_hint,
+    ) {
+        when {
+            loading -> {
+                item(key = "share-file-target-loading") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+            filtered.isEmpty() -> {
+                item(key = "share-file-target-empty") {
+                    Text(
+                        text = stringResource(R.string.search_engine_share_file_target_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+            }
+            else -> {
+                items(
+                    items = filtered,
+                    key = { "${it.packageName}/${it.activityClassName}" },
+                ) { target ->
+                    val index = filtered.indexOf(target)
+                    val selected = target.packageName == selectedPackageName &&
+                        target.activityClassName == selectedActivityClassName
+                    val subtitle = ShareFileTargetResolver.displaySubtitle(target)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = PickerListHorizontalPadding,
+                                end = PickerListHorizontalPadding,
+                                bottom = if (index == filtered.lastIndex) 8.dp else 0.dp,
+                            ),
+                    ) {
+                        Md3PickerListRow(
+                            segmentIndex = index,
+                            segmentCount = filtered.size,
+                            title = target.label,
+                            subtitle = subtitle,
+                            selected = selected,
+                            onClick = { onSelectTarget(target) },
+                            leadingContent = {
+                                val pm = context.packageManager
+                                val drawable = target.icon ?: runCatching {
+                                    pm.getApplicationIcon(target.packageName)
+                                }.getOrNull()
+                                if (drawable != null) {
+                                    Md3PickerDrawableLeading(
+                                        drawable = drawable,
+                                        contentDescription = target.label,
+                                        cacheKey = target.activityClassName,
+                                    )
+                                }
+                            },
+                            trailingMode = PickerTrailingMode.Radio,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

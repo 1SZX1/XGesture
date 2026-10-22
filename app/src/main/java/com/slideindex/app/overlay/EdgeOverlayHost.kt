@@ -18,6 +18,7 @@ import com.slideindex.app.settings.GestureProfileCatalog
 import com.slideindex.app.settings.withActiveGestureProfile
 import android.util.Log
 import com.slideindex.app.overlay.corner.CornerGestureHost
+import com.slideindex.app.overlay.dragdrop.DragDropFlowController
 import com.slideindex.app.service.OverlayService
 import com.slideindex.app.service.SlideIndexAccessibilityService
 import com.slideindex.app.util.OverlaySnoozeController
@@ -43,6 +44,7 @@ class EdgeOverlayHost(
     private var overlayManager: OverlayManager? = null
     private var floatBallController: FloatBallController? = null
     private var cornerGestureHost: CornerGestureHost? = null
+    private var dragDropFlowController: DragDropFlowController? = null
     private var settingsJob: Job? = null
     private var appsJob: Job? = null
     private var previewActive = false
@@ -98,6 +100,7 @@ class EdgeOverlayHost(
         }
         floatBallController = FloatBallController(context, scope, deps.settingsRepository)
         cornerGestureHost = CornerGestureHost(context, scope, deps).also { it.start() }
+        dragDropFlowController = DragDropFlowController(context, scope, deps.settingsRepository).also { it.start() }
         displayRotationMonitor = OverlayDisplayRotationMonitor(context) {
             overlayManager?.relayoutTriggersForDisplayRotation()
             refreshOverlaySuppression()
@@ -204,6 +207,8 @@ class EdgeOverlayHost(
         floatBallController = null
         runCatching { cornerGestureHost?.stop() }
         cornerGestureHost = null
+        runCatching { dragDropFlowController?.stop() }
+        dragDropFlowController = null
         runCatching { displayRotationMonitor?.stop() }
         displayRotationMonitor = null
         runCatching { overlayManager?.destroy() }

@@ -70,6 +70,7 @@ object SearchEngineLauncher {
                 launchJumpActivity(context, engine, text, settings, longPressTriggered, null)
             SearchEngineType.SHARE_TO_APP,
             SearchEngineType.SHARE_IMAGE_TO_APP,
+            SearchEngineType.SHARE_FILE_TO_APP,
             -> false // use launchTextShare / launchImageShare instead
         }
     }
@@ -101,6 +102,7 @@ object SearchEngineLauncher {
                 launchJumpActivity(context, engine, text, settings, false, fullscreen)
             SearchEngineType.SHARE_TO_APP,
             SearchEngineType.SHARE_IMAGE_TO_APP,
+            SearchEngineType.SHARE_FILE_TO_APP,
             -> false // use launchTextShare / launchImageShare instead
         }
     }

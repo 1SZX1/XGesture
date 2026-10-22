@@ -2370,6 +2370,12 @@
     <string name="search_engine_pick_share_text_target_title">选择文字分享接口</string>
     <string name="search_engine_share_text_target_search_hint">搜索应用或 Activity</string>
     <string name="search_engine_share_text_target_empty">没有可接收文字分享的应用</string>
+    <string name="search_engine_share_file_target_section">文件分享目标</string>
+    <string name="search_engine_share_file_target_not_set">未选择接收文件分享的应用</string>
+    <string name="search_engine_pick_share_file_target">选择接收文件分享的应用</string>
+    <string name="search_engine_pick_share_file_target_title">选择文件分享接口</string>
+    <string name="search_engine_share_file_target_search_hint">搜索应用或 Activity</string>
+    <string name="search_engine_share_file_target_empty">没有可接收文件分享的应用</string>
     <string name="image_search_engine_settings_title">图片搜索引擎</string>
     <string name="image_search_engine_settings_subtitle">图片搜索与截图分享</string>
     <string name="image_search_engine_aggregated_hint">长按可拖动调整 Tab 顺序。点击进入详情设置显示与并行搜索</string>

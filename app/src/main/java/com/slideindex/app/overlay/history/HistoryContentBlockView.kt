@@ -210,6 +210,7 @@ internal fun HistoryContentBlockView(
                     path = path,
                     durationMs = block.durationMs,
                     onRemove = null,
+                    onLongClick = onLongPressDrag,
                 )
             }
         }

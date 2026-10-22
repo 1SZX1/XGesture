@@ -543,3 +543,16 @@ data class OverlayBlurSettings(
     /** 悬浮窗模糊总开关；关闭时全部降级为实色底。 */
     val overlayBlurEnabled: Boolean = true,
 )
+
+/**
+ * 全局拖拽流转栏（Drag & Drop Flow Bar）设置。
+ */
+data class DragDropFlowSettings(
+    /** 全局拖拽流转总开关。 */
+    val dragDropFlowEnabled: Boolean = false,
+    /** 流转栏出现位置（底边横向 / 左侧纵向 / 右侧纵向）。 */
+    val dragDropFlowPositionId: Int = DragDropFlowPosition.BOTTOM.id,
+    /** 拖拽至引擎或取消时是否震动。 */
+    val dragDropFlowHapticEnabled: Boolean = true,
+)
+

@@ -1170,4 +1170,8 @@ class SettingsRepository @Inject constructor(
         message.setMessageOpenLastAlways(packageName, enabled)
     suspend fun upsertMessageAppFilterRule(rule: MessageAppFilterRule) = message.upsertMessageAppFilterRule(rule)
     suspend fun removeMessageAppFilterRule(packageName: String) = message.removeMessageAppFilterRule(packageName)
+
+    suspend fun setDragDropFlowEnabled(enabled: Boolean) = overlay.setDragDropFlowEnabled(enabled)
+    suspend fun setDragDropFlowPosition(position: DragDropFlowPosition) = overlay.setDragDropFlowPosition(position)
+    suspend fun setDragDropFlowHapticEnabled(enabled: Boolean) = overlay.setDragDropFlowHapticEnabled(enabled)
 }

@@ -1,8 +1,10 @@
 package com.slideindex.app.overlay.history
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +53,7 @@ import top.yukonga.miuix.kmp.basic.Text
  * ⚠️ 后一件事很重要：它同时实现了"切条目 / 收起展开 / 关面板"时自动停 —— 这些场景在
  * Compose 里都表现为"这个音频块离开了组合"，靠宿主逐个去调 `stop()` 一定会漏。
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun HistoryAudioBlockCapsule(
     /** 已经解析过的**可播放绝对路径**（文件名 → 路径那一步由调用方做）。 */
@@ -61,6 +64,8 @@ internal fun HistoryAudioBlockCapsule(
     modifier: Modifier = Modifier,
     /** false = 暂时不能播（录音进行中：互斥）。 */
     enabled: Boolean = true,
+    /** 长按触发（卡片拖拽）。 */
+    onLongClick: (() -> Unit)? = null,
 ) {
     val theme = historyTheme()
     val shape = RoundedCornerShape(HistoryRadii.pill)
@@ -71,6 +76,28 @@ internal fun HistoryAudioBlockCapsule(
     // 离开组合 = "这条/这块不再显示了" → 停掉（见 KDoc 里那一段）。
     DisposableEffect(path) {
         onDispose { if (HistoryAudioPlayback.isPlaying(path)) HistoryAudioPlayback.stop() }
+    }
+
+    val clickModifier = if (onLongClick != null) {
+        Modifier.combinedClickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            enabled = enabled,
+            onClick = {
+                failed = false
+                HistoryAudioPlayback.toggle(path) { failed = true }
+            },
+            onLongClick = onLongClick,
+        )
+    } else {
+        Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            enabled = enabled,
+        ) {
+            failed = false
+            HistoryAudioPlayback.toggle(path) { failed = true }
+        }
     }
 
     Box(
@@ -88,14 +115,7 @@ internal fun HistoryAudioBlockCapsule(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(40.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    enabled = enabled,
-                ) {
-                    failed = false
-                    HistoryAudioPlayback.toggle(path) { failed = true }
-                }
+                .then(clickModifier)
                 .padding(start = 6.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),

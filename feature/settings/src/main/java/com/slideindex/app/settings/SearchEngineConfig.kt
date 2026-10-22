@@ -8,6 +8,7 @@ enum class SearchEngineType {
     DIRECT_LINK,
     SHARE_TO_APP,
     SHARE_IMAGE_TO_APP,
+    SHARE_FILE_TO_APP,
     JUMP_TO_ACTIVITY,
     EXTERN_JUMP_LINK,
 }
@@ -45,6 +46,8 @@ data class SearchEngineConfig(
         SearchEngineType.EXTERN_JUMP_LINK,
         SearchEngineType.SHARE_TO_APP,
         -> showInPickPanel
-        SearchEngineType.SHARE_IMAGE_TO_APP -> false
+        SearchEngineType.SHARE_IMAGE_TO_APP,
+        SearchEngineType.SHARE_FILE_TO_APP,
+        -> false
     }
 }

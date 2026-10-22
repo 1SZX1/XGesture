@@ -15,6 +15,7 @@ import android.graphics.ColorFilter
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.Point
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -22,12 +23,15 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.text.TextPaint
 import android.util.TypedValue
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
 import android.view.WindowManager
@@ -924,6 +928,7 @@ object UniversalCopyOverlay {
         }
 
         private var isDraggingBox = false
+        private var isDragAndDropping = false
         private var downX = 0f
         private var downY = 0f
         private var currentX = 0f
@@ -937,6 +942,49 @@ object UniversalCopyOverlay {
         private var viewOffsetX = 0
         private var viewOffsetY = 0
         private val locationOnScreen = IntArray(2)
+
+        private val longPressRunnable = Runnable {
+            val targetBlock = downBlock ?: return@Runnable
+            if (isDraggingBox || isDragAndDropping) return@Runnable
+
+            // 1. 若当前长按的块未选中，则先将其置为选中
+            if (!targetBlock.selected) {
+                targetBlock.selected = true
+                invalidate()
+                onSelectionChanged()
+            }
+
+            // 2. 收集将要拖出的文本（自上而下自然排序）
+            val selected = sortBlocksNaturally(blocks.filter { it.selected })
+            val dragText = if (selected.isNotEmpty()) {
+                selected.joinToString("\n") { it.text }
+            } else {
+                targetBlock.text
+            }
+
+            if (dragText.isBlank()) return@Runnable
+
+            // 3. 强触觉振动反馈
+            runCatching { performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) }
+
+            // 4. 构造跨应用 ClipData 与 DragShadowBuilder
+            val clipData = ClipData.newPlainText("UniversalCopy", dragText)
+            val shadowBuilder = TextDragShadowBuilder(this, dragText, density, accentColor)
+            val flags = View.DRAG_FLAG_GLOBAL
+
+            // 5. 启动系统级跨应用拖拽
+            isDragAndDropping = true
+            val started = runCatching {
+                startDragAndDrop(clipData, shadowBuilder, null, flags)
+            }.getOrDefault(false)
+
+            if (started) {
+                // 拖拽启动成功后，将浮层极速淡出关闭，露出底层应用以便无缝投递
+                post { dismiss(animated = true) }
+            } else {
+                isDragAndDropping = false
+            }
+        }
 
         fun setBlocks(newBlocks: List<SelectableBlock>) {
             this.blocks = newBlocks
@@ -987,6 +1035,8 @@ object UniversalCopyOverlay {
         override fun onTouchEvent(event: MotionEvent): Boolean {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    removeCallbacks(longPressRunnable)
+                    isDragAndDropping = false
                     downX = event.rawX
                     downY = event.rawY
                     currentX = event.rawX
@@ -995,14 +1045,22 @@ object UniversalCopyOverlay {
                     downBlock = findBlockAt(event.rawX, event.rawY)
                     initialSelectedStates.clear()
                     blocks.forEach { initialSelectedStates[it] = it.selected }
+
+                    // 如果命中了某个文字块，排布长按检测计时器
+                    if (downBlock != null) {
+                        postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
+                    }
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
-                    if (!isDraggingBox && (dx * dx + dy * dy >= tapSlopSq)) {
-                        isDraggingBox = true
+                    if (dx * dx + dy * dy >= tapSlopSq) {
+                        removeCallbacks(longPressRunnable)
+                        if (!isDraggingBox && !isDragAndDropping) {
+                            isDraggingBox = true
+                        }
                     }
-                    if (isDraggingBox) {
+                    if (isDraggingBox && !isDragAndDropping) {
                         currentX = event.rawX
                         currentY = event.rawY
                         val left = minOf(downX, currentX).toInt()
@@ -1032,6 +1090,12 @@ object UniversalCopyOverlay {
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    removeCallbacks(longPressRunnable)
+                    if (isDragAndDropping) {
+                        isDragAndDropping = false
+                        downBlock = null
+                        return true
+                    }
                     if (isDraggingBox) {
                         isDraggingBox = false
                         invalidate()
@@ -1064,10 +1128,12 @@ object UniversalCopyOverlay {
                     downBlock = null
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    removeCallbacks(longPressRunnable)
                     if (isDraggingBox) {
                         isDraggingBox = false
                         invalidate()
                     }
+                    isDragAndDropping = false
                     downBlock = null
                 }
             }
@@ -1092,6 +1158,72 @@ object UniversalCopyOverlay {
                 }
             }
             return best
+        }
+    }
+
+    private class TextDragShadowBuilder(
+        view: View,
+        private val text: String,
+        private val density: Float,
+        accentColor: Int,
+    ) : View.DragShadowBuilder(view) {
+        private val shadowPad = (density * 12).toInt()
+        private val cardCornerPx = density * 12f
+        private val cardWidth = (density * 220).toInt()
+        private val cardHeight = (density * 68).toInt()
+        private val totalWidth = cardWidth + shadowPad * 2
+        private val totalHeight = cardHeight + shadowPad * 2
+
+        private val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+        }
+        private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = density * 1.5f
+            color = (accentColor and 0x00FFFFFF) or 0xCC000000.toInt()
+        }
+        private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xDE1F2024.toInt()
+            textSize = density * 13f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        private val subTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0x8A1F2024.toInt()
+            textSize = density * 11.5f
+        }
+
+        override fun onProvideShadowMetrics(outShadowSize: Point, outShadowTouchPoint: Point) {
+            outShadowSize.set(totalWidth, totalHeight)
+            outShadowTouchPoint.set(totalWidth / 2, totalHeight / 2)
+        }
+
+        override fun onDrawShadow(canvas: Canvas) {
+            val left = shadowPad.toFloat()
+            val top = shadowPad.toFloat()
+            val right = left + cardWidth
+            val bottom = top + cardHeight
+
+            // 1. 卡片柔和外阴影
+            cardPaint.setShadowLayer(density * 8f, 0f, density * 4f, 0x38000000.toInt())
+            canvas.drawRoundRect(left, top, right, bottom, cardCornerPx, cardCornerPx, cardPaint)
+            cardPaint.clearShadowLayer()
+
+            // 2. 翡翠主题强调边框
+            canvas.drawRoundRect(left, top, right, bottom, cardCornerPx, cardCornerPx, borderPaint)
+
+            // 3. 卡片内文字预览绘制（前两行）
+            val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            val firstLine = (lines.firstOrNull() ?: "").take(22)
+            val secondLine = (if (lines.size > 1) lines[1] else lines.firstOrNull()?.drop(22).orEmpty()).take(26)
+
+            val textLeft = left + density * 14f
+            val firstLineY = top + density * 26f
+            canvas.drawText(firstLine, textLeft, firstLineY, textPaint)
+
+            if (secondLine.isNotBlank()) {
+                val secondLineY = firstLineY + density * 18f
+                canvas.drawText(secondLine, textLeft, secondLineY, subTextPaint)
+            }
         }
     }
 

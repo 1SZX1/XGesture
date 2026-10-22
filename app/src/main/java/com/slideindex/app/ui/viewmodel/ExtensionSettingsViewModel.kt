@@ -756,4 +756,16 @@ class ExtensionSettingsViewModel @Inject constructor(
     ) = launchSettingsWrite {
         settingsRepository.setFvRingLauncherLinkSlotAxes(enabled, activeAxis, mergeDirection)
     }
+
+    fun setDragDropFlowEnabled(enabled: Boolean) = launchSettingsWrite {
+        settingsRepository.setDragDropFlowEnabled(enabled)
+    }
+
+    fun setDragDropFlowPosition(position: com.slideindex.app.settings.DragDropFlowPosition) = launchSettingsWrite {
+        settingsRepository.setDragDropFlowPosition(position)
+    }
+
+    fun setDragDropFlowHapticEnabled(enabled: Boolean) = launchSettingsWrite {
+        settingsRepository.setDragDropFlowHapticEnabled(enabled)
+    }
 }
