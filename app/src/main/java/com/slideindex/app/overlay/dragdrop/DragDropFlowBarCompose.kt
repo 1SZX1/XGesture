@@ -45,6 +45,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -113,11 +114,28 @@ fun DragDropFlowBarLayout(
     val itemBounds = remember { mutableStateMapOf<String, Rect>() }
     var cancelBounds by remember { mutableStateOf<Rect?>(null) }
     var restoreBounds by remember { mutableStateOf<Rect?>(null) }
+    var barBounds by remember { mutableStateOf<Rect?>(null) }
     var hoveredId by remember { mutableStateOf<String?>(null) }
     var lastVibratedTarget by remember { mutableStateOf<String?>(null) }
 
+    // 当可见性关闭或 items 列表变更时及时清理幽灵热区
+    LaunchedEffect(visible, items) {
+        if (!visible) {
+            itemBounds.clear()
+            cancelBounds = null
+            restoreBounds = null
+            barBounds = null
+            hoveredId = null
+            lastVibratedTarget = null
+            onHoverChanged(null)
+        } else {
+            val validIds = items.map { it.id }.toSet()
+            itemBounds.keys.retainAll(validIds)
+        }
+    }
+
     // 监听手指拖拽位置并计算当前命中的目标项
-    LaunchedEffect(dragPosition, itemBounds, cancelBounds, restoreBounds) {
+    LaunchedEffect(dragPosition, itemBounds, cancelBounds, restoreBounds, barBounds) {
         val pos = dragPosition
         if (pos == null) {
             hoveredId = null
@@ -126,12 +144,17 @@ fun DragDropFlowBarLayout(
             return@LaunchedEffect
         }
 
+        val curBar = barBounds
         val targetId: String? = when {
             cancelBounds?.contains(pos) == true -> "__cancel__"
             restoreBounds?.contains(pos) == true -> "__restore__"
-            else -> {
-                itemBounds.entries.firstOrNull { it.value.contains(pos) }?.key
+            curBar?.contains(pos) == true -> {
+                // 仅在当前 Dock 视口内部查找，且确保项中心未被移出视口
+                itemBounds.entries.firstOrNull { (_, rect) ->
+                    rect.contains(pos) && curBar.contains(rect.center)
+                }?.key
             }
+            else -> null
         }
 
         if (targetId != hoveredId) {
@@ -160,6 +183,8 @@ fun DragDropFlowBarLayout(
                         hoveredId = hoveredId,
                         dragPosition = dragPosition,
                         itemBounds = itemBounds,
+                        barBounds = barBounds,
+                        onBarPositioned = { barBounds = it },
                         onCancelPositioned = { cancelBounds = it },
                         onRestorePositioned = { restoreBounds = it },
                     )
@@ -171,6 +196,8 @@ fun DragDropFlowBarLayout(
                         hoveredId = hoveredId,
                         dragPosition = dragPosition,
                         itemBounds = itemBounds,
+                        barBounds = barBounds,
+                        onBarPositioned = { barBounds = it },
                         onCancelPositioned = { cancelBounds = it },
                         onRestorePositioned = { restoreBounds = it },
                     )
@@ -182,6 +209,8 @@ fun DragDropFlowBarLayout(
                         hoveredId = hoveredId,
                         dragPosition = dragPosition,
                         itemBounds = itemBounds,
+                        barBounds = barBounds,
+                        onBarPositioned = { barBounds = it },
                         onCancelPositioned = { cancelBounds = it },
                         onRestorePositioned = { restoreBounds = it },
                     )
@@ -200,11 +229,12 @@ private fun BottomFlowContent(
     hoveredId: String?,
     dragPosition: Offset?,
     itemBounds: MutableMap<String, Rect>,
+    barBounds: Rect?,
+    onBarPositioned: (Rect) -> Unit,
     onCancelPositioned: (Rect) -> Unit,
     onRestorePositioned: (Rect) -> Unit,
 ) {
     val listState = rememberLazyListState()
-    var barBounds by remember { mutableStateOf<Rect?>(null) }
     val scope = rememberCoroutineScope()
 
     val density = LocalDensity.current
@@ -267,7 +297,7 @@ private fun BottomFlowContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp)
-                .onGloballyPositioned { barBounds = it.boundsInWindow() },
+                .onGloballyPositioned { onBarPositioned(it.boundsInWindow()) },
             contentAlignment = Alignment.Center,
         ) {
             GlassCapsuleContainer(cornerRadius = 24.dp) {
@@ -284,6 +314,7 @@ private fun BottomFlowContent(
                             isHovered = hoveredId == item.id,
                             isVertical = false,
                             onPositioned = { rect -> itemBounds[item.id] = rect },
+                            onDisposed = { itemBounds.remove(item.id) },
                         )
                     }
                 }
@@ -302,11 +333,12 @@ private fun SideFlowContent(
     hoveredId: String?,
     dragPosition: Offset?,
     itemBounds: MutableMap<String, Rect>,
+    barBounds: Rect?,
+    onBarPositioned: (Rect) -> Unit,
     onCancelPositioned: (Rect) -> Unit,
     onRestorePositioned: (Rect) -> Unit,
 ) {
     val listState = rememberLazyListState()
-    var barBounds by remember { mutableStateOf<Rect?>(null) }
 
     val density = LocalDensity.current
     val edgeZonePx = with(density) { 54.dp.toPx() }
@@ -357,7 +389,7 @@ private fun SideFlowContent(
                 modifier = Modifier
                     .width(78.dp)
                     .fillMaxHeight(0.58f)
-                    .onGloballyPositioned { barBounds = it.boundsInWindow() },
+                    .onGloballyPositioned { onBarPositioned(it.boundsInWindow()) },
             ) {
                 GlassCapsuleContainer(cornerRadius = 24.dp) {
                     LazyColumn(
@@ -373,6 +405,7 @@ private fun SideFlowContent(
                                 isHovered = hoveredId == item.id,
                                 isVertical = true,
                                 onPositioned = { rect -> itemBounds[item.id] = rect },
+                                onDisposed = { itemBounds.remove(item.id) },
                             )
                         }
                     }
@@ -471,7 +504,14 @@ private fun FlowItemCard(
     isHovered: Boolean,
     isVertical: Boolean,
     onPositioned: (Rect) -> Unit,
+    onDisposed: () -> Unit,
 ) {
+    DisposableEffect(item.id) {
+        onDispose {
+            onDisposed()
+        }
+    }
+
     val scale by animateFloatAsState(
         targetValue = if (isHovered) 1.18f else 1.0f,
         animationSpec = tween(120),
@@ -482,31 +522,32 @@ private fun FlowItemCard(
     Column(
         modifier = Modifier
             .scale(scale)
-            .width(52.dp)
+            .width(56.dp)
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        // 图标圆角容器：精确热区只绑定在此 44dp 区域，杜绝边缘虚假震动
+        // 图标圆角容器：精确热区只绑定在此 48dp 区域，杜绝边缘虚假震动
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .onGloballyPositioned { onPositioned(it.boundsInWindow()) }
-                .clip(iconShape)
                 .background(
                     if (isHovered) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
                     } else {
                         Color.Transparent
-                    }
+                    },
+                    shape = iconShape,
                 )
                 .border(
                     BorderStroke(
-                        width = if (isHovered) 2.dp else 0.dp,
+                        width = if (isHovered) 2.5.dp else 0.dp,
                         color = if (isHovered) MaterialTheme.colorScheme.primary else Color.Transparent,
                     ),
                     shape = iconShape,
-                ),
+                )
+                .padding(if (isHovered) 2.dp else 0.dp),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -515,7 +556,7 @@ private fun FlowItemCard(
                         bitmap = item.iconBitmap.asImageBitmap(),
                         contentDescription = item.title,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(42.dp)
                             .clip(iconShape),
                     )
                 }
@@ -524,7 +565,7 @@ private fun FlowItemCard(
                         imageVector = item.iconVector,
                         contentDescription = item.title,
                         tint = item.iconTintColor ?: MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(34.dp),
                     )
                 }
                 item.iconPainter != null -> {
@@ -532,7 +573,7 @@ private fun FlowItemCard(
                         painter = item.iconPainter,
                         contentDescription = item.title,
                         tint = item.iconTintColor ?: MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(34.dp),
                     )
                 }
             }
