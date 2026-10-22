@@ -65,8 +65,8 @@ fun ExtensionHubScreen(
     )
 
     val launchPanelTitle = stringResource(R.string.extension_section_launch_panel)
-    val shortcutsTitle = stringResource(R.string.extension_section_shortcuts)
     val toolsTitle = stringResource(R.string.extension_section_tools)
+    val shortcutsTitle = stringResource(R.string.extension_section_shortcuts)
     val maintenanceTitle = stringResource(R.string.extension_section_maintenance)
 
     MiuixHubScaffold(
@@ -149,32 +149,6 @@ fun ExtensionHubScreen(
         )
 
         settingsLazySmallTitle(
-            key = "shortcuts_section",
-            title = shortcutsTitle
-        )
-        groupedCardItems(
-            keyPrefix = "extension_shortcuts",
-            items = buildList {
-                add(
-                    settingsCardScopeItem("activity-shortcut") {
-                        ActivityShortcutEntryCard(
-                            shortcutCount = settings.activityShortcutCount,
-                            outlinedLeadingIcons = true,
-                            onClick = onOpenActivityShortcuts
-                        )
-                    }
-                )
-                add(
-                    settingsCardScopeItem("external-invocation") {
-                        ExternalInvocationEntryCard(
-                            onClick = onOpenExternalInvocations
-                        )
-                    }
-                )
-            }
-        )
-
-        settingsLazySmallTitle(
             key = "tools_section",
             title = toolsTitle
         )
@@ -228,6 +202,32 @@ fun ExtensionHubScreen(
                 add(
                     settingsCardScopeItem("page-scroll") {
                         PageScrollEntryCard(onClick = onOpenPageScroll)
+                    }
+                )
+            }
+        )
+
+        settingsLazySmallTitle(
+            key = "shortcuts_section",
+            title = shortcutsTitle
+        )
+        groupedCardItems(
+            keyPrefix = "extension_shortcuts",
+            items = buildList {
+                add(
+                    settingsCardScopeItem("activity-shortcut") {
+                        ActivityShortcutEntryCard(
+                            shortcutCount = settings.activityShortcutCount,
+                            outlinedLeadingIcons = true,
+                            onClick = onOpenActivityShortcuts
+                        )
+                    }
+                )
+                add(
+                    settingsCardScopeItem("external-invocation") {
+                        ExternalInvocationEntryCard(
+                            onClick = onOpenExternalInvocations
+                        )
                     }
                 )
             }
