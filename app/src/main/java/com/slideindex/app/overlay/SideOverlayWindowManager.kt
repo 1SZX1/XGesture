@@ -265,7 +265,7 @@ internal class SideOverlayWindowManager(
             return
         }
         if (!presentationAttached) {
-            if (ctrl.previewMode && content.panelMode() == OverlayPanelMode.NONE) {
+            if (ctrl.previewMode && content.panelMode() == OverlayPanelMode.NONE && !content.hasAdjustPanel()) {
                 ensurePresentationAttached()
                 if (presentationAttached) {
                     renderer.applyPreviewPresentationWindow()
@@ -276,7 +276,7 @@ internal class SideOverlayWindowManager(
             ensurePresentationAttached()
             if (!presentationAttached) return
         }
-        if (ctrl.previewMode && content.panelMode() == OverlayPanelMode.NONE) {
+        if (ctrl.previewMode && content.panelMode() == OverlayPanelMode.NONE && !content.hasAdjustPanel()) {
             renderer.applyPreviewPresentationWindow()
             return
         }

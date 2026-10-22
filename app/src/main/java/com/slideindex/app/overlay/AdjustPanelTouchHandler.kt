@@ -44,6 +44,7 @@ internal class AdjustPanelTouchHandler(
                                     ).show()
                                 }
                             }
+                            ctrl.scheduleAutoDismiss()
                             host.invalidate()
                             return true
                         }
@@ -54,6 +55,7 @@ internal class AdjustPanelTouchHandler(
                                 host.actionExecutor().cycleRingerMode()?.let { state.ringerMode = it }
                                 host.hapticConfirmLaunch()
                             }
+                            ctrl.scheduleAutoDismiss()
                             host.invalidate()
                             return true
                         }
@@ -64,6 +66,7 @@ internal class AdjustPanelTouchHandler(
                             }
                             ctrl.updateAdjustIndicatorLayout(state.anchorRawY)
                             host.hapticConfirmLaunch()
+                            ctrl.scheduleAutoDismiss()
                             host.invalidate()
                             return true
                         }
@@ -101,6 +104,7 @@ internal class AdjustPanelTouchHandler(
                                     host.hapticConfirmLaunch()
                                 }
                             }
+                            ctrl.scheduleAutoDismiss()
                             host.invalidate()
                             return true
                         }
@@ -113,6 +117,7 @@ internal class AdjustPanelTouchHandler(
                                     host.hapticConfirmLaunch()
                                 }
                             }
+                            ctrl.scheduleAutoDismiss()
                             host.invalidate()
                             return true
                         }
@@ -163,6 +168,7 @@ internal class AdjustPanelTouchHandler(
                 }
                 state.dragTarget = null
                 state.dragging = false
+                ctrl.scheduleAutoDismiss()
                 host.invalidate()
                 return true
             }
@@ -180,6 +186,7 @@ internal class AdjustPanelTouchHandler(
     }
 
     private fun beginMainAdjustDrag(state: AdjustPanelState, rawY: Float) {
+        ctrl.cancelAutoDismiss()
         state.dragTarget = VolumeDragTarget.MEDIA
         state.dragging = true
         host.actionExecutor().beginContinuousAdjust(state.mode, rawY)
@@ -188,6 +195,7 @@ internal class AdjustPanelTouchHandler(
     }
 
     private fun beginVolumeStreamDrag(state: AdjustPanelState, target: VolumeDragTarget, rawY: Float) {
+        ctrl.cancelAutoDismiss()
         state.dragTarget = target
         state.dragging = true
         ctrl.volumeDragAnchorRawY = rawY

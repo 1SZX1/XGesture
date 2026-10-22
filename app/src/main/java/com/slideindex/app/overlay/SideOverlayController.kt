@@ -420,8 +420,14 @@ class SideOverlayController(
             },
             onAdjustPanelDismissCallback = {
                 windowManager.clearOverlayWindowBrightness()
-                windowManager.syncPresentationTouchState()
-                windowManager.detachPresentationUnlessRequired()
+                if (previewMode) {
+                    windowManager.presentationView?.setPreviewMode(true, previewContent, previewFocus)
+                    windowManager.ensurePresentationAttached()
+                    renderer.applyPreviewPresentationWindow()
+                } else {
+                    windowManager.syncPresentationTouchState()
+                    windowManager.detachPresentationUnlessRequired()
+                }
             },
             onClickPassthroughCallback = { rawX, rawY, onComplete ->
                 val handler = clickPassthroughHandler

@@ -80,6 +80,24 @@ internal class AdjustPanelOverlayController(
     private var brightnessAccurateSyncGeneration = 0L
     internal var suppressBrightnessLevelSyncUntilMs = 0L
 
+    private val autoDismissHandler = Handler(Looper.getMainLooper())
+    private val autoDismissRunnable = Runnable {
+        if (hasAdjustPanel() && !adjustPanelDismissing) {
+            dismissAdjustPanel(animated = true)
+        }
+    }
+
+    fun scheduleAutoDismiss(timeoutMs: Long = ADJUST_PANEL_AUTO_DISMISS_TIMEOUT_MS) {
+        cancelAutoDismiss()
+        if (hasAdjustPanel() && !adjustPanelDismissing) {
+            autoDismissHandler.postDelayed(autoDismissRunnable, timeoutMs)
+        }
+    }
+
+    fun cancelAutoDismiss() {
+        autoDismissHandler.removeCallbacks(autoDismissRunnable)
+    }
+
     fun hasAdjustPanel(): Boolean = adjustPanelState != null
 
     fun isDismissing(): Boolean = adjustPanelDismissing
@@ -94,10 +112,12 @@ internal class AdjustPanelOverlayController(
     }
 
     fun onDetachedFromWindow() {
+        cancelAutoDismiss()
         stopAdjustPanelLevelSync()
     }
 
     fun forceRecover() {
+        cancelAutoDismiss()
         if (adjustPanelDismissing) return
         adjustIndicatorAnimator?.cancel()
         adjustIndicatorProgress = 0f
@@ -187,9 +207,11 @@ internal class AdjustPanelOverlayController(
         }
         startAdjustPanelLevelSync(mode)
         host.notifyPresentationTouchRequirementChanged()
+        scheduleAutoDismiss()
     }
 
     fun dismissAdjustPanel(animated: Boolean = true) {
+        cancelAutoDismiss()
         if (adjustPanelState == null || adjustPanelDismissing) return
         stopAdjustPanelLevelSync()
         adjustIndicatorHoldVisual = renderer.captureAdjustIndicatorVisualForDismiss()
@@ -245,6 +267,7 @@ internal class AdjustPanelOverlayController(
     }
 
     private fun finishDismissAdjustPanel() {
+        cancelAutoDismiss()
         adjustPanelDismissing = false
         adjustPanelState = null
         adjustPanelExpandedForGesture = false
@@ -367,6 +390,9 @@ internal class AdjustPanelOverlayController(
 
     private fun syncAdjustPanelVolumeFromSystem() {
         syncAdjustPanelLevelFromSystem(ContinuousAdjustController.Mode.VOLUME)
+        if (adjustPanelState?.dragTarget == null) {
+            scheduleAutoDismiss()
+        }
     }
 
     internal fun suppressBrightnessLevelSync(durationMs: Long = BRIGHTNESS_LEVEL_SYNC_SUPPRESS_MS) {
@@ -465,6 +491,7 @@ internal class AdjustPanelOverlayController(
     }
 
     companion object {
+        const val ADJUST_PANEL_AUTO_DISMISS_TIMEOUT_MS = 3000L
         private const val LEVEL_SYNC_EPSILON = 0.002f
         private const val BRIGHTNESS_LEVEL_SYNC_SUPPRESS_MS = 400L
         private const val BRIGHTNESS_AUTO_TOGGLE_SYNC_SUPPRESS_MS = 450L

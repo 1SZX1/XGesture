@@ -97,9 +97,9 @@ internal class EdgeGestureLayoutCoordinator(
 
     fun needsPresentationDirectTouch(): Boolean {
         if (gestureSession.panelMode() != OverlayPanelMode.NONE) return true
+        if (adjustPanelController.hasAdjustPanel()) return true
         if (previewModeProvider()) return false
         if (OverlayTrampolineGuard.blocksOverlayPresentationTouch()) return false
-        if (adjustPanelController.hasAdjustPanel()) return true
         if (quickLauncherController.isComposeOverlayDialogShowing() ||
             shellCoordinator.isAuxiliaryDialogShowing()
         ) {
