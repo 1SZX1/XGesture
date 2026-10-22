@@ -19,6 +19,9 @@
         name="float_ball_share"
         path="float_ball_share/" />
     <cache-path
+        name="drag_forward"
+        path="drag_forward/" />
+    <cache-path
         name="screenshot_cache"
         path="screenshots/" />
     <files-path

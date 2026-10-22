@@ -39,8 +39,9 @@ fun DragDropFlowSettingsScreen(
         "底边横向（默认）",
         "左侧纵向",
         "右侧纵向",
+        "环形罗盘（居中）",
     )
-    val positionIndex = currentPosition.id.coerceIn(0, 2)
+    val positionIndex = currentPosition.id.coerceIn(0, 3)
 
     SettingsScreenScaffold(
         title = "全局拖拽流转",
@@ -79,7 +80,7 @@ fun DragDropFlowSettingsScreen(
                     settingsCardScopeItem("position") {
                         SettingDropdownRow(
                             title = "流转栏显示位置",
-                            subtitle = "选择长按拖拽时操作栏滑出的屏幕边缘",
+                            subtitle = "条状栏贴哪条边；选「环形罗盘」则改为屏幕中央的圆盘，一圈排开全部目标",
                             items = positionLabels,
                             selectedIndex = positionIndex,
                             enabled = settings.dragDropFlowEnabled,

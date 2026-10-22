@@ -1,6 +1,7 @@
 package com.slideindex.app.overlay.dragdrop
 
 import android.graphics.Bitmap
+import android.graphics.RectF
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -11,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +20,7 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,9 +30,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -62,7 +67,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,17 +82,22 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.slideindex.app.overlay.LocalFrostedGlassBackdrop
+import com.slideindex.app.overlay.LocalFrostedGlassDrawable
+import com.slideindex.app.overlay.canBlurInOverlay
 import com.slideindex.app.settings.DragDropFlowPosition
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * 拖放流转目标动作项数据模型。
@@ -115,6 +131,7 @@ fun DragDropFlowBarLayout(
     var cancelBounds by remember { mutableStateOf<Rect?>(null) }
     var restoreBounds by remember { mutableStateOf<Rect?>(null) }
     var barBounds by remember { mutableStateOf<Rect?>(null) }
+    var ringGeometry by remember { mutableStateOf<RingGeometry?>(null) }
     var hoveredId by remember { mutableStateOf<String?>(null) }
     var lastVibratedTarget by remember { mutableStateOf<String?>(null) }
 
@@ -125,6 +142,7 @@ fun DragDropFlowBarLayout(
             cancelBounds = null
             restoreBounds = null
             barBounds = null
+            ringGeometry = null
             hoveredId = null
             lastVibratedTarget = null
             onHoverChanged(null)
@@ -135,7 +153,16 @@ fun DragDropFlowBarLayout(
     }
 
     // 监听手指拖拽位置并计算当前命中的目标项
-    LaunchedEffect(dragPosition, itemBounds, cancelBounds, restoreBounds, barBounds) {
+    LaunchedEffect(
+        dragPosition,
+        itemBounds,
+        cancelBounds,
+        restoreBounds,
+        barBounds,
+        ringGeometry,
+        position,
+        items,
+    ) {
         val pos = dragPosition
         if (pos == null) {
             hoveredId = null
@@ -145,9 +172,22 @@ fun DragDropFlowBarLayout(
         }
 
         val curBar = barBounds
+        val curRing = ringGeometry
         val targetId: String? = when {
             cancelBounds?.contains(pos) == true -> "__cancel__"
             restoreBounds?.contains(pos) == true -> "__restore__"
+            position == DragDropFlowPosition.RING && curRing != null -> {
+                // 圆盘按角度取最近的目标，但只在环带里算数：环带以内（圆心）和以外都算没瞄准。
+                RingFlowGeometry.targetIndexAt(
+                    x = pos.x,
+                    y = pos.y,
+                    centerX = curRing.center.x,
+                    centerY = curRing.center.y,
+                    count = items.size,
+                    innerRadiusPx = curRing.bandInnerPx,
+                    outerRadiusPx = curRing.bandOuterPx,
+                )?.let { index -> items.getOrNull(index)?.id }
+            }
             curBar?.contains(pos) == true -> {
                 // 仅在当前 Dock 视口内部查找，且确保项中心未被移出视口
                 itemBounds.entries.firstOrNull { (_, rect) ->
@@ -211,6 +251,15 @@ fun DragDropFlowBarLayout(
                         itemBounds = itemBounds,
                         barBounds = barBounds,
                         onBarPositioned = { barBounds = it },
+                        onCancelPositioned = { cancelBounds = it },
+                        onRestorePositioned = { restoreBounds = it },
+                    )
+                }
+                DragDropFlowPosition.RING -> {
+                    RingFlowContent(
+                        items = items,
+                        hoveredId = hoveredId,
+                        onGeometryChanged = { ringGeometry = it },
                         onCancelPositioned = { cancelBounds = it },
                         onRestorePositioned = { restoreBounds = it },
                     )
@@ -418,6 +467,161 @@ private fun SideFlowContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 16.dp),
             ) {
+                PillActionCapsule(
+                    text = "恢复",
+                    isHovered = hoveredId == "__restore__",
+                    onPositioned = onRestorePositioned,
+                )
+                PillActionCapsule(
+                    text = "取消",
+                    isHovered = hoveredId == "__cancel__",
+                    onPositioned = onCancelPositioned,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 环形排布对外公布的几何：圆心、图标圈半径、环带内外沿（窗口坐标，像素）。
+ *
+ * 命中判定只要环带这两条边，不用图标圈半径——图标圈只影响画在哪。
+ */
+private data class RingGeometry(
+    val center: Offset,
+    val iconRadiusPx: Float,
+    val bandInnerPx: Float,
+    val bandOuterPx: Float,
+)
+
+/**
+ * 环形罗盘排布（Radial / Ring Flow Bar）。
+ *
+ * 与条状栏最大的区别是命中方式：圆盘按“角度”判定，手指从圆心往外划，落在哪个扇区
+ * 就是哪个目标，不用精确压在 48dp 图标上；环带以内、以外都算没瞄准。
+ */
+@Composable
+private fun RingFlowContent(
+    items: List<DragDropFlowItem>,
+    hoveredId: String?,
+    onGeometryChanged: (RingGeometry) -> Unit,
+    onCancelPositioned: (Rect) -> Unit,
+    onRestorePositioned: (Rect) -> Unit,
+) {
+    val density = LocalDensity.current
+    var rootBounds by remember { mutableStateOf<Rect?>(null) }
+    val hoveredTitle = items.firstOrNull { it.id == hoveredId }?.title
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { rootBounds = it.boundsInWindow() },
+        contentAlignment = Alignment.Center,
+    ) {
+        // 图标中心所在圆：比窗口短边再收 96dp，环带和图标标签才不会被窗口边缘裁掉。
+        val radiusPx = with(density) { ((minOf(maxWidth, maxHeight) - 96.dp) / 2).toPx() }
+
+        // 环带底盘：只给“图标那一圈”上底，中间留空。
+        // 真模糊直接画在画布上再按环带裁剪 —— 跨窗模糊是个 Drawable，可以画进任意画布，
+        // 这样模糊只出现在环上，圆心能看到下面的内容，也不会再出现整块圆盘。
+        val bandOuterPx = radiusPx + with(density) { 44.dp.toPx() }
+        val bandInnerPx = radiusPx - with(density) { 40.dp.toPx() }
+        val hostView = LocalView.current
+
+        LaunchedEffect(rootBounds, radiusPx, bandInnerPx, bandOuterPx) {
+            val bounds = rootBounds ?: return@LaunchedEffect
+            if (bandOuterPx > bandInnerPx) {
+                onGeometryChanged(
+                    RingGeometry(
+                        center = bounds.center,
+                        iconRadiusPx = radiusPx,
+                        bandInnerPx = bandInnerPx,
+                        bandOuterPx = bandOuterPx,
+                    )
+                )
+            }
+        }
+
+        val frostedDrawable = remember(hostView) { LocalFrostedGlassDrawable(hostView) }
+        val canBlur = canBlurInOverlay()
+        val bandTint = MaterialTheme.colorScheme.surface.copy(alpha = 0.58f).toArgb()
+        val bandSolid = MaterialTheme.colorScheme.surface.copy(alpha = 0.74f)
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            if (bandOuterPx <= bandInnerPx) return@Canvas
+            val discCenter = Offset(size.width / 2f, size.height / 2f)
+            if (canBlur) {
+                val donut = Path().apply {
+                    fillType = PathFillType.EvenOdd
+                    addOval(Rect(center = discCenter, radius = bandOuterPx))
+                    addOval(Rect(center = discCenter, radius = bandInnerPx))
+                }
+                clipPath(donut) {
+                    drawIntoCanvas { canvas ->
+                        frostedDrawable.draw(
+                            canvas = canvas.nativeCanvas,
+                            bounds = RectF(0f, 0f, size.width, size.height),
+                            cornerRadiusPx = bandOuterPx,
+                            blurRadiusPx = 40,
+                            tintColor = bandTint,
+                            enabled = true,
+                        )
+                    }
+                }
+            } else {
+                drawCircle(
+                    color = bandSolid,
+                    radius = (bandOuterPx + bandInnerPx) / 2f,
+                    style = Stroke(width = bandOuterPx - bandInnerPx),
+                )
+            }
+        }
+
+        items.forEachIndexed { index, item ->
+            val (dx, dy) = RingFlowGeometry.offsetFor(index, items.size, radiusPx)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset { IntOffset(dx.roundToInt(), dy.roundToInt()) },
+            ) {
+                FlowItemCard(
+                    item = item,
+                    isHovered = hoveredId == item.id,
+                    isVertical = false,
+                    onPositioned = {},
+                    onDisposed = {},
+                )
+            }
+        }
+
+        // 圆心：当前瞄准的目标 +【恢复】/【取消】。指在圆心里不算命中任何目标。
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .height(34.dp)
+                    .widthIn(min = 96.dp, max = 168.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.46f))
+                    .border(
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)),
+                        RoundedCornerShape(17.dp),
+                    )
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = hoveredTitle ?: "松手分发",
+                    fontSize = 12.sp,
+                    fontWeight = if (hoveredTitle != null) FontWeight.Bold else FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.90f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 PillActionCapsule(
                     text = "恢复",
                     isHovered = hoveredId == "__restore__",

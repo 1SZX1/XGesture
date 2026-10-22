@@ -1,5 +1,6 @@
 package com.slideindex.app.overlay.dragdrop
 
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ClipDescription
 import android.content.Context
@@ -11,11 +12,13 @@ import android.graphics.PixelFormat
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.DragEvent
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -27,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import com.slideindex.app.R
 import com.slideindex.app.overlay.FloatBallImageSearchPanel
@@ -51,6 +55,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.Locale
 
 /**
  * 全局拖拽流转（Drag & Drop Flow）悬浮窗控制器：
@@ -65,6 +71,12 @@ class DragDropFlowController(
 ) {
     companion object {
         private const val TAG = "DragDropFlow"
+
+        /** 转发缓存目录：拖进来的外部文件先落一份在这里，再经 FileProvider 转交给目标应用。 */
+        private const val FORWARD_CACHE_DIR = "drag_forward"
+
+        /** 转发缓存的保留时长。目标应用读完后没人会删，落新文件时顺手清掉过期的。 */
+        private const val FORWARD_CACHE_TTL_MS = 10 * 60 * 1000L
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -225,6 +237,24 @@ class DragDropFlowController(
                     gravity = Gravity.END or Gravity.CENTER_VERTICAL
                 }
             }
+            DragDropFlowPosition.RING -> {
+                // 圆盘只占屏幕中央的一块正方形：盘外不归我们，手指划到盘外松手时
+                // drop 仍然落到下面的应用，不会被这块浮层吃掉。
+                val metrics = context.resources.displayMetrics
+                val side = (minOf(metrics.widthPixels, metrics.heightPixels) * 0.92f).toInt()
+                WindowManager.LayoutParams(
+                    side,
+                    side,
+                    OverlayWindowTypes.overlayWindowType(context),
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                    PixelFormat.TRANSLUCENT,
+                ).apply {
+                    gravity = Gravity.CENTER
+                }
+            }
         }
     }
 
@@ -310,7 +340,12 @@ class DragDropFlowController(
             }
 
             DragEvent.ACTION_DRAG_ENTERED -> return true
-            DragEvent.ACTION_DRAG_EXITED -> return true
+            DragEvent.ACTION_DRAG_EXITED -> {
+                // 手指离开我们的窗口后系统就不再派位置事件了，不清掉的话高亮会冻在
+                // 最后一格，看起来像“拖到圆外还选着某个应用”。
+                dragPositionState.value = null
+                return true
+            }
             else -> return false
         }
     }
@@ -494,7 +529,7 @@ class DragDropFlowController(
         return list
     }
 
-    private fun processDrop(targetId: String, clipData: android.content.ClipData) {
+    private fun processDrop(targetId: String, clipData: ClipData) {
         scope.launch(Dispatchers.IO) {
             val item = clipData.getItemAt(0) ?: return@launch
             val uri = item.uri
@@ -516,25 +551,23 @@ class DragDropFlowController(
                         val engine = engines.find { it.id == engineId }
                         val pkg = engine?.targetPackage
                         if (pkg != null) {
-                            val mimeType = runCatching { context.contentResolver.getType(uri) }.getOrNull() ?: ""
-                            val mime = if (mimeType.isNotBlank()) mimeType else {
-                                if (uri.toString().endsWith(".m4a", true)) "audio/mp4" else "*/*"
-                            }
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = mime
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                val act = engine.targetActivity
-                                if (!act.isNullOrBlank()) {
-                                    component = android.content.ComponentName(pkg, act)
-                                } else {
-                                    setPackage(pkg)
+                            val forwarded = stageForForward(uri)
+                            if (forwarded == null) {
+                                Toast.makeText(context, "无法读取拖放的文件", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = forwarded.intentType
+                                    putExtra(Intent.EXTRA_STREAM, forwarded.uri)
+                                    this.clipData = forwarded.clipData
+                                    val act = engine.targetActivity
+                                    if (!act.isNullOrBlank()) {
+                                        component = android.content.ComponentName(pkg, act)
+                                    } else {
+                                        setPackage(pkg)
+                                    }
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            runCatching {
-                                context.startActivity(sendIntent)
-                            }.onFailure {
-                                context.startActivity(Intent.createChooser(sendIntent, "分享文件").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                startShare(sendIntent, "分享文件")
                             }
                         }
                     }
@@ -558,33 +591,34 @@ class DragDropFlowController(
                                 }
                             }
                         } else {
-                            val mime = if (mimeType.isNotBlank()) mimeType else {
-                                if (uri.toString().endsWith(".m4a", true)) "audio/mp4" else "*/*"
-                            }
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = mime
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                setPackage(pkg)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            runCatching {
-                                context.startActivity(sendIntent)
-                            }.onFailure {
-                                context.startActivity(Intent.createChooser(sendIntent, "分享文件").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            val forwarded = stageForForward(uri)
+                            if (forwarded == null) {
+                                Toast.makeText(context, "无法读取拖放的文件", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = forwarded.intentType
+                                    putExtra(Intent.EXTRA_STREAM, forwarded.uri)
+                                    this.clipData = forwarded.clipData
+                                    setPackage(pkg)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                startShare(sendIntent, "分享文件")
                             }
                         }
                     }
                     targetId == "system_share_file" && uri != null -> {
-                        val mimeType = runCatching { context.contentResolver.getType(uri) }.getOrNull()
-                        val mime = if (!mimeType.isNullOrBlank()) mimeType else {
-                            if (uri.toString().endsWith(".m4a", true)) "audio/mp4" else "*/*"
+                        val forwarded = stageForForward(uri)
+                        if (forwarded == null) {
+                            Toast.makeText(context, "无法读取拖放的文件", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = forwarded.intentType
+                                putExtra(Intent.EXTRA_STREAM, forwarded.uri)
+                                this.clipData = forwarded.clipData
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            startChooser(intent, "分享文件")
                         }
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = mime
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "分享文件").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }
                     targetId == "copy_file" && uri != null -> {
                         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -636,6 +670,148 @@ class DragDropFlowController(
                     }
                 }
             }
+        }
+    }
+
+    /** 已落盘、可以安全转交的分享目标。 */
+    private data class ForwardFile(
+        val uri: Uri,
+        val mime: String,
+        val clipData: ClipData,
+    ) {
+        /** Intent 的 type：认不出类型时退回通配符 MIME，跟旧实现一致，别把选择器收窄到一个都匹配不到。 */
+        val intentType: String get() = if (mime == "application/octet-stream") "*/*" else mime
+    }
+
+    /**
+     * 把拖进来的外部 URI 落成本应用缓存文件，再换成自己的 FileProvider URI。
+     *
+     * 外部 URI（相册 / 文件管理器的 `content://media/...`）的读权限只在来源应用手里，
+     * 直接塞进 `EXTRA_STREAM` 转授给第三方时，AMS 会判定“越权转授”并当场抛
+     * SecurityException（crash_20261022_213208：`UID 10486 does not have permission
+     * to content://media/external_primary/file/1000048190`）。先复制成自己的缓存文件，
+     * 再用 FileProvider + ClipData 授权，权限就全在自己手里，接收方也读得到。
+     *
+     * 返回 null 表示源文件读不出来：调用方应提示失败，而不是硬发一个谁都读不了的 URI。
+     */
+    private suspend fun stageForForward(uri: Uri): ForwardFile? = withContext(Dispatchers.IO) {
+        runCatching {
+            val resolver = context.contentResolver
+            val mime = resolveForwardMime(uri)
+            val dir = forwardCacheDir()
+            purgeForwardCache(dir)
+            val target = newForwardFile(dir, forwardDisplayName(uri, mime))
+            val copied = runCatching {
+                resolver.openInputStream(uri)?.use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                } != null
+            }.getOrDefault(false)
+            if (!copied || target.length() <= 0L) {
+                // 拷一半失败也要清掉，别在缓存里留个半截文件。
+                target.delete()
+                return@runCatching null
+            }
+            val shareUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                target,
+            )
+            ForwardFile(
+                uri = shareUri,
+                mime = mime,
+                clipData = ClipData.newUri(resolver, target.name, shareUri),
+            )
+        }.onFailure {
+            Log.w(TAG, "stage forward failed, uri=$uri", it)
+        }.getOrNull()
+    }
+
+    /**
+     * MIME 必须自己定：目标应用只认 intent 的 `type`。
+     *
+     * 外部 URI 的 getType 会拿不到结果——没授权时抛 SecurityException，纯数字 ID 的
+     * 相册 URI 还会返回 application/octet-stream——所以再按 URI 后缀、显示名后缀兜底。
+     */
+    private fun resolveForwardMime(uri: Uri): String {
+        val declared = runCatching { context.contentResolver.getType(uri) }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() && it != "*/*" && it != "application/octet-stream" }
+        if (declared != null) return declared
+        mimeFromExtension(extensionOf(uri.lastPathSegment))?.let { return it }
+        mimeFromExtension(extensionOf(queryDisplayName(uri)))?.let { return it }
+        return "application/octet-stream"
+    }
+
+    private fun mimeFromExtension(extension: String?): String? =
+        extension?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+
+    private fun extensionOf(raw: String?): String? =
+        raw?.substringAfterLast('.', "")
+            ?.lowercase(Locale.ROOT)
+            ?.takeIf { it.isNotBlank() && it.length in 1..8 }
+
+    /**
+     * 缓存文件必须带后缀：相册在 Android 14+ 给出的 URI 常常是纯数字 ID
+     * （`.../file/1000048190`），没后缀时接收方会把它当成未知文件。
+     */
+    private fun forwardDisplayName(uri: Uri, mime: String): String {
+        val raw = queryDisplayName(uri) ?: uri.lastPathSegment?.takeIf { it.isNotBlank() } ?: "drag"
+        // 只取末段文件名，别让外部给的名字带出目录分隔符跑到缓存目录外面。
+        val base = raw.replace('\\', '/').substringAfterLast('/').trim().ifBlank { "drag" }
+        if (extensionOf(base) != null) return base
+        val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: "bin"
+        return "$base.$extension"
+    }
+
+    private fun queryDisplayName(uri: Uri): String? = runCatching {
+        context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+        }
+    }.getOrNull()?.takeIf { it.isNotBlank() }
+
+    private fun newForwardFile(dir: File, displayName: String): File {
+        val candidate = File(dir, displayName)
+        if (!candidate.exists()) return candidate
+        // 同名再拖一次时不要覆盖上一份：那份可能正被目标应用读着。
+        return File(dir, "${System.currentTimeMillis()}_$displayName")
+    }
+
+    private fun forwardCacheDir(): File =
+        File(context.cacheDir, FORWARD_CACHE_DIR).apply { mkdirs() }
+
+    /** 目标应用读完不会主动删，落新文件时顺手清掉过期的，缓存目录就不会越攒越大。 */
+    private fun purgeForwardCache(dir: File) {
+        val deadline = System.currentTimeMillis() - FORWARD_CACHE_TTL_MS
+        runCatching {
+            dir.listFiles()?.forEach { file ->
+                if (file.lastModified() < deadline) file.delete()
+            }
+        }
+    }
+
+    /** 先按目标应用直接拉起，失败再退系统选择器。异常不能带走浮层进程。 */
+    private fun startShare(intent: Intent, chooserTitle: String) {
+        val failure = runCatching { context.startActivity(intent) }.exceptionOrNull() ?: return
+        Log.w(TAG, "direct share failed, fallback to chooser", failure)
+        startChooser(intent, chooserTitle)
+    }
+
+    private fun startChooser(intent: Intent, chooserTitle: String) {
+        runCatching {
+            context.startActivity(
+                Intent.createChooser(intent, chooserTitle)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }.onFailure {
+            Log.w(TAG, "chooser failed", it)
+            Toast.makeText(context, "分享失败", Toast.LENGTH_SHORT).show()
         }
     }
 
