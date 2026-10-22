@@ -623,6 +623,7 @@ internal fun HistoryPanelScreen(
         // 语义才和原来"内容随可见性挂载/摘除"时一致（不留"收起后还挂着拦截器"这个隐患）。
         panelTargetVisible,
         activeSearchQuery,
+        searchFocused,
         selectedTab,
         composerOpen,
         editTarget,
@@ -682,13 +683,17 @@ internal fun HistoryPanelScreen(
                     true
                 }
                 else -> {
-                    // 第 6 档：清搜索词。**命中才打日志**（没命中就什么都不打，继续往下走
+                    // 第 6 档：清搜索词/收起搜索态。**命中才打日志**（没命中就什么都不打，继续往下走
                     // clipboardInput → dismiss，由那两档打自己的行）。
                     val consumed = consumeExpandableSearchBack(
-                        // 搜索框现在是常驻的：只有"有内容"才需要返回键介入（清空查询）。
-                        expanded = activeSearchQuery.isNotBlank(),
+                        expanded = activeSearchQuery.isNotBlank() || searchFocused,
                         query = activeSearchQuery,
-                        onExpandedChange = {},
+                        onExpandedChange = { expanded ->
+                            if (!expanded) {
+                                searchFocused = false
+                                onActiveSearchQueryChange("")
+                            }
+                        },
                         onQueryChange = onActiveSearchQueryChange,
                     )
                     if (consumed) {
@@ -1372,6 +1377,7 @@ internal fun HistoryPanelScreen(
                     searchHint = stringResource(searchHintResId),
                     searchFocusRequester = searchFocusRequester,
                     countLabel = countLabel,
+                    searchFocused = searchFocused,
                     onSearchFocusChanged = { searchFocused = it },
                     // ⚠️ 不走"计数器 + LaunchedEffect"：真机上那个 effect 压根没被触发（日志实测），
                     // 直接在回调里做「让窗口可聚焦 → 延时抢焦点」，和输入条那条路一样。

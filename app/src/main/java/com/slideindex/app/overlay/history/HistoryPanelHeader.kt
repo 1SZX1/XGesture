@@ -92,10 +92,11 @@ internal fun HistoryPanelHeader(
     searchHint: String,
     searchFocusRequester: FocusRequester,
     countLabel: String,
+    searchFocused: Boolean = false,
     onSearchFocusChanged: (Boolean) -> Unit,
     /** 点搜索框时请宿主先"让窗口可聚焦 + 延时抢焦点"（overlay 窗默认 NOT_FOCUSABLE，见 Screen 里的 effect）。 */
     onSearchRequestFocus: () -> Unit,
-    onDismiss: () -> Unit,
+    onDismiss: () -> Unit = {},
     /** 列表滑离顶部 → 收起第一行。宿主负责判断"该不该收"（搜索中/输入中不许收，见 Screen）。 */
     collapsed: Boolean = false,
     /**
@@ -108,6 +109,8 @@ internal fun HistoryPanelHeader(
     modifier: Modifier = Modifier,
 ) {
     val theme = historyTheme()
+    var searchActiveInternal by remember { mutableStateOf(false) }
+    val isSearchActive = searchFocused || searchQuery.isNotEmpty() || searchActiveInternal
     // 高度类动画一律走"改尺寸"（padding / AnimatedVisibility 的 shrink），**不用 graphicsLayer 平移**：
     // 平移图层会让面板那层自绘磨砂的快照不刷新，顶上会出现那层"雾"（见计划里"拖动时的雾"）。
     val topPadding by animateDpAsState(
@@ -121,7 +124,7 @@ internal fun HistoryPanelHeader(
         label = "headerTabsTopPadding",
     )
     Column(modifier = modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = topPadding)) {
-        // ---- 第一行：搜索 + 条数 + 关闭（滑走时整行收起）----
+        // ---- 第一行：搜索 + 条数 / 取消（滑走时整行收起）----
         AnimatedVisibility(
             visible = !collapsed,
             enter = fadeIn(tween(HistoryDurations.d2)) +
@@ -132,61 +135,80 @@ internal fun HistoryPanelHeader(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 HistorySearchField(
                     query = searchQuery,
                     onQueryChange = onSearchQueryChange,
                     hint = searchHint,
                     focusRequester = searchFocusRequester,
-                    onFocusChanged = onSearchFocusChanged,
-                    onRequestFocus = onSearchRequestFocus,
+                    isSearchActive = isSearchActive,
+                    onFocusChanged = { focused ->
+                        if (focused) searchActiveInternal = true
+                        onSearchFocusChanged(focused)
+                    },
+                    onRequestFocus = {
+                        searchActiveInternal = true
+                        onSearchRequestFocus()
+                    },
+                    onCancel = {
+                        searchActiveInternal = false
+                        onSearchQueryChange("")
+                        onSearchFocusChanged(false)
+                    },
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    text = countLabel,
-                    style = TextStyle(fontSize = HistoryFontSizes.tiny),
-                    color = theme.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                )
-                // 设计稿头部就是 [搜索][条数][✕] 三样，**没有图钉**。
-                // （"面板在左还是在右"是**手势动作的参数**，见 `ActionExecutor.side`，不靠面板里的按钮切。）
-                HistoryHeaderCircleButton(
-                    icon = Icons.Default.Close,
-                    // 无障碍：这是"关闭面板"，TalkBack 要读得出来（原来传 null，等于没标签）。
-                    contentDescription = stringResource(R.string.panel_close),
-                    onClick = onDismiss,
-                )
+                // 常态显示：条数信息（搜索激活时向右平滑收起/淡出）
+                AnimatedVisibility(
+                    visible = !isSearchActive,
+                    enter = fadeIn(tween(HistoryDurations.d2)) +
+                        expandHorizontally(tween(HistoryDurations.d2, easing = HistoryEasing.out)),
+                    exit = fadeOut(tween(HistoryDurations.d1)) +
+                        shrinkHorizontally(tween(HistoryDurations.d2, easing = HistoryEasing.out)),
+                ) {
+                    Text(
+                        text = countLabel,
+                        style = TextStyle(fontSize = HistoryFontSizes.tiny),
+                        color = theme.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                // 搜索激活态显示：取消按钮（搜索激活时向左平滑展开/淡入）
+                AnimatedVisibility(
+                    visible = isSearchActive,
+                    enter = fadeIn(tween(HistoryDurations.d2)) +
+                        expandHorizontally(tween(HistoryDurations.d2, easing = HistoryEasing.out)),
+                    exit = fadeOut(tween(HistoryDurations.d1)) +
+                        shrinkHorizontally(tween(HistoryDurations.d2, easing = HistoryEasing.out)),
+                ) {
+                    Text(
+                        text = stringResource(R.string.cancel),
+                        style = TextStyle(fontSize = HistoryFontSizes.sm, color = theme.accent),
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                searchActiveInternal = false
+                                onSearchQueryChange("")
+                                onSearchFocusChanged(false)
+                            }
+                            .padding(start = 10.dp, end = 2.dp, top = 6.dp, bottom = 6.dp),
+                    )
+                }
             }
         }
 
-        // ---- 页签：34dp 分段控件 + 滑动指示片（收起时右端补上关闭键）----
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = tabsTopPadding),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HistoryPanelTabs(
-                labels = tabLabels,
-                selectedIndex = selectedTabIndex,
-                onTabSelected = onTabSelected,
-                modifier = Modifier.weight(1f),
-            )
-            AnimatedVisibility(
-                visible = collapsed,
-                enter = fadeIn(tween(HistoryDurations.d2)) +
-                    expandHorizontally(tween(HistoryDurations.d3, easing = HistoryEasing.out)),
-                exit = fadeOut(tween(HistoryDurations.d1)) +
-                    shrinkHorizontally(tween(HistoryDurations.d3, easing = HistoryEasing.out)),
-            ) {
-                HistoryHeaderCircleButton(
-                    icon = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.panel_close),
-                    onClick = onDismiss,
-                    size = HistoryHeaderCollapsedCloseSize,
-                )
-            }
-        }
+        // ---- 页签：34dp 分段控件 + 滑动指示片（对称铺满，移除右端突兀的关闭键）----
+        HistoryPanelTabs(
+            labels = tabLabels,
+            selectedIndex = selectedTabIndex,
+            onTabSelected = onTabSelected,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = tabsTopPadding),
+        )
 
         // ---- 筛选行（闪念 = 标签，剪贴板 = 固定分类）----
         if (chipRow != null) {
@@ -213,8 +235,10 @@ private fun HistorySearchField(
     onQueryChange: (String) -> Unit,
     hint: String,
     focusRequester: FocusRequester,
+    isSearchActive: Boolean,
     onFocusChanged: (Boolean) -> Unit,
     onRequestFocus: () -> Unit,
+    onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val theme = historyTheme()
@@ -230,6 +254,15 @@ private fun HistorySearchField(
         if (!editorEnabled) return@LaunchedEffect
         delay(180)
         runCatching { focusRequester.requestFocus() }
+    }
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive && !editorEnabled) {
+            editorEnabled = true
+        } else if (!isSearchActive && editorEnabled) {
+            editorEnabled = false
+            everFocused = false
+            focusManager.clearFocus()
+        }
     }
     var focused by remember { mutableStateOf(false) }
     // 用户反馈边框也是灰的 → 不再是 --btn-bd 灰边，改成白描边（和玻璃同一套）。
@@ -276,31 +309,33 @@ private fun HistorySearchField(
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = TextStyle(fontSize = HistoryFontSizes.sm, color = theme.text),
-                cursorBrush = SolidColor(theme.accentSolid),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Search,
-                ),
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        focused = focusState.isFocused
-                        // ⚠️ 只有"**曾经拿到过**焦点又失去"才退回只读态。
-                        // 刚组合出来时会回调一次 focused=false，如果那时就 `editorEnabled = false`，
-                        // 正在跑的 `LaunchedEffect(editorEnabled)`（负责延时抢焦点）会被当场取消 ——
-                        // 搜索框两轮"点了没反应"就是这么来的。
-                        if (focusState.isFocused) {
-                            everFocused = true
-                        } else if (everFocused) {
-                            everFocused = false
-                            editorEnabled = false
-                        }
-                        onFocusChanged(focusState.isFocused)
-                    },
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = HistoryFontSizes.sm, color = theme.text),
+                    cursorBrush = SolidColor(theme.accentSolid),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Search,
+                    ),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { focusState ->
+                            focused = focusState.isFocused
+                            // ⚠️ 只有"**曾经拿到过**焦点又失去"才退回只读态。
+                            // 刚组合出来时会回调一次 focused=false，如果那时就 `editorEnabled = false`，
+                            // 正在跑的 `LaunchedEffect(editorEnabled)`（负责延时抢焦点）会被当场取消 ——
+                            // 搜索框两轮"点了没反应"就是这么来的。
+                            if (focusState.isFocused) {
+                                everFocused = true
+                            } else if (everFocused) {
+                                everFocused = false
+                                if (query.isEmpty()) {
+                                    onCancel()
+                                }
+                            }
+                            onFocusChanged(focusState.isFocused)
+                        },
                 )
             }
         }
