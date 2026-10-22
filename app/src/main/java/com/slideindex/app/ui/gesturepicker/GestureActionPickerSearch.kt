@@ -696,12 +696,13 @@ fun gestureActionPermissionHintText(context: Context, action: GestureAction): St
             if (PermissionHelper.hasNotificationPolicyAccess(context)) return null
             context.getString(R.string.gesture_action_adjust_volume_permission)
         }
-        GestureActionType.ADJUST_BRIGHTNESS -> {
-            if (PermissionHelper.canWriteSettings(context)) return null
-            context.getString(R.string.gesture_action_adjust_brightness_permission)
-        }
-        GestureActionType.TOGGLE_AUTO_BRIGHTNESS -> {
-            if (PermissionHelper.canWriteSettings(context)) return null
+        GestureActionType.ADJUST_BRIGHTNESS,
+        GestureActionType.TOGGLE_AUTO_BRIGHTNESS,
+        GestureActionType.TOGGLE_AUTO_ROTATE,
+        GestureActionType.FORCE_PORTRAIT,
+        GestureActionType.FORCE_LANDSCAPE,
+        -> {
+            if (PermissionHelper.canWriteSettings(context) || TaskManagerUtil.hasPermission()) return null
             context.getString(R.string.gesture_action_adjust_brightness_permission)
         }
         GestureActionType.TOGGLE_MUTE -> {
@@ -842,6 +843,9 @@ fun requestPermissionForAdjustAction(context: Context, action: GestureAction) {
             PermissionHelper.requestNotificationPolicyAccess(context)
         GestureAction.AdjustBrightness,
         GestureAction.ToggleAutoBrightness,
+        GestureAction.ToggleAutoRotate,
+        GestureAction.ForcePortrait,
+        GestureAction.ForceLandscape,
         ->
             PermissionHelper.requestWriteSettingsAccess(context)
         GestureAction.Flashlight -> {

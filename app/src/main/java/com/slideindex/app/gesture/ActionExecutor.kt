@@ -394,9 +394,18 @@ class ActionExecutor(
             }
             GestureAction.VoiceSearch -> VoiceActionHelper.launchVoiceSearch(context)
             GestureAction.VoiceAssistant -> VoiceActionHelper.launchVoiceCommand(context)
-            GestureAction.ToggleAutoRotate -> QuickToolsHelper.toggleAutoRotate(context) != null
-            GestureAction.ForcePortrait -> QuickToolsHelper.forcePortrait(context)
-            GestureAction.ForceLandscape -> QuickToolsHelper.forceLandscape(context)
+            GestureAction.ToggleAutoRotate -> {
+                com.slideindex.app.diagnostic.EdgeDiag.log("ActionExecutor", "执行动作: 切换自动旋转")
+                QuickToolsHelper.toggleAutoRotate(context) != null
+            }
+            GestureAction.ForcePortrait -> {
+                com.slideindex.app.diagnostic.EdgeDiag.log("ActionExecutor", "执行动作: 强制竖屏")
+                QuickToolsHelper.forcePortrait(context)
+            }
+            GestureAction.ForceLandscape -> {
+                com.slideindex.app.diagnostic.EdgeDiag.log("ActionExecutor", "执行动作: 强制横屏")
+                QuickToolsHelper.forceLandscape(context)
+            }
             GestureAction.ToggleMute -> SystemGestureActions.toggleMute(context)
             GestureAction.LockScreenAndSilenceRing -> {
                 SystemGestureActions.silenceRinger(context)
