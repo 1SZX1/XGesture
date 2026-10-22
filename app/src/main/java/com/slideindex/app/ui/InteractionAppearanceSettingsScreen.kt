@@ -156,35 +156,29 @@ fun InteractionAppearanceSettingsScreen(
         showPageHintCard = true,
         navigationIcon = { MiuixBackNavigationIcon(onBack) },
     ) {
-        item(key = "general_section") {
+        item(key = "theme_section") {
             SmallTitle(
-                text = stringResource(R.string.settings_section_general),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    ,
+                text = stringResource(R.string.settings_section_theme_appearance),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
-
-
         groupedCardItems(
             keyPrefix = "interaction_appearance_general",
             items = languageItems,
         )
-
-        item(key = "theme_section") {
-            SmallTitle(
-                text = stringResource(R.string.settings_section_theme_appearance),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    ,
-            )
-        }
         groupedCardItems(
             keyPrefix = "interaction_appearance_theme",
             items = themeAppearanceItems,
         )
+
+        item(key = "overlay_visual_section") {
+            SmallTitle(
+                text = stringResource(R.string.settings_section_overlay_visual),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         MiuixListSettingsCard(
-            keyPrefix = "interaction-overlay-blur",
+            keyPrefix = "interaction-overlay-visual",
             items = listOf(
                 settingsCardScopeItem("overlay-blur") {
                     SettingSwitchRow(
@@ -216,109 +210,65 @@ fun InteractionAppearanceSettingsScreen(
         item(key = "interaction_feedback_section") {
             SmallTitle(
                 text = stringResource(R.string.settings_section_interaction_feedback),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    ,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         MiuixListSettingsCard(
-            keyPrefix = "interaction-keyboard-trigger",
-            items = listOf(
-                settingsCardScopeItem("keyboard-trigger-behavior") {
-                    SettingExpandableDropdownRow(
-                        title = stringResource(R.string.keyboard_trigger_behavior_title),
-                        subtitle = keyboardTriggerBehaviorLabel(keyboardTriggerBehavior),
-                        items = keyboardBehaviorEntries.map { keyboardTriggerBehaviorLabel(it) },
-                        selectedIndex = keyboardBehaviorIndex,
-                        expanded = keyboardTriggerBehavior == KeyboardTriggerBehavior.NARROW,
-                        enabled = gestureActive,
-                        onSelectedIndexChange = {
-                            onKeyboardTriggerBehaviorChange(keyboardBehaviorEntries[it])
-                        },
-                    ) {
-                        SettingsSliderRow(
-                            title = stringResource(R.string.keyboard_trigger_narrow_percent_title),
-                            value = keyboardTriggerNarrowPercent.toFloat(),
-                            valueRange = 1f..99f,
-                            enabled = gestureActive,
-                            label = "${keyboardTriggerNarrowPercent}%",
-                            formatLabel = { "${it.roundToInt()}%" },
-                            keyPoints = SETTINGS_SLIDER_PERCENT_KEY_POINTS_100,
-                            onValueChange = { onKeyboardTriggerNarrowPercentChange(it.roundToInt()) },
-                        )
-                    }
-                },
-            ),
-        )
-        MiuixListSettingsCard(
-            keyPrefix = "interaction-haptic",
-            items = listOf(
-                settingsCardScopeItem("haptic") {
-                    SettingExpandableSwitchRow(
-                        title = stringResource(R.string.haptic_enabled),
-                        checked = settings.hapticEnabled,
-                        enabled = true,
-                        onCheckedChange = onHapticEnabledChange,
-                    ) {
-                        SettingsSliderRow(
-                            title = stringResource(R.string.haptic_strength),
-                            value = settings.hapticStrengthLevel.toFloat(),
-                            valueRange = 0f..2f,
-                            steps = 1,
-                            enabled = true,
-                            label = hapticFormatLabel(settings.hapticStrengthLevel.toFloat()),
-                            formatLabel = hapticFormatLabel,
-                            commitOnFinish = true,
-                            triggersLayoutPreview = true,
-                            onLayoutPreviewValueChange = { level ->
-                                HapticHelper.preview(
-                                    view,
-                                    AppSettings(
-                                        hapticEnabled = true,
-                                        hapticStrengthLevel = level.roundToInt(),
-                                    ),
-                                )
-                            },
-                            onValueChange = { onHapticStrengthChange(it.roundToInt()) },
-                        )
-                        SwitchPreference(
-                            title = stringResource(R.string.haptic_gesture_trigger_title),
-                            summary = stringResource(R.string.haptic_gesture_trigger_desc),
-                            checked = settings.hapticGestureTriggerEnabled,
-                            enabled = true,
-                            onCheckedChange = onHapticGestureTriggerEnabledChange,
-                        )
-                        SwitchPreference(
-                            title = stringResource(R.string.haptic_slot_selection_title),
-                            summary = stringResource(R.string.haptic_slot_selection_desc),
-                            checked = settings.hapticSlotSelectionEnabled,
-                            enabled = true,
-                            onCheckedChange = onHapticSlotSelectionEnabledChange,
-                        )
-                        SwitchPreference(
-                            title = stringResource(R.string.haptic_confirm_launch_title),
-                            summary = stringResource(R.string.haptic_confirm_launch_desc),
-                            checked = settings.hapticConfirmLaunchEnabled,
-                            enabled = true,
-                            onCheckedChange = onHapticConfirmLaunchEnabledChange,
-                        )
-                    }
-                },
-            ),
-        )
-
-        item(key = "navigation_back_section") {
-            SmallTitle(
-                text = stringResource(R.string.settings_section_navigation_back),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    ,
-            )
-        }
-
-        MiuixListSettingsCard(
-            keyPrefix = "interaction-nav-back",
+            keyPrefix = "interaction-feedback-motion",
             items = buildList {
+                add(
+                    settingsCardScopeItem("haptic") {
+                        SettingExpandableSwitchRow(
+                            title = stringResource(R.string.haptic_enabled),
+                            checked = settings.hapticEnabled,
+                            enabled = true,
+                            onCheckedChange = onHapticEnabledChange,
+                        ) {
+                            SettingsSliderRow(
+                                title = stringResource(R.string.haptic_strength),
+                                value = settings.hapticStrengthLevel.toFloat(),
+                                valueRange = 0f..2f,
+                                steps = 1,
+                                enabled = true,
+                                label = hapticFormatLabel(settings.hapticStrengthLevel.toFloat()),
+                                formatLabel = hapticFormatLabel,
+                                commitOnFinish = true,
+                                triggersLayoutPreview = true,
+                                onLayoutPreviewValueChange = { level ->
+                                    HapticHelper.preview(
+                                        view,
+                                        AppSettings(
+                                            hapticEnabled = true,
+                                            hapticStrengthLevel = level.roundToInt(),
+                                        ),
+                                    )
+                                },
+                                onValueChange = { onHapticStrengthChange(it.roundToInt()) },
+                            )
+                            SwitchPreference(
+                                title = stringResource(R.string.haptic_gesture_trigger_title),
+                                summary = stringResource(R.string.haptic_gesture_trigger_desc),
+                                checked = settings.hapticGestureTriggerEnabled,
+                                enabled = true,
+                                onCheckedChange = onHapticGestureTriggerEnabledChange,
+                            )
+                            SwitchPreference(
+                                title = stringResource(R.string.haptic_slot_selection_title),
+                                summary = stringResource(R.string.haptic_slot_selection_desc),
+                                checked = settings.hapticSlotSelectionEnabled,
+                                enabled = true,
+                                onCheckedChange = onHapticSlotSelectionEnabledChange,
+                            )
+                            SwitchPreference(
+                                title = stringResource(R.string.haptic_confirm_launch_title),
+                                summary = stringResource(R.string.haptic_confirm_launch_desc),
+                                checked = settings.hapticConfirmLaunchEnabled,
+                                enabled = true,
+                                onCheckedChange = onHapticConfirmLaunchEnabledChange,
+                            )
+                        }
+                    },
+                )
                 add(
                     settingsCardScopeItem("swipe-dismiss") {
                         SettingSwitchRow(

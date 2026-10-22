@@ -2044,6 +2044,7 @@
     <string name="interaction_appearance_settings_entry_desc">Haptics, back gestures, theme, and navigation bar</string>
     <string name="settings_section_navigation_back">Navigation &amp; back</string>
     <string name="settings_section_theme_appearance">Theme &amp; appearance</string>
+    <string name="settings_section_overlay_visual">Overlay visuals</string>
     <string name="settings_section_general">General</string>
     <string name="settings_app_language_title">App language</string>
     <string name="settings_app_language_system">Follow system</string>

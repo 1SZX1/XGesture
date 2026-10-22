@@ -129,6 +129,19 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
         val appSettings by viewModel.settings.collectAsStateWithLifecycle()
         val overlaySettings by viewModel.overlaySettings.collectAsStateWithLifecycle()
         val extensionHubSettings by viewModel.extensionHubSettings.collectAsStateWithLifecycle()
+        val gestureSettings by viewModel.gestureSettings.collectAsStateWithLifecycle()
+        val configuration = LocalConfiguration.current
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val keyboardTriggerBehavior = if (isLandscape) {
+            gestureSettings.keyboardTriggerBehaviorLandscape
+        } else {
+            gestureSettings.keyboardTriggerBehaviorPortrait
+        }
+        val keyboardTriggerNarrowPercent = if (isLandscape) {
+            gestureSettings.keyboardTriggerNarrowPercentLandscape
+        } else {
+            gestureSettings.keyboardTriggerNarrowPercentPortrait
+        }
         var privilegedAccessGranted by remember { mutableStateOf(false) }
         var rootAccessGranted by remember { mutableStateOf(false) }
         LaunchedEffect(appSettings.privilegeMode, permissions.shizukuGranted) {
@@ -182,6 +195,14 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
             onHideTriggerInLandscapeChange = { enabled -> viewModel.setHideTriggerInLandscape(enabled) },
             onHideTriggerOnLockScreenChange = { enabled -> viewModel.setHideTriggerOnLockScreen(enabled) },
             onHideTriggerOnLauncherChange = { enabled -> viewModel.setHideTriggerOnLauncher(enabled) },
+            keyboardTriggerBehavior = keyboardTriggerBehavior,
+            keyboardTriggerNarrowPercent = keyboardTriggerNarrowPercent,
+            onKeyboardTriggerBehaviorChange = { behavior ->
+                viewModel.setKeyboardTriggerBehavior(behavior, isLandscape)
+            },
+            onKeyboardTriggerNarrowPercentChange = { percent ->
+                viewModel.setKeyboardTriggerNarrowPercent(percent, isLandscape)
+            },
             bottomContentPadding = ctx.rootBottomContentPadding,
             bottomNavReselectCount = ctx.bottomNavReselectCount,
         )

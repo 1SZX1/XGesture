@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.RadioButtonChecked
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PictureInPicture
 import androidx.compose.material.icons.outlined.ScreenRotation
@@ -78,6 +80,8 @@ internal object HomeLeadingIcons {
     fun hideTriggerLauncher(outlined: Boolean) = homeLeadingIcon(outlined, Icons.Default.Home, Icons.Outlined.Home)
     fun freeWindow(outlined: Boolean) =
         homeLeadingIcon(outlined, Icons.Default.PictureInPictureAlt, Icons.Outlined.PictureInPicture)
+    fun keyboardTrigger(outlined: Boolean) =
+        homeLeadingIcon(outlined, Icons.Default.Keyboard, Icons.Outlined.Keyboard)
     fun haptic(outlined: Boolean) = homeLeadingIcon(outlined, Icons.Default.Vibration, Icons.Outlined.Vibration)
     fun themeMode(outlined: Boolean) =
         homeLeadingIcon(outlined, Icons.Default.BrightnessMedium, Icons.Outlined.Brightness6)

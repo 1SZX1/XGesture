@@ -14,16 +14,21 @@ import com.slideindex.app.R
 import com.slideindex.app.settings.CornerGestureSettings
 import com.slideindex.app.settings.ExtensionHubSettings
 import com.slideindex.app.settings.HomeMainSettings
+import com.slideindex.app.settings.KeyboardTriggerBehavior
 import com.slideindex.app.settings.PrivilegeMode
 import com.slideindex.app.ui.animationstyle.GestureAnimationSettingsRows
 import com.slideindex.app.ui.miuix.MiuixHubScaffold
 import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.settings.components.LazySettingsItem
+import com.slideindex.app.ui.settings.components.SETTINGS_SLIDER_PERCENT_KEY_POINTS_100
+import com.slideindex.app.ui.settings.components.SettingExpandableDropdownRow
 import com.slideindex.app.ui.settings.components.SettingNavigationRow
 import com.slideindex.app.ui.settings.components.SettingsCardScope
 import com.slideindex.app.ui.settings.components.SettingsCardScopeContent
+import com.slideindex.app.ui.settings.components.SettingsSliderRow
 import com.slideindex.app.ui.settings.components.settingsCardItem
 import com.slideindex.app.ui.settings.components.settingsLazySmallTitle
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -68,6 +73,10 @@ fun MainScreen(
     onHideTriggerInLandscapeChange: (Boolean) -> Unit,
     onHideTriggerOnLockScreenChange: (Boolean) -> Unit,
     onHideTriggerOnLauncherChange: (Boolean) -> Unit,
+    keyboardTriggerBehavior: KeyboardTriggerBehavior = KeyboardTriggerBehavior.NARROW,
+    keyboardTriggerNarrowPercent: Int = 30,
+    onKeyboardTriggerBehaviorChange: (KeyboardTriggerBehavior) -> Unit = {},
+    onKeyboardTriggerNarrowPercentChange: (Int) -> Unit = {},
     bottomContentPadding: Dp = 0.dp,
     bottomNavReselectCount: Int = 0,
 ) {
@@ -404,6 +413,39 @@ fun MainScreen(
                     },
                 )
                 addAll(hideTriggerItems)
+                add(
+                    settingsCardItem("keyboard-trigger-behavior") {
+                        SettingsCardScopeContent {
+                            val keyboardBehaviorEntries = KeyboardTriggerBehavior.selectable
+                            val keyboardBehaviorIndex = keyboardBehaviorEntries.indexOf(keyboardTriggerBehavior).coerceAtLeast(0)
+                            SettingExpandableDropdownRow(
+                                title = stringResource(R.string.keyboard_trigger_behavior_title),
+                                subtitle = keyboardTriggerBehaviorLabel(keyboardTriggerBehavior),
+                                icon = { label ->
+                                    Icon(HomeLeadingIcons.keyboardTrigger(true), contentDescription = label)
+                                },
+                                items = keyboardBehaviorEntries.map { keyboardTriggerBehaviorLabel(it) },
+                                selectedIndex = keyboardBehaviorIndex,
+                                expanded = keyboardTriggerBehavior == KeyboardTriggerBehavior.NARROW,
+                                enabled = gestureActive,
+                                onSelectedIndexChange = {
+                                    onKeyboardTriggerBehaviorChange(keyboardBehaviorEntries[it])
+                                },
+                            ) {
+                                SettingsSliderRow(
+                                    title = stringResource(R.string.keyboard_trigger_narrow_percent_title),
+                                    value = keyboardTriggerNarrowPercent.toFloat(),
+                                    valueRange = 1f..99f,
+                                    enabled = gestureActive,
+                                    label = "${keyboardTriggerNarrowPercent}%",
+                                    formatLabel = { "${it.roundToInt()}%" },
+                                    keyPoints = SETTINGS_SLIDER_PERCENT_KEY_POINTS_100,
+                                    onValueChange = { onKeyboardTriggerNarrowPercentChange(it.roundToInt()) },
+                                )
+                            }
+                        }
+                    },
+                )
                 add(
                     settingsCardItem("free-window") {
                         SettingsCardScopeContent {

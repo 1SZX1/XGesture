@@ -5,14 +5,20 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -21,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.ui.SettingIconContainer
 import com.slideindex.app.ui.miuix.MiuixArrowRow
@@ -438,4 +445,129 @@ fun SettingsCardScope.SettingRadioRow(
         )
     }
 }
+
+/**
+ * 双列网格行（Bento Grid Row）：在单个设置卡片段内横向放置两个均分的导航入口。
+ *
+ * 标题允许两行、副标题可选：一格只有一半宽度（文字区约 100dp），「Shell 命令面板」这类长标题
+ * 一行必被省略号截断；不要副标题时把第二行让给标题，比压短标题更不容易丢语义。
+ */
+@Composable
+fun SettingsCardScope.SettingGrid2Row(
+    leftIcon: @Composable (accessibilityLabel: String) -> Unit,
+    leftTitle: String,
+    leftSubtitle: String? = null,
+    leftEnabled: Boolean = true,
+    onLeftClick: () -> Unit,
+    rightIcon: @Composable (accessibilityLabel: String) -> Unit,
+    rightTitle: String,
+    rightSubtitle: String? = null,
+    rightEnabled: Boolean = true,
+    onRightClick: () -> Unit,
+    rowKey: Any = "$leftTitle-$rightTitle",
+) {
+    val leftDeferredClick = rememberDeferredNavigationClick(onLeftClick)
+    val rightDeferredClick = rememberDeferredNavigationClick(onRightClick)
+
+    SettingsCardRow(key = rowKey) { position ->
+        Row(
+            modifier = Modifier
+                .settingsGroupedRowBackground(position.index, position.count)
+                .height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 左半边
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(enabled = leftEnabled, onClick = leftDeferredClick)
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SettingIconContainer { leftIcon(leftTitle) }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = leftTitle,
+                            fontSize = MiuixTheme.textStyles.title4.fontSize,
+                            fontWeight = FontWeight.Medium,
+                            color = if (leftEnabled) MiuixTheme.colorScheme.onBackground else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (leftSubtitle != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = leftSubtitle,
+                                fontSize = MiuixTheme.textStyles.footnote1.fontSize,
+                                color = if (leftEnabled) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 中间微弱垂直分割线
+            VerticalDivider(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(vertical = 10.dp),
+                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.2f),
+                thickness = 0.5.dp,
+            )
+
+            // 右半边
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(enabled = rightEnabled, onClick = rightDeferredClick)
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SettingIconContainer { rightIcon(rightTitle) }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = rightTitle,
+                            fontSize = MiuixTheme.textStyles.title4.fontSize,
+                            fontWeight = FontWeight.Medium,
+                            color = if (rightEnabled) MiuixTheme.colorScheme.onBackground else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (rightSubtitle != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = rightSubtitle,
+                                fontSize = MiuixTheme.textStyles.footnote1.fontSize,
+                                color = if (rightEnabled) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 

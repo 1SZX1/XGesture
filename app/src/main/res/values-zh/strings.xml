@@ -555,6 +555,7 @@
     <string name="interaction_appearance_settings_entry_desc">震动、返回手势、主题与导航栏样式</string>
     <string name="settings_section_navigation_back">导航与返回</string>
     <string name="settings_section_theme_appearance">主题与外观</string>
+    <string name="settings_section_overlay_visual">全局悬浮视觉</string>
     <string name="settings_section_general">通用</string>
     <string name="settings_app_language_title">应用语言</string>
     <string name="settings_app_language_system">跟随系统</string>
