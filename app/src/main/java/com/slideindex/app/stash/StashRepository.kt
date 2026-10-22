@@ -754,8 +754,21 @@ class StashRepository @Inject constructor(
 
     fun uriForFile(fileName: String?): Uri? {
         if (fileName.isNullOrBlank()) return null
-        val file = File(imageDir, fileName)
-        if (!file.exists()) return null
+        val file = File(imageDir, fileName).takeIf { it.exists() }
+            ?: File(audioDir, fileName).takeIf { it.exists() }
+            ?: return null
+        return runCatching {
+            FileProvider.getUriForFile(
+                appContext,
+                "${appContext.packageName}.fileprovider",
+                file
+            )
+        }.getOrNull()
+    }
+
+    fun uriForAudioFile(fileName: String?): Uri? {
+        if (fileName.isNullOrBlank()) return null
+        val file = File(audioDir, fileName).takeIf { it.exists() } ?: return null
         return runCatching {
             FileProvider.getUriForFile(
                 appContext,

@@ -6,6 +6,9 @@
     <files-path
         name="stash_images"
         path="stash/images/" />
+    <files-path
+        name="stash_audio"
+        path="stash/audio/" />
     <cache-path
         name="update_cache"
         path="update/" />

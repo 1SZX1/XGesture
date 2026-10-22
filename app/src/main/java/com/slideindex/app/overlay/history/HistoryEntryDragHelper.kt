@@ -1,6 +1,7 @@
 package com.slideindex.app.overlay.history
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
 import android.util.Log
@@ -14,10 +15,14 @@ import android.text.TextPaint
 import android.view.DragEvent
 import android.view.View
 import android.view.View.DragShadowBuilder
+import com.slideindex.app.clipboard.ClipboardBlockKind
+import com.slideindex.app.clipboard.ClipboardContentBlock
 import com.slideindex.app.clipboard.ClipboardEntry
 import com.slideindex.app.clipboard.ClipboardDragClipHelper
+import com.slideindex.app.clipboard.ClipboardHtmlParser
 import com.slideindex.app.clipboard.ClipboardWriter
 import com.slideindex.app.clipboard.DragFileMirror
+import com.slideindex.app.clipboard.audioText
 import com.slideindex.app.clipboard.resolvedContentBlocks
 import com.slideindex.app.stash.StashEntry
 import com.slideindex.app.stash.StashEntryType
@@ -48,20 +53,112 @@ internal object HistoryEntryDragHelper {
             }
             StashEntryType.IMAGE -> {
                 val uri = repo?.uriForFile(entry.imageFileName) ?: return null
-                ClipData.newUri(context.contentResolver, "image/*", uri)
+                val label = entry.imageFileName ?: "stash_image"
+                ClipData(
+                    ClipDescription(label, arrayOf("image/*")),
+                    ClipData.Item(uri),
+                )
             }
             StashEntryType.RICH -> {
                 val blocks = entry.resolvedContentBlocks()
                 if (blocks.isEmpty()) return null
-                ClipboardWriter.buildClipForBlocks(
-                    htmlText = entry.htmlText,
+                buildClipForRichStashEntry(context, entry, blocks, repo)
+            }
+        }
+    }
+
+    private fun buildClipForRichStashEntry(
+        context: Context,
+        entry: StashEntry,
+        blocks: List<ClipboardContentBlock>,
+        repo: StashRepository?,
+    ): ClipData? {
+        val audioBlocks = blocks.filter { it.kind == ClipboardBlockKind.AUDIO }
+        val imageBlocks = blocks.filter { it.kind == ClipboardBlockKind.IMAGE }
+        val textBlocks = blocks.filter { it.kind == ClipboardBlockKind.TEXT && it.text.isNotBlank() }
+
+        val audioUris = audioBlocks.mapNotNull { repo?.uriForAudioFile(it.fileName) ?: repo?.uriForFile(it.fileName) }
+        val imageUris = imageBlocks.mapNotNull { repo?.uriForFile(it.fileName) }
+
+        // 1. 纯录音卡片（无正文、无图片）：整张卡长按拖拽作为音频文件 (.m4a)
+        if (audioBlocks.isNotEmpty() && imageBlocks.isEmpty() && textBlocks.isEmpty() && entry.htmlText.isNullOrBlank()) {
+            if (audioUris.isEmpty()) return null
+            val firstFileName = audioBlocks.first().fileName.ifBlank { "stash_audio.m4a" }
+            val clip = ClipData(
+                ClipDescription(firstFileName, arrayOf("audio/mp4", "audio/*")),
+                ClipData.Item(audioUris.first()),
+            )
+            audioUris.drop(1).forEach { clip.addItem(ClipData.Item(it)) }
+            return clip
+        }
+
+        // 2. 纯图片卡片
+        if (imageBlocks.isNotEmpty() && audioBlocks.isEmpty() && textBlocks.isEmpty() && entry.htmlText.isNullOrBlank()) {
+            if (imageUris.isEmpty()) return null
+            val firstFileName = imageBlocks.first().fileName.ifBlank { "stash_image" }
+            val clip = ClipData(
+                ClipDescription(firstFileName, arrayOf("image/*")),
+                ClipData.Item(imageUris.first()),
+            )
+            imageUris.drop(1).forEach { clip.addItem(ClipData.Item(it)) }
+            return clip
+        }
+
+        // 3. 纯文字卡片
+        if (textBlocks.isNotEmpty() && audioBlocks.isEmpty() && imageBlocks.isEmpty() && entry.htmlText.isNullOrBlank()) {
+            val plainText = textBlocks.joinToString("\n") { it.text.trim() }.trim()
+            return if (plainText.isBlank()) null else ClipData.newPlainText("stash", plainText)
+        }
+
+        // 4. 图文音混合卡片：全量复合打包（正文文本/HTML + 所有图片 URI + 所有音频 URI）
+        val plainText = blocks
+            .filter { it.kind == ClipboardBlockKind.TEXT || it.kind == ClipboardBlockKind.AUDIO }
+            .joinToString("\n") { block ->
+                if (block.kind == ClipboardBlockKind.AUDIO) block.audioText() else block.text.trim()
+            }
+            .trim()
+
+        val dataUris = imageBlocks.mapNotNull { repo?.uriForFile(it.fileName)?.toString() }
+        val originalHtml = entry.htmlText?.trim()?.takeIf { it.isNotEmpty() }
+        val html = when {
+            !originalHtml.isNullOrBlank() &&
+                dataUris.isNotEmpty() &&
+                ClipboardHtmlParser.imageSources(originalHtml).size == dataUris.size -> {
+                ClipboardHtmlParser.rebuildHtmlImageSources(originalHtml, dataUris)
+            }
+            else -> {
+                ClipboardHtmlParser.buildHtmlFromBlocks(
                     blocks = blocks,
-                    resolveDataUri = { fileName -> repo?.uriForFile(fileName)?.toString() },
-                    resolveContentUri = { fileName -> repo?.uriForFile(fileName) },
-                    resolveDimensions = { fileName -> repo?.imageDimensions(fileName) },
+                    imageSrcForFile = { fileName -> repo?.uriForFile(fileName)?.toString() },
+                    imageSizeForFile = { fileName -> repo?.imageDimensions(fileName) },
                 )
             }
         }
+
+        val allMediaUris = imageUris + audioUris
+        if (plainText.isBlank() && html.isBlank() && allMediaUris.isEmpty()) return null
+
+        val mimeTypes = mutableListOf<String>()
+        if (html.isNotBlank()) mimeTypes += ClipDescription.MIMETYPE_TEXT_HTML
+        if (plainText.isNotBlank()) mimeTypes += ClipDescription.MIMETYPE_TEXT_PLAIN
+        if (imageUris.isNotEmpty()) mimeTypes += "image/*"
+        if (audioUris.isNotEmpty()) {
+            mimeTypes += "audio/mp4"
+            mimeTypes += "audio/*"
+        }
+
+        val description = ClipDescription("stash", mimeTypes.distinct().toTypedArray())
+        val firstItem = when {
+            html.isNotBlank() -> ClipData.newHtmlText("stash", plainText.ifBlank { " " }, html).getItemAt(0)
+            plainText.isNotBlank() -> ClipData.newPlainText("stash", plainText).getItemAt(0)
+            allMediaUris.isNotEmpty() -> ClipData.Item(allMediaUris.first())
+            else -> return null
+        }
+
+        val clip = ClipData(description, firstItem)
+        val remainingUris = if (firstItem.uri == null) allMediaUris else allMediaUris.drop(1)
+        remainingUris.forEach { uri -> clip.addItem(ClipData.Item(uri)) }
+        return clip
     }
 
     fun previewForClipboardEntry(entry: ClipboardEntry, thumbnails: List<Bitmap>): HistoryDragPreview {
