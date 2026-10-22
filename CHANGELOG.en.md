@@ -12,6 +12,61 @@ Release pages are published with the English notes first, then the Chinese ones.
 notes follow the system language: `notesEn` is shown to non-Chinese locales and `notes` to
 Chinese ones, each falling back to the other when a version is missing.
 
+## [1.50.0] - 2026-10-22
+
+### Added
+- New "Global drag & drop flow": drag an image or text in any app and a frosted flow bar slides in from the screen edge, ready to hand the content to another app or save it to Ideas
+- New separate "File share engine" setting, configured independently from the drag & drop flow
+- New "Floating touchpad" action: a porcelain-white double-layer frame with 1:1 rounded square keys for directions, navigation and recents, and it can shrink into a ball that docks at the edge
+- New "Block touches" action: swallows every touch on screen and is dismissed by drawing a circle, double-tapping to turn the screen off, or a five-minute timeout
+- New payment actions: WeChat Scan, WeChat Pay Code, Alipay Pay Code and Alipay Scan
+- New screen drawing tools: mosaic redaction, dashed lines, text, numbering and marquee selection, with the toolbar rebuilt as symmetric frosted capsules
+- New "Smart screenshot" entry in Global Copy that switches between the accessibility and OCR engines at any time, plus support for receiving the system web search intent
+- New "Icon library": three offline font icon sets (Lucide / Remix / Tabler); action icons and app icons can each be replaced
+- New "Overlay icon plate" mode: dark, light or follow system, applied to the quick launcher, ring launchers and other panels
+- New hand-drawn "Custom gestures" for the floating ball: match actions by trajectory, with mirrored gestures generated alongside
+- New "Pin" action for the quick launcher: tapping an entry keeps the panel open, apps underneath stay usable outside the panel, and pinning can be limited to the current app
+- New long-press countdown ring in the ring launcher and corner wheel, showing whether the target will open in a small window or full screen, plus a picture-in-picture badge on the icon
+- New edge handle for the side panel: press and drag to resize 1:1 and snap to a standard width; Ideas favourites can be filtered by any/all
+- New background blur for the clipboard popup, following the global overlay blur switch, with an adjustable radius
+- New Bento two-column grid in the extension hub, with the Shell command panel moved up next to the quick wheel
+- New "Keyboard trigger behaviour" setting on the home page: narrow area or full screen, configured separately for portrait and landscape
+- New "Recognition & positioning" subpage holding swipe distance, long-press duration and launcher position, bringing directional gestures back to the first screen
+- New four-column grid for app and action pickers, matching the size of the action list
+- New trailing chips in the Activity picker: "Needs privilege" for non-exported components and "Entry" for launcher activities
+
+### Changed
+- Quick menu action icons redrawn with a 1.5 dp line style, no longer blurry at small sizes or on icon plates
+- The freezer's "Manage apps" now has "In freezer / All" views, frozen members can be unfrozen and removed, and a separate "Freezer settings" page was added
+- The touchpad action is consistently named "Touchpad", with direction and navigation keys enlarged to 37 dp
+- The "Quick actions" group in the extension hub moved below "Tools", and the icon library entry uses a palette icon
+- The about page gained a version row with a unified vX.Y.Z (build) format and no duplicated "v" prefix
+- The home entry for per-app profiles now shows only the first sentence, leaving the long explanation to the profile page
+- Action grid titles may wrap to two lines, with larger icons and text, so long action names are no longer always truncated
+- The side panel lost its close button; tapping the search field expands it to the full row and Back collapses the search first
+- Gesture macros now show the "has parameters" dot in the action picker, and the macro picker marks the current macro
+- The text toolbar in the pick panel reverted to Material icons to match the image section
+- The "Default" trigger mode was removed: unset triggers fire on release, and actions that can only be sustained stay sustained
+- Media notification refreshes and accessibility window events are throttled to reduce idle heat
+
+### Fixed
+- Fixed the liquid-glass bottom bar turning grey on the indicator and bar ends when overscrolling on the first or last page
+- Fixed the global sensitivity slider on the shake page being undraggable after horizontal swiping returned to the native pager gesture
+- Fixed "Toggle auto-rotate" and "Force portrait/landscape" failing on some devices by writing through three fallbacks and verifying the result by reading it back
+- Fixed the slider in the trigger settings page swallowing touches and hanging the page, and the trigger preview disappearing after leaving
+- Fixed expand panel slots storing empty templates (macros and links bound to dead actions, empty wheels); parameters are now picked before saving, and the keyboard no longer covers the panel
+- Fixed the floating ball vanishing after picking text with built-in animations; the ring toolbar's "Move" now works, the keyboard button uses the shared entry point, and the redundant collapse button is gone
+- Fixed the disclaimer and permission pages losing their bottom buttons on short screens or large fonts, which blocked onboarding
+- Fixed the number and text panels in screen drawing being clipped, and upgraded the config sliders to Miuix capsules
+- Fixed long danmaku filling the screen and the bottom track being clipped in landscape
+- Fixed the clipboard popup appearing translucent before turning frosted; the first frame is frosted now
+- Fixed the search engine editor giving no required-name hint and looking unresponsive when saving with an empty name
+- Fixed overlay icons drawing black-on-black in system light mode and caches not refreshing after changing the icon plate mode
+- Fixed "Choose app icon" overwriting itself because all rows shared one file, and wired global icon overrides into every runtime renderer
+- Fixed phantom hot zones vibrating when the flow bar was dragged over empty space
+- Fixed the long-press progress ring appearing even when the policy is always full screen or always small window
+- Filled in missing Arabic and Japanese strings: 33 icon library entries, 27 screen control entries, plus file sharing and overlay visuals
+
 ## [1.42.0] - 2026-10-16
 
 ### Added
