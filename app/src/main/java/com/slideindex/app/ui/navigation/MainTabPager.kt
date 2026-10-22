@@ -42,6 +42,7 @@ import dev.chrisbanes.haze.HazeState
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -83,7 +84,16 @@ internal fun MainTabPagerHost(
     // 横滑走 pager 原生手势：interactionSource 收不到拖动事件，所以自行跟踪“用户正在横滑”
     // 用于底栏 1:1 跟随。
     var isPagerDragTracking by remember(pagerState) { mutableStateOf(false) }
-    val liquidGlassBackdrop = rememberLayerBackdrop()
+    // 捕获层先铺一层不透明底色（与外层 Scaffold 的 containerColor 一致）。
+    // 页面背景由各页自己的 Scaffold 画，会跟着 overscroll 拉伸一起被拉走；被拉走后
+    // 露出的那一条在捕获层里就是未绘制的透明区，玻璃采样到透明会渲染成灰黑
+    // （胶囊指示器最明显：首/末 tab 的胶囊正好贴在这条边上，看起来像"按钮变色"）。
+    // 参见 miuix docs/guide/blur.md：「捕获内容有透明区域时，模糊会向透明处扩散出脏色」。
+    val liquidGlassBaseColor = MiuixTheme.colorScheme.surface
+    val liquidGlassBackdrop = rememberLayerBackdrop {
+        drawRect(liquidGlassBaseColor)
+        drawContent()
+    }
     val floatingNavBackdrop = rememberMiuixBlurBackdrop(bottomNavUsesHaze)
     val activeBackdrop = when (bottomNavStyle) {
         BottomNavStyle.LIQUID_GLASS -> liquidGlassBackdrop
