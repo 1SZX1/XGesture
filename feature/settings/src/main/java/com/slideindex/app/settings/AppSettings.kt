@@ -391,6 +391,7 @@ data class AppSettings(
     val stashPanelBackgroundBlurRadiusDp get() = clipboard.stashPanelBackgroundBlurRadiusDp
     val stashPanelHandleOpenTab get() = clipboard.stashPanelHandleOpenTab
     val stashPanelWidthMode get() = clipboard.stashPanelWidthMode
+    val stashPanelCustomWidthFraction get() = clipboard.stashPanelCustomWidthFraction
 
     val searchEngines get() = searchPanel.searchEngines
     val searchEngineGridColumns get() = searchPanel.searchEngineGridColumns

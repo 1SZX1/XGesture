@@ -4,10 +4,16 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import com.slideindex.app.di.OverlayDependencyAccess
+import com.slideindex.app.settings.StashPanelWidthMode
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -1220,8 +1226,18 @@ internal fun HistoryPanelScreen(
             onRetracted = onDismiss,
         )
         val theme = historyTheme()
-        // 面板宽度 = 窗口宽 × 78%（窗口又回到满屏了，见 `OverlayPanelLayoutParams`）。
-        val panelWidth = panelWidthOf(maxWidth)
+        val baseFraction = LocalStashPanelWidthFraction.current
+        val dynamicFractionState = remember { mutableFloatStateOf(baseFraction) }
+        var dynamicFraction by dynamicFractionState
+        var isResizing by remember { mutableStateOf(false) }
+        LaunchedEffect(baseFraction) {
+            if (!isResizing) {
+                dynamicFraction = baseFraction
+            }
+        }
+        val maxWidthPx = with(density) { maxWidth.toPx() }
+        // 面板宽度 = 窗口宽 × 当前动态比例（封顶 PANEL_WIDTH_MAX）。
+        val panelWidth = minOf(maxWidth * dynamicFraction, PANEL_WIDTH_MAX)
         val panelWidthPx = with(density) { panelWidth.toPx() }
         // 遮罩：整屏压暗 20%，跟手时按进度淡入（拖动期间不压暗，避免"手指刚动整屏先暗"）。
         val scrimAlpha by animateFloatAsState(
@@ -1488,6 +1504,97 @@ internal fun HistoryPanelScreen(
                         }
                     },
                     modifier = Modifier.align(Alignment.BottomEnd),
+                )
+            }
+
+            var handleCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+            // 边缘宽度调节小手柄（小竖条，贴合屏幕内侧边缘）
+            Box(
+                modifier = Modifier
+                    .align(if (gravityEnd) Alignment.CenterStart else Alignment.CenterEnd)
+                    .zIndex(20f)
+                    .size(width = 28.dp, height = 72.dp)
+                    .onGloballyPositioned { handleCoordinates = it }
+                    .pointerInput(gravityEnd, maxWidthPx) {
+                        var initialTouchFraction = 0f
+                        var initialPanelFraction = 0f
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                isResizing = true
+                                initialPanelFraction = dynamicFraction
+                                val coords = handleCoordinates
+                                val rootX = if (coords != null && coords.isAttached) {
+                                    coords.localToRoot(offset).x
+                                } else {
+                                    if (gravityEnd) maxWidthPx - (maxWidthPx * dynamicFraction) else maxWidthPx * dynamicFraction
+                                }
+                                initialTouchFraction = if (gravityEnd) {
+                                    (maxWidthPx - rootX) / maxWidthPx
+                                } else {
+                                    rootX / maxWidthPx
+                                }
+                            },
+                            onDragEnd = {
+                                isResizing = false
+                                val finalFraction = when {
+                                    abs(dynamicFraction - StashPanelWidthMode.COMPACT.fraction) < 0.025f ->
+                                        StashPanelWidthMode.COMPACT.fraction
+                                    abs(dynamicFraction - StashPanelWidthMode.STANDARD.fraction) < 0.025f ->
+                                        StashPanelWidthMode.STANDARD.fraction
+                                    else -> dynamicFraction
+                                }
+                                if (finalFraction != dynamicFraction) {
+                                    dynamicFraction = finalFraction
+                                    haptics.confirm()
+                                }
+                                scope.launch(Dispatchers.IO) {
+                                    val repo = OverlayDependencyAccess.overlayDependencies(context)?.settingsRepository
+                                    if (finalFraction == StashPanelWidthMode.COMPACT.fraction) {
+                                        repo?.setStashPanelWidthMode(StashPanelWidthMode.COMPACT)
+                                    } else if (finalFraction == StashPanelWidthMode.STANDARD.fraction) {
+                                        repo?.setStashPanelWidthMode(StashPanelWidthMode.STANDARD)
+                                    } else {
+                                        repo?.setStashPanelCustomWidthFraction(finalFraction)
+                                    }
+                                }
+                            },
+                            onDragCancel = {
+                                isResizing = false
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                val coords = handleCoordinates
+                                if (coords != null && coords.isAttached) {
+                                    val rootX = coords.localToRoot(change.position).x
+                                    val currentTouchFraction = if (gravityEnd) {
+                                        (maxWidthPx - rootX) / maxWidthPx
+                                    } else {
+                                        rootX / maxWidthPx
+                                    }
+                                    val deltaFraction = currentTouchFraction - initialTouchFraction
+                                    dynamicFraction = (initialPanelFraction + deltaFraction).coerceIn(0.35f, 0.96f)
+                                }
+                            }
+                        )
+                    },
+                contentAlignment = if (gravityEnd) Alignment.CenterStart else Alignment.CenterEnd,
+            ) {
+                // 小竖条本体（精致胶囊条，贴紧内侧边缘 1.5dp）
+                Box(
+                    modifier = Modifier
+                        .padding(start = if (gravityEnd) 1.5.dp else 0.dp, end = if (!gravityEnd) 1.5.dp else 0.dp)
+                        .width(if (isResizing) 5.dp else 4.dp)
+                        .height(if (isResizing) 42.dp else 36.dp)
+                        .background(
+                            color = if (isResizing) {
+                                theme.accent
+                            } else if (theme.isDark) {
+                                Color.White.copy(alpha = 0.55f)
+                            } else {
+                                Color.Black.copy(alpha = 0.32f)
+                            },
+                            shape = RoundedCornerShape(2.dp)
+                        )
                 )
             }
         }
@@ -2046,30 +2153,22 @@ private fun HistoryStashTabBody(
                     onAction = onClearSearch,
                     modifier = emptyModifier,
                 )
-                // 「收藏」开着却筛不出东西：说清是"还没有加星标的条目"，出口仍是清除筛选。
-                onlyStarred -> HistoryEmptyState(
+                // 仅「收藏」开着却筛不出东西：说清是"还没有加星标的条目"，出口仍是清除筛选。
+                onlyStarred && selectedTags.isEmpty() -> HistoryEmptyState(
                     title = stringResource(R.string.stash_empty_starred_title),
                     hint = stringResource(R.string.stash_empty_tag_hint),
                     actionLabel = stringResource(R.string.stash_tag_filter_clear),
                     onAction = onClearTagFilter,
                     modifier = emptyModifier,
                 )
-                selectedTags.size >= 2 -> HistoryEmptyState(
-                    // 多标签筛不出东西（需求 6）：AND 说"**同时**含这些标签"，这才是用户
-                    // 真正需要看到的那句 —— 他可能以为选两个标签是"或"。
-                    // OR 模式下不能这么说（那会是"没有含任一"却写成"没有同时含"），
-                    // 所以沿用旧的单标签文案 key，把选中的几个标签名连起来。
-                    //
-                    // ⚠️ 连接符 " / " 是**硬编码分隔符，不是本地化资源** —— 这是有意接受的取舍：
-                    // 只为"OR 且多标签且筛不出东西"这一种边角成因新增一条 `%1$s+%2$s` 式 key
-                    // 不划算（四套 locale 都要为一句极罕见的提示再译一遍），而 `" / "` 在四种
-                    // 语言里都读得通。**别把它当 bug 修**。
+                selectedTags.size + (if (onlyStarred) 1 else 0) >= 2 -> HistoryEmptyState(
                     title = if (tagMatchAll) {
                         stringResource(R.string.stash_tag_filter_empty)
                     } else {
+                        val allCriteria = (if (onlyStarred) listOf(stringResource(R.string.stash_tag_filter_starred)) else emptyList()) + selectedTags
                         stringResource(
                             R.string.stash_empty_tag_title,
-                            selectedTags.joinToString(" / "),
+                            allCriteria.joinToString(" / "),
                         )
                     },
                     hint = stringResource(R.string.stash_empty_tag_hint),

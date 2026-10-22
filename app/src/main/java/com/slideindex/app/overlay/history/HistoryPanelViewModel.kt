@@ -124,25 +124,29 @@ class HistoryPanelViewModel(
         metaStore,
     ) { entries, query, criteria, meta ->
         val (tags, matchAll, starredOnly) = criteria
-        // 「收藏」与标签/搜索都是 AND：加星标只看这一条，其余谓词照旧生效。
-        val starredOk: (StashEntry) -> Boolean = { !starredOnly || it.starred }
+        // 「收藏」与自建标签筛选统一遵循 matchAll（同时=AND，任一=OR）
+        val tagAndStarMatch: (StashEntry) -> Boolean = { entry ->
+            when {
+                !starredOnly && tags.isEmpty() -> true
+                matchAll -> {
+                    val starOk = !starredOnly || entry.starred
+                    val tagOk = tags.isEmpty() || entry.matchesTagFilter(tags, matchAll = true, meta)
+                    starOk && tagOk
+                }
+                else -> {
+                    val starMatch = starredOnly && entry.starred
+                    val tagMatch = tags.isNotEmpty() && entry.matchesTagFilter(tags, matchAll = false, meta)
+                    starMatch || tagMatch
+                }
+            }
+        }
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
-            // 没在搜索：标签筛选生效（空集 = 「全部」，谓词退化成"恒真"，与改动前一字不差）。
-            entries.filter { starredOk(it) && it.matchesTagFilter(tags, matchAll, meta) }
+            entries.filter { tagAndStarMatch(it) }
         } else {
-            // 搜索 **∧** 标签筛选（两者都生效，都是 AND）：搜索框负责文字 / 标签名命中，
-            // 标签再叠一层。
-            //
-            // ⚠️ 这是**刻意的设计（用户已确认）**，不要再改回"搜索时忽略标签筛选"：
-            // `docs/capsule-refactor-plan.md` §0.2 / §2 一度按设计稿 `visible()` 把这条改成
-            // "搜索时忽略标签筛选"，本轮明确要求恢复叠加（`docs/capsule-feature-prompt.md` 的
-            // P0 验收标准原本也写着"标签筛选与搜索条件叠加"）。配套文案见
-            // `R.string.stash_empty_search_hint`（四套 locale 都写的是"搜索会与标签筛选同时生效"）。
+            // 搜索 **∧** 筛选条件（两者都生效，搜索作为严格交集）
             entries.filter {
-                starredOk(it) &&
-                    it.matchesQuery(trimmed, meta.tagsOf(it.id)) &&
-                    it.matchesTagFilter(tags, matchAll, meta)
+                tagAndStarMatch(it) && it.matchesQuery(trimmed, meta.tagsOf(it.id))
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

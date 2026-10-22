@@ -113,8 +113,9 @@ internal fun HistoryTagChips(
                 ghost = true,
             )
         }
-        // 选中 ≥2：才谈得上"同时含"还是"含任一"。
-        if (selectedTags.size >= 2) {
+        // 选中维度 ≥2（含自建标签与收藏）：才谈得上"同时含"还是"含任一"。
+        val activeCriteriaCount = selectedTags.size + (if (onlyStarred) 1 else 0)
+        if (activeCriteriaCount >= 2) {
             TagMatchModeSwitch(matchAll = matchAll, onMatchAllChange = onMatchAllChange)
         }
     }

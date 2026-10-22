@@ -282,6 +282,7 @@ fun OverlaySettings.toMinimalAppSettings(): AppSettings = AppSettings(
         stashPanelBackgroundBlurRadiusDp = stashPanelBackgroundBlurRadiusDp,
         stashPanelHandleOpenTab = stashPanelHandleOpenTab,
         stashPanelWidthMode = stashPanelWidthMode,
+        stashPanelCustomWidthFraction = stashPanelCustomWidthFraction,
     ),
     defaultImageViewerPackage = defaultImageViewerPackage,
     imageEditorDelayDeleteEnabled = imageEditorDelayDeleteEnabled,

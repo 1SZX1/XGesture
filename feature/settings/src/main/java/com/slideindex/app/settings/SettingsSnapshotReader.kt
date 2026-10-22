@@ -686,6 +686,7 @@ internal object SettingsSnapshotReader {
             stashPanelWidthMode = prefs[SettingsPreferenceKeys.STASH_PANEL_WIDTH_MODE]
                 ?.let { name -> runCatching { StashPanelWidthMode.valueOf(name) }.getOrNull() }
                 ?: StashPanelWidthMode.STANDARD,
+            stashPanelCustomWidthFraction = prefs[SettingsPreferenceKeys.STASH_PANEL_CUSTOM_WIDTH_FRACTION],
             ),
             overlayBlur = OverlayBlurSettings(
                 overlayBlurEnabled = prefs[SettingsPreferenceKeys.OVERLAY_BLUR_ENABLED] ?: true,

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -78,6 +79,7 @@ internal fun HistoryContentBlockView(
      * null = 宿主不给这个行为（例如块编辑器预览），那就什么也不挂。
      */
     onTapToggle: (() -> Unit)? = null,
+    onLongPressDrag: (() -> Unit)? = null,
 ) {
     when (block.kind) {
         ClipboardBlockKind.TEXT -> {
@@ -143,13 +145,26 @@ internal fun HistoryContentBlockView(
             val imageBitmap = remember(bitmap) { bitmap?.asImageBitmap() }
             // §0.16.22：整块图都是热区（含 `Fit` 留白那两条边）—— 判据交给 Compose：
             // `Image` 自己的尺寸已经按内容算好，外面这层 `clickable` 正好圈住它。
-            val tapModifier = if (onTapToggle != null) {
-                Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { onTapToggle() }
-            } else {
-                Modifier
+            val tapModifier = when {
+                onTapToggle != null && onLongPressDrag != null -> {
+                    Modifier.combinedClickable(
+                        onClick = onTapToggle,
+                        onLongClick = onLongPressDrag,
+                    )
+                }
+                onTapToggle != null -> {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onTapToggle() }
+                }
+                onLongPressDrag != null -> {
+                    Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = onLongPressDrag,
+                    )
+                }
+                else -> Modifier
             }
             if (imageBitmap != null) {
                 if (expanded) {

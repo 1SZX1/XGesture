@@ -56,7 +56,7 @@ internal object HistoryEntryDragHelper {
                 ClipboardWriter.buildClipForBlocks(
                     htmlText = entry.htmlText,
                     blocks = blocks,
-                    resolveDataUri = { fileName -> repo?.dataUriForFile(fileName) },
+                    resolveDataUri = { fileName -> repo?.uriForFile(fileName)?.toString() },
                     resolveContentUri = { fileName -> repo?.uriForFile(fileName) },
                     resolveDimensions = { fileName -> repo?.imageDimensions(fileName) },
                 )

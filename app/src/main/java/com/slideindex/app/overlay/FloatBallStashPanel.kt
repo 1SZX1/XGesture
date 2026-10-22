@@ -263,8 +263,11 @@ object FloatBallStashPanel {
         OverlayAwareModuleTheme {
             // 面板宽度档位注入整棵面板树：`panelWidthOf`（本体宽度）、`historyPreviewWidthPx`
             // （图片降采样宽）与 `HistoryEntryCards`（卡片缩略图宽）都读它。
+            val currentFraction = settings.stashPanelCustomWidthFraction
+                ?.coerceIn(0.35f, 0.96f)
+                ?: settings.stashPanelWidthMode.fraction
             CompositionLocalProvider(
-                LocalStashPanelWidthFraction provides settings.stashPanelWidthMode.fraction
+                LocalStashPanelWidthFraction provides currentFraction
             ) {
                 HistoryPanelScreen(
                     gravityEnd = gravityEnd,

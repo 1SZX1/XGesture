@@ -427,6 +427,8 @@ data class ClipboardSettings(
     val stashPanelHandleOpenTab: StashPanelHandleOpenTab = StashPanelHandleOpenTab.CLIPBOARD,
     /** 侧拉面板宽度档位，见 [StashPanelWidthMode]。默认保持设计稿规格。 */
     val stashPanelWidthMode: StashPanelWidthMode = StashPanelWidthMode.STANDARD,
+    /** 侧拉面板用户直接拖拽的自定义宽度比例。 */
+    val stashPanelCustomWidthFraction: Float? = null,
 )
 
 /** 搜索面板与搜索引擎。 */

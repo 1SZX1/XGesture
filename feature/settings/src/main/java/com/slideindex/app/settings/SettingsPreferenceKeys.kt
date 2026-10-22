@@ -695,6 +695,9 @@ internal object SettingsPreferenceKeys {
 
     /** 侧拉面板宽度档位（[StashPanelWidthMode] 的 name）。 */
     val STASH_PANEL_WIDTH_MODE = stringPreferencesKey("stash_panel_width_mode")
+
+    /** 侧拉面板用户直接拖拽的自定义宽度比例（0.40f ~ 0.85f），存在时优先于 [STASH_PANEL_WIDTH_MODE]。 */
+    val STASH_PANEL_CUSTOM_WIDTH_FRACTION = floatPreferencesKey("stash_panel_custom_width_fraction")
     val OVERLAY_BLUR_ENABLED = booleanPreferencesKey("overlay_blur_enabled")
     val DEFAULT_IMAGE_VIEWER_PACKAGE = stringPreferencesKey("default_image_viewer_package")
     val IMAGE_EDITOR_DELAY_DELETE_ENABLED = booleanPreferencesKey("image_editor_delay_delete_enabled")

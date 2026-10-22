@@ -295,6 +295,7 @@ internal fun HistoryExpandableContentSection(
                         expanded = true,
                         // §0.16.22：展开态点图 = 收起（与点卡片别处同一个语义）。
                         onTapToggle = imageTapToggle,
+                        onLongPressDrag = onLongPressDrag,
                     )
                 }
             }
@@ -327,6 +328,7 @@ internal fun HistoryExpandableContentSection(
                             // 语音胶囊自己吃点击（点了就播），这里传下去也不会生效；
                             // 传它是为了"将来这里再放别的块"时行为一致。
                             onTapToggle = imageTapToggle,
+                            onLongPressDrag = onLongPressDrag,
                         )
                     }
                 }
