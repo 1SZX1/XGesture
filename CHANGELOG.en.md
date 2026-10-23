@@ -12,6 +12,30 @@ Release pages are published with the English notes first, then the Chinese ones.
 notes follow the system language: `notesEn` is shown to non-Chinese locales and `notes` to
 Chinese ones, each falling back to the other when a version is missing.
 
+## [1.50.5] - 2026-10-23
+
+### Added
+- New "Ring compass" flow bar: targets sit around a circle and the one nearest your finger's angle is picked, while the centre and the outside of the ring do not respond
+- New target configuration for the text flow bar: drag an icon from the text search engine page onto the flow bar card to add it, and remove an entry on its own
+- The note body shows a scrollbar on the right when it runs past one screen
+
+### Changed
+- The image flow bar now orders its targets as image search, share to apps, copy image, share image, and no longer follows the hidden switch in the text picker
+- The ring flow bar applies its blur to each target's own plate, so the centre is no longer blurred along with it
+- Double-tapping the back of the phone now only wakes the screen by default, and the settings page notes the battery cost while the screen is off
+- The accelerometer, gyroscope, proximity and light sensors are registered once, cutting duplicate listeners and standby drain
+
+### Fixed
+- Fixed custom gestures triggered from the line strip opening the panel on the wrong side of the ball
+- Fixed new voice or image blocks being pushed off screen when inserted at the top of a note
+- Fixed a crash when handing external files to another app; unreadable files now show a message instead
+- Fixed images whose file names are purely numeric not being recognised in the gallery
+- Fixed the flow bar target card staying empty, which made drops look like they did nothing
+- Fixed intent links in picked text being treated as unopenable
+- Fixed intent links with component information losing their target, and startup failures going unreported
+- Fixed shake sensors not throttling to the configured interval
+- Completed missing Arabic and Japanese strings
+
 ## [1.50.0] - 2026-10-22
 
 ### Added
