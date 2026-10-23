@@ -193,14 +193,15 @@ internal fun HistoryAudioBlockCapsule(
  * 块编辑器里的一个**语音块**（§0.16.21）—— 就是 [HistoryAudioBlockCapsule] 加上"上报位置"。
  *
  * 与 [DraftBlockEditorImage] 同一个理由：正文区是可滚动的固定视口（160..320dp），
- * 插进来的块要能被 `scrollBlockIntoView` 找到，所以每块都要上报自己在视口坐标系里的 y。
+ * 插进来的块要能被 `scrollBlockIntoView` 找到，所以每块都要上报自己在**内容坐标系**里的 y
+ * （`positionInParent` 相对块列表，滚动时不变）。
  */
 @Composable
 internal fun DraftBlockEditorAudio(
     path: String,
     durationMs: Long,
     onRemove: () -> Unit,
-    /** 上报本块在**视口坐标系**里的 y（§0.16.18 的"插入后滚到目标"要用）。 */
+    /** 上报本块在**内容坐标系**里的 y（§0.16.18 的"插入后滚到目标"要用）。 */
     onBlockPlaced: (Int) -> Unit,
 ) {
     HistoryAudioBlockCapsule(

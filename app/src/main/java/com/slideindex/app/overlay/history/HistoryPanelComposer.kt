@@ -11,6 +11,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,10 +52,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -379,6 +384,7 @@ internal fun DraftBlockEditorSurface(
      * 与具体是哪张图无关；每个块各算一次会在重组时重复读 `LocalWindowInfo`。
      */
     val imageTargetPx = draftBlockImageTargetPx()
+    val theme = historyTheme()
     /** 本层的协程作用域：给"滚进视口"用（滚动的 `animateScrollTo` 是挂起函数）。 */
     val coroutineScope = rememberCoroutineScope()
     /**
@@ -418,13 +424,25 @@ internal fun DraftBlockEditorSurface(
      */
     val scrollState = rememberScrollState()
     /**
-     * 各块在**视口坐标系**里的 y（由每块 `onGloballyPositioned` 上报）。
+     * 各块在**内容坐标系**里的 y（由每块 `onGloballyPositioned` 上报）。
      *
      * 用途是"插入之后把目标块滚进视口"：块高不是固定值（文字块随行数变、图片块 120dp），
      * 靠"index × 估算高度"一定会滚歪，所以这里记**实测**位置。
-     * 值是"相对当前滚动位置"的，所以判断可见性时要加上 `scrollState.value`（见 [scrollBlockIntoView]）。
+     *
+     * ⚠️ 坐标来自 `positionInParent()`，而父节点是**块列表那个 Column**（滚动容器的子节点）——
+     * 所以它是"内容坐标"，滚动时**不**变。判断可见性时必须跟 `scrollState.value` 相加后
+     * 再和视口比（见 [scrollBlockIntoView]），**不能**把这个值当成"视口坐标"直接加 current。
      */
     val blockViewportOffsets = remember { mutableStateMapOf<String, Int>() }
+    /**
+     * 等位置上报的"待滚目标"（块 id）。
+     *
+     * 刚插进来的块在当帧还没有实测 y（`SideEffect` / 组合回调都跑在 layout 之前），
+     * 这时**只记下它、不滚**，等它自己的 `onGloballyPositioned` 上报后由 [reportBlockPlaced]
+     * 再滚一次。曾经的"位置未知就滚到底"兜底会把顶部插入的块和上方正文一起顶出视口
+     * （用户报过：录完音后录音块和第一行都跑到上面看不见了）。
+     */
+    var pendingScrollBlockId by remember { mutableStateOf<String?>(null) }
     /** 正文视口高度（px，由容器 `onGloballyPositioned` 实测上报）；0 = 还没测到。 */
     var viewportHeightPx by remember { mutableStateOf(0) }
     /**
@@ -455,34 +473,53 @@ internal fun DraftBlockEditorSurface(
         lastFocusedBlockId?.takeIf { id -> blocks.any { it.id == id && it is DraftBlock.Text } }
             ?: blocks.lastOrNull { it is DraftBlock.Text }?.id
 
+    /** `HistoryComposerScrollSlack` 的 dp → px（[scrollBlockIntoView] 里的比较全是 px）。 */
+    val scrollSlackPx = with(LocalDensity.current) { HistoryComposerScrollSlack.roundToPx() }
+
     /**
      * 把某个块滚进视口（§0.16.18）。
      *
      * 只在"确实看不到"时才滚（可见就什么都不做）：插一张图之后正文里光标那块本来就多半可见，
      * 每次都滚会把用户已经调好的位置晃走。
      *
-     * ⚠️ 位置是**估算**的：用的是该块上一次 `onGloballyPositioned` 报上来的 y。
-     * 刚插进来的块当帧还没测量 → 拿不到 y → 这时按"滚动到底"处理（新块总在后面，
-     * 滚到底是用户想看到的结果）。误差最多几十像素（块间距/行高变化），不会滚到别处。
+     * ⚠️ 位置是**内容坐标**（见 [blockViewportOffsets]），所以"块在视口里吗"要跟
+     * `scrollState.value` 相加后再判断；目标值本身**不要**再加 current。
+     *
+     * ⚠️ 刚插进来的块当帧还没测量 → 拿不到 y → 这时**什么都不做**，只记进
+     * [pendingScrollBlockId]，等它自己的 `onGloballyPositioned` 上报后由 [reportBlockPlaced] 再滚。
+     * 曾经的"位置未知就滚到底"兜底是错的：插入点在顶部时会把新块和上方正文一起顶出视口
+     * （用户报过：录完音后录音块和第一行都跑到上面看不见了）。
      */
     fun scrollBlockIntoView(blockId: String) {
-        val current = scrollState.value
         // ⚠️ 用**实测**的视口高度，不用 `scrollState.viewportSize`：后者在"内容还不满一屏"
         // （maxValue == 0）时是 0，会把下面的可见性判断整个短路掉。
         val viewport = viewportHeightPx
-        val target = blockViewportOffsets[blockId]?.let { it + current }
-        // 视口还没测量时按"滚到底"兜底 —— 至少让新块露出来（新块总在正文后面）。
+        val target = blockViewportOffsets[blockId]
         if (target == null || viewport <= 0) {
-            coroutineScope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+            // 还没量到（新块 / 视口未测量）：等 [reportBlockPlaced] 那一拍，别猜。
+            pendingScrollBlockId = blockId
             return
         }
+        val current = scrollState.value
         // 上下各留一点余量：块正好贴住视口边沿时，光标那行其实已经贴边/被圆角切了。
-        val top = current + HistoryComposerScrollSlack
-        val bottom = current + viewport - HistoryComposerScrollSlack
-        if (target !in top..bottom) {
-            val destination = (target - HistoryComposerScrollSlack)
+        val top = current + scrollSlackPx
+        val bottom = current + viewport - scrollSlackPx
+        if (target < top || target > bottom) {
+            val destination = (target - scrollSlackPx)
                 .coerceIn(0, maxOf(scrollState.maxValue, 0))
             coroutineScope.launch { scrollState.animateScrollTo(destination) }
+        }
+    }
+
+    /**
+     * 各块 `onGloballyPositioned` 的收口：记下实测 y；如果它正是"等位置的待滚目标"，
+     * 就在这一拍（layout 之后）把它滚进视口。
+     */
+    fun reportBlockPlaced(blockId: String, y: Int) {
+        blockViewportOffsets[blockId] = y
+        if (pendingScrollBlockId == blockId) {
+            pendingScrollBlockId = null
+            scrollBlockIntoView(blockId)
         }
     }
 
@@ -501,9 +538,17 @@ internal fun DraftBlockEditorSurface(
         // ⚠️ `onBlocksChange` 的 transform 是在快照之外跑的纯函数，所以在**这里**（当帧）读
         // 光标与块顺序，别在 transform 里再读一次外层快照。
         val cursor = targetId?.let { latestValues[it]?.selection?.start } ?: 0
+        /**
+         * 这次插进来的**第一个**块（图 / 语音）：滚它，不滚后面那段文字。
+         *
+         * 为什么不滚 tail：用户想看的是刚插进来的东西；tail 只是"接着打字"的落点，
+         * 把它滚进视口反而可能把刚插的媒体块顶出视口上沿。
+         */
+        var scrollTargetId: String? = null
         onBlocksChange { list ->
             val newBlocks = factory()
             if (newBlocks.isEmpty()) return@onBlocksChange list
+            scrollTargetId = newBlocks.first().id
             // 落点的**块下标**在这里现算一次：外面那一帧读到的顺序可能已经被另一次改动
             // （比如刚删了一张图）挪过位置。
             val index = list.indexOfFirst { it.id == targetId }
@@ -541,6 +586,8 @@ internal fun DraftBlockEditorSurface(
             cursorTargetId?.let { id -> pendingCursor[id] = 0 }
             next
         }
+        // 新块当帧还没测量：先记成待滚目标，等它自己的 onGloballyPositioned 上报位置后再滚。
+        scrollTargetId?.let { id -> pendingScrollBlockId = id }
     }
 
     /** 把 [paths] 里的图**按顺序**插到当前光标处（取消选图 = 空列表 = 什么都不做）。 */
@@ -640,6 +687,10 @@ internal fun DraftBlockEditorSurface(
             onTextInsertedAtCursor?.invoke(next)
             next
         }
+        // 识别结果插在当前块的光标处：这一块本来就在视口里多半可见，只有被挤出视口时才滚回来。
+        // （原来靠 `pendingCursor` 消费时的 `autoScroll`；现在滚动目标改成"插入的那一块"，
+        //  图 / 语音不会再顺手把 tail 一起滚进来。）
+        scrollBlockIntoView(targetId)
     }
 
     /**
@@ -648,7 +699,8 @@ internal fun DraftBlockEditorSurface(
      * 两种情况分开处理（都满足"点空白就能在图片下面继续写"）：
      * - 末尾**已经是空文字块**（收尾规则 `normalizeDraftBlocks` 保证媒体块后面总有它）→
      *   **不再叠一个空块**，只把光标送进去。两个挨着的空块对用户没有任何意义，
-     *   而 `pendingCursor` 那条既有机制已经负责"下一帧要焦点 + 滚进视口"。
+     *   而 `pendingCursor` 那条既有机制已经负责"下一帧要焦点"，滚动由下面的
+     *   [scrollBlockIntoView] 显式做（它对新块会等到位置上报后再滚）。
      * - 末尾是**有文字的文字块**（用户写满了最后一行、下面还有空白）→ 追加一个空文字块再送光标，
      *   这正是需求里的"点空白 → 追加一个空文本块"。
      *
@@ -747,6 +799,14 @@ internal fun DraftBlockEditorSurface(
                 )
                 // §0.16.18：块一多就超出视口，必须能滚（否则图底下的东西看不见也滑不到）。
                 // 视口高度仍然是 160..320（见 KDoc）：无限高会把「存下」/「保存」顶出屏幕。
+                //
+                // 滚动条（用户要求"超出显示范围时右侧要有滚动条"）：
+                // ⚠️ 必须放在 `.verticalScroll` **之前**（外层）—— 这样尺寸是**视口**，
+                // 而它的 `drawContent()` 才画得到被滚动裁切后的内容；放在之后会拿到内容总高。
+                .composerScrollbar(
+                    scrollState = scrollState,
+                    color = theme.sub.copy(alpha = 0.55f),
+                )
                 .verticalScroll(scrollState)
                 // 记下**实测**视口高度：它比"按 dp 换算"准（窗口缩放 / 字体大小都会影响）。
                 .onGloballyPositioned { coords -> viewportHeightPx = coords.size.height },
@@ -794,8 +854,12 @@ internal fun DraftBlockEditorSurface(
                                             else -> Unit
                                         }
                                         // 焦点回到前一个文字块末尾（那块就是光标左边那段文字）。
+                                        // 它很可能已经被删掉的媒体块顶到视口上方，顺手滚回来。
                                         val before = blocks.getOrNull(index - 2) as? DraftBlock.Text
-                                        if (before != null) pendingCursor[before.id] = before.value.length
+                                        if (before != null) {
+                                            pendingCursor[before.id] = before.value.length
+                                            scrollBlockIntoView(before.id)
+                                        }
                                     }
                                 },
                                 focusRequester = focusRequester,
@@ -808,11 +872,9 @@ internal fun DraftBlockEditorSurface(
                                 pendingCursor = pendingCursor,
                                 onSubmitKey = onSubmitKey,
                                 focusDelegation = focusDelegation,
-                                // §0.16.18：上报本块在视口里的 y（"插入后滚到目标块"要用它算位置）。
-                                onBlockPlaced = { y -> blockViewportOffsets[block.id] = y },
-                                // 只有"插入造成的光标移动"才需要滚（打字时的光标移动不滚，
-                                // 否则用户往上翻着看时会被一次次拽回底部）。
-                                autoScroll = { scrollBlockIntoView(block.id) },
+                                // §0.16.18：上报本块在**内容坐标系**里的 y（"插入后滚到目标块"要用它算位置）。
+                                // 新块首次上报时若正是"待滚目标"，[reportBlockPlaced] 会顺手把它滚进视口。
+                                onBlockPlaced = { y -> reportBlockPlaced(block.id, y) },
                             )
                         }
     
@@ -820,9 +882,10 @@ internal fun DraftBlockEditorSurface(
                             DraftBlockEditorImage(
                                 path = resolveImagePath(block.path),
                                 onRemove = { removeImageBlock(block) },
-                                // §0.16.18：图片块也要上报 y（插图后目标块常常就是刚补的空文字块，
-                                // 但图片本身很高，用户想看到的往往是图本身）。
-                                onBlockPlaced = { y -> blockViewportOffsets[block.id] = y },
+                                // §0.16.18：图片块也要上报 y —— 插入后滚的**就是图片本身**
+                                // （上面 `insertBlocksAtCursor` 的待滚目标是新插入的第一块，
+                                //  不是后面补的空文字块；图片 120dp，不滚它就会被上沿切掉）。
+                                onBlockPlaced = { y -> reportBlockPlaced(block.id, y) },
                                 // §0.16.19：按显示宽度解码（原来固定 480px，整宽渲染时糊）。
                                 imageTargetPx = imageTargetPx,
                                 // §0.16.22：✎ 进内置编辑器（null = 这个入口不给这枚按钮）。
@@ -836,7 +899,7 @@ internal fun DraftBlockEditorSurface(
                                 path = resolveAudioPath(block.path),
                                 durationMs = block.durationMs,
                                 onRemove = { removeAudioBlock(block) },
-                                onBlockPlaced = { y -> blockViewportOffsets[block.id] = y },
+                                onBlockPlaced = { y -> reportBlockPlaced(block.id, y) },
                             )
                         }
                     }
@@ -861,6 +924,47 @@ internal fun DraftBlockEditorSurface(
             )
         }
     }
+}
+
+/**
+ * 正文滚动条：内容超出视口时，在正文右侧画一根 3dp 的圆角滑块（用户要求：超出显示范围要有滚动条）。
+ *
+ * 为什么用 `drawWithContent` 而不是叠一层 composable：
+ * ① **不占布局**：正文块宽度、插入光标、块上报的 y 全不受影响；
+ * ② 滚动时读的是 `scrollState.value`，而**绘制阶段**的状态读取只会让这一层失效重画，
+ *    不会把整片正文（每块一个 `BasicTextField`）拖进重组。
+ *
+ * 位置：正文**外侧**的右内边距里（两个宿主 `HistoryComposerModal` / `HistoryPanelEditBar`
+ * 都是 26dp 右内边距），不压住正文；卡片的 `clip(shape)` 在这之外，不会被裁掉。
+ *
+ * 刻意**不接手势**：给触摸带会抢走正文右缘"点一下落光标"的命中区；
+ * 面板/弹窗都是小视口，滑动滚动已经够用，这里只做"还有内容"的指示。
+ */
+private fun Modifier.composerScrollbar(
+    scrollState: ScrollState,
+    color: Color,
+): Modifier = drawWithContent {
+    drawContent()
+    val maxScroll = scrollState.maxValue
+    // 内容没超出视口：不画（用户要的就是"超出显示范围才出现"）。
+    if (maxScroll <= 0) return@drawWithContent
+    val viewport = size.height
+    if (viewport <= 0f) return@drawWithContent
+    // 内容总高 = 视口 + 可滚距离；滑块长度按占比算，最短 [HistoryComposerScrollbarMinThumb]。
+    val naturalThumb = viewport * (viewport / (viewport + maxScroll))
+    val thumbHeight = naturalThumb.coerceIn(
+        minimumValue = HistoryComposerScrollbarMinThumb.toPx().coerceAtMost(viewport),
+        maximumValue = viewport,
+    )
+    val thumbOffset = (viewport - thumbHeight) *
+        (scrollState.value / maxScroll.toFloat()).coerceIn(0f, 1f)
+    val barWidth = HistoryComposerScrollbarWidth.toPx()
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(size.width + HistoryComposerScrollbarGutter.toPx(), thumbOffset),
+        size = Size(barWidth, thumbHeight),
+        cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+    )
 }
 
 /**
@@ -905,10 +1009,8 @@ private fun HistoryComposerTextBlock(
     onSubmitKey: (() -> Unit)?,
     /** 块**已经**被聚焦时，要不要再抢一次焦点（弹窗要、编辑条不要，见 surface 的 KDoc）。 */
     focusDelegation: Boolean,
-    /** 上报本块在**视口坐标系**里的 y（§0.16.18 的"插入后滚到目标"要用）。 */
+    /** 上报本块在**内容坐标系**里的 y（§0.16.18 的"插入后滚到目标"要用）。 */
     onBlockPlaced: (Int) -> Unit,
-    /** 因**插入**而落光标时要执行的动作（滚进视口）；打字时的光标移动不调它。 */
-    autoScroll: () -> Unit,
 ) {
     val theme = historyTheme()
     /** 与 `KeyboardOptions` 同一处决定：null ⇒ 回车换行（Default），非 null ⇒ 回车提交（Done）。 */
@@ -936,15 +1038,12 @@ private fun HistoryComposerTextBlock(
                 runCatching { ownFocusRequester.requestFocus() }
             }
         }
-        // §0.16.18：`pendingCursor` **只**在"插入（图 / 语音）"和"退格删图后回头"时被写下，
-        // 所以这里就是"插入之后"的那个时机 —— 顺手把这块滚进视口。
-        // 放在 `SideEffect` 里：那时布局已经量过，`onBlockPlaced` 报上来的 y 才是新的。
-        SideEffect { autoScroll() }
     }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            // §0.16.18：上报本块在视口里的 y（在滚动容器坐标系里，值会随滚动变化）。
+            // §0.16.18：上报本块在**内容坐标系**里的 y（`positionInParent` 相对块列表，
+            // 滚动时不变；"插入后滚到目标块"由调用方换算视口位置）。
             .onGloballyPositioned { coords -> onBlockPlaced(coords.positionInParent().y.toInt()) },
     ) {
         if (showHint && hint != null) {
@@ -1045,7 +1144,7 @@ private fun HistoryComposerTextBlock(
 private fun DraftBlockEditorImage(
     path: String,
     onRemove: () -> Unit,
-    /** 上报本块在**视口坐标系**里的 y（§0.16.18 的"插入后滚到目标"要用）。 */
+    /** 上报本块在**内容坐标系**里的 y（§0.16.18 的"插入后滚到目标"要用）。 */
     onBlockPlaced: (Int) -> Unit,
     /** 解码采样目标（长边像素，§0.16.19）。 */
     imageTargetPx: Int,
@@ -1157,8 +1256,25 @@ private val HistoryComposerEmptyBlockMinHeight = 40.dp
  *
  * 为什么需要：块正好贴住视口上/下沿时，光标那一行其实已经被圆角/边缘切掉了。
  * 24dp 是"看得出整块、又不会为了露一行把整屏都滚走"的值。
+ *
+ * ⚠️ 类型必须是 [Dp]：比较的另一边（`viewportHeightPx` / 块 y）全是 **px**，
+ * 早先它是裸 Int（24），在 3x 屏上只剩 8dp，等于余量被吃掉三分之二。
  */
-private const val HistoryComposerScrollSlack = 24
+private val HistoryComposerScrollSlack = 24.dp
+
+/** 正文滚动条的宽度（dp）：细到不抢内容，又足够看清。 */
+private val HistoryComposerScrollbarWidth = 3.dp
+
+/**
+ * 滚动条离正文右缘的距离（dp）。
+ *
+ * 两个宿主（`HistoryComposerModal` / `HistoryPanelEditBar`）的卡片右内边距都是 26dp，
+ * 所以 8dp 还落在内边距里：不压正文、也不会被卡片的 `clip(shape)` 裁掉。
+ */
+private val HistoryComposerScrollbarGutter = 8.dp
+
+/** 滚动条滑块的最短长度（dp）：内容再长也要看得见（太短会被当成脏点）。 */
+private val HistoryComposerScrollbarMinThumb = 28.dp
 
 /** 正文里图片块的高度。 */
 private val HistoryComposerBodyImageHeight = 120.dp
