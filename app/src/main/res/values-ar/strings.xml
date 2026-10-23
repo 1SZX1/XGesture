@@ -2256,6 +2256,10 @@
     <string name="search_engine_pick_share_image_target_title">اختيار واجهة مشاركة الصور</string>
     <string name="search_engine_share_image_target_search_hint">بحث عن تطبيق أو Activity</string>
     <string name="search_engine_share_image_target_empty">لا توجد تطبيقات تستقبل مشاركة الصور</string>
+    <string name="share_target_batch_hint">حدِّد أكثر من واجهة، ثم اضغط علامة الصح أعلى اليمين لإضافتها كلها.</string>
+    <string name="share_target_batch_selected">تم تحديد %1$d</string>
+    <string name="share_target_batch_confirm">إضافة أهداف المشاركة المحددة</string>
+    <string name="share_target_batch_exists">أهداف المشاركة هذه موجودة مسبقًا</string>
     <string name="search_engine_share_text_target_section">هدف مشاركة النصوص</string>
     <string name="search_engine_share_text_target_not_set">لم يتم اختيار تطبيق لاستقبال مشاركة النصوص</string>
     <string name="search_engine_pick_share_text_target">اختيار تطبيق لاستقبال مشاركة النصوص</string>

@@ -18,6 +18,9 @@
     <plurals name="search_engine_import_success">
         <item quantity="other">%1$d 個のエンジンをインポートしました（%2$s）</item>
     </plurals>
+    <plurals name="share_target_batch_added">
+        <item quantity="other">共有先を %d 件追加しました</item>
+    </plurals>
     <plurals name="float_ball_style_slideshow_hint">
         <item quantity="other">%d 枚の画像を選択、3 秒ごとに切り替え</item>
     </plurals>

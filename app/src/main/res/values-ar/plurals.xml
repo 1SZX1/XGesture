@@ -48,6 +48,14 @@
         <item quantity="many">تم استيراد %1$d محركات (%2$s)</item>
         <item quantity="other">تم استيراد %1$d محركات (%2$s)</item>
     </plurals>
+    <plurals name="share_target_batch_added">
+        <item quantity="zero">تمت إضافة %d أهداف مشاركة</item>
+        <item quantity="one">تمت إضافة %d هدف مشاركة</item>
+        <item quantity="two">تمت إضافة %d هدف مشاركة</item>
+        <item quantity="few">تمت إضافة %d أهداف مشاركة</item>
+        <item quantity="many">تمت إضافة %d هدف مشاركة</item>
+        <item quantity="other">تمت إضافة %d أهداف مشاركة</item>
+    </plurals>
     <plurals name="float_ball_style_slideshow_hint">
         <item quantity="zero">تم اختيار %d صور، التبديل كل 3 ثوانٍ</item>
         <item quantity="one">تم اختيار %d صورة، التبديل كل 3 ثوانٍ</item>
