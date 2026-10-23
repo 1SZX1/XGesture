@@ -118,7 +118,6 @@ fun MiuixListScaffold(
             Box(Modifier.fillMaxWidth()) {
                 MiuixBlurredTopBar(
                     backdrop = barBackdrop,
-                    scrollBehavior = scrollBehavior,
                 ) {
                     AdaptiveTopAppBar(
                         modifier = Modifier
@@ -208,7 +207,6 @@ fun MiuixSettingsScreenScaffold(
                     MiuixBlurredTopBar(
                         backdrop = barBackdrop,
                         enabled = !overlayMode,
-                        scrollBehavior = scrollBehavior,
                     ) {
                         AdaptiveTopAppBar(
                             modifier = Modifier

@@ -148,7 +148,6 @@ fun ExtensionAboutScreen(
             MiuixBlurredTopBar(
                 backdrop = backdrop,
                 enabled = blurActive,
-                scrollBehavior = scrollBehavior
             ) {
                 SmallTopAppBar(
                     title = stringResource(R.string.about_section_title),

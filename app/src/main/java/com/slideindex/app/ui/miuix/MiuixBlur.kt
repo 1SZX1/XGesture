@@ -9,10 +9,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.dp
 import com.slideindex.app.settings.TopAppBarBlurStyle
-import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurColors
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -64,7 +61,12 @@ fun LayerBackdrop?.miuixAppBarColor(): Color =
     if (this != null) Color.Transparent else MiuixTheme.colorScheme.surface
 
 /**
- * 顶栏毛玻璃容器：Gaussian 或 Progressive（对齐 miuix 示例 [BlurredBar]）。
+ * 顶栏毛玻璃容器：Gaussian 或 Progressive。
+ *
+ * Progressive 采用 Mishka `BlurredBar` 的行为：模糊层常驻，不按滚动位置淡入淡出。
+ * miuix 示例里的 `-contentOffset / 48dp` alpha 门槛只认手指滚动增量，遇到
+ * `initialFirstVisibleItemIndex` / `scrollToItem` 这类程序化定位时 contentOffset 仍是 0，
+ * 会把整层模糊淡没（「选择操作类型」页返回后重进即如此）。这里不再接滚动状态。
  */
 @Composable
 fun MiuixBlurredTopBar(
@@ -72,7 +74,6 @@ fun MiuixBlurredTopBar(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     blurStyle: TopAppBarBlurStyle = LocalTopAppBarBlurStyle.current,
-    scrollBehavior: ScrollBehavior? = null,
     content: @Composable () -> Unit,
 ) {
     val blurActive = enabled && backdrop != null
@@ -90,11 +91,6 @@ fun MiuixBlurredTopBar(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .graphicsLayer {
-                        alpha = scrollBehavior?.state
-                            ?.let { (-it.contentOffset / 48.dp.toPx()).coerceIn(0f, 1f) }
-                            ?: 1f
-                    }
                     .miuixProgressiveAppBarBlur(backdrop = backdrop),
             )
         }
