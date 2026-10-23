@@ -1207,6 +1207,7 @@
     <string name="back_tap_mode_always">常時</string>
     <string name="back_tap_mode_screen_on">画面オンのみ</string>
     <string name="back_tap_mode_screen_off">画面オフのみ</string>
+    <string name="back_tap_mode_battery_hint">画面オフ時の検出は CPU を起動状態に保つため、待機中のバッテリー消費が増えます。</string>
     <string name="back_tap_pause_charging">充電中は一時停止</string>
     <string name="back_tap_vibration_feedback">トリガー時に振動</string>
     <string name="back_tap_enabled">背面ダブルタップを有効化</string>

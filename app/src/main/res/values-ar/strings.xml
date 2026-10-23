@@ -1190,6 +1190,7 @@
     <string name="back_tap_mode_always">دائماً</string>
     <string name="back_tap_mode_screen_on">الشاشة مضاءة فقط</string>
     <string name="back_tap_mode_screen_off">الشاشة مغلقة فقط</string>
+    <string name="back_tap_mode_battery_hint">يتطلب الكشف عند إطفاء الشاشة إبقاء المعالج مستيقظًا، مما يزيد استهلاك البطارية في وضع الاستعداد.</string>
     <string name="back_tap_pause_charging">إيقاف مؤقت عند الشحن</string>
     <string name="back_tap_vibration_feedback">اهتزاز عند التشغيل</string>
     <string name="back_tap_enabled">تفعيل النقر المزدوج على الظهر</string>
