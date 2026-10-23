@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 Miuix 深色默认背景（DarkBackgroundStyle.QUIET_BLUE = #101820）一致。 -->
+    <color name="app_window_background">#101820</color>
+</resources>

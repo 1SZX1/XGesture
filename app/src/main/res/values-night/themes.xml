@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      深色下的 Theme.SlideIndex。
+      系统按 night 限定符解析启动窗口与 Android 12+ Splash 的底色，而 App 内的明暗是由
+      Compose（ModuleTheme / AppThemeMode）在 onCreate 之后才决定的，系统看不到；
+      所以这一层必须单独给一份深色主题，否则深色冷启动会先闪一下浅色窗口。
+    -->
+    <style name="Theme.SlideIndex" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#6750A4</item>
+        <item name="android:colorBackground">@color/app_window_background</item>
+        <item name="android:windowBackground">@color/app_window_background</item>
+        <item name="android:windowSplashScreenBackground">@color/app_window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

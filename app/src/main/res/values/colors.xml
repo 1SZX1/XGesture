@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      启动窗口 / Android 12+ 系统 Splash 的底色。
+      这两层由系统在 Activity.onCreate 之前绘制，只认资源限定符，不认 App 内的明暗设置，
+      所以必须和内容背景保持同一语义色，否则深色冷启动会先闪一下白底。
+    -->
+    <color name="app_window_background">#FAFAFA</color>
+</resources>

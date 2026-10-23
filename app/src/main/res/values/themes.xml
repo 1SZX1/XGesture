@@ -2,6 +2,11 @@
 <resources>
     <style name="Theme.SlideIndex" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:colorPrimary">#6750A4</item>
+        <!-- 启动窗口底色：不显式写会吃 Material.Light 的 #FAFAFA，浅色下勉强能看，深色下就是白闪。 -->
+        <item name="android:colorBackground">@color/app_window_background</item>
+        <item name="android:windowBackground">@color/app_window_background</item>
+        <!-- Android 12+ 系统 Splash：不指定会回退到 windowBackground，二者写同一个色才不会在首帧前跳色。 -->
+        <item name="android:windowSplashScreenBackground">@color/app_window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
