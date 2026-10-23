@@ -40,6 +40,10 @@ internal object PickResultUrl {
         "$URL_START_BOUNDARY((?:tel|mailto|sms|geo):$urlBody+)",
         RegexOption.IGNORE_CASE,
     )
+    private val intentUriRegex = Regex(
+        "$URL_START_BOUNDARY(intent:(?://[^\\s\"'<>]*?)?#Intent;[^\\s\"'<>]*?;end)",
+        RegexOption.IGNORE_CASE,
+    )
     private val bareHostRegex = Regex(
         """^[\w\-.]+\.[a-zA-Z]{2,}([\w./?#=&+%\-]*)?$""",
         RegexOption.IGNORE_CASE,
@@ -68,16 +72,30 @@ internal object PickResultUrl {
     fun extractOpenableUrls(text: String): List<String> {
         if (text.isBlank()) return emptyList()
         val found = linkedSetOf<String>()
-        httpUrlRegex.findAll(text).forEach { match ->
+        val intentMatches = intentUriRegex.findAll(text).toList()
+        intentMatches.forEach { match ->
+            normalizeOpenableUrl(match.groupValues[1])?.let { found.add(it) }
+        }
+        // 把 intent URI 整段挖空，避免后续正则再从里面截出半条链接（例如 intent://... 被第一个 ; 截断）。
+        val masked = if (intentMatches.isEmpty()) {
+            text
+        } else {
+            val chars = text.toCharArray()
+            intentMatches.forEach { match ->
+                for (index in match.range) chars[index] = ' '
+            }
+            String(chars)
+        }
+        httpUrlRegex.findAll(masked).forEach { match ->
             normalizeOpenableUrl(match.value)?.let { found.add(it) }
         }
-        wwwUrlRegex.findAll(text).forEach { match ->
+        wwwUrlRegex.findAll(masked).forEach { match ->
             normalizeOpenableUrl(match.groupValues[1])?.let { found.add(it) }
         }
-        schemeUrlRegex.findAll(text).forEach { match ->
+        schemeUrlRegex.findAll(masked).forEach { match ->
             normalizeOpenableUrl(match.groupValues[1])?.let { found.add(it) }
         }
-        systemUriRegex.findAll(text).forEach { match ->
+        systemUriRegex.findAll(masked).forEach { match ->
             normalizeOpenableUrl(match.groupValues[1])?.let { found.add(it) }
         }
         return found.toList()
@@ -147,11 +165,14 @@ internal object PickResultUrl {
     fun normalizeOpenableUrl(raw: String): String? {
         val candidate = trimTrailingPunctuation(raw.trim())
         if (candidate.isBlank()) return null
+        if (isBlockedScheme(candidate)) return null
+        // intent: URI 用 ; 分隔且没有 ://，必须在 stop-char 判定之前放行
+        if (isIntentUri(candidate)) {
+            return candidate.takeIf { value -> value.none { it.isWhitespace() } }
+        }
         // 含空白、中文标点或 CJK 文字的串不可能是一条网址，多半是整段文本
         if (anyUrlStopCharRegex.containsMatchIn(candidate)) return null
-        if (isBlockedScheme(candidate)) return null
         return when {
-            isIntentUri(candidate) -> candidate
             isSystemUri(candidate) -> candidate
             hasCustomScheme(candidate) -> candidate
             else -> normalizeWebUrl(candidate)

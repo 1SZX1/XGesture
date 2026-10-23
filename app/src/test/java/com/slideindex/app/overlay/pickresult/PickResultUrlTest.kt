@@ -247,4 +247,53 @@ class PickResultUrlTest {
             PickResultUrl.linkDisplayLabels(listOf("https://a.com", "https://www.b.com")),
         )
     }
+
+    @Test
+    fun normalize_intentUriWithComponent() {
+        val uri = "intent:#Intent;component=com.geekholt.snapnote/.shortcut.ShortcutLaunchActivity;" +
+            "S.shortcut_action=search;end"
+        assertEquals(uri, PickResultUrl.normalizeOpenableUrl(uri))
+    }
+
+    @Test
+    fun normalize_intentUriWithData() {
+        val uri = "intent://m.quark.cn/s?q=%s#Intent;scheme=https;package=com.quark.browser;end"
+        assertEquals(uri, PickResultUrl.normalizeOpenableUrl(uri))
+    }
+
+    @Test
+    fun extract_intentUriWithComponent() {
+        val uri = "intent:#Intent;component=com.example/.Main;S.action=search;end"
+        assertEquals(
+            listOf(uri),
+            PickResultUrl.extractOpenableUrls("打开 $uri 试试"),
+        )
+    }
+
+    @Test
+    fun extract_intentUriWithData_keepsWholeUri() {
+        val uri = "intent://m.quark.cn/s?q=%s#Intent;scheme=https;package=com.quark.browser;end"
+        assertEquals(
+            listOf(uri),
+            PickResultUrl.extractOpenableUrls("go $uri now"),
+        )
+    }
+
+    @Test
+    fun extract_intentUri_doesNotAddTruncatedInnerLink() {
+        val uri = "intent://example.com/path#Intent;scheme=https;package=com.example;end"
+        assertEquals(listOf(uri), PickResultUrl.extractOpenableUrls(uri))
+    }
+
+    @Test
+    fun resolve_intentUri() {
+        val uri = "intent:#Intent;component=com.example/.Main;S.action=search;end"
+        val action = PickResultUrl.resolveOpenLinkAction(
+            fullText = uri,
+            activeText = uri,
+            hasSelection = false,
+        )
+        assertTrue(action is PickResultOpenLinkAction.Open)
+        assertEquals(uri, (action as PickResultOpenLinkAction.Open).url)
+    }
 }
