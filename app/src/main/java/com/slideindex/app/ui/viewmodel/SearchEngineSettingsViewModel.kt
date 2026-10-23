@@ -20,6 +20,7 @@ import com.slideindex.app.settings.SearchEngineConfig
 import com.slideindex.app.settings.SearchEngineType
 import com.slideindex.app.settings.SearchIconType
 import com.slideindex.app.settings.SettingsRepository
+import com.slideindex.app.ui.SearchEngineEditorCategory
 import com.slideindex.app.ui.SearchEngineEditorResult
 import com.slideindex.app.ui.feedback.UserMessageBus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -69,14 +70,27 @@ class SearchEngineSettingsViewModel @Inject constructor(
     private val _editorDraft = MutableStateFlow<SearchEngineDraft?>(null)
     val editorDraft: StateFlow<SearchEngineDraft?> = _editorDraft.asStateFlow()
 
-    fun initDraft(initialEngine: SearchEngineConfig?, category: com.slideindex.app.ui.SearchEngineEditorCategory) {
+    /**
+     * 当前草稿所属的分类。
+     *
+     * 文字引擎编辑器与图片分享编辑器共用同一个 Activity 级 ViewModel 实例，而「新增」时
+     * 两边传进来的 engineId 都是空串 —— 只按 engineId 判重，就会把「图片新增」留下的草稿
+     * 当成「文字新增」的同一份草稿复用，于是文字编辑器按图片分享布局渲染（只有
+     * 「选择接收图片分享的应用」，没有链接/跳转/分享 tab）。
+     */
+    private var draftCategory: SearchEngineEditorCategory? = null
+
+    fun initDraft(initialEngine: SearchEngineConfig?, category: SearchEngineEditorCategory) {
         val currentDraft = _editorDraft.value
-        if (currentDraft != null && currentDraft.engineId == initialEngine?.id.orEmpty()) {
+        if (currentDraft != null &&
+            currentDraft.engineId == initialEngine?.id.orEmpty() &&
+            draftCategory == category
+        ) {
             return
         }
         val isLegacyExternalLink = initialEngine?.engineType == SearchEngineType.EXTERN_JUMP_LINK
         val normalizedEngineType = when {
-            category == com.slideindex.app.ui.SearchEngineEditorCategory.IMAGE_SHARE ->
+            category == SearchEngineEditorCategory.IMAGE_SHARE ->
                 SearchEngineType.SHARE_IMAGE_TO_APP
             isLegacyExternalLink -> SearchEngineType.DIRECT_LINK
             else -> initialEngine?.engineType ?: SearchEngineType.DIRECT_LINK
@@ -101,6 +115,7 @@ class SearchEngineSettingsViewModel @Inject constructor(
             pendingIconPath = initialEngine?.iconPath?.takeIf { initialEngine.iconType == SearchIconType.URI },
             pendingTextIcon = initialEngine?.textIcon?.takeIf { initialEngine.iconType == SearchIconType.TEXT },
         )
+        draftCategory = category
     }
 
     fun updateDraft(transform: (SearchEngineDraft) -> SearchEngineDraft) {
@@ -109,6 +124,7 @@ class SearchEngineSettingsViewModel @Inject constructor(
 
     fun clearDraft() {
         _editorDraft.value = null
+        draftCategory = null
     }
 
     private val _importPreviewState = MutableStateFlow<SearchEngineImportPreviewState?>(null)
