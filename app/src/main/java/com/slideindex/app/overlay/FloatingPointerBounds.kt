@@ -14,6 +14,12 @@ internal object FloatingPointerBounds {
     const val SENSITIVITY_MIN = 0.2f
     const val SENSITIVITY_MAX = 0.75f
     const val DEFAULT_SENSITIVITY_FRACTION = 0.52f
+
+    /**
+     * 取词「加号」指针速度下限：允许 0%（比 [SENSITIVITY_MIN] 更慢）。
+     * 0% 时手指需拖过约 95% 屏幕尺寸才能把指针推满整屏，用于精细取词。
+     */
+    const val PICK_POINTER_SPEED_MIN = 0f
   /** Reference width used when migrating legacy px-based area settings. */
     private const val MIGRATION_REFERENCE_SCREEN_WIDTH = 1080f
 
@@ -22,7 +28,9 @@ internal object FloatingPointerBounds {
 
     /** UI speed fraction (higher = faster) → finger travel fraction (lower = faster). */
     fun travelFractionFromSpeed(speedFraction: Float): Float {
-        val speed = speedFraction.coerceIn(SENSITIVITY_MIN, SENSITIVITY_MAX)
+        // 下限取 0：取词「加号」滑杆允许 0%（最慢）。其余入口在读取设置时已限制在
+        // [SENSITIVITY_MIN] 以上，因此不受影响。
+        val speed = speedFraction.coerceIn(PICK_POINTER_SPEED_MIN, SENSITIVITY_MAX)
         return SENSITIVITY_MIN + SENSITIVITY_MAX - speed
     }
 

@@ -37,8 +37,10 @@ fun floatBallPickAdvancedCardItems(
         SettingsSliderRow(
             title = stringResource(R.string.float_ball_pointer_speed),
             value = settings.floatBallPointerSpeedFraction,
-            valueRange = FloatingPointerBounds.SENSITIVITY_MIN..FloatingPointerBounds.SENSITIVITY_MAX,
-            steps = 10,
+            valueRange = FloatingPointerBounds.PICK_POINTER_SPEED_MIN..
+                FloatingPointerBounds.SENSITIVITY_MAX,
+            // 0%–75%，每档 5%。
+            steps = 14,
             enabled = true,
             label = stringResource(
                 R.string.floating_pointer_percent_value,
@@ -51,8 +53,10 @@ fun floatBallPickAdvancedCardItems(
         SettingsSliderRow(
             title = stringResource(R.string.float_ball_pointer_speed_vertical),
             value = settings.floatBallPointerSpeedVerticalFraction,
-            valueRange = FloatingPointerBounds.SENSITIVITY_MIN..FloatingPointerBounds.SENSITIVITY_MAX,
-            steps = 10,
+            valueRange = FloatingPointerBounds.PICK_POINTER_SPEED_MIN..
+                FloatingPointerBounds.SENSITIVITY_MAX,
+            // 0%–75%，每档 5%。
+            steps = 14,
             enabled = true,
             label = stringResource(
                 R.string.floating_pointer_percent_value,

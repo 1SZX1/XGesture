@@ -18,12 +18,14 @@ class FloatBallDragSessionTest {
 
   private fun testSettings(
     floatBallPickBottomTransitionFraction: Float = 0.22f,
+    floatBallPointerSpeedFraction: Float = 0.35f,
     floatBallPointerSpeedVerticalFraction: Float = 0.35f,
     floatBallPointerSlopDp: Float = 8f,
   ): AppSettings = AppSettings(
     freeWindow = FreeWindowSettings(freeWindowModeId = FreeWindowMode.STANDARD.id),
     floatBall = FloatBallSettings(
       floatBallPickBottomTransitionFraction = floatBallPickBottomTransitionFraction,
+      floatBallPointerSpeedFraction = floatBallPointerSpeedFraction,
       floatBallPointerSpeedVerticalFraction = floatBallPointerSpeedVerticalFraction,
       floatBallPointerSlopDp = floatBallPointerSlopDp,
     ),
@@ -108,7 +110,51 @@ class FloatBallDragSessionTest {
 
     val slowY = pickYForVerticalSpeed(FloatingPointerBounds.SENSITIVITY_MIN)
     val fastY = pickYForVerticalSpeed(FloatingPointerBounds.SENSITIVITY_MAX)
+    val slowestY = pickYForVerticalSpeed(FloatingPointerBounds.PICK_POINTER_SPEED_MIN)
     assertTrue(fastY > slowY)
+    // 滑杆下限放开到 0% 后，0% 档比原来的 20% 档更慢。
+    assertTrue(slowY > slowestY)
+  }
+
+  @Test
+  fun pointer_mode_zero_horizontal_speed_is_slower_than_slider_minimum() {
+    val centerY = screenHeight * 0.55f
+    val fingerMoveX = 60f
+
+    fun pickXForHorizontalSpeed(horizontalSpeed: Float): Float {
+      val session = FloatBallDragSession()
+      val settings = testSettings(
+        floatBallPointerSpeedFraction = horizontalSpeed,
+      )
+      session.armAtTouch(
+        settings = settings,
+        touchDownX = 500f,
+        touchDownY = centerY,
+        fingerX = 500f,
+        fingerY = centerY,
+        ballCenterX = 500f,
+        ballCenterY = centerY,
+        ballSize = ballSize,
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        density = density,
+        pickDockSide = FloatBallSide.RIGHT,
+      )
+      session.onFingerMove(-fingerMoveX, 0f)
+      return session.computePick(
+        settings = settings,
+        ballSize = ballSize,
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        density = density,
+        marginPx = marginPx,
+      ).x
+    }
+
+    val slowestX = pickXForHorizontalSpeed(FloatingPointerBounds.PICK_POINTER_SPEED_MIN)
+    val minSpeedX = pickXForHorizontalSpeed(FloatingPointerBounds.SENSITIVITY_MIN)
+    // 手指左移相同距离：0% 档指针位移更小，取词十字停在更靠右的位置。
+    assertTrue(slowestX > minSpeedX)
   }
 
   @Test

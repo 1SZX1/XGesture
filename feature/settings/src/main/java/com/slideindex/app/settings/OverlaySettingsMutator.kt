@@ -901,12 +901,12 @@ class OverlaySettingsMutator @Inject constructor(
 
     suspend fun setFloatBallPointerSpeedFraction(value: Float) = editor.edit {
         it[SettingsPreferenceKeys.FLOAT_BALL_POINTER_SPEED_FRACTION] =
-            value.coerceIn(0.2f, 0.75f)
+            value.coerceIn(0f, 0.75f)
     }
 
     suspend fun setFloatBallPointerSpeedVerticalFraction(value: Float) = editor.edit {
         it[SettingsPreferenceKeys.FLOAT_BALL_POINTER_SPEED_VERTICAL_FRACTION] =
-            value.coerceIn(0.2f, 0.75f)
+            value.coerceIn(0f, 0.75f)
     }
 
     suspend fun setFloatBallPositionMode(mode: FloatBallPositionMode) = editor.edit {

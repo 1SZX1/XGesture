@@ -196,11 +196,11 @@ internal class FloatBallDragSession {
 
   private fun establishPointerTravel(settings: AppSettings, screenWidth: Float, screenHeight: Float) {
     val horizontalSpeed = settings.floatBallPointerSpeedFraction.coerceIn(
-      FloatingPointerBounds.SENSITIVITY_MIN,
+      FloatingPointerBounds.PICK_POINTER_SPEED_MIN,
       FloatingPointerBounds.SENSITIVITY_MAX
     )
     val verticalSpeed = settings.floatBallPointerSpeedVerticalFraction.coerceIn(
-      FloatingPointerBounds.SENSITIVITY_MIN,
+      FloatingPointerBounds.PICK_POINTER_SPEED_MIN,
       FloatingPointerBounds.SENSITIVITY_MAX
     )
     val (travelWidth, _) = FloatingPointerBounds.effectivePointerTravelForSpeed(

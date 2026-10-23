@@ -19,6 +19,18 @@ class FloatingPointerBoundsTest {
     }
 
     @Test
+    fun travelFractionFromSpeed_zeroPercentIsSlowest() {
+        // 取词「加号」速度滑杆下限已放开到 0%，对应约 95% 屏幕的指针行程。
+        val slowest =
+            FloatingPointerBounds.travelFractionFromSpeed(FloatingPointerBounds.PICK_POINTER_SPEED_MIN)
+        assertEquals(0.95f, slowest, 0.001f)
+        assertTrue(
+            slowest >
+                FloatingPointerBounds.travelFractionFromSpeed(FloatingPointerBounds.SENSITIVITY_MIN)
+        )
+    }
+
+    @Test
     fun effectivePointerTravel_75PercentIsFasterThan20Percent() {
         val screenW = 1080f
         val screenH = 2400f
