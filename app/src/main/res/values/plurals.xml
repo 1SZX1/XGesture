@@ -24,6 +24,10 @@
         <item quantity="one">Imported %1$d engine (%2$s)</item>
         <item quantity="other">Imported %1$d engines (%2$s)</item>
     </plurals>
+    <plurals name="share_target_batch_added">
+        <item quantity="one">Added %d share target</item>
+        <item quantity="other">Added %d share targets</item>
+    </plurals>
     <plurals name="float_ball_style_slideshow_hint">
         <item quantity="one">%d image selected, switching every 3 seconds</item>
         <item quantity="other">%d images selected, switching every 3 seconds</item>

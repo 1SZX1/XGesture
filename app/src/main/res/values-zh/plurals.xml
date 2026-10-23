@@ -18,6 +18,9 @@
     <plurals name="search_engine_import_success">
         <item quantity="other">已导入 %1$d 个引擎（%2$s）</item>
     </plurals>
+    <plurals name="share_target_batch_added">
+        <item quantity="other">已添加 %d 个分享目标</item>
+    </plurals>
     <plurals name="float_ball_style_slideshow_hint">
         <item quantity="other">已选择 %d 张图片，每 3 秒切换</item>
     </plurals>

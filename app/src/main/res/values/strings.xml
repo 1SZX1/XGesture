@@ -858,6 +858,10 @@
     <string name="search_engine_pick_share_image_target_title">Choose image share handler</string>
     <string name="search_engine_share_image_target_search_hint">Search apps or activities</string>
     <string name="search_engine_share_image_target_empty">No apps can receive shared images</string>
+    <string name="share_target_batch_hint">Tick several handlers, then tap the check mark at the top right to add them all.</string>
+    <string name="share_target_batch_selected">%1$d selected</string>
+    <string name="share_target_batch_confirm">Add selected share targets</string>
+    <string name="share_target_batch_exists">These share targets already exist</string>
     <string name="search_engine_share_text_target_section">Text share target</string>
     <string name="search_engine_share_text_target_not_set">No text share target selected</string>
     <string name="search_engine_pick_share_text_target">Choose text share target</string>

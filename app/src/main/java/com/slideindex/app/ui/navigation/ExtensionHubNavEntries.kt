@@ -37,16 +37,9 @@ import com.slideindex.app.ui.viewmodel.DiagnosticLogViewModel
 import com.slideindex.app.ui.viewmodel.ExtensionHubViewModel
 import com.slideindex.app.ui.viewmodel.ExtensionSettingsViewModel
 import com.slideindex.app.ui.viewmodel.SettingsBackupViewModel
-import com.slideindex.app.settings.SearchEngineConfig
-import com.slideindex.app.settings.SearchEngineStore
 import com.slideindex.app.settings.SearchEngineType
-import com.slideindex.app.settings.SearchIconType
-import com.slideindex.app.search.SearchEngineIconStorage
 import com.slideindex.app.ui.viewmodel.SearchEngineSettingsViewModel
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 fun NavEntryBuilder.extensionHubNavEntries(ctx: MainNavContext) {
     hiltEntry<AppNavKey.ExtensionHub> {
@@ -113,43 +106,11 @@ fun NavEntryBuilder.extensionHubNavEntries(ctx: MainNavContext) {
 
     hiltEntry<AppNavKey.FileSharePickApp> {
         val viewModel: SearchEngineSettingsViewModel = hiltViewModel()
-        val settings by viewModel.settings.collectAsStateWithLifecycle()
-        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
-        val currentEngines = remember(settings.searchEngines) {
-            SearchEngineStore.fileSharePanelEngines(settings.searchEngines)
-        }
         com.slideindex.app.ui.picker.ShareFileTargetPickScreen(
             onBack = { ctx.backStack.removeLastOrNull() },
-            onSelectTarget = { target ->
-                val label = if (target.label.equals(target.appLabel, ignoreCase = true)) {
-                    target.appLabel
-                } else {
-                    "${target.appLabel} - ${target.label}"
-                }
-                val newEngine = SearchEngineConfig(
-                    id = java.util.UUID.randomUUID().toString(),
-                    name = label,
-                    targetPackage = target.packageName,
-                    targetActivity = target.activityClassName,
-                    engineType = SearchEngineType.SHARE_FILE_TO_APP,
-                    sortOrder = currentEngines.size,
-                )
-                scope.launch {
-                    val iconPath = withContext(Dispatchers.IO) {
-                        SearchEngineIconStorage.saveIconFromPackage(context, target.packageName)
-                    }
-                    val finalEngine = if (iconPath != null) {
-                        newEngine.copy(
-                            iconType = SearchIconType.URI,
-                            iconPath = iconPath,
-                        )
-                    } else {
-                        newEngine
-                    }
-                    viewModel.addEngines(listOf(finalEngine))
-                    ctx.backStack.removeLastOrNull()
-                }
+            onAddTargets = { targets ->
+                viewModel.addShareEngines(targets, SearchEngineType.SHARE_FILE_TO_APP)
+                ctx.backStack.removeLastOrNull()
             },
         )
     }

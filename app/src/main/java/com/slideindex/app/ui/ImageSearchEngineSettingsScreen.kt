@@ -52,6 +52,7 @@ fun ImageSearchEngineSettingsScreen(
     onOpenAggregatedEngine: (String) -> Unit,
     onImageSearchPickPanelTransparencyChange: (Float) -> Unit,
     onOpenEditor: (String?) -> Unit,
+    onOpenBatchPicker: () -> Unit,
 ) {
     val shareEngines = remember(settings.searchEngines) {
         SearchEngineStore.imageSharePanelEngines(settings.searchEngines)
@@ -122,7 +123,7 @@ fun ImageSearchEngineSettingsScreen(
                         },
                         title = stringResource(R.string.image_search_engine_add_share_target),
                         subtitle = stringResource(R.string.image_search_engine_add_share_target_subtitle),
-                        onClick = { onOpenEditor(null) },
+                        onClick = onOpenBatchPicker,
                     )
                 },
             ),

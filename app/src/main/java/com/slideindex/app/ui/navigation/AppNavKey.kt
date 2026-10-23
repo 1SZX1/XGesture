@@ -548,6 +548,11 @@ sealed interface AppNavKey : NavKey {
         val isImageSearch: Boolean = false,
         val selectedPackageName: String,
         val selectedActivityClassName: String,
+        /**
+         * true = 「批量添加图片分享引擎」模式：勾选多个入口后一次创建多条引擎，
+         * 不进编辑器；false = 编辑器里的单选目标选择。
+         */
+        val batchMode: Boolean = false,
     ) : AppNavKey
     @Serializable data object TranslateModels : AppNavKey
     /** 「选择翻译 App」：引擎选「本地 App」时挑一个能接收取词文本的应用。 */

@@ -2368,6 +2368,10 @@
     <string name="search_engine_pick_share_image_target_title">选择图片分享接口</string>
     <string name="search_engine_share_image_target_search_hint">搜索应用或 Activity</string>
     <string name="search_engine_share_image_target_empty">没有可接收图片分享的应用</string>
+    <string name="share_target_batch_hint">可勾选多个接口，选好后点右上角的勾一次性添加。</string>
+    <string name="share_target_batch_selected">已选 %1$d 个</string>
+    <string name="share_target_batch_confirm">添加已选分享目标</string>
+    <string name="share_target_batch_exists">这些分享目标已经存在了</string>
     <string name="search_engine_share_text_target_section">文字分享目标</string>
     <string name="search_engine_share_text_target_not_set">未选择接收文字分享的应用</string>
     <string name="search_engine_pick_share_text_target">选择接收文字分享的应用</string>

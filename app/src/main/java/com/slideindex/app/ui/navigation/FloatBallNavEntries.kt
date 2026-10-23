@@ -16,6 +16,7 @@ import com.slideindex.app.gesture.ActionPickerCatalogPolicy
 import com.slideindex.app.gesture.GestureTriggerType
 import com.slideindex.app.gesture.SlotPickerKind
 import com.slideindex.app.search.SearchEngineIconStorage
+import com.slideindex.app.settings.SearchEngineType
 import com.slideindex.app.settings.toMinimalAppSettings
 import com.slideindex.app.ui.FloatBallAppearanceSettingsScreen
 import com.slideindex.app.ui.FloatBallGestureSettingsScreen
@@ -49,6 +50,7 @@ import com.slideindex.app.ui.picker.ActivityShortcutPickAppScreen
 import com.slideindex.app.ui.picker.MyShortcutsFolderScreen
 import com.slideindex.app.ui.picker.PresetShortcutsFolderScreen
 import com.slideindex.app.ui.picker.ShareImageTargetPickScreen
+import com.slideindex.app.ui.picker.ShareTargetBatchPickScreen
 import com.slideindex.app.ui.picker.TranslateAppPickScreen
 import com.slideindex.app.ui.picker.ShareTargetPickScreen
 import com.slideindex.app.ui.resolveImageSearchEngine
@@ -259,42 +261,53 @@ fun NavEntryBuilder.floatBallNavEntries(ctx: MainNavContext) {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val editorDraft by viewModel.editorDraft.collectAsStateWithLifecycle()
-        val returnKey = if (key.isImageSearch) {
-            AppNavKey.FloatBallImageSearchEngineEditor(editorDraft?.engineId.orEmpty())
+        if (key.batchMode) {
+            // 「批量添加图片分享引擎」：勾选多个接口后一次性建引擎，不经过编辑器。
+            ShareTargetBatchPickScreen(
+                onBack = { ctx.backStack.removeLastOrNull() },
+                onAddTargets = { targets ->
+                    viewModel.addShareEngines(targets, SearchEngineType.SHARE_IMAGE_TO_APP)
+                    ctx.navigateBackTo(AppNavKey.FloatBallImageSearchEngine)
+                },
+            )
         } else {
-            AppNavKey.FloatBallSearchEngineEditor(editorDraft?.engineId.orEmpty())
-        }
-        ShareTargetPickScreen(
-            forImage = key.isImageSearch,
-            selectedPackageName = key.selectedPackageName,
-            selectedActivityClassName = key.selectedActivityClassName,
-            onBack = { ctx.navigateBackTo(returnKey) },
-            onSelectTarget = { target ->
-                viewModel.updateDraft { draft ->
-                    val nextName = if (draft.name.isBlank()) target.appLabel.ifBlank { target.label } else draft.name
-                    draft.copy(
-                        targetPackage = target.packageName,
-                        targetActivity = target.activityClassName,
-                        name = nextName,
-                    )
-                }
-                scope.launch {
-                    val iconPath = withContext(Dispatchers.IO) {
-                        SearchEngineIconStorage.saveIconFromPackage(context, target.packageName)
+            val returnKey = if (key.isImageSearch) {
+                AppNavKey.FloatBallImageSearchEngineEditor(editorDraft?.engineId.orEmpty())
+            } else {
+                AppNavKey.FloatBallSearchEngineEditor(editorDraft?.engineId.orEmpty())
+            }
+            ShareTargetPickScreen(
+                forImage = key.isImageSearch,
+                selectedPackageName = key.selectedPackageName,
+                selectedActivityClassName = key.selectedActivityClassName,
+                onBack = { ctx.navigateBackTo(returnKey) },
+                onSelectTarget = { target ->
+                    viewModel.updateDraft { draft ->
+                        val nextName = if (draft.name.isBlank()) target.appLabel.ifBlank { target.label } else draft.name
+                        draft.copy(
+                            targetPackage = target.packageName,
+                            targetActivity = target.activityClassName,
+                            name = nextName,
+                        )
                     }
-                    if (iconPath != null) {
-                        viewModel.updateDraft {
-                            it.copy(
-                                pendingIconPath = iconPath,
-                                pendingIconUri = null,
-                                pendingTextIcon = null,
-                            )
+                    scope.launch {
+                        val iconPath = withContext(Dispatchers.IO) {
+                            SearchEngineIconStorage.saveIconFromPackage(context, target.packageName)
                         }
+                        if (iconPath != null) {
+                            viewModel.updateDraft {
+                                it.copy(
+                                    pendingIconPath = iconPath,
+                                    pendingIconUri = null,
+                                    pendingTextIcon = null,
+                                )
+                            }
+                        }
+                        ctx.navigateBackTo(returnKey)
                     }
-                    ctx.navigateBackTo(returnKey)
-                }
-            },
-        )
+                },
+            )
+        }
     }
 
     hiltEntry<AppNavKey.FloatBallSearchEnginePreviewSort> {
@@ -581,6 +594,16 @@ fun NavEntryBuilder.floatBallNavEntries(ctx: MainNavContext) {
             onImageSearchPickPanelTransparencyChange = viewModel::setImageSearchPickPanelTransparency,
             onOpenEditor = { engineId ->
                 ctx.navigate(AppNavKey.FloatBallImageSearchEngineEditor(engineId.orEmpty()))
+            },
+            onOpenBatchPicker = {
+                ctx.navigate(
+                    AppNavKey.SearchEnginePickShareTarget(
+                        isImageSearch = true,
+                        selectedPackageName = "",
+                        selectedActivityClassName = "",
+                        batchMode = true,
+                    ),
+                )
             },
         )
     }

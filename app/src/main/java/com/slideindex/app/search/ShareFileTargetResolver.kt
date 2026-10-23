@@ -26,10 +26,7 @@ object ShareFileTargetResolver {
             }
             .mapNotNull { resolveInfo -> toTarget(pm, resolveInfo) }
             .distinctBy { "${it.packageName}/${it.activityClassName}" }
-            .sortedWith(
-                compareBy<ShareImageTarget> { it.appLabel.lowercase() }
-                    .thenBy { it.label.lowercase() }
-            )
+            .sortedWith(ShareImageTargetResolver.targetOrder)
     }
 
     fun searchTargets(targets: List<ShareImageTarget>, query: String): List<ShareImageTarget> =

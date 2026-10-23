@@ -5,6 +5,8 @@ import android.net.Uri
 import com.slideindex.app.R
 import com.slideindex.app.clipboard.ClipboardHistoryRepository
 import com.slideindex.app.overlay.pickresult.invalidateSearchEngineIconCache
+import com.slideindex.app.search.ShareImageTarget
+import com.slideindex.app.search.ShareImageTargetResolver
 import com.slideindex.app.search.SearchEngineIconStorage
 import com.slideindex.app.search.SearchEngineImportResult
 import com.slideindex.app.search.SearchEngineImporter
@@ -26,6 +28,7 @@ import com.slideindex.app.ui.feedback.UserMessageBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.viewModelScope
 
 data class SearchEngineDraft(
@@ -282,6 +286,56 @@ class SearchEngineSettingsViewModel @Inject constructor(
                 invalidateSearchEngineIconCache(engine.id)
             }
             persistEngines(existing.sortedBy { it.sortOrder })
+        }
+    }
+
+    /**
+     * 批量添加分享引擎：每个勾选的分享入口生成一条 [engineType] 引擎（图片 / 文件分享共用）。
+     *
+     * 同包名 + 同 Activity 的已存在目标直接跳过；名称用「应用名 · 入口名」，
+     * 这样同一个应用勾了多个入口时彼此仍能区分。
+     */
+    fun addShareEngines(targets: List<ShareImageTarget>, engineType: SearchEngineType) {
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            val existing = settings.value.searchEngines
+            val fresh = targets
+                .distinctBy { "${it.packageName}/${it.activityClassName}" }
+                .filterNot { target ->
+                    existing.any { engine ->
+                        engine.engineType == engineType &&
+                            engine.targetPackage == target.packageName &&
+                            engine.targetActivity == target.activityClassName
+                    }
+                }
+            if (fresh.isEmpty()) {
+                userMessageBus.showSuccess(
+                    appContext.getString(R.string.share_target_batch_exists),
+                )
+                return@launch
+            }
+            val newEngines = withContext(Dispatchers.IO) {
+                fresh.mapIndexed { index, target ->
+                    val iconPath = SearchEngineIconStorage.saveIconFromPackage(appContext, target.packageName)
+                    SearchEngineConfig(
+                        id = "engine_${System.currentTimeMillis()}_$index",
+                        name = ShareImageTargetResolver.displayGroupTitle(target),
+                        engineType = engineType,
+                        iconType = if (iconPath != null) SearchIconType.URI else SearchIconType.OTHER,
+                        iconPath = iconPath,
+                        targetPackage = target.packageName,
+                        targetActivity = target.activityClassName,
+                    )
+                }
+            }
+            addEngines(newEngines)
+            userMessageBus.showSuccess(
+                appContext.resources.getQuantityString(
+                    R.plurals.share_target_batch_added,
+                    newEngines.size,
+                    newEngines.size,
+                ),
+            )
         }
     }
 
