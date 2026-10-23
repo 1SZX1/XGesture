@@ -39,8 +39,8 @@ fun floatBallPickAdvancedCardItems(
             value = settings.floatBallPointerSpeedFraction,
             valueRange = FloatingPointerBounds.PICK_POINTER_SPEED_MIN..
                 FloatingPointerBounds.SENSITIVITY_MAX,
-            // 0%–75%，每档 5%。
-            steps = 14,
+            // 0%–75%，每档 1%。
+            steps = 74,
             enabled = true,
             label = stringResource(
                 R.string.floating_pointer_percent_value,
@@ -55,8 +55,8 @@ fun floatBallPickAdvancedCardItems(
             value = settings.floatBallPointerSpeedVerticalFraction,
             valueRange = FloatingPointerBounds.PICK_POINTER_SPEED_MIN..
                 FloatingPointerBounds.SENSITIVITY_MAX,
-            // 0%–75%，每档 5%。
-            steps = 14,
+            // 0%–75%，每档 1%。
+            steps = 74,
             enabled = true,
             label = stringResource(
                 R.string.floating_pointer_percent_value,
