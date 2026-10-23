@@ -47,7 +47,7 @@ internal class FloatBallSceneState(initialSettings: AppSettings) {
         screenHeightPx: Int = metrics.heightPixels,
         isLandscape: Boolean = false,
     ): Offset {
-        val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+        val ballSize = FloatBallLayout.ballSize(settings, metrics.density)
         val (left, top) = FloatBallLayout.keyboardAdjustedBallTopLeft(
             settings = settings,
             metrics = metrics,
@@ -56,7 +56,7 @@ internal class FloatBallSceneState(initialSettings: AppSettings) {
             screenWidthPx = screenWidthPx,
             screenHeightPx = screenHeightPx,
         )
-        return Offset(left + ballSizePx / 2f, top + ballSizePx / 2f)
+        return Offset(left + ballSize.widthPx / 2f, top + ballSize.heightPx / 2f)
     }
 
     /** 当前球心：拖拽优先，否则停靠。 */
@@ -84,9 +84,10 @@ internal class FloatBallSceneState(initialSettings: AppSettings) {
         center: Offset,
         screenHeightPx: Int = metrics.heightPixels
     ): Pair<Int, Int> {
-        val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+        val ballSize = FloatBallLayout.ballSize(settings, metrics.density)
         return if (settings.floatBallPositionMode == FloatBallPositionMode.CUSTOM) {
-            (center.x - ballSizePx / 2f).roundToInt() to (center.y - ballSizePx / 2f).roundToInt()
+            (center.x - ballSize.widthPx / 2f).roundToInt() to
+                (center.y - ballSize.heightPx / 2f).roundToInt()
         } else {
             FloatBallLayout.stripWindowOriginForBallCenter(
                 settings = settings,
@@ -126,9 +127,9 @@ internal class FloatBallSceneState(initialSettings: AppSettings) {
             screenHeightPx,
             isLandscape,
         )
-        val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+        val ballSize = FloatBallLayout.ballSize(settings, metrics.density)
         val (left, top) = ballWindowTopLeft(settings, metrics, activeSide, center, screenHeightPx)
-        return Rect(left, top, left + ballSizePx, top + ballSizePx)
+        return Rect(left, top, left + ballSize.widthPx, top + ballSize.heightPx)
     }
 
     fun lineHitRect(

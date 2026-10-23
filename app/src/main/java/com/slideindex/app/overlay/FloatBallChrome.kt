@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -142,8 +143,9 @@ internal fun FloatBallLineChrome(
                     screenWidthPx,
                     screenHeightPx
                 )
-                val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
-                val ballSizeDp = with(density) { ballSizePx.toDp() }
+                val ballSize = FloatBallLayout.ballSize(settings, metrics.density)
+                val ballWidthDp = with(density) { ballSize.widthPx.toDp() }
+                val ballHeightDp = with(density) { ballSize.heightPx.toDp() }
                 val (ballLeft, ballTop) = sceneState.ballWindowTopLeft(
                     settings,
                     metrics,
@@ -154,7 +156,8 @@ internal fun FloatBallLineChrome(
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(ballLeft, ballTop) }
-                        .size(ballSizeDp),
+                        .width(ballWidthDp)
+                        .height(ballHeightDp),
                     contentAlignment = when (activeSide) {
                         FloatBallSide.LEFT -> Alignment.CenterStart
                         FloatBallSide.RIGHT -> Alignment.CenterEnd
@@ -225,8 +228,9 @@ internal fun FloatBallIdleBallChrome(
         )
         return
     }
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
-    val ballSizeDp = with(density) { ballSizePx.toDp() }
+    val ballSize = FloatBallLayout.ballSize(settings, metrics.density)
+    val ballWidthDp = with(density) { ballSize.widthPx.toDp() }
+    val ballHeightDp = with(density) { ballSize.heightPx.toDp() }
     val dockAlignment = when (settings.floatBallPositionMode) {
         FloatBallPositionMode.CUSTOM -> Alignment.Center
         else -> when (activeSide) {
@@ -236,7 +240,9 @@ internal fun FloatBallIdleBallChrome(
     }
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = dockAlignment) {
         AndroidView(
-            modifier = Modifier.size(ballSizeDp),
+            modifier = Modifier
+                .width(ballWidthDp)
+                .height(ballHeightDp),
             factory = { ctx ->
                 FloatBallIconView(ctx)
             },
@@ -272,11 +278,11 @@ internal fun FloatBallStripZonePreviewLayer(
     val density = LocalDensity.current
     val windowInfo = androidx.compose.ui.platform.LocalWindowInfo.current
     val widthPixels = windowInfo.containerSize.width
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, density.density)
+    val ballSize = FloatBallLayout.ballSize(settings, density.density)
     val previewWidthPx = if (showEdgeLine) {
         FloatBallLayout.lineTriggerWidthPx(settings, widthPixels, density.density)
     } else {
-        ballSizePx
+        ballSize.widthPx
     }
     val previewWidth = with(density) { previewWidthPx.toDp() }
     val outerAlignment = when (side) {
@@ -337,11 +343,18 @@ internal fun FloatBallStyledVisual(
             styleType = settings.floatBallStyleType,
             isDragging = isDragging
         )
-        FloatBallStyleType.CUSTOM_IMAGE -> FloatBallUriVisual(
-            sizeDp = sizeDp,
-            opacity = settings.floatBallOpacity,
-            uri = settings.floatBallCustomImageUri
-        )
+        FloatBallStyleType.CUSTOM_IMAGE -> {
+            // 「不处理」时窗口不是正方形：这里也必须按同一份几何给尺寸，否则预览/兜底图会被拉回方形。
+            val density = LocalDensity.current
+            val ballSize = FloatBallLayout.ballSize(settings, density.density)
+            FloatBallUriVisual(
+                widthDp = with(density) { ballSize.widthPx.toDp() },
+                heightDp = with(density) { ballSize.heightPx.toDp() },
+                opacity = settings.floatBallOpacity,
+                uri = settings.floatBallCustomImageUri,
+                noCrop = FloatBallLayout.usesOriginalImageGeometry(settings)
+            )
+        }
         FloatBallStyleType.SLIDESHOW -> FloatBallSlideshowVisual(
             sizeDp = sizeDp,
             opacity = settings.floatBallOpacity,
@@ -390,17 +403,22 @@ private fun FloatBallBuiltinAnimVisual(
 
 @Composable
 private fun FloatBallUriVisual(
-    sizeDp: androidx.compose.ui.unit.Dp,
+    widthDp: androidx.compose.ui.unit.Dp,
+    heightDp: androidx.compose.ui.unit.Dp,
     opacity: Float,
-    uri: String
+    uri: String,
+    noCrop: Boolean = false
 ) {
     val context = LocalContext.current
     val bitmap = remember(uri) { FloatBallImageLoader.loadBitmap(context, uri) }
-    val shape = CircleShape
+    // 圆形裁剪只在"圆球样式"下生效；「不处理」要的是原图原样（方角、不裁边）。
+    val shape = if (noCrop) RectangleShape else CircleShape
+    val contentScale = if (noCrop) ContentScale.Fit else ContentScale.Crop
     val alpha = opacity.coerceIn(0f, 1f)
     Box(
         modifier = Modifier
-            .size(sizeDp)
+            .width(widthDp)
+            .height(heightDp)
             .clip(shape),
         contentAlignment = Alignment.Center
     ) {
@@ -414,7 +432,7 @@ private fun FloatBallUriVisual(
                         this.shape = shape
                         clip = true
                     },
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 alpha = alpha
             )
         } else {
@@ -434,7 +452,7 @@ private fun FloatBallSlideshowVisual(
     uris: List<String>
 ) {
     if (uris.isEmpty()) {
-        FloatBallUriVisual(sizeDp = sizeDp, opacity = opacity, uri = "")
+        FloatBallUriVisual(widthDp = sizeDp, heightDp = sizeDp, opacity = opacity, uri = "")
         return
     }
     var index by remember(uris) { mutableIntStateOf(0) }
@@ -444,7 +462,7 @@ private fun FloatBallSlideshowVisual(
             index = (index + 1) % uris.size
         }
     }
-    FloatBallUriVisual(sizeDp = sizeDp, opacity = opacity, uri = uris[index])
+    FloatBallUriVisual(widthDp = sizeDp, heightDp = sizeDp, opacity = opacity, uri = uris[index])
 }
 
 @Composable
@@ -461,7 +479,7 @@ private fun FloatBallGifVisual(
     val alpha = opacity.coerceIn(0f, 1f)
     val readable = uri.isNotBlank() && FloatBallStyleAssetStore.canRead(context, uri)
     if (uri.isBlank()) {
-        FloatBallUriVisual(sizeDp = sizeDp, opacity = opacity, uri = uri)
+        FloatBallUriVisual(widthDp = sizeDp, heightDp = sizeDp, opacity = opacity, uri = uri)
         return
     }
     if (!readable) {

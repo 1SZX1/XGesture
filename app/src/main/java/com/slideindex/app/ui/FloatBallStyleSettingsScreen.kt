@@ -19,6 +19,7 @@ import com.slideindex.app.settings.FloatBallStyleType
 import com.slideindex.app.ui.miuix.MiuixHintText
 import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.settings.components.SettingRadioRow
+import com.slideindex.app.ui.settings.components.SettingSwitchRow
 import com.slideindex.app.ui.settings.components.settingsCardScopeItem
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -31,6 +32,7 @@ fun FloatBallStyleSettingsScreen(
     onBack: () -> Unit,
     onStyleTypeChange: (FloatBallStyleType) -> Unit,
     onCustomImageUriChange: (String) -> Unit,
+    onCustomImageNoCropChange: (Boolean) -> Unit,
     onSlideshowUrisChange: (List<String>) -> Unit,
     onGifUriChange: (String) -> Unit
 ) {
@@ -75,6 +77,24 @@ fun FloatBallStyleSettingsScreen(
                 }
             }
         )
+
+        // 「不处理」只对自定义图片成立：开关单独一张卡，避免和样式单选混在一个可选组里。
+        if (settings.floatBallStyleType == FloatBallStyleType.CUSTOM_IMAGE) {
+            groupedCardItems(
+                keyPrefix = "fb-style-custom-image",
+                items = listOf(
+                    settingsCardScopeItem("custom-image-no-crop") {
+                        SettingSwitchRow(
+                            title = stringResource(R.string.float_ball_style_custom_image_no_crop),
+                            subtitle = stringResource(R.string.float_ball_style_custom_image_no_crop_hint),
+                            checked = settings.floatBallCustomImageNoCrop,
+                            enabled = enabled,
+                            onCheckedChange = onCustomImageNoCropChange,
+                        )
+                    }
+                )
+            )
+        }
 
         item(key = "float-ball-style-extra") {
             when (settings.floatBallStyleType) {

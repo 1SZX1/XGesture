@@ -2074,6 +2074,8 @@
     <string name="float_ball_style_slideshow">スライドショー</string>
     <string name="float_ball_style_gif">GIF</string>
     <string name="float_ball_style_custom_image_hint">フローティングボール用のカスタム画像を選択</string>
+    <string name="float_ball_style_custom_image_no_crop">元の画像のまま表示</string>
+    <string name="float_ball_style_custom_image_no_crop_hint">元の縦横比を保ち、中央で切り抜かず、円形マスクもかけません。高さはサイズスライダーに従います。</string>
     <string name="float_ball_style_image_selected">カスタム画像を選択しました</string>
     <string name="float_ball_style_gif_hint">フローティングボール用の GIF を選択</string>
     <string name="float_ball_pick_settings_title">テキスト選択</string>

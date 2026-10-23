@@ -564,6 +564,10 @@ internal object SettingsPreferenceKeys {
     val FLOAT_BALL_GESTURE_TRIGGER_MODES = stringSetPreferencesKey("float_ball_gesture_trigger_modes")
     val FLOAT_BALL_STYLE_TYPE = stringPreferencesKey("float_ball_style_type")
     val FLOAT_BALL_CUSTOM_IMAGE_URI = stringPreferencesKey("float_ball_custom_image_uri")
+    /** 自定义图片「不处理」：按原图宽高比显示，不裁剪、不套圆。 */
+    val FLOAT_BALL_CUSTOM_IMAGE_NO_CROP = booleanPreferencesKey("float_ball_custom_image_no_crop")
+    /** 自定义图片原图宽高比（width / height），导入时写入；0 表示未知。 */
+    val FLOAT_BALL_CUSTOM_IMAGE_ASPECT = floatPreferencesKey("float_ball_custom_image_aspect")
     val FLOAT_BALL_SLIDESHOW_URIS = stringSetPreferencesKey("float_ball_slideshow_uris")
     val FLOAT_BALL_GIF_URI = stringPreferencesKey("float_ball_gif_uri")
     val FLOAT_BALL_PICK_OFFSET_DP = floatPreferencesKey("float_ball_pick_offset_dp")

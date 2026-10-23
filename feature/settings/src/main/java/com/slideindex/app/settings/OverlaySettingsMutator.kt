@@ -953,6 +953,20 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.FLOAT_BALL_CUSTOM_IMAGE_URI] = uri
     }
 
+    suspend fun setFloatBallCustomImageNoCrop(enabled: Boolean) = editor.edit {
+        it[SettingsPreferenceKeys.FLOAT_BALL_CUSTOM_IMAGE_NO_CROP] = enabled
+    }
+
+    /** 宽高比与 URI 成对写入；传 0（或非法值）表示未知，读取端会退化回正方形。 */
+    suspend fun setFloatBallCustomImageAspect(aspect: Float) = editor.edit {
+        val sanitized = if (aspect.isFinite() && aspect > 0f) {
+            aspect.coerceIn(FloatBallSettings.IMAGE_ASPECT_MIN, FloatBallSettings.IMAGE_ASPECT_MAX)
+        } else {
+            0f
+        }
+        it[SettingsPreferenceKeys.FLOAT_BALL_CUSTOM_IMAGE_ASPECT] = sanitized
+    }
+
     suspend fun setFloatBallSlideshowUris(uris: List<String>) = editor.edit {
         it[SettingsPreferenceKeys.FLOAT_BALL_SLIDESHOW_URIS] = uris.filter { it.isNotBlank() }.toSet()
     }

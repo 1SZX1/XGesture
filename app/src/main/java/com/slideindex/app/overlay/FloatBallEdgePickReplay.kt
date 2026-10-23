@@ -25,19 +25,20 @@ internal object FloatBallEdgePickReplay {
         marginPx: Int
     ) {
         session.reset()
-        val ballSizePx = settings.floatBallSizeDp.coerceIn(36f, 96f) * density
-        val ballSizeInt = ballSizePx.roundToInt()
+        val ballSize = FloatBallLayout.ballSize(settings, density)
+        val ballWidthPx = ballSize.widthPx.toFloat()
+        val ballHeightPx = ballSize.heightPx.toFloat()
         val visibleFraction = FloatBallLayout.coerceVisibleFraction(settings.floatBallVisibleFraction)
         val dockLeft = FloatBallLayout.dockedBallLeftPx(
             activeSide = edgeSide,
-            ballSizePx = ballSizeInt,
+            ballWidthPx = ballSize.widthPx,
             screenWidth = screenWidth.roundToInt(),
             visibleFraction = visibleFraction
         )
-        val ballCenterX = dockLeft + ballSizePx / 2f
-        val minCenterY = marginPx + ballSizePx / 2f
-        val maxCenterY = screenHeight - marginPx - ballSizePx / 2f
-        val ballCenterY = gestureStartRawY.coerceIn(minCenterY, maxCenterY)
+        val ballCenterX = dockLeft + ballWidthPx / 2f
+        val minCenterY = marginPx + ballHeightPx / 2f
+        val maxCenterY = screenHeight - marginPx - ballHeightPx / 2f
+        val ballCenterY = gestureStartRawY.coerceIn(minCenterY, maxCenterY.coerceAtLeast(minCenterY))
 
         session.armAtTouch(
             settings = settings,
@@ -47,7 +48,7 @@ internal object FloatBallEdgePickReplay {
             fingerY = ballCenterY,
             ballCenterX = ballCenterX,
             ballCenterY = ballCenterY,
-            ballSizePx = ballSizePx,
+            ballSize = ballSize,
             screenWidth = screenWidth,
             screenHeight = screenHeight,
             density = density,
@@ -59,7 +60,7 @@ internal object FloatBallEdgePickReplay {
             advancePickState(
                 session = session,
                 settings = settings,
-                ballSizePx = ballSizePx,
+                ballSize = ballSize,
                 screenWidth = screenWidth,
                 screenHeight = screenHeight,
                 density = density,
@@ -82,7 +83,7 @@ internal object FloatBallEdgePickReplay {
             advancePickState(
                 session = session,
                 settings = settings,
-                ballSizePx = ballSizePx,
+                ballSize = ballSize,
                 screenWidth = screenWidth,
                 screenHeight = screenHeight,
                 density = density,
@@ -94,7 +95,7 @@ internal object FloatBallEdgePickReplay {
     private fun advancePickState(
         session: FloatBallDragSession,
         settings: AppSettings,
-        ballSizePx: Float,
+        ballSize: FloatBallSize,
         screenWidth: Float,
         screenHeight: Float,
         density: Float,
@@ -102,7 +103,7 @@ internal object FloatBallEdgePickReplay {
     ) {
         session.computePick(
             settings = settings,
-            ballSizePx = ballSizePx,
+            ballSize = ballSize,
             screenWidth = screenWidth,
             screenHeight = screenHeight,
             density = density,

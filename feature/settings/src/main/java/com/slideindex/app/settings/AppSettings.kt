@@ -309,6 +309,8 @@ data class AppSettings(
     val floatBallGestureActions get() = floatBall.floatBallGestureActions
     val floatBallStyleType get() = floatBall.floatBallStyleType
     val floatBallCustomImageUri get() = floatBall.floatBallCustomImageUri
+    val floatBallCustomImageNoCrop get() = floatBall.floatBallCustomImageNoCrop
+    val floatBallCustomImageAspect get() = floatBall.floatBallCustomImageAspect
     val floatBallSlideshowUris get() = floatBall.floatBallSlideshowUris
     val floatBallGifUri get() = floatBall.floatBallGifUri
     val floatBallPickOffsetDp get() = floatBall.floatBallPickOffsetDp

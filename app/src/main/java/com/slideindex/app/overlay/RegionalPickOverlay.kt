@@ -318,7 +318,7 @@ object RegionalPickOverlay {
         val currentSettings = settings ?: return
         val view = cursorPreviewView ?: return
         val density = view.resources.displayMetrics.density
-        val ballSizePx = currentSettings.floatBallSizeDp.coerceIn(36f, 96f) * density
+        val ballSize = FloatBallLayout.ballSize(currentSettings, density)
         val marginPx = (EDGE_MARGIN_DP * density).roundToInt()
 
         dragSession.reset()
@@ -339,7 +339,7 @@ object RegionalPickOverlay {
         lastFingerX = rawX
         lastFingerY = rawY
         dragSessionArmed = true
-        applyPickStateFromSession(currentSettings, ballSizePx, marginPx, density)
+        applyPickStateFromSession(currentSettings, ballSize, marginPx, density)
         selectionStart = null
         selectionPreviewBounds = null
         paused = false
@@ -482,7 +482,7 @@ object RegionalPickOverlay {
         val currentSettings = settings ?: return
         val view = cursorPreviewView ?: return
         val density = view.resources.displayMetrics.density
-        val ballSizePx = currentSettings.floatBallSizeDp.coerceIn(36f, 96f) * density
+        val ballSize = FloatBallLayout.ballSize(currentSettings, density)
         val marginPx = (EDGE_MARGIN_DP * density).roundToInt()
 
         if (!dragSessionArmed) {
@@ -494,26 +494,26 @@ object RegionalPickOverlay {
         dragSession.onFingerMove(rawX - lastFingerX, rawY - lastFingerY)
         lastFingerX = rawX
         lastFingerY = rawY
-        applyPickStateFromSession(currentSettings, ballSizePx, marginPx, density)
+        applyPickStateFromSession(currentSettings, ballSize, marginPx, density)
         applyPreviewBoundsFromCache()
     }
 
     private fun applyPickStateFromSession(
         currentSettings: AppSettings,
-        ballSizePx: Float,
+        ballSize: FloatBallSize,
         marginPx: Int,
         density: Float
     ) {
         pickAnchor = dragSession.computePick(
             settings = currentSettings,
-            ballSizePx = ballSizePx,
+            ballSize = ballSize,
             screenWidth = screenWidth,
             screenHeight = screenHeight,
             density = density,
             marginPx = marginPx
         )
         ballCenter = dragSession.clampedBallCenter(
-            ballSizePx = ballSizePx,
+            ballSize = ballSize,
             marginPx = marginPx,
             screenWidth = screenWidth.roundToInt(),
             screenHeight = screenHeight.roundToInt()
@@ -523,21 +523,21 @@ object RegionalPickOverlay {
             screenWidth = screenWidth,
             fallbackDockSide = edgePickDockSide
         )
-        updateBallLayout(currentSettings, ballDockSide, ballSizePx.roundToInt())
+        updateBallLayout(currentSettings, ballDockSide, ballSize)
     }
 
     private fun updateBallLayout(
         currentSettings: AppSettings,
         dockSide: FloatBallSide,
-        ballSizePx: Int
+        ballSize: FloatBallSize
     ) {
         val visual = ballDragVisualView ?: return
         if (visual.visibility != View.VISIBLE || ballVisualDockSide != dockSide) {
             visual.show(currentSettings, composeSnapshot = null, activeSide = dockSide)
             ballVisualDockSide = dockSide
         }
-        visual.x = ballCenter.x - ballSizePx / 2f
-        visual.y = ballCenter.y - ballSizePx / 2f
+        visual.x = ballCenter.x - ballSize.widthPx / 2f
+        visual.y = ballCenter.y - ballSize.heightPx / 2f
     }
 
     private fun onCursorPaused() {

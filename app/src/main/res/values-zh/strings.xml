@@ -2174,6 +2174,8 @@
     <string name="float_ball_style_slideshow">幻灯片</string>
     <string name="float_ball_style_gif">GIF</string>
     <string name="float_ball_style_custom_image_hint">选择自定义图片作为悬浮球外观</string>
+    <string name="float_ball_style_custom_image_no_crop">按原图显示</string>
+    <string name="float_ball_style_custom_image_no_crop_hint">保持原图比例：不居中裁剪、不套圆形蒙版。高度跟「大小」滑块。</string>
     <string name="float_ball_style_image_selected">已选择自定义图片</string>
     <string name="float_ball_style_gif_hint">选择 GIF 动图作为悬浮球外观</string>
     <string name="float_ball_pick_settings_title">取词</string>

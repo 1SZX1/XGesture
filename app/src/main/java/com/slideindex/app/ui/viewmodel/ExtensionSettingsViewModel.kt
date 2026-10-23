@@ -601,10 +601,33 @@ class ExtensionSettingsViewModel @Inject constructor(
     }
 
     fun setFloatBallCustomImageUri(uri: String) = launchSettingsWrite {
-        val stored = withContext(Dispatchers.IO) {
-            FloatBallStyleAssetStore.importCustomImage(appContext, uri.toUri())
-        } ?: uri
-        settingsRepository.setFloatBallCustomImageUri(stored)
+        val imported = withContext(Dispatchers.IO) {
+            val stored = FloatBallStyleAssetStore.importCustomImage(appContext, uri.toUri()) ?: uri
+            // 宽高比必须在**导入后的本地副本**上读：原始 content:// 可能只可读一次或已失效。
+            stored to FloatBallStyleAssetStore.readAspect(appContext, stored.toUri())
+        }
+        settingsRepository.setFloatBallCustomImageUri(imported.first)
+        // 换图必须成对写宽高比：读不出来就清成 0，避免沿用上一张图的比例。
+        settingsRepository.setFloatBallCustomImageAspect(imported.second ?: 0f)
+    }
+
+    fun setFloatBallCustomImageNoCrop(enabled: Boolean) = launchSettingsWrite {
+        // 打开开关的瞬间就要有比例可用：老数据可能只有 URI 没有宽高比（进程启动时的迁移未必跑过），
+        // 这里补一次，避免用户看到"开了跟没开一样"（方形窗口 + 透明边）。
+        if (enabled) backfillCustomImageAspectIfMissing()
+        settingsRepository.setFloatBallCustomImageNoCrop(enabled)
+    }
+
+    /** 只在宽高比缺失时读一次文件头；已有比例直接跳过，不产生多余写入。 */
+    private suspend fun backfillCustomImageAspectIfMissing() {
+        val current = overlaySettings.value
+        if (current.floatBallCustomImageAspect > 0f) return
+        val uri = current.floatBallCustomImageUri
+        if (uri.isBlank()) return
+        val aspect = withContext(Dispatchers.IO) {
+            FloatBallStyleAssetStore.readAspect(appContext, uri.toUri())
+        }
+        if (aspect != null) settingsRepository.setFloatBallCustomImageAspect(aspect)
     }
 
     fun setFloatBallSlideshowUris(uris: List<String>) = launchSettingsWrite {

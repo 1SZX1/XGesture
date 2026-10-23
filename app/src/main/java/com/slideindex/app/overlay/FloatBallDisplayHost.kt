@@ -22,7 +22,8 @@ internal class FloatBallDisplayHost(
 
     private var lastBallLeft = 0
     private var lastBallTop = 0
-    private var lastBallSize = 0
+    private var lastBallWidth = 0
+    private var lastBallHeight = 0
     private var hasBallLayout = false
 
     init {
@@ -43,23 +44,32 @@ internal class FloatBallDisplayHost(
     }
 
     /** 原生定位球体；热路径直接 layout，不触发整树 requestLayout。 */
-    fun layoutBall(left: Int, top: Int, sizePx: Int) {
-        if (hasBallLayout && left == lastBallLeft && top == lastBallTop && sizePx == lastBallSize) return
-        val sizeChanged = sizePx != lastBallSize
-        hasBallLayout = sizePx > 0
+    fun layoutBall(left: Int, top: Int, widthPx: Int, heightPx: Int) {
+        if (
+            hasBallLayout &&
+            left == lastBallLeft &&
+            top == lastBallTop &&
+            widthPx == lastBallWidth &&
+            heightPx == lastBallHeight
+        ) return
+        val sizeChanged = widthPx != lastBallWidth || heightPx != lastBallHeight
+        hasBallLayout = widthPx > 0 && heightPx > 0
         lastBallLeft = left
         lastBallTop = top
-        lastBallSize = sizePx
+        lastBallWidth = widthPx
+        lastBallHeight = heightPx
 
         if (width <= 0 || height <= 0) {
             requestLayout()
             return
         }
         if (sizeChanged) {
-            val spec = MeasureSpec.makeMeasureSpec(sizePx, MeasureSpec.EXACTLY)
-            ballIconView.measure(spec, spec)
+            ballIconView.measure(
+                MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(heightPx, MeasureSpec.EXACTLY)
+            )
         }
-        ballIconView.layout(left, top, left + sizePx, top + sizePx)
+        ballIconView.layout(left, top, left + widthPx, top + heightPx)
     }
 
     fun setBallVisible(visible: Boolean) {
@@ -69,8 +79,8 @@ internal class FloatBallDisplayHost(
     fun ballLayoutRect(): Rect = Rect(
         lastBallLeft,
         lastBallTop,
-        lastBallLeft + lastBallSize,
-        lastBallTop + lastBallSize
+        lastBallLeft + lastBallWidth,
+        lastBallTop + lastBallHeight
     )
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -80,9 +90,11 @@ internal class FloatBallDisplayHost(
         val fullHeightSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY)
         lineChromeComposeView.measure(fullWidthSpec, fullHeightSpec)
         cursorPreviewView.measure(fullWidthSpec, fullHeightSpec)
-        if (hasBallLayout && lastBallSize > 0) {
-            val ballSpec = MeasureSpec.makeMeasureSpec(lastBallSize, MeasureSpec.EXACTLY)
-            ballIconView.measure(ballSpec, ballSpec)
+        if (hasBallLayout && lastBallWidth > 0 && lastBallHeight > 0) {
+            ballIconView.measure(
+                MeasureSpec.makeMeasureSpec(lastBallWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(lastBallHeight, MeasureSpec.EXACTLY)
+            )
         } else {
             ballIconView.measure(
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY),
@@ -97,12 +109,12 @@ internal class FloatBallDisplayHost(
         val height = bottom - top
         lineChromeComposeView.layout(0, 0, width, height)
         cursorPreviewView.layout(0, 0, width, height)
-        if (hasBallLayout && lastBallSize > 0) {
+        if (hasBallLayout && lastBallWidth > 0 && lastBallHeight > 0) {
             ballIconView.layout(
                 lastBallLeft,
                 lastBallTop,
-                lastBallLeft + lastBallSize,
-                lastBallTop + lastBallSize
+                lastBallLeft + lastBallWidth,
+                lastBallTop + lastBallHeight
             )
         } else {
             ballIconView.layout(0, 0, 0, 0)

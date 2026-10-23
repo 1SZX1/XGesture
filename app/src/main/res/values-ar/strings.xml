@@ -2067,6 +2067,8 @@
     <string name="float_ball_style_slideshow">عرض الشرائح</string>
     <string name="float_ball_style_gif">GIF</string>
     <string name="float_ball_style_custom_image_hint">اختر صورة مخصصة كمظهر للكرة العائمة</string>
+    <string name="float_ball_style_custom_image_no_crop">عرض الصورة كما هي</string>
+    <string name="float_ball_style_custom_image_no_crop_hint">يحافظ على نسبة أبعاد الصورة الأصلية: بلا قص من المنتصف وبلا قناع دائري. الارتفاع يتبع منزلق الحجم.</string>
     <string name="float_ball_style_image_selected">تم اختيار صورة مخصصة</string>
     <string name="float_ball_style_gif_hint">اختر صورة GIF متحركة كمظهر للكرة العائمة</string>
     <string name="float_ball_pick_settings_title">التقاط النص</string>

@@ -12,7 +12,7 @@ import org.junit.Test
 class FloatBallDragSessionTest {
   private val screenHeight = 2400f
   private val screenWidth = 1080f
-  private val ballSizePx = 144f
+  private val ballSize = FloatBallSize(144, 144)
   private val density = 3f
   private val marginPx = 24
 
@@ -43,7 +43,7 @@ class FloatBallDragSessionTest {
       fingerY = centerY,
       ballCenterX = 500f,
       ballCenterY = centerY,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -53,7 +53,7 @@ class FloatBallDragSessionTest {
 
     val pick = session.computePick(
       settings = settings,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -80,7 +80,7 @@ class FloatBallDragSessionTest {
         fingerY = centerY,
         ballCenterX = 500f,
         ballCenterY = centerY,
-        ballSizePx = ballSizePx,
+        ballSize = ballSize,
         screenWidth = screenWidth,
         screenHeight = screenHeight,
         density = density,
@@ -89,7 +89,7 @@ class FloatBallDragSessionTest {
       session.onFingerMove(0f, fingerMoveY)
       session.computePick(
         settings = settings,
-        ballSizePx = ballSizePx,
+        ballSize = ballSize,
         screenWidth = screenWidth,
         screenHeight = screenHeight,
         density = density,
@@ -98,7 +98,7 @@ class FloatBallDragSessionTest {
       session.onFingerMove(0f, 80f)
       return session.computePick(
         settings = settings,
-        ballSizePx = ballSizePx,
+        ballSize = ballSize,
         screenWidth = screenWidth,
         screenHeight = screenHeight,
         density = density,
@@ -117,7 +117,7 @@ class FloatBallDragSessionTest {
     val settings = testSettings()
     val centerY = screenHeight * 0.55f
     val fingerX = screenWidth - 36f
-    val ballCenterX = screenWidth - ballSizePx / 2f
+    val ballCenterX = screenWidth - ballSize.widthPx / 2f
 
     session.armAtTouch(
       settings = settings,
@@ -127,7 +127,7 @@ class FloatBallDragSessionTest {
       fingerY = centerY,
       ballCenterX = ballCenterX,
       ballCenterY = centerY,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -136,7 +136,7 @@ class FloatBallDragSessionTest {
 
     val pick = session.computePick(
       settings = settings,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -159,7 +159,7 @@ class FloatBallDragSessionTest {
       fingerY = centerY,
       ballCenterX = 80f,
       ballCenterY = centerY,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -168,7 +168,7 @@ class FloatBallDragSessionTest {
 
     val pick = session.computePick(
       settings = settings,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -189,9 +189,9 @@ class FloatBallDragSessionTest {
       touchDownY = centerY,
       fingerX = screenWidth - 36f,
       fingerY = centerY,
-      ballCenterX = screenWidth - ballSizePx / 2f,
+      ballCenterX = screenWidth - ballSize.widthPx / 2f,
       ballCenterY = centerY,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -201,7 +201,7 @@ class FloatBallDragSessionTest {
 
     val pick = session.computePick(
       settings = settings,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -218,7 +218,7 @@ class FloatBallDragSessionTest {
     val settings = testSettings()
     val centerY = screenHeight * 0.55f
     val touchDownX = screenWidth - 36f
-    val ballCenterX = screenWidth - ballSizePx / 2f
+    val ballCenterX = screenWidth - ballSize.widthPx / 2f
 
     // 1. Arm at initial touch down
     session.armAtTouch(
@@ -229,7 +229,7 @@ class FloatBallDragSessionTest {
       fingerY = centerY,
       ballCenterX = ballCenterX,
       ballCenterY = centerY,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -265,7 +265,7 @@ class FloatBallDragSessionTest {
       fingerY = slopFingerY,
       ballCenterX = ballCenterX,
       ballCenterY = ballCenterY,
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,

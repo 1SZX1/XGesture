@@ -618,6 +618,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setFloatBallCustomImageUri(uri: String) =
         overlay.setFloatBallCustomImageUri(uri)
 
+    suspend fun setFloatBallCustomImageNoCrop(enabled: Boolean) =
+        overlay.setFloatBallCustomImageNoCrop(enabled)
+
+    suspend fun setFloatBallCustomImageAspect(aspect: Float) =
+        overlay.setFloatBallCustomImageAspect(aspect)
+
     suspend fun setFloatBallSlideshowUris(uris: List<String>) =
         overlay.setFloatBallSlideshowUris(uris)
 

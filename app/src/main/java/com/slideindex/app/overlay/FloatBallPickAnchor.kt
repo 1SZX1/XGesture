@@ -17,17 +17,18 @@ internal object FloatBallPickAnchor {
     settings: AppSettings,
     ballCenterX: Float,
     ballCenterY: Float,
-    ballSizePx: Float,
+    ballHeightPx: Float,
     screenWidth: Float,
     screenHeight: Float,
     density: Float,
     dockSide: FloatBallSide
   ): Offset {
     val gapPx = settings.floatBallPickOffsetDp.coerceIn(4f, 48f) * density
-    val aboveOffsetY = -(ballSizePx / 2f + gapPx)
-    val belowOffsetY = ballSizePx / 2f + gapPx
+    // 取词十字在球的**上方/下方**，所以用球高而不是球宽：不处理模式下球可能很宽但高度不变。
+    val aboveOffsetY = -(ballHeightPx / 2f + gapPx)
+    val belowOffsetY = ballHeightPx / 2f + gapPx
 
-    val ballBottom = ballCenterY + ballSizePx / 2f
+    val ballBottom = ballCenterY + ballHeightPx / 2f
     val blend = bottomFlipBlend(
       ballBottomY = ballBottom,
       screenHeight = screenHeight,
@@ -50,7 +51,7 @@ internal object FloatBallPickAnchor {
   fun pickPointForFinger(
     fingerX: Float,
     ballCenterY: Float,
-    ballSizePx: Float,
+    ballHeightPx: Float,
     settings: AppSettings,
     screenWidth: Float,
     screenHeight: Float,
@@ -61,7 +62,7 @@ internal object FloatBallPickAnchor {
       settings = settings,
       ballCenterX = fingerX,
       ballCenterY = ballCenterY,
-      ballSizePx = ballSizePx,
+      ballHeightPx = ballHeightPx,
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -105,7 +106,7 @@ internal object FloatBallPickAnchor {
   fun pickPointAtEdge(
     settings: AppSettings,
     ballCenterY: Float,
-    ballSizePx: Float,
+    ballHeightPx: Float,
     screenWidth: Float,
     screenHeight: Float,
     density: Float,
@@ -114,7 +115,7 @@ internal object FloatBallPickAnchor {
     settings = settings,
     ballCenterX = edgePickX(dockSide, screenWidth),
     ballCenterY = ballCenterY,
-    ballSizePx = ballSizePx,
+    ballHeightPx = ballHeightPx,
     screenWidth = screenWidth,
     screenHeight = screenHeight,
     density = density,

@@ -11,7 +11,6 @@ import android.widget.ImageView
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FloatBallPositionMode
 import com.slideindex.app.settings.FloatBallSide
-import kotlin.math.roundToInt
 
 /**
  * FV FloatIconView-style drag shell: native [ImageView] only, no Compose during drag.
@@ -37,19 +36,27 @@ internal class FloatBallDragVisualView(context: Context) : FrameLayout(context) 
     fun show(settings: AppSettings, composeSnapshot: Bitmap?, activeSide: FloatBallSide) {
         releaseOwnedBitmap()
         val density = resources.displayMetrics.density
-        val sizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt().coerceAtLeast(1)
+        val ballSize = FloatBallLayout.ballSize(settings, density)
+        // 「不处理」：原比例窗口、完整显示、不套圆。
+        val noCrop = FloatBallLayout.usesOriginalImageGeometry(settings)
         val bitmap = composeSnapshot ?: FloatBallDragVisualRenderer.render(context, settings)
         ownedBitmap = if (composeSnapshot == null) bitmap else null
         ballImage.setImageBitmap(bitmap)
-        ballImage.clipToOutline = true
-        ballImage.outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(view: View, outline: Outline) {
-                outline.setOval(0, 0, view.width, view.height)
+        ballImage.scaleType =
+            if (noCrop) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER_CROP
+        ballImage.clipToOutline = !noCrop
+        ballImage.outlineProvider = if (noCrop) {
+            null
+        } else {
+            object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setOval(0, 0, view.width, view.height)
+                }
             }
         }
         val params = ballImage.layoutParams as LayoutParams
-        params.width = sizePx
-        params.height = sizePx
+        params.width = ballSize.widthPx
+        params.height = ballSize.heightPx
         params.gravity = layoutGravity(settings, activeSide)
         ballImage.layoutParams = params
         visibility = VISIBLE

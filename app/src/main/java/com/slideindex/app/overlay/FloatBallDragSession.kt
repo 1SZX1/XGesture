@@ -44,7 +44,7 @@ internal class FloatBallDragSession {
     fingerY: Float,
     ballCenterX: Float,
     ballCenterY: Float,
-    ballSizePx: Float,
+    ballSize: FloatBallSize,
     screenWidth: Float,
     screenHeight: Float,
     density: Float,
@@ -63,7 +63,7 @@ internal class FloatBallDragSession {
     val pick = edgeAnchoredPick(
       settings = settings,
       ballCenterY = ballCenterY,
-      ballSizePx = ballSizePx,
+      ballHeightPx = ballSize.heightPx.toFloat(),
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -90,38 +90,44 @@ internal class FloatBallDragSession {
     Offset(dragFingerX + dragJoystickOffsetX, dragFingerY + dragJoystickOffsetY)
 
   fun clampedBallCenter(
-    ballSizePx: Float,
+    ballSize: FloatBallSize,
     marginPx: Int,
     screenWidth: Int,
     screenHeight: Int
   ): Offset {
     val center = ballCenter()
-    val half = ballSizePx / 2f
-    val minCenterX = -half
-    val maxCenterX = screenWidth + half
-    val minCenterY = marginPx + half
-    val maxCenterY = screenHeight - marginPx - half
+    val halfWidth = ballSize.widthPx / 2f
+    val halfHeight = ballSize.heightPx / 2f
+    val minCenterX = -halfWidth
+    val maxCenterX = screenWidth + halfWidth
+    val minCenterY = marginPx + halfHeight
+    val maxCenterY = screenHeight - marginPx - halfHeight
     return Offset(
       x = center.x.coerceIn(minCenterX, maxCenterX),
-      y = center.y.coerceIn(minCenterY, maxCenterY)
+      y = center.y.coerceIn(minCenterY, maxCenterY.coerceAtLeast(minCenterY))
     )
   }
 
   fun ballTopLeft(
-    ballSizePx: Int,
+    ballSize: FloatBallSize,
     marginPx: Int,
     screenWidth: Int,
     screenHeight: Int
   ): Pair<Int, Int> {
-    val center = clampedBallCenter(ballSizePx.toFloat(), marginPx, screenWidth, screenHeight)
-    val left = (center.x - ballSizePx / 2f).roundToInt()
-    val top = (center.y - ballSizePx / 2f).roundToInt()
+    val center = clampedBallCenter(
+      ballSize = ballSize,
+      marginPx = marginPx,
+      screenWidth = screenWidth,
+      screenHeight = screenHeight
+    )
+    val left = (center.x - ballSize.widthPx / 2f).roundToInt()
+    val top = (center.y - ballSize.heightPx / 2f).roundToInt()
     return left to top
   }
 
   fun computePick(
     settings: AppSettings,
-    ballSizePx: Float,
+    ballSize: FloatBallSize,
     screenWidth: Float,
     screenHeight: Float,
     density: Float,
@@ -132,7 +138,7 @@ internal class FloatBallDragSession {
     }
 
     val center = clampedBallCenter(
-      ballSizePx = ballSizePx,
+      ballSize = ballSize,
       marginPx = marginPx,
       screenWidth = screenWidth.roundToInt(),
       screenHeight = screenHeight.roundToInt()
@@ -140,7 +146,7 @@ internal class FloatBallDragSession {
     val edgePick = edgeAnchoredPick(
       settings = settings,
       ballCenterY = center.y,
-      ballSizePx = ballSizePx,
+      ballHeightPx = ballSize.heightPx.toFloat(),
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       density = density,
@@ -173,7 +179,7 @@ internal class FloatBallDragSession {
   private fun edgeAnchoredPick(
     settings: AppSettings,
     ballCenterY: Float,
-    ballSizePx: Float,
+    ballHeightPx: Float,
     screenWidth: Float,
     screenHeight: Float,
     density: Float,
@@ -181,7 +187,7 @@ internal class FloatBallDragSession {
   ): Offset = FloatBallPickAnchor.pickPointAtEdge(
     settings = settings,
     ballCenterY = ballCenterY,
-    ballSizePx = ballSizePx,
+    ballHeightPx = ballHeightPx,
     screenWidth = screenWidth,
     screenHeight = screenHeight,
     density = density,

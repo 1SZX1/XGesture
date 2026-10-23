@@ -94,9 +94,20 @@ class FloatBallController(
             }
             com.slideindex.app.settings.FloatBallStyleType.CUSTOM_IMAGE -> {
                 val uri = settings.floatBallCustomImageUri
-                if (uri.startsWith("content://") && FloatBallStyleAssetStore.canRead(context, uri)) {
-                    FloatBallStyleAssetStore.importCustomImage(context, uri.toUri())?.let {
-                        settingsRepository.setFloatBallCustomImageUri(it)
+                if (uri.isNotBlank() && FloatBallStyleAssetStore.canRead(context, uri)) {
+                    var stored = uri
+                    if (uri.startsWith("content://")) {
+                        FloatBallStyleAssetStore.importCustomImage(context, uri.toUri())?.let {
+                            stored = it
+                            settingsRepository.setFloatBallCustomImageUri(it)
+                        }
+                    }
+                    // 宽高比缺失就补：老版本只存 URI（而且多半已经是本地 file://，不会再走上面的导入），
+                    // 没有比例时「不处理」只能退化成正方形 + 留透明边，等于没开。
+                    if (settings.floatBallCustomImageAspect <= 0f) {
+                        FloatBallStyleAssetStore.readAspect(context, stored.toUri())?.let {
+                            settingsRepository.setFloatBallCustomImageAspect(it)
+                        }
                     }
                 }
             }

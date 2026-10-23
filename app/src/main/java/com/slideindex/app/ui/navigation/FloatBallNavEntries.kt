@@ -357,6 +357,7 @@ fun NavEntryBuilder.floatBallNavEntries(ctx: MainNavContext) {
             onBack = { ctx.navigateBackTo(AppNavKey.FloatBallAppearance) },
             onStyleTypeChange = viewModel::setFloatBallStyleType,
             onCustomImageUriChange = viewModel::setFloatBallCustomImageUri,
+            onCustomImageNoCropChange = viewModel::setFloatBallCustomImageNoCrop,
             onSlideshowUrisChange = viewModel::setFloatBallSlideshowUris,
             onGifUriChange = viewModel::setFloatBallGifUri,
         )

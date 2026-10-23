@@ -58,7 +58,7 @@ class FloatBallBothLinesHitRectTest {
     assertEquals(strip.bottom, ballHit.bottom)
     // 两侧同规格：球侧命中区宽度 == 线条触发区宽度，且贴右边缘。
     assertEquals(1080, ballHit.right)
-    assertTrue(ballHit.right - ballHit.left < FloatBallLayout.ballSizePx(settings, metrics.density))
+    assertTrue(ballHit.right - ballHit.left < FloatBallLayout.ballSize(settings, metrics.density).heightPx)
   }
 
   @Test
@@ -77,7 +77,7 @@ class FloatBallBothLinesHitRectTest {
       metrics.widthPixels,
       metrics.heightPixels,
     )
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+    val ballSizePx = FloatBallLayout.ballSize(settings, metrics.density).heightPx
 
     assertEquals(ballSizePx, ballHit.right - ballHit.left)
     assertEquals(ballSizePx, ballHit.bottom - ballHit.top)

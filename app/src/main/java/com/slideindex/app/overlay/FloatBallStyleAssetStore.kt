@@ -1,6 +1,8 @@
 package com.slideindex.app.overlay
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.media.ExifInterface
 import android.net.Uri
 import androidx.core.net.toUri
 import java.io.File
@@ -45,6 +47,44 @@ internal object FloatBallStyleAssetStore {
         val uri = stored.toUri()
         return if (canRead(context, uri)) uri else null
     }
+
+    /**
+     * 读取图片原图宽高比（width / height，按 EXIF 方向校正后的**显示方向**）。
+     *
+     * 只解文件头（[BitmapFactory.Options.inJustDecodeBounds]），不解像素：导入时算一次并落盘，
+     * 布局期只读设置里的 Float —— 窗口尺寸是同步算的，不能在布局线程解码整张图。
+     * 返回 null 表示读不出来（损坏文件 / 不支持的格式），调用方应把旧宽高比清成 0。
+     */
+    fun readAspect(context: Context, uri: Uri): Float? = runCatching {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        // ⚠️ 不能写成 `openInputStream(uri)?.use { decodeStream(...) } ?: return null`：
+        // inJustDecodeBounds 模式下 decodeStream **必然返回 null**，use 会把这个 null 当成结果传出来，
+        // 于是永远被判定为"流打不开"提前返回 —— 真机实锤：宽高比恒为 0，图片退化成方框里的一条细带。
+        // 必须把"流是否打开成功"和"decodeStream 的返回值"分开判断，只看 options.outWidth/outHeight。
+        val input = context.contentResolver.openInputStream(uri) ?: return@runCatching null
+        input.use { BitmapFactory.decodeStream(it, null, options) }
+        aspectFromRawSize(
+            rawWidthPx = options.outWidth,
+            rawHeightPx = options.outHeight,
+            rotationDegrees = exifRotationDegrees(context, uri),
+        )
+    }.getOrNull()
+
+    private fun exifRotationDegrees(context: Context, uri: Uri): Int = runCatching {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            when (
+                ExifInterface(input).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+            ) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                else -> 0
+            }
+        } ?: 0
+    }.getOrDefault(0)
 
     fun canRead(context: Context, stored: String): Boolean {
         if (stored.isBlank()) return false
@@ -91,4 +131,24 @@ internal object FloatBallStyleAssetStore {
             else -> ".img"
         }
     }
+}
+
+/**
+ * 由「BitmapFactory 读到的原始宽高」和「EXIF 旋转角度」算出**显示方向**的宽高比。
+ *
+ * BitmapFactory 不应用 EXIF，而实际显示（ImageDecoder）会应用，所以 90°/270° 要互换宽高；
+ * 180° 只是上下颠倒，宽高不用换（以前写成 `in 90..270`，把 180 也换掉了，是个隐性错误）。
+ * 宽或高非法（读文件头失败）时返回 null。
+ */
+internal fun aspectFromRawSize(
+    rawWidthPx: Int,
+    rawHeightPx: Int,
+    rotationDegrees: Int,
+): Float? {
+    if (rawWidthPx <= 0 || rawHeightPx <= 0) return null
+    val swap = rotationDegrees % 180 != 0
+    val width = if (swap) rawHeightPx else rawWidthPx
+    val height = if (swap) rawWidthPx else rawHeightPx
+    if (width <= 0 || height <= 0) return null
+    return width.toFloat() / height.toFloat()
 }

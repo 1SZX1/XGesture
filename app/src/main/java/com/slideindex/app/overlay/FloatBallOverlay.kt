@@ -722,9 +722,9 @@ object FloatBallOverlay {
         val metrics = view.resources.displayMetrics
         val density = metrics.density
         val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(view.context, windowManager)
-        val ballSizePx = FloatBallLayout.ballSizePx(settings, density)
+        val ballSize = FloatBallLayout.ballSize(settings, density)
         val center = dragSession.clampedBallCenter(
-            ballSizePx = ballSizePx.toFloat(),
+            ballSize = ballSize,
             marginPx = FloatBallLayout.marginPx(density),
             screenWidth = screenWidthPx,
             screenHeight = screenHeightPx
@@ -1141,7 +1141,8 @@ object FloatBallOverlay {
     }
 
     private fun ballLayoutDensityHint(settings: AppSettings, viewDensity: Float): Float {
-        val ballPx = FloatBallLayout.ballSizePx(settings, viewDensity).toFloat()
+        // 用**高度**反推密度：不处理模式下宽度会按原图比例撑开，拿宽度除以 dp 值会得到一个错误的密度。
+        val ballPx = FloatBallLayout.ballSize(settings, viewDensity).heightPx.toFloat()
         return ballPx / settings.floatBallSizeDp.coerceIn(36f, 96f)
     }
 
@@ -2531,8 +2532,8 @@ object FloatBallOverlay {
             isLandscape,
         )
         val (left, top) = state.ballWindowTopLeft(settings, metrics, activeSide, center, screenHeightPx)
-        val sizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
-        host.layoutBall(left, top, sizePx)
+        val ballSize = FloatBallLayout.ballSize(settings, metrics.density)
+        host.layoutBall(left, top, ballSize.widthPx, ballSize.heightPx)
         host.setBallVisible(state.ballVisible.value)
         if (!layoutOnly) {
             ballIconView?.bind(
@@ -2853,14 +2854,14 @@ object FloatBallOverlay {
         val settings = settingsState?.value ?: return null
         val metrics = view.resources.displayMetrics
         val density = metrics.density
-        val ballSizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt()
+        val ballSize = FloatBallLayout.ballSize(settings, density)
         val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(view.context, windowManager)
         // ⚠ 拖动中必须以**手指带动的真实球心**为准：dragSession 记着"手指↔球心"的偏移并做了边界钳制。
         // 若这里去问 FloatBallLayout.ballCenterPx(settings)，自由位置模式下读到的还是**旧的自定义分数**，
         // 结果就是"拖到哪、松手又弹回哪"（自由位置模式的移动一直是坏的）。
         val center: Pair<Float, Float> = if (isDragging) {
             val clamped = dragSession.clampedBallCenter(
-                ballSizePx = ballSizePx.toFloat(),
+                ballSize = ballSize,
                 marginPx = FloatBallLayout.marginPx(density),
                 screenWidth = screenWidthPx,
                 screenHeight = screenHeightPx
@@ -2914,7 +2915,7 @@ object FloatBallOverlay {
         fingerX: Float,
         fingerY: Float,
         fromEdgeGesture: Boolean,
-        ballSizePx: Int,
+        ballHeightPx: Int,
         marginPx: Int,
         screenWidth: Float,
         screenHeight: Float,
@@ -2926,9 +2927,9 @@ object FloatBallOverlay {
         } else {
             effectiveActiveSide(settings)
         }
-        val halfBall = ballSizePx / 2f
-        val minCenterY = marginPx + halfBall
-        val maxCenterY = screenHeight - marginPx - halfBall
+        val halfHeight = ballHeightPx / 2f
+        val minCenterY = marginPx + halfHeight
+        val maxCenterY = screenHeight - marginPx - halfHeight
         return when {
             dragOriginatedFromLine -> {
                 touchDownX to touchDownY.coerceIn(minCenterY, maxCenterY)
@@ -2955,7 +2956,7 @@ object FloatBallOverlay {
     ) {
         val density = metrics.density
         val bounds = FloatBallScreenMetrics.bounds(displayView!!.context, windowManager)
-        val ballSizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt()
+        val ballSize = FloatBallLayout.ballSize(settings, density)
         val marginPx = (EDGE_MARGIN_DP * density).roundToInt()
         val screenWidth = bounds.width
         val screenHeight = bounds.height
@@ -2968,7 +2969,7 @@ object FloatBallOverlay {
             fingerX = fingerX,
             fingerY = fingerY,
             fromEdgeGesture = fromEdgeGesture,
-            ballSizePx = ballSizePx,
+            ballHeightPx = ballSize.heightPx,
             marginPx = marginPx,
             screenWidth = screenWidth,
             screenHeight = screenHeight,
@@ -2987,7 +2988,7 @@ object FloatBallOverlay {
             fingerY = fingerY,
             ballCenterX = ballCenterX,
             ballCenterY = ballCenterY,
-            ballSizePx = ballSizePx.toFloat(),
+            ballSize = ballSize,
             screenWidth = screenWidth,
             screenHeight = screenHeight,
             density = density,
@@ -3067,7 +3068,7 @@ object FloatBallOverlay {
         val metrics = view.resources.displayMetrics
         val density = metrics.density
         val bounds = FloatBallScreenMetrics.bounds(view.context, windowManager)
-        val ballSizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density)
+        val ballSize = FloatBallLayout.ballSize(settings, density)
         val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(view.context, windowManager)
         val activeSide = effectiveActiveSide(settings)
         val (ballCenterX, ballCenterY) = FloatBallLayout.ballCenterPx(
@@ -3081,7 +3082,7 @@ object FloatBallOverlay {
             settings = settings,
             ballCenterX = ballCenterX,
             ballCenterY = ballCenterY,
-            ballSizePx = ballSizePx,
+            ballHeightPx = ballSize.heightPx.toFloat(),
             screenWidth = bounds.width,
             screenHeight = bounds.height,
             density = density,
@@ -3106,13 +3107,6 @@ object FloatBallOverlay {
         val view = displayView ?: return
         val settings = settingsState?.value ?: return
         val metrics = view.resources.displayMetrics
-        val density = metrics.density
-        val bounds = FloatBallScreenMetrics.bounds(view.context, windowManager)
-        val ballSizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt()
-        val marginPx = (EDGE_MARGIN_DP * density).roundToInt()
-        val screenWidth = bounds.width
-        val screenHeight = bounds.height
-        val (screenWidthPx, screenHeightPx) = FloatBallScreenMetrics.sizePx(view.context, windowManager)
 
         val promotingFromSlop = slopPhaseBallFollowActive
         if (!promotingFromSlop) {
@@ -3686,12 +3680,12 @@ object FloatBallOverlay {
     private fun applyDragBallLayout(settings: AppSettings) {
         val view = displayView ?: return
         val metrics = view.resources.displayMetrics
-        val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+        val ballSize = FloatBallLayout.ballSize(settings, metrics.density)
         val marginPx = FloatBallLayout.marginPx(metrics.density)
         val screenBounds = dragScreenBounds ?: FloatBallScreenMetrics.bounds(view.context, windowManager)
             .also { dragScreenBounds = it }
         val center = dragSession.clampedBallCenter(
-            ballSizePx = ballSizePx.toFloat(),
+            ballSize = ballSize,
             marginPx = marginPx,
             screenWidth = screenBounds.width.roundToInt(),
             screenHeight = screenBounds.height.roundToInt()
@@ -3706,7 +3700,7 @@ object FloatBallOverlay {
         val density = metrics.density
         val bounds = dragScreenBounds ?: FloatBallScreenMetrics.bounds(view.context, windowManager)
             .also { dragScreenBounds = it }
-        val ballSizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt()
+        val ballSize = FloatBallLayout.ballSize(settings, density)
         val marginPx = (EDGE_MARGIN_DP * density).roundToInt()
         val screenWidth = bounds.width
         val screenHeight = bounds.height
@@ -3715,7 +3709,7 @@ object FloatBallOverlay {
         if (!moveModeActive) {
             val pick = dragSession.computePick(
                 settings = settings,
-                ballSizePx = ballSizePx.toFloat(),
+                ballSize = ballSize,
                 screenWidth = screenWidth,
                 screenHeight = screenHeight,
                 density = density,
@@ -3736,6 +3730,12 @@ object FloatBallOverlay {
             append(settings.floatBallGifUri)
             append('|')
             append(settings.floatBallCustomImageUri)
+            append('|')
+            // 开关与宽高比会改变**窗口尺寸**（不只画面）：签名里少了它们，改开关后不会重新 layout，
+            // 球窗口还是旧的方形，图片被挤在方框里。
+            append(settings.floatBallCustomImageNoCrop)
+            append('|')
+            append(settings.floatBallCustomImageAspect)
             append('|')
             append(settings.floatBallSlideshowUris.joinToString(","))
         }

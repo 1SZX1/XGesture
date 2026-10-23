@@ -15,7 +15,6 @@ import com.slideindex.app.settings.FloatBallPositionMode
 import com.slideindex.app.settings.FloatBallSide
 import com.slideindex.app.settings.FloatBallStyleType
 import com.slideindex.app.ui.miuix.theme.resolveAppAccentArgb
-import kotlin.math.roundToInt
 
 /**
  * Unified native float-ball surface for idle + drag (FV FloatIconView-style).
@@ -52,6 +51,8 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
 
     private var contentMode = ContentMode.STATIC
     private var boundKey: String? = null
+    /** 最近一次 bind 的设置：图片读取失败时用来渲染兜底球。 */
+    private var boundSettings: AppSettings? = null
     private var ownedBitmap: Bitmap? = null
     private var slideshowUris: List<String> = emptyList()
     private var slideshowIndex = 0
@@ -87,15 +88,18 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         styleGeneration: Int
     ) {
         val density = resources.displayMetrics.density
-        val sizePx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt().coerceAtLeast(1)
+        val ballSize = FloatBallLayout.ballSize(settings, density)
+        // 「不处理」：按原图比例显示，不裁剪也不套圆。只有自定义图片会走到这里。
+        val noCrop = FloatBallLayout.usesOriginalImageGeometry(settings)
         val opacity = settings.floatBallOpacity.coerceIn(0f, 1f)
         currentOpacityValue = opacity
         alpha = opacity
+        boundSettings = settings
 
-        val key = buildBindKey(settings, activeSide, styleGeneration, sizePx)
+        val key = buildBindKey(settings, activeSide, styleGeneration, ballSize)
         if (key == boundKey) {
             applyChildGravity(settings, activeSide)
-            applyCircularClip(sizePx)
+            applyBallClip(circular = !noCrop)
             // 兜底：内置动画的画面完全依赖 View 内部的"当前样式"。窗口被摘掉再挂回（取词/截图）时，
             // 即使样式没变也必须把样式重新喂给它，否则它没有内容可画（球会变透明）。setStyle 同样式是幂等的。
             if (FloatBallBuiltinAnimCatalog.isBuiltinAnimated(settings.floatBallStyleType)) {
@@ -105,7 +109,8 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         }
         boundKey = key
         applyChildGravity(settings, activeSide)
-        applyCircularClip(sizePx)
+        applyBallClip(circular = !noCrop)
+        staticImage.scaleType = if (noCrop) ImageView.ScaleType.FIT_CENTER else ImageView.ScaleType.CENTER_CROP
 
         when (settings.floatBallStyleType) {
             FloatBallStyleType.ANIMATED_PLANE,
@@ -113,7 +118,7 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
             FloatBallStyleType.ANIMATED_ORBIT,
             -> showBuiltin(settings.floatBallStyleType, opacity)
 
-            FloatBallStyleType.GIF -> showGif(settings, opacity, sizePx)
+            FloatBallStyleType.GIF -> showGif(settings, opacity, ballSize.heightPx)
 
             FloatBallStyleType.CUSTOM_IMAGE -> {
                 stopSlideshow()
@@ -161,6 +166,7 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         staticImage.setImageDrawable(null)
         gifView.clearFrame()
         boundKey = null
+        boundSettings = null
         slideshowUris = emptyList()
     }
 
@@ -168,7 +174,7 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         settings: AppSettings,
         activeSide: FloatBallSide,
         styleGeneration: Int,
-        sizePx: Int
+        ballSize: FloatBallSize
     ): String = buildString {
         append(styleGeneration)
         append('|')
@@ -176,7 +182,9 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         append('|')
         append(activeSide.name)
         append('|')
-        append(sizePx)
+        append(ballSize.widthPx)
+        append('x')
+        append(ballSize.heightPx)
         append('|')
         // ⚠️ 这里必须是**解析后的强调色**（含"自定义色开关 / 动态取色 / 色板 / 深浅"的影响），
         // 不能只放 themeColorArgb：开关一翻而色值没变时，键不变 → 球不会重画 → 还是旧颜色。
@@ -185,6 +193,11 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         append(settings.floatBallOpacity)
         append('|')
         append(settings.floatBallCustomImageUri)
+        append('|')
+        // 不处理开关与宽高比都要进键：否则改了开关/换了图（同 URI 不会被换，但比例会变）球不重绘。
+        append(settings.floatBallCustomImageNoCrop)
+        append('|')
+        append(settings.floatBallCustomImageAspect)
         append('|')
         append(settings.floatBallGifUri)
         append('|')
@@ -259,10 +272,21 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
             showStaticBitmap(bitmap, owns = false)
             staticImage.alpha = opacity
         } else {
-            releaseOwnedBitmap()
-            staticImage.setImageDrawable(null)
-            staticImage.alpha = opacity
-            showContentMode(ContentMode.STATIC)
+            // 图片读不出来（文件被删/权限失效）：画兜底球而不是留一块透明窗口。
+            // 「不处理」模式下窗口可能很宽，全透明会变成"看不见但点得到"的死区。
+            val fallbackSettings = boundSettings
+            if (fallbackSettings != null) {
+                showStaticBitmap(
+                    FloatBallDragVisualRenderer.render(context, fallbackSettings),
+                    owns = true
+                )
+                staticImage.alpha = opacity
+            } else {
+                releaseOwnedBitmap()
+                staticImage.setImageDrawable(null)
+                staticImage.alpha = opacity
+                showContentMode(ContentMode.STATIC)
+            }
         }
     }
 
@@ -307,10 +331,23 @@ internal class FloatBallIconView(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun applyCircularClip(sizePx: Int) {
+    /**
+     * 球体裁剪形状。
+     *
+     * - 圆形样式（默认）：内切椭圆轮廓，方形窗口下就是正圆。
+     * - 「不处理」：彻底不裁，图片四角/边缘按原样显示。
+     */
+    private fun applyBallClip(circular: Boolean) {
+        if (!circular) {
+            listOf(staticImage, gifView, builtinAnimView).forEach { child ->
+                child.clipToOutline = false
+                child.outlineProvider = null
+            }
+            return
+        }
         val clipper = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
-                outline.setOval(0, 0, sizePx, sizePx)
+                outline.setOval(0, 0, view.width.coerceAtLeast(1), view.height.coerceAtLeast(1))
             }
         }
         listOf(staticImage, gifView, builtinAnimView).forEach { child ->

@@ -6,12 +6,26 @@ import com.slideindex.app.gesture.KeyboardTriggerBoundsAdjuster
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FloatBallPositionFractions
 import com.slideindex.app.settings.FloatBallPositionMode
+import com.slideindex.app.settings.FloatBallSettings
 import com.slideindex.app.settings.FloatBallSide
+import com.slideindex.app.settings.FloatBallStyleType
 import com.slideindex.app.settings.KeyboardTriggerBehavior
 import com.slideindex.app.settings.keyboardTriggerBehavior
 import com.slideindex.app.settings.keyboardTriggerNarrowScale
 import kotlin.math.max
 import kotlin.math.roundToInt
+
+/**
+ * 悬浮球窗口尺寸（px）。
+ *
+ * 绝大多数样式是**正方形**（宽=高=设置里的球大小）；只有「自定义图片 + 不处理」会按原图宽高比
+ * 把宽撑开（高恒等于设置值）。所有布局/命中/拖动公式都必须区分横竖两个方向，不能再当成一个
+ * 直径用 —— 以前到处写的 `ballSizePx / 2f` 在非方形球上会算错半个球。
+ */
+internal data class FloatBallSize(val widthPx: Int, val heightPx: Int) {
+    /** 短边：圆形兜底视觉、取词十字偏移等「球体本身有多粗」的场合用它。 */
+    val minSidePx: Int get() = minOf(widthPx, heightPx)
+}
 
 internal object FloatBallLayout {
     private const val EDGE_MARGIN_DP = 8f
@@ -65,8 +79,35 @@ internal object FloatBallLayout {
     fun dockCenterY(settings: AppSettings, screenHeight: Int): Float =
         coercePositionYFraction(settings.floatBallPositionYFraction) * screenHeight
 
-    fun ballSizePx(settings: AppSettings, density: Float): Int =
-        (settings.floatBallSizeDp.coerceIn(36f, 96f) * density).roundToInt()
+    /**
+     * 是否「按原图比例显示」：自定义图片 + 「不处理」开关 + 有图片。
+     *
+     * 宽高比未知（0，通常是老数据还没迁移到本地副本）时仍然算「不处理」：窗口退回正方形，
+     * 但渲染改为完整显示（不裁剪、不套圆），保证开关一打开就不会再切图。
+     */
+    fun usesOriginalImageGeometry(settings: AppSettings): Boolean =
+        settings.floatBallStyleType == FloatBallStyleType.CUSTOM_IMAGE &&
+            settings.floatBallCustomImageNoCrop &&
+            settings.floatBallCustomImageUri.isNotBlank()
+
+    /**
+     * 球窗口尺寸。
+     *
+     * - 方形样式：[FloatBallSize.widthPx] == [FloatBallSize.heightPx]，等于 `floatBallSizeDp` 换算值。
+     * - 不处理模式：**高度** = 该换算值，宽度 = 高度 × 原图宽高比（用户要求不限宽，故不做屏宽夹取）。
+     */
+    fun ballSize(settings: AppSettings, density: Float): FloatBallSize {
+        val heightPx = (settings.floatBallSizeDp.coerceIn(36f, 96f) * density)
+            .roundToInt()
+            .coerceAtLeast(1)
+        if (!usesOriginalImageGeometry(settings)) return FloatBallSize(heightPx, heightPx)
+        val aspect = settings.floatBallCustomImageAspect
+            .takeIf { it.isFinite() && it > 0f }
+            ?.coerceIn(FloatBallSettings.IMAGE_ASPECT_MIN, FloatBallSettings.IMAGE_ASPECT_MAX)
+            ?: return FloatBallSize(heightPx, heightPx)
+        val widthPx = (heightPx * aspect).roundToInt().coerceAtLeast(1)
+        return FloatBallSize(widthPx, heightPx)
+    }
 
     fun marginPx(density: Float): Int = (EDGE_MARGIN_DP * density).roundToInt()
 
@@ -90,23 +131,23 @@ internal object FloatBallLayout {
         screenHeightPx: Int = metrics.heightPixels
     ): Pair<Int, Int> {
         val density = metrics.density
-        val ballSizePx = ballSizePx(settings, density)
+        val ballSize = ballSize(settings, density)
         val marginPx = marginPx(density)
         val centerY = dockCenterY(settings, screenHeightPx)
         val left = when (settings.floatBallPositionMode) {
             FloatBallPositionMode.CUSTOM -> {
                 val centerX = coerceCustomCenterXFraction(settings.floatBallCustomCenterXFraction) * screenWidthPx
-                (centerX - ballSizePx / 2f).roundToInt()
+                (centerX - ballSize.widthPx / 2f).roundToInt()
             }
             else -> dockedBallLeftPx(
                 activeSide = activeSide,
-                ballSizePx = ballSizePx,
+                ballWidthPx = ballSize.widthPx,
                 screenWidth = screenWidthPx,
                 visibleFraction = coerceVisibleFraction(settings.floatBallVisibleFraction)
             )
         }
-        val top = (centerY - ballSizePx / 2f).roundToInt()
-            .coerceIn(marginPx, screenHeightPx - ballSizePx - marginPx)
+        val top = (centerY - ballSize.heightPx / 2f).roundToInt()
+            .coerceIn(marginPx, (screenHeightPx - ballSize.heightPx - marginPx).coerceAtLeast(marginPx))
         return left to top
     }
 
@@ -117,9 +158,9 @@ internal object FloatBallLayout {
         screenWidthPx: Int = metrics.widthPixels,
         screenHeightPx: Int = metrics.heightPixels
     ): Pair<Float, Float> {
-        val ballSizePx = ballSizePx(settings, metrics.density)
+        val ballSize = ballSize(settings, metrics.density)
         val (left, top) = ballTopLeft(settings, metrics, activeSide, screenWidthPx, screenHeightPx)
-        return (left + ballSizePx / 2f) to (top + ballSizePx / 2f)
+        return (left + ballSize.widthPx / 2f) to (top + ballSize.heightPx / 2f)
     }
 
     fun ballWindowBounds(
@@ -129,9 +170,9 @@ internal object FloatBallLayout {
         screenWidthPx: Int = metrics.widthPixels,
         screenHeightPx: Int = metrics.heightPixels
     ): Rect {
-        val ballSizePx = ballSizePx(settings, metrics.density)
+        val ballSize = ballSize(settings, metrics.density)
         val (left, top) = ballTopLeft(settings, metrics, side, screenWidthPx, screenHeightPx)
-        return Rect(left, top, left + ballSizePx, top + ballSizePx)
+        return Rect(left, top, left + ballSize.widthPx, top + ballSize.heightPx)
     }
 
     fun lineStripBounds(
@@ -166,24 +207,25 @@ internal object FloatBallLayout {
         ballCenterY: Float,
         screenHeightPx: Int = metrics.heightPixels
     ): Pair<Int, Int> {
-        val ballSizePx = ballSizePx(settings, metrics.density)
-        val windowX = (ballCenterX - ballSizePx / 2f).roundToInt()
-        val windowY = (ballCenterY - ballSizePx / 2f).roundToInt()
-        return windowX to windowY.coerceIn(0, screenHeightPx - ballSizePx)
+        val ballSize = ballSize(settings, metrics.density)
+        val windowX = (ballCenterX - ballSize.widthPx / 2f).roundToInt()
+        val windowY = (ballCenterY - ballSize.heightPx / 2f).roundToInt()
+        val maxY = (screenHeightPx - ballSize.heightPx).coerceAtLeast(0)
+        return windowX to windowY.coerceIn(0, maxY)
     }
 
     /**
      * Docked ball window X for [side].
-     * [visibleFraction] is how much of the ball width stays on screen (1 = fully visible, flush to edge).
+     * [visibleFraction] is how much of the ball **width** stays on screen (1 = fully visible, flush to edge).
      */
     fun dockedBallLeftPx(
         activeSide: FloatBallSide,
-        ballSizePx: Int,
+        ballWidthPx: Int,
         screenWidth: Int,
         visibleFraction: Float
     ): Int = when (activeSide) {
-        FloatBallSide.LEFT -> (-ballSizePx * (1f - visibleFraction)).roundToInt()
-        FloatBallSide.RIGHT -> (screenWidth - ballSizePx * visibleFraction).roundToInt()
+        FloatBallSide.LEFT -> (-ballWidthPx * (1f - visibleFraction)).roundToInt()
+        FloatBallSide.RIGHT -> (screenWidth - ballWidthPx * visibleFraction).roundToInt()
     }
 
     fun keyboardAdjustedVisibleFraction(
@@ -228,7 +270,7 @@ internal object FloatBallLayout {
         screenHeightPx: Int = metrics.heightPixels,
     ): Pair<Int, Int> {
         val density = metrics.density
-        val ballSizePx = ballSizePx(settings, density)
+        val ballSize = ballSize(settings, density)
         val marginPx = marginPx(density)
         val centerY = dockCenterY(settings, screenHeightPx)
         val visibleFraction = keyboardAdjustedVisibleFraction(
@@ -238,21 +280,21 @@ internal object FloatBallLayout {
         val left = when (settings.floatBallPositionMode) {
             FloatBallPositionMode.CUSTOM -> {
                 val centerX = coerceCustomCenterXFraction(settings.floatBallCustomCenterXFraction) * screenWidthPx
-                (centerX - ballSizePx / 2f).roundToInt()
+                (centerX - ballSize.widthPx / 2f).roundToInt()
             }
             else -> dockedBallLeftPx(
                 activeSide = activeSide,
-                ballSizePx = ballSizePx,
+                ballWidthPx = ballSize.widthPx,
                 screenWidth = screenWidthPx,
                 visibleFraction = visibleFraction,
             )
         }
-        var top = (centerY - ballSizePx / 2f).roundToInt()
-            .coerceIn(marginPx, screenHeightPx - ballSizePx - marginPx)
+        var top = (centerY - ballSize.heightPx / 2f).roundToInt()
+            .coerceIn(marginPx, (screenHeightPx - ballSize.heightPx - marginPx).coerceAtLeast(marginPx))
         val behavior = settings.keyboardTriggerBehavior(isLandscape)
         val imeTop = KeyboardTriggerImeState.imeTopOrNull()
         if (imeTop != null && behavior != KeyboardTriggerBehavior.OVERLAY) {
-            val ballRect = Rect(left, top, left + ballSizePx, top + ballSizePx)
+            val ballRect = Rect(left, top, left + ballSize.widthPx, top + ballSize.heightPx)
             val adjusted = KeyboardTriggerBoundsAdjuster.adjustRect(
                 rect = ballRect,
                 behavior = behavior,

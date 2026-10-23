@@ -259,6 +259,19 @@ data class FloatBallSettings(
     val floatBallStyleType: FloatBallStyleType = FloatBallStyleType.DEFAULT,
     /** 自定义图片 URI（[floatBallStyleType] 为 CUSTOM_IMAGE 时使用）。 */
     val floatBallCustomImageUri: String = "",
+    /**
+     * 自定义图片「不处理」开关：开启后球窗口按**原图宽高比**生成，既不居中裁剪、也不套圆形蒙版。
+     * 仅 [floatBallStyleType] 为 CUSTOM_IMAGE 时生效；其余样式仍按圆球显示。
+     */
+    val floatBallCustomImageNoCrop: Boolean = false,
+    /**
+     * 自定义图片原图宽高比（width / height）。
+     *
+     * 在「导入图片」时与 [floatBallCustomImageUri] 一起落盘，布局期只需同步读一个 Float，
+     * 不必在窗口布局前解码整张图。`0f` 表示未知（旧数据或读取失败）：此时
+     * [floatBallCustomImageNoCrop] 退化为正方形窗口 + 完整显示（会留透明边）。
+     */
+    val floatBallCustomImageAspect: Float = 0f,
     /** 幻灯片图片 URI 列表（[floatBallStyleType] 为 SLIDESHOW 时使用）。 */
     val floatBallSlideshowUris: List<String> = emptyList(),
     /** GIF 图片 URI（[floatBallStyleType] 为 GIF 时使用）。 */
@@ -337,7 +350,18 @@ data class FloatBallSettings(
     val floatBallImageSearchPickPanelTransparency: Float = 0.65f,
     /** Save shared long-image OCR results for later re-open from pick settings. */
     val shareImageOcrHistoryEnabled: Boolean = true,
-)
+) {
+    companion object {
+        /**
+         * 自定义图片宽高比的可信区间。
+         *
+         * 只防"退化的歪图"（1px 宽/高的坏文件、除零与溢出），**不是**限宽策略：
+         * 用户明确要求不处理模式下不限制球宽，所以 20:1 的图仍然按 20:1 呈现。
+         */
+        const val IMAGE_ASPECT_MIN = 0.05f
+        const val IMAGE_ASPECT_MAX = 20f
+    }
+}
 
 /** 剪贴板监听、历史浮标、输入浮窗与暂存面板。 */
 data class ClipboardSettings(

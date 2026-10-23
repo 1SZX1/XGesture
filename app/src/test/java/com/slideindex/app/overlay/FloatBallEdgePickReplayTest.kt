@@ -26,7 +26,7 @@ class FloatBallEdgePickReplayTest {
     fun replay_from_right_edge_to_left_screen_moves_pick_into_left_half() {
         val session = FloatBallDragSession()
         val settings = testSettings()
-        val ballSizePx = settings.floatBallSizeDp.coerceIn(36f, 96f) * density
+        val ballSize = FloatBallLayout.ballSize(settings, density)
         val gestureStartRawY = screenHeight * 0.5f
         val triggerRawX = screenWidth * 0.08f
         val triggerRawY = screenHeight * 0.45f
@@ -46,7 +46,7 @@ class FloatBallEdgePickReplayTest {
 
         val pick = session.computePick(
             settings = settings,
-            ballSizePx = ballSizePx,
+            ballSize = ballSize,
             screenWidth = screenWidth,
             screenHeight = screenHeight,
             density = density,

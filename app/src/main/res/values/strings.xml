@@ -946,6 +946,8 @@
     <string name="float_ball_style_slideshow">Slideshow</string>
     <string name="float_ball_style_gif">GIF</string>
     <string name="float_ball_style_custom_image_hint">Pick a custom image for the float ball</string>
+    <string name="float_ball_style_custom_image_no_crop">Show as original</string>
+    <string name="float_ball_style_custom_image_no_crop_hint">Keep the image\'s own aspect ratio: no center crop, no round mask. Height follows the size slider.</string>
     <string name="float_ball_style_image_selected">Custom image selected</string>
     <string name="float_ball_style_gif_hint">Pick a GIF for the float ball</string>
     <string name="float_ball_pick_settings_title">Text pick</string>

@@ -6,6 +6,7 @@ import com.slideindex.app.settings.EdgeTriggerSettings
 import com.slideindex.app.settings.FloatBallPositionMode
 import com.slideindex.app.settings.FloatBallSettings
 import com.slideindex.app.settings.FloatBallSide
+import com.slideindex.app.settings.FloatBallStyleType
 import com.slideindex.app.settings.KeyboardTriggerBehavior
 import com.slideindex.app.settings.FreeWindowMode
 import com.slideindex.app.settings.FreeWindowSettings
@@ -39,7 +40,7 @@ class FloatBallLayoutTest {
         floatBallSizeDp = 48f,
       ),
     )
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+    val ballSizePx = FloatBallLayout.ballSize(settings, metrics.density).heightPx
     val centerX = ballSizePx / 2f
     val centerY = 1200f
 
@@ -63,7 +64,7 @@ class FloatBallLayoutTest {
         floatBallSizeDp = 48f,
       ),
     )
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+    val ballSizePx = FloatBallLayout.ballSize(settings, metrics.density).heightPx
     val centerX = metrics.widthPixels - ballSizePx / 2f
     val centerY = 900f
 
@@ -113,7 +114,7 @@ class FloatBallLayoutTest {
         floatBallLineWidthFraction = 0.04f,
       ),
     )
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+    val ballSizePx = FloatBallLayout.ballSize(settings, metrics.density).heightPx
     val stripWidth = FloatBallLayout.lineTriggerWidthPx(settings, metrics.widthPixels, metrics.density)
 
     assertTrue(stripWidth < ballSizePx)
@@ -128,7 +129,7 @@ class FloatBallLayoutTest {
         floatBallVisibleFraction = 1f,
       ),
     )
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+    val ballSizePx = FloatBallLayout.ballSize(settings, metrics.density).heightPx
     val (left, _) = FloatBallLayout.ballTopLeft(settings, metrics, FloatBallSide.RIGHT)
 
     assertEquals(metrics.widthPixels - ballSizePx, left)
@@ -143,7 +144,7 @@ class FloatBallLayoutTest {
         floatBallVisibleFraction = 0.5f,
       ),
     )
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+    val ballSizePx = FloatBallLayout.ballSize(settings, metrics.density).heightPx
     val (left, _) = FloatBallLayout.ballTopLeft(settings, metrics, FloatBallSide.RIGHT)
     val expectedLeft = (metrics.widthPixels - ballSizePx * 0.5f).roundToInt()
 
@@ -178,11 +179,67 @@ class FloatBallLayoutTest {
         floatBallVisibleFraction = 0.5f,
       ),
     )
-    val ballSizePx = FloatBallLayout.ballSizePx(settings, metrics.density)
+    val ballSizePx = FloatBallLayout.ballSize(settings, metrics.density).heightPx
     val (left, _) = FloatBallLayout.ballTopLeft(settings, metrics, FloatBallSide.LEFT)
     val expectedLeft = (-ballSizePx * 0.5f).roundToInt()
 
     assertEquals(expectedLeft, left)
     assertTrue(left < 0)
+  }
+
+  // —— 自定义图片「不处理」：高度 = 滑块值，宽度 = 高度 × 原图比例，命中区跟着变 ——
+
+  private fun noCropSettings(aspect: Float, sizeDp: Float = 48f) = testSettings(
+    FloatBallSettings(
+      floatBallPositionMode = FloatBallPositionMode.RIGHT,
+      floatBallVisibleFraction = 1f,
+      floatBallStyleType = FloatBallStyleType.CUSTOM_IMAGE,
+      floatBallCustomImageUri = "file:///float_ball_custom.png",
+      floatBallCustomImageNoCrop = true,
+      floatBallCustomImageAspect = aspect,
+      floatBallSizeDp = sizeDp,
+    ),
+  )
+
+  @Test
+  fun noCrop_keeps_aspect_and_uses_slider_as_height() {
+    val settings = noCropSettings(aspect = 2f)
+    val size = FloatBallLayout.ballSize(settings, metrics.density)
+
+    assertEquals(144, size.heightPx) // 48dp × 3
+    assertEquals(288, size.widthPx) // 高度 × 2
+  }
+
+  @Test
+  fun noCrop_docked_ball_is_flush_with_edge_and_centered_by_height() {
+    val settings = noCropSettings(aspect = 2f)
+    val (left, top) = FloatBallLayout.ballTopLeft(settings, metrics, FloatBallSide.RIGHT)
+    val size = FloatBallLayout.ballSize(settings, metrics.density)
+
+    assertEquals(metrics.widthPixels - size.widthPx, left)
+    // 竖直仍按高度居中：0.55 × 2400 - 144/2
+    assertEquals(1248, top)
+  }
+
+  @Test
+  fun noCrop_without_aspect_falls_back_to_square_window() {
+    val settings = noCropSettings(aspect = 0f)
+    val size = FloatBallLayout.ballSize(settings, metrics.density)
+
+    assertEquals(144, size.heightPx)
+    assertEquals(144, size.widthPx)
+  }
+
+  @Test
+  fun noCrop_switch_off_or_other_style_keeps_square_ball() {
+    val switchOff = noCropSettings(aspect = 2f).let {
+      it.copy(floatBall = it.floatBall.copy(floatBallCustomImageNoCrop = false))
+    }
+    val otherStyle = noCropSettings(aspect = 2f).let {
+      it.copy(floatBall = it.floatBall.copy(floatBallStyleType = FloatBallStyleType.SLIDESHOW))
+    }
+
+    assertEquals(144, FloatBallLayout.ballSize(switchOff, metrics.density).widthPx)
+    assertEquals(144, FloatBallLayout.ballSize(otherStyle, metrics.density).widthPx)
   }
 }

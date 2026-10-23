@@ -459,6 +459,16 @@ internal object SettingsSnapshotReader {
                 prefs[SettingsPreferenceKeys.FLOAT_BALL_STYLE_TYPE],
             ),
             floatBallCustomImageUri = prefs[SettingsPreferenceKeys.FLOAT_BALL_CUSTOM_IMAGE_URI].orEmpty(),
+            floatBallCustomImageNoCrop =
+                prefs[SettingsPreferenceKeys.FLOAT_BALL_CUSTOM_IMAGE_NO_CROP] ?: false,
+            floatBallCustomImageAspect =
+                (prefs[SettingsPreferenceKeys.FLOAT_BALL_CUSTOM_IMAGE_ASPECT] ?: 0f)
+                    .takeIf { it.isFinite() && it > 0f }
+                    ?.coerceIn(
+                        FloatBallSettings.IMAGE_ASPECT_MIN,
+                        FloatBallSettings.IMAGE_ASPECT_MAX,
+                    )
+                    ?: 0f,
             floatBallSlideshowUris = prefs[SettingsPreferenceKeys.FLOAT_BALL_SLIDESHOW_URIS]
                 ?.filter { it.isNotBlank() }
                 ?.toList()

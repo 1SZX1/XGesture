@@ -91,7 +91,7 @@ object TakeoverExtraRects {
         screenHeightPx = screenHeightPx,
       )
     } else {
-      val ballSizePx = FloatBallLayout.ballSizePx(settings, density)
+      val ballSize = FloatBallLayout.ballSize(settings, density)
       val (ballLeft, ballTop) = FloatBallLayout.keyboardAdjustedBallTopLeft(
         settings = settings,
         metrics = metrics,
@@ -100,7 +100,8 @@ object TakeoverExtraRects {
         screenWidthPx = screenWidthPx,
         screenHeightPx = screenHeightPx,
       )
-      Rect(ballLeft, ballTop, ballLeft + ballSizePx, ballTop + ballSizePx)
+      // 「不处理」模式下窗口不是正方形：接管矩形必须跟着真实宽高走，否则宽图右侧/左侧那截点不到。
+      Rect(ballLeft, ballTop, ballLeft + ballSize.widthPx, ballTop + ballSize.heightPx)
     }
 
     return buildList {
