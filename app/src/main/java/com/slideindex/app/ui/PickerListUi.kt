@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -204,6 +203,13 @@ fun Md3PickerListRow(
     trailingIconDescription: String? = null,
     onTrailingClick: (() -> Unit)? = null,
     /**
+     * Icon 模式下把行尾图标按 26dp 盒子里居中渲染，与单选 / 勾选控件（同为 26dp、贴内边距右缘）
+     * 在竖向上对齐；此时图标不再单独响应点击，整行点击即触发 [onTrailingClick] / [onClick]。
+     *
+     * 默认 false 保持原有 IconButton（48dp 触控区）行为，其它调用点零影响。
+     */
+    trailingIconAlignedToChoice: Boolean = false,
+    /**
      * 行尾（右侧、选中标记左边）的状态胶囊，用于标「未导出」「入口」这类例外。
      *
      * 空值不占位：四档 trailingMode 里都走同一个空判断，调用点不用各写一遍。
@@ -280,11 +286,24 @@ fun Md3PickerListRow(
                 startAction = { leadingContent() },
                 endActions = {
                     PickerRowEndSlot(trailingChip)
-                    IconButton(onClick = trailingClick) {
-                        MiuixIcon(
-                            imageVector = icon,
-                            contentDescription = trailingIconDescription,
-                        )
+                    if (trailingIconAlignedToChoice) {
+                        Box(
+                            modifier = Modifier.size(26.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            MiuixIcon(
+                                imageVector = icon,
+                                contentDescription = trailingIconDescription,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = trailingClick) {
+                            MiuixIcon(
+                                imageVector = icon,
+                                contentDescription = trailingIconDescription,
+                            )
+                        }
                     }
                 },
                 bottomAction = bottomAction,
@@ -355,30 +374,26 @@ fun Md3PickerManagedShortcutLeading(
             ?.toBitmap(96, 96)
     }
     if (iconBitmap != null) {
-        val containerShape = if (selected) {
-            MaterialShapes.Cookie9Sided.toShape()
-        } else {
-            MaterialTheme.shapes.small
-        }
-        Surface(
-            modifier = Modifier.size(40.dp),
-            shape = containerShape,
-            color = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            },
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Image(
-                    bitmap = iconBitmap.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
+        Image(
+            bitmap = iconBitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp)),
+            contentScale = ContentScale.Fit,
+        )
     } else {
-        Md3PickerIconLeading(icon = fallbackIcon, selected = selected)
+        Box(
+            modifier = Modifier.size(40.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = fallbackIcon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -398,8 +413,8 @@ fun Md3PickerAppShortcutLeading(
             selected = selected,
         )
         ShortcutBadgeOverlay(
-            iconSize = 28.dp,
-            modifier = Modifier.size(28.dp),
+            iconSize = 40.dp,
+            modifier = Modifier.size(40.dp),
         )
     }
 }
@@ -430,14 +445,14 @@ fun Md3PickerLaunchShortcutLeading(
         when {
             action.showsShellActivityShortcutBadge(activityShortcuts) -> {
                 ShellCommandBadgeOverlay(
-                    iconSize = 28.dp,
-                    modifier = Modifier.size(28.dp),
+                    iconSize = 40.dp,
+                    modifier = Modifier.size(40.dp),
                 )
             }
             !action.isShellActivityShortcut(activityShortcuts) -> {
                 ShortcutBadgeOverlay(
-                    iconSize = 28.dp,
-                    modifier = Modifier.size(28.dp),
+                    iconSize = 40.dp,
+                    modifier = Modifier.size(40.dp),
                 )
             }
         }
@@ -467,34 +482,28 @@ fun Md3PickerPackageLeading(
     }
     val currentBitmap = bitmap
     if (currentBitmap != null) {
-        val containerShape = if (selected) {
-            MaterialShapes.Cookie9Sided.toShape()
-        } else {
-            MaterialTheme.shapes.small
-        }
-        Surface(
-            modifier = Modifier.size(40.dp),
-            shape = containerShape,
-            color = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            },
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Image(
-                    bitmap = currentBitmap,
-                    contentDescription = contentDescription,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
-    } else {
-        Md3PickerIconLeading(
-            icon = Icons.AutoMirrored.Filled.Shortcut,
-            selected = selected,
+        // 真实图标不套底色方块：选中态交给行尾单选点 / 开关，图标本身保持裸展示，
+        // 一屏几十个应用时不会有满屏浅色格子把内容压扁。
+        Image(
+            bitmap = currentBitmap,
             contentDescription = contentDescription,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp)),
+            contentScale = ContentScale.Fit,
         )
+    } else {
+        Box(
+            modifier = Modifier.size(40.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Shortcut,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -510,6 +519,8 @@ fun Md3PickerAppLeading(app: AppInfo) {
             action = com.slideindex.app.gesture.GestureAction.LaunchApp(app.packageName),
             iconKey = iconOverride,
             sizeDp = 40,
+            // 与其它真实图标保持一致：不画底色方块。
+            showBackground = false,
         )
         return
     }
@@ -572,34 +583,30 @@ private fun Md3PickerBitmapLeading(
 ) {
     when {
         bitmap != null -> {
-            Surface(
+            Image(
+                bitmap = bitmap,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Fit,
+            )
+        }
+        failed -> {
+            Box(
                 modifier = Modifier.size(40.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                contentAlignment = Alignment.Center,
             ) {
-                Image(
-                    bitmap = bitmap,
+                Icon(
+                    imageVector = Icons.Default.Star,
                     contentDescription = contentDescription,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(4.dp)
-                        .clip(MaterialTheme.shapes.extraSmall),
-                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        failed -> {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = contentDescription,
-            )
-        }
         else -> {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            ) {}
+            Box(modifier = Modifier.size(40.dp))
         }
     }
 }
@@ -611,21 +618,14 @@ fun Md3PickerDrawableLeading(
     cacheKey: String,
 ) {
     val bitmap = remember(cacheKey) { drawable.toSafeImageBitmap(96) }
-    Surface(
-        modifier = Modifier.size(40.dp),
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-    ) {
-        Image(
-            bitmap = bitmap,
-            contentDescription = contentDescription,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(4.dp)
-                .clip(MaterialTheme.shapes.extraSmall),
-            contentScale = ContentScale.Crop,
-        )
-    }
+    Image(
+        bitmap = bitmap,
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(10.dp)),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 @Composable
