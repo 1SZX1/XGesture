@@ -205,6 +205,8 @@ data class OverlaySettings(
     val defaultImageViewerPackage: String? = null,
     val imageEditorDelayDeleteEnabled: Boolean = false,
     val searchEngines: List<SearchEngineConfig> = emptyList(),
+    /** 拖拽流转栏里的文字目标（从搜索引擎卡片拖进去的独立副本）。 */
+    val dragFlowTextEngines: List<SearchEngineConfig> = emptyList(),
     val searchEngineGridColumns: Int = 5,
     val searchEngineGridRows: Int = 2,
     val searchEngineShowLabels: Boolean = true,
@@ -431,6 +433,7 @@ data class OverlaySettings(
             defaultImageViewerPackage = settings.defaultImageViewerPackage,
             imageEditorDelayDeleteEnabled = settings.imageEditorDelayDeleteEnabled,
             searchEngines = settings.searchEngines,
+            dragFlowTextEngines = settings.dragFlowTextEngines,
             searchEngineGridColumns = settings.searchEngineGridColumns,
             searchEngineGridRows = settings.searchEngineGridRows,
             searchEngineShowLabels = settings.searchEngineShowLabels,

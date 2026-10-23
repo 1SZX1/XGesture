@@ -2,16 +2,34 @@
 
 package com.slideindex.app.ui
 
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
@@ -80,6 +98,9 @@ fun SearchEngineSettingsScreen(
     onOpenPreviewSort: () -> Unit,
     onOpenEditor: (String?) -> Unit,
     onUpdateEngines: (List<SearchEngineConfig>) -> Unit = {},
+    dragFlowTextEngines: List<SearchEngineConfig> = emptyList(),
+    onAddDragFlowTextEngine: (SearchEngineConfig) -> Unit = {},
+    onRemoveDragFlowTextEngine: (String) -> Unit = {},
 ) {
     val engines = remember(settings.searchEngines) {
         SearchEngineStore.textSettingsEngines(settings.searchEngines)
@@ -96,6 +117,7 @@ fun SearchEngineSettingsScreen(
 
     var isDraggingAny by remember { mutableStateOf(false) }
     var showAddSheet by remember { mutableStateOf(false) }
+    var flowCardBounds by remember { mutableStateOf(Rect.Zero) }
     val hintTip = stringResource(R.string.search_engine_settings_hint_tip)
 
     SettingsScreenScaffold(
@@ -114,6 +136,13 @@ fun SearchEngineSettingsScreen(
             key = "search-engine-settings-tip",
             text = hintTip,
         )
+        item(key = "drag-flow-bar-card") {
+            DragFlowBarCard(
+                engines = dragFlowTextEngines.sortedBy { it.sortOrder },
+                onRemove = onRemoveDragFlowTextEngine,
+                onBoundsChanged = { flowCardBounds = it },
+            )
+        }
         item(key = "aggregated-search-manager") {
             AggregatedSearchEngineManager(
                 engines = engines,
@@ -121,6 +150,23 @@ fun SearchEngineSettingsScreen(
                 gridRows = settings.searchEngineGridRows,
                 showLabels = settings.searchEngineShowLabels,
                 onDraggingStateChange = { isDraggingAny = it },
+                onDragFinishedWindow = { engine, windowPos ->
+                    // 松手时手指在「流转栏」卡片上（或卡片上方一点，手指很难精确压在边线上）：
+                    // 加一份副本，源列表一个字都不动。
+                    val bounds = flowCardBounds
+                    val inside = windowPos != null &&
+                        bounds != Rect.Zero &&
+                        windowPos.x >= bounds.left - 12f &&
+                        windowPos.x <= bounds.right + 12f &&
+                        windowPos.y >= 0f &&
+                        windowPos.y <= bounds.bottom + 16f
+                    if (inside) {
+                        onAddDragFlowTextEngine(engine)
+                        true
+                    } else {
+                        false
+                    }
+                },
                 onUpdateEngines = onUpdateEngines,
                 onGridColumnsChange = onGridColumnsChange,
                 onGridRowsChange = onGridRowsChange,
@@ -232,6 +278,104 @@ fun SearchEngineSettingsScreen(
             }
         },
     )
+}
+
+/**
+ * 「流转栏」卡片：拖拽流转栏里「文字」类的目标都存这里。
+ *
+ * 从下面搜索引擎网格长按拖进来、松手加一份**独立副本**；原件不动也不消失。
+ * 每个副本右上角的 × 可直接移除。
+ */
+@Composable
+private fun DragFlowBarCard(
+    engines: List<SearchEngineConfig>,
+    onRemove: (String) -> Unit,
+    onBoundsChanged: (Rect) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+
+    MiuixCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .onGloballyPositioned { onBoundsChanged(it.boundsInWindow()) },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "流转栏",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "拖文字时出现的目标",
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurface.copy(alpha = 0.62f),
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "${engines.size} 个",
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurface.copy(alpha = 0.62f),
+            )
+        }
+
+        if (engines.isEmpty()) {
+            Text(
+                text = "还没有目标。长按下面任意一个搜索引擎图标，拖到这张卡片上松手即可加入一份（原列表不变）。",
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurface.copy(alpha = 0.72f),
+            )
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(engines, key = { it.id }) { engine ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(66.dp),
+                    ) {
+                        Box {
+                            SearchEngineIcon(
+                                engine = engine,
+                                modifier = Modifier.size(44.dp),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 5.dp, y = (-5).dp)
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(scheme.surface)
+                                    .border(1.dp, scheme.outline.copy(alpha = 0.28f), CircleShape)
+                                    .clickable { onRemove(engine.id) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "从流转栏移除",
+                                    tint = scheme.onSurface,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                            }
+                        }
+                        Text(
+                            text = engine.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+        }
+    }
 }
 
 @Composable

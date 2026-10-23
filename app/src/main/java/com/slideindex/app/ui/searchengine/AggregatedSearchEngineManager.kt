@@ -99,6 +99,11 @@ fun AggregatedSearchEngineManager(
     onDeleteEngine: (String) -> Unit,
     modifier: Modifier = Modifier,
     onDraggingStateChange: (Boolean) -> Unit = {},
+    /**
+     * 拖拽松手时回调，带上手指的窗口坐标；返回 true 表示这次拖拽被调用方消费
+     * （例如丢进了「流转栏」卡片），本地列表不改动、图标回原位。
+     */
+    onDragFinishedWindow: (SearchEngineConfig, Offset?) -> Boolean = { _, _ -> false },
 ) {
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
@@ -122,6 +127,9 @@ fun AggregatedSearchEngineManager(
     var dragTargetIsHidden by remember { mutableStateOf(false) }
     var dragTargetSlot by remember { mutableIntStateOf(0) }
     var dragFingerLocalPos by remember { mutableStateOf(Offset.Zero) }
+
+    /** 手指在窗口坐标系里的位置，用于判定是否落在「流转栏」卡片上。 */
+    var lastFingerWindow by remember { mutableStateOf<Offset?>(null) }
 
     // --- 整页拖拽状态 ---
     var dragStartPageIndex by remember { mutableIntStateOf(-1) }
@@ -208,6 +216,7 @@ fun AggregatedSearchEngineManager(
                                 workingEngines.filter { !it.showInPickPanel }.indexOfFirst { it.id == hitEngine.id }.coerceAtLeast(0)
                             }
                             dragFingerLocalPos = downOffset
+                            lastFingerWindow = rootCoordinates?.localToWindow(downOffset)
                             onDraggingStateChange(true)
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             return@detectDragGesturesAfterLongPress
@@ -228,6 +237,7 @@ fun AggregatedSearchEngineManager(
                         if (dragged != null) {
                             dragFingerLocalPos += dragAmount
                             val fingerPos = dragFingerLocalPos
+                            lastFingerWindow = rootCoordinates?.localToWindow(fingerPos)
 
                             val isOverHidden = hiddenCardBounds != Rect.Zero &&
                                 fingerPos.y >= (hiddenCardBounds.top - 16f) &&
@@ -312,7 +322,12 @@ fun AggregatedSearchEngineManager(
                         }
                     },
                     onDragEnd = {
-                        if (draggedEngine != null) {
+                        val dragged = draggedEngine
+                        // 「拖到流转栏卡片上松手」由调用方判定：返回 true 表示这一拖已被别处消费，
+                        // 本地列表一个字都不改，图标自然回到原位。
+                        val consumedByCaller = dragged != null &&
+                            onDragFinishedWindow(dragged, lastFingerWindow)
+                        if (dragged != null && !consumedByCaller) {
                             val finalEngines = previewEngines.mapIndexed { idx, it -> it.copy(sortOrder = idx) }
                             workingEngines.clear()
                             workingEngines.addAll(finalEngines)
@@ -322,6 +337,7 @@ fun AggregatedSearchEngineManager(
                         draggedEngine = null
                         dragTargetIsHidden = false
                         dragTargetSlot = 0
+                        lastFingerWindow = null
                         onDraggingStateChange(false)
 
                         if (dragStartPageIndex >= 0) {
@@ -341,6 +357,7 @@ fun AggregatedSearchEngineManager(
                         draggedEngine = null
                         dragTargetIsHidden = false
                         dragTargetSlot = 0
+                        lastFingerWindow = null
                         dragStartPageIndex = -1
                         pageHoverTargetIndex = -1
                         pageTotalDragY = 0f

@@ -22,6 +22,15 @@ object SearchEngineStore {
         }.getOrElse { SearchEngineCatalog.defaultEngines(context) }
     }
 
+    /**
+     * 解析“没有默认值”的引擎列表（例如拖拽流转栏里的文字副本）：
+     * 空串/坏数据都返回空列表，不会像 [decode] 那样回落成默认目录。
+     */
+    fun decodeOrEmpty(raw: String?): List<SearchEngineConfig> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return runCatching { json.decodeFromString(listSerializer, raw) }.getOrElse { emptyList() }
+    }
+
     fun textPickPanelEngines(engines: List<SearchEngineConfig>): List<SearchEngineConfig> =
         engines.filter { it.isTextSearchEngine() }.sortedBy { it.sortOrder }
 
@@ -29,6 +38,10 @@ object SearchEngineStore {
         engines.filter {
             it.engineType == SearchEngineType.SHARE_IMAGE_TO_APP && it.showInPickPanel
         }.sortedBy { it.sortOrder }
+
+    /** 拖拽流转栏用的图片目标：所有「分享到 App」引擎，不看取词面板的隐藏开关。 */
+    fun imageFlowEngines(engines: List<SearchEngineConfig>): List<SearchEngineConfig> =
+        engines.filter { it.engineType == SearchEngineType.SHARE_IMAGE_TO_APP }.sortedBy { it.sortOrder }
 
     fun fileSharePanelEngines(engines: List<SearchEngineConfig>): List<SearchEngineConfig> {
         val configured = engines.filter {

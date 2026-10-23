@@ -1463,6 +1463,11 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.SEARCH_ENGINE_GRID_COLUMNS] = value.coerceIn(3, 8)
     }
 
+    /** 拖拽流转栏里的文字目标（独立副本列表）。 */
+    suspend fun setDragFlowTextEngines(engines: List<SearchEngineConfig>) = editor.edit {
+        it[SettingsPreferenceKeys.DRAG_FLOW_TEXT_ENGINES_JSON] = SearchEngineStore.encode(engines)
+    }
+
     suspend fun setSearchEngineGridRows(value: Int) = editor.edit {
         it[SettingsPreferenceKeys.SEARCH_ENGINE_GRID_ROWS] = value.coerceIn(1, 4)
     }

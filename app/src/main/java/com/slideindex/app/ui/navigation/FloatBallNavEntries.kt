@@ -106,6 +106,9 @@ fun NavEntryBuilder.floatBallNavEntries(ctx: MainNavContext) {
             onOpenEditor = { engineId ->
                 ctx.navigate(AppNavKey.FloatBallSearchEngineEditor(engineId.orEmpty()))
             },
+            dragFlowTextEngines = settings.dragFlowTextEngines,
+            onAddDragFlowTextEngine = viewModel::addDragFlowTextEngine,
+            onRemoveDragFlowTextEngine = viewModel::removeDragFlowTextEngine,
         )
     }
 

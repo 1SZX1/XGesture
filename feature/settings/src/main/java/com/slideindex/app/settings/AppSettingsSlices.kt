@@ -554,5 +554,12 @@ data class DragDropFlowSettings(
     val dragDropFlowPositionId: Int = DragDropFlowPosition.BOTTOM.id,
     /** 拖拽至引擎或取消时是否震动。 */
     val dragDropFlowHapticEnabled: Boolean = true,
+    /**
+     * 拖拽流转栏里「文字」这一类目标。
+     *
+     * 存的是从搜索引擎卡片拖进来的**独立副本**：改原引擎不联动、删原引擎也不影响这里。
+     * 空列表 = 拖文字时只剩翻译 / 复制 / 分享三个内置动作。
+     */
+    val dragFlowTextEngines: List<SearchEngineConfig> = emptyList(),
 )
 

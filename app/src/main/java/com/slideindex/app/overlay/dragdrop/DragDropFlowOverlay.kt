@@ -1,11 +1,9 @@
 package com.slideindex.app.overlay.dragdrop
 
 import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
@@ -396,23 +394,17 @@ class DragDropFlowController(
                 )
             )
 
-            // 2. 常见购物/图片流转应用（若已安装）
-            val appCandidates = listOf(
-                Triple("com.taobao.taobao", "拍立淘", "com.taobao.taobao"),
-                Triple("com.xunmeng.pinduoduo", "图片搜低价", "com.xunmeng.pinduoduo"),
-                Triple("com.jingdong.app.mall", "拍照购", "com.jingdong.app.mall"),
-                Triple("com.tencent.mm", "发送给微信", "com.tencent.mm"),
-                Triple("com.tencent.mobileqq", "发送给QQ", "com.tencent.mobileqq"),
-                Triple("com.xingin.xhs", "小红书发布", "com.xingin.xhs"),
-            )
-
-            for ((pkg, title, _) in appCandidates) {
-                val icon = runCatching { pm.getApplicationIcon(pkg).toBitmap(96, 96) }.getOrNull()
+            // 2. 设置里「分享到 App」的图片引擎（全部，按排序；不看取词面板的隐藏开关）
+            for (engine in SearchEngineStore.imageFlowEngines(latestSettings.searchEngines)) {
+                val pkg = engine.targetPackage?.takeIf { it.isNotBlank() } ?: continue
+                val icon = (!engine.iconPath.isNullOrBlank()).let { hasPath ->
+                    if (hasPath) runCatching { android.graphics.BitmapFactory.decodeFile(engine.iconPath) }.getOrNull() else null
+                } ?: runCatching { pm.getApplicationIcon(pkg).toBitmap(96, 96) }.getOrNull()
                 if (icon != null) {
                     list.add(
                         DragDropFlowItem(
-                            id = "app_$pkg",
-                            title = title,
+                            id = "image_engine_${engine.id}",
+                            title = engine.name,
                             iconBitmap = icon,
                         )
                     )
@@ -457,16 +449,6 @@ class DragDropFlowController(
                 }
             }
 
-            // 复制文件
-            list.add(
-                DragDropFlowItem(
-                    id = "copy_file",
-                    title = "复制文件",
-                    iconVector = Icons.Outlined.ContentCopy,
-                    iconTintColor = Color(0xFF4CAF50),
-                )
-            )
-
             // 系统分享文件
             list.add(
                 DragDropFlowItem(
@@ -478,9 +460,8 @@ class DragDropFlowController(
             )
         } else {
             // 文本拖拽流转项
-            // 1. 搜索引擎
-            val engines = SearchEngineCatalog.defaultEngines(context)
-            for (engine in engines.take(5)) {
+            // 1. 用户从「文字搜索引擎」页拖进流转栏的命令（独立副本，按卡内顺序）
+            for (engine in latestSettings.dragFlowTextEngines.sortedBy { it.sortOrder }) {
                 val pkgIcon = engine.targetPackage?.let { pkg ->
                     runCatching { pm.getApplicationIcon(pkg).toBitmap(96, 96) }.getOrNull()
                 }
@@ -545,6 +526,18 @@ class DragDropFlowController(
                             Toast.makeText(context, "无法读取拖放的图片", Toast.LENGTH_SHORT).show()
                         }
                     }
+                    targetId.startsWith("image_engine_") && uri != null -> {
+                        val engineId = targetId.removePrefix("image_engine_")
+                        val engine = SearchEngineStore.imageFlowEngines(latestSettings.searchEngines)
+                            .find { it.id == engineId }
+                        val bitmap = decodeBitmapFromUri(uri)
+                        if (engine != null && bitmap != null) {
+                            val launched = SearchEngineLauncher.launchImageShare(context, engine, bitmap)
+                            if (!launched) {
+                                Toast.makeText(context, "无法唤起目标应用", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                     targetId.startsWith("file_engine_") && uri != null -> {
                         val engineId = targetId.removePrefix("file_engine_")
                         val engines = SearchEngineStore.fileSharePanelEngines(latestSettings.searchEngines)
@@ -571,41 +564,6 @@ class DragDropFlowController(
                             }
                         }
                     }
-                    targetId.startsWith("app_") && uri != null -> {
-                        val pkg = targetId.removePrefix("app_")
-                        val mimeType = runCatching { context.contentResolver.getType(uri) }.getOrNull() ?: ""
-                        val isImage = mimeType.startsWith("image/") ||
-                            uri.toString().endsWith(".png", true) ||
-                            uri.toString().endsWith(".jpg", true) ||
-                            uri.toString().endsWith(".webp", true)
-
-                        if (isImage) {
-                            val bitmap = decodeBitmapFromUri(uri)
-                            if (bitmap != null) {
-                                val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
-                                val comp = launchIntent?.component
-                                if (comp != null) {
-                                    FloatBallTextPick.shareScreenshotTo(context, bitmap, comp)
-                                } else {
-                                    Toast.makeText(context, "无法唤起目标应用", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        } else {
-                            val forwarded = stageForForward(uri)
-                            if (forwarded == null) {
-                                Toast.makeText(context, "无法读取拖放的文件", Toast.LENGTH_SHORT).show()
-                            } else {
-                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = forwarded.intentType
-                                    putExtra(Intent.EXTRA_STREAM, forwarded.uri)
-                                    this.clipData = forwarded.clipData
-                                    setPackage(pkg)
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                startShare(sendIntent, "分享文件")
-                            }
-                        }
-                    }
                     targetId == "system_share_file" && uri != null -> {
                         val forwarded = stageForForward(uri)
                         if (forwarded == null) {
@@ -619,12 +577,6 @@ class DragDropFlowController(
                             }
                             startChooser(intent, "分享文件")
                         }
-                    }
-                    targetId == "copy_file" && uri != null -> {
-                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                        val clip = android.content.ClipData.newUri(context.contentResolver, "file", uri)
-                        cm?.setPrimaryClip(clip)
-                        Toast.makeText(context, "已复制文件到剪贴板", Toast.LENGTH_SHORT).show()
                     }
                     targetId == "copy_image" && uri != null -> {
                         val bitmap = decodeBitmapFromUri(uri)
@@ -648,9 +600,11 @@ class DragDropFlowController(
                     }
                     targetId.startsWith("engine_") && !text.isNullOrBlank() -> {
                         val engineId = targetId.removePrefix("engine_")
-                        val engine = SearchEngineCatalog.defaultEngines(context).find { it.id == engineId }
+                        val engine = latestSettings.dragFlowTextEngines.find { it.id == engineId }
                         if (engine != null) {
                             SearchEngineLauncher.launch(context, engine, text, latestSettings)
+                        } else {
+                            Toast.makeText(context, "这个目标已不在流转栏里", Toast.LENGTH_SHORT).show()
                         }
                     }
                     targetId == "copy_text" && !text.isNullOrBlank() -> {

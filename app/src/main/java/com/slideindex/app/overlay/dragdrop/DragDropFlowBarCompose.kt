@@ -1,7 +1,6 @@
 package com.slideindex.app.overlay.dragdrop
 
 import android.graphics.Bitmap
-import android.graphics.RectF
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -12,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -67,13 +65,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -82,7 +74,6 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -91,8 +82,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.slideindex.app.overlay.LocalFrostedGlassBackdrop
-import com.slideindex.app.overlay.LocalFrostedGlassDrawable
-import com.slideindex.app.overlay.canBlurInOverlay
 import com.slideindex.app.settings.DragDropFlowPosition
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -526,7 +515,6 @@ private fun RingFlowContent(
         // 这样模糊只出现在环上，圆心能看到下面的内容，也不会再出现整块圆盘。
         val bandOuterPx = radiusPx + with(density) { 44.dp.toPx() }
         val bandInnerPx = radiusPx - with(density) { 40.dp.toPx() }
-        val hostView = LocalView.current
 
         LaunchedEffect(rootBounds, radiusPx, bandInnerPx, bandOuterPx) {
             val bounds = rootBounds ?: return@LaunchedEffect
@@ -542,48 +530,32 @@ private fun RingFlowContent(
             }
         }
 
-        val frostedDrawable = remember(hostView) { LocalFrostedGlassDrawable(hostView) }
-        val canBlur = canBlurInOverlay()
-        val bandTint = MaterialTheme.colorScheme.surface.copy(alpha = 0.58f).toArgb()
-        val bandSolid = MaterialTheme.colorScheme.surface.copy(alpha = 0.74f)
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            if (bandOuterPx <= bandInnerPx) return@Canvas
-            val discCenter = Offset(size.width / 2f, size.height / 2f)
-            if (canBlur) {
-                val donut = Path().apply {
-                    fillType = PathFillType.EvenOdd
-                    addOval(Rect(center = discCenter, radius = bandOuterPx))
-                    addOval(Rect(center = discCenter, radius = bandInnerPx))
-                }
-                clipPath(donut) {
-                    drawIntoCanvas { canvas ->
-                        frostedDrawable.draw(
-                            canvas = canvas.nativeCanvas,
-                            bounds = RectF(0f, 0f, size.width, size.height),
-                            cornerRadiusPx = bandOuterPx,
-                            blurRadiusPx = 40,
-                            tintColor = bandTint,
-                            enabled = true,
-                        )
-                    }
-                }
-            } else {
-                drawCircle(
-                    color = bandSolid,
-                    radius = (bandOuterPx + bandInnerPx) / 2f,
-                    style = Stroke(width = bandOuterPx - bandInnerPx),
-                )
-            }
-        }
-
+        val scheme = MaterialTheme.colorScheme
+        val plateShape = RoundedCornerShape(18.dp)
         items.forEachIndexed { index, item ->
             val (dx, dy) = RingFlowGeometry.offsetFor(index, items.size, radiusPx)
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .offset { IntOffset(dx.roundToInt(), dy.roundToInt()) },
+                contentAlignment = Alignment.Center,
             ) {
+                // 每个目标一块独立底板：模糊只落在这块板子里，圆心保持透明。
+                // 用整块圆盘再挖洞会被系统跨窗模糊绕过裁剪，所以走"一格一块"。
+                Box(
+                    modifier = Modifier
+                        .size(width = 66.dp, height = 86.dp)
+                        .clip(plateShape)
+                        .border(BorderStroke(1.dp, scheme.outline.copy(alpha = 0.16f)), plateShape),
+                ) {
+                    LocalFrostedGlassBackdrop(
+                        modifier = Modifier.matchParentSize(),
+                        cornerRadiusPx = with(density) { 18.dp.toPx() },
+                        blurRadiusPx = 26,
+                        tintColor = scheme.surface.copy(alpha = 0.50f).toArgb(),
+                        solidFallbackColor = scheme.surface.toArgb(),
+                    )
+                }
                 FlowItemCard(
                     item = item,
                     isHovered = hoveredId == item.id,

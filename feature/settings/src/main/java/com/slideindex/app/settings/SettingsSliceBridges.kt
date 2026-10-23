@@ -286,6 +286,11 @@ fun OverlaySettings.toMinimalAppSettings(): AppSettings = AppSettings(
     ),
     defaultImageViewerPackage = defaultImageViewerPackage,
     imageEditorDelayDeleteEnabled = imageEditorDelayDeleteEnabled,
+    // 浮层域没有整块拖拽设置，只把这一个字段投影过去：
+    // 「文字搜索引擎」页顶部的流转栏卡片要靠它显示，漏投影就会一直显示空。
+    dragDropFlow = DragDropFlowSettings(
+        dragFlowTextEngines = dragFlowTextEngines,
+    ),
     searchPanel = SearchPanelSettings(
         searchEngines = searchEngines,
         searchEngineGridColumns = searchEngineGridColumns,

@@ -289,6 +289,35 @@ class SearchEngineSettingsViewModel @Inject constructor(
         moveEngineInCategory(id, direction) { true }
     }
 
+    /**
+     * 把一个搜索引擎复制一份进「拖拽流转栏」。
+     *
+     * 独立副本：id 加前缀区分，源引擎之后改名/改地址都不会联动到这里，删源引擎也不影响。
+     * 同一个引擎重复拖入按 id 去重，只留一份。
+     */
+    fun addDragFlowTextEngine(engine: SearchEngineConfig) {
+        viewModelScope.launch {
+            val current = settings.value.dragFlowTextEngines
+            val copyId = "dragflow-${engine.id}"
+            if (current.any { it.id == copyId }) return@launch
+            val copy = engine.copy(
+                id = copyId,
+                sortOrder = current.size,
+                showInPickPanel = true,
+            )
+            settingsRepository.setDragFlowTextEngines(current + copy)
+        }
+    }
+
+    fun removeDragFlowTextEngine(id: String) {
+        viewModelScope.launch {
+            val remaining = settings.value.dragFlowTextEngines
+                .filter { it.id != id }
+                .mapIndexed { index, engine -> engine.copy(sortOrder = index) }
+            settingsRepository.setDragFlowTextEngines(remaining)
+        }
+    }
+
     fun moveImageShareEngine(id: String, direction: Int) {
         moveEngineInCategory(id, direction) { it.engineType == SearchEngineType.SHARE_IMAGE_TO_APP }
     }
