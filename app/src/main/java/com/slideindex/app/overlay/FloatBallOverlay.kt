@@ -1439,6 +1439,7 @@ object FloatBallOverlay {
                     )
                 },
                 // 边缘线条（触钮）与球共用同一套 FV 自定义手势判定。
+                // 必须带 fromLineStrip=true：线条恒在球停靠侧的对侧，面板侧别再靠它换算。
                 onCustomGestureResolve = { path, rawX, rawY, touchDownX, touchDownY ->
                     handleFloatBallCustomGesture(
                         settings = state.settingsState.value,
@@ -1446,7 +1447,8 @@ object FloatBallOverlay {
                         rawX = rawX,
                         rawY = rawY,
                         touchDownRawX = touchDownX,
-                        touchDownRawY = touchDownY
+                        touchDownRawY = touchDownY,
+                        fromLineStrip = true
                     )
                 }
             )
@@ -2197,6 +2199,11 @@ object FloatBallOverlay {
      *
      * 库里没有任何自定义手势时 `resolveCustomGesture` 直接返回 `Native`，因此未使用该功能的
      * 用户行为零变化。
+     *
+     * [fromLineStrip] 必须由调用方如实传入：它是「本次从哪一侧触发的」唯一来源。
+     * 双贴边 / 双线模式下线条恒在球停靠侧的**对侧**，面板侧别要靠它取「线条侧」
+     * （见 [executeFloatBallAction] → `FloatBallLayout.panelSideForLineStrip`）；
+     * 写死 false 会让面板按球停靠侧打开，表现就是从线条触发时面板跑到对侧。
      */
     private fun handleFloatBallCustomGesture(
         settings: AppSettings,
@@ -2204,7 +2211,8 @@ object FloatBallOverlay {
         rawX: Float,
         rawY: Float,
         touchDownRawX: Float,
-        touchDownRawY: Float
+        touchDownRawY: Float,
+        fromLineStrip: Boolean = false
     ): Boolean = when (val outcome = resolveCustomGesture(path)) {
         FvCustomGestureOutcome.Native -> false
         FvCustomGestureOutcome.Consumed -> true
@@ -2215,7 +2223,7 @@ object FloatBallOverlay {
                 action = outcome.action,
                 rawX = rawX,
                 rawY = rawY,
-                fromLineStrip = false,
+                fromLineStrip = fromLineStrip,
                 touchDownRawX = touchDownRawX,
                 touchDownRawY = touchDownRawY,
                 anchorAtBallCenterForLauncher = false
