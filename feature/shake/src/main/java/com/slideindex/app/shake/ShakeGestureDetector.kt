@@ -1,12 +1,7 @@
 package com.slideindex.app.shake
 
-import android.content.Context
-import android.hardware.Sensor
 import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -15,21 +10,15 @@ import kotlin.math.sqrt
 /**
  * Shake detection aligned with com.ksxkq.floating.runtime.ShakeController (8.0.8):
  * gyroscope angular velocity thresholds per axis, 500ms cooldown, reverse-direction guard.
+ * 无陀螺仪的设备回退到加速度计差分。
  */
 class ShakeGestureDetector(
-    context: Context,
+    private val sensorHub: MotionSensorHub,
     private val onGestureDetected: (ShakeGestureType) -> Unit,
-) : SensorEventListener {
+) {
 
-    private val appContext = context.applicationContext
-    private val sensorManager = appContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-    private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private val sensorHandler = Handler(Looper.getMainLooper())
+    val isAvailable: Boolean get() = sensorHub.hasGyroscope || sensorHub.hasAccelerometer
 
-    val isAvailable: Boolean get() = gyroscope != null || accelerometer != null
-
-    private var activeSensor: Sensor? = null
     private var useAccelerometer = false
     private var globalSensitivity = 6.0f
     private var independentEnabled = false
@@ -41,6 +30,7 @@ class ShakeGestureDetector(
     private var lastAccel = floatArrayOf(0f, 0f, 0f)
     private var accelReady = false
 
+    @Synchronized
     fun setSensitivity(
         global: Float,
         independentEnabled: Boolean,
@@ -51,50 +41,37 @@ class ShakeGestureDetector(
         perDirectionSensitivity = perDirection
     }
 
+    @Synchronized
     fun start() {
-        stop()
-        useAccelerometer = gyroscope == null && accelerometer != null
+        if (listenerRegistered) return
+        useAccelerometer = !sensorHub.hasGyroscope && sensorHub.hasAccelerometer
         accelReady = false
-        val sensor = gyroscope ?: accelerometer
-        activeSensor = sensor
-        if (sensor == null) {
-            Log.w(TAG, "start: no gyroscope or accelerometer on device")
-            return
+        val kind = if (useAccelerometer) {
+            MotionSensorHub.Kind.ACCELEROMETER
+        } else {
+            MotionSensorHub.Kind.GYROSCOPE
         }
-        val registered = sensorManager.registerListener(
-            this,
-            sensor,
-            SensorManager.SENSOR_DELAY_GAME,
-            sensorHandler,
-        )
+        val registered = sensorHub.register(
+            kind = kind,
+            owner = this,
+            delayUs = SensorManager.SENSOR_DELAY_GAME,
+        ) { event ->
+            if (useAccelerometer) handleAccelerometer(event) else handleGyroscope(event)
+        }
         listenerRegistered = registered
-        Log.d(
-            TAG,
-            "start: sensor=${sensor.name} type=${sensor.type} accelFallback=$useAccelerometer registered=$registered",
-        )
+        Log.d(TAG, "start: kind=$kind accelFallback=$useAccelerometer registered=$registered")
     }
 
+    @Synchronized
     fun stop() {
-        if (listenerRegistered) {
-            sensorManager.unregisterListener(this)
-            listenerRegistered = false
-        }
-        activeSensor = null
+        sensorHub.unregister(this)
+        listenerRegistered = false
         lastTriggerTime = 0L
         lastDirection = null
         accelReady = false
     }
 
-    override fun onSensorChanged(event: SensorEvent?) {
-        event ?: return
-        when (event.sensor.type) {
-            Sensor.TYPE_GYROSCOPE -> handleGyroscope(event)
-            Sensor.TYPE_ACCELEROMETER -> handleAccelerometer(event)
-        }
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
-
+    @Synchronized
     private fun handleGyroscope(event: SensorEvent) {
         val gx = roundAxis(event.values[0])
         val gy = roundAxis(event.values[1])
@@ -103,6 +80,7 @@ class ShakeGestureDetector(
         emitGesture(direction)
     }
 
+    @Synchronized
     private fun handleAccelerometer(event: SensorEvent) {
         val ax = event.values[0]
         val ay = event.values[1]
@@ -149,7 +127,7 @@ class ShakeGestureDetector(
 
         lastTriggerTime = now
         lastDirection = direction
-        Log.d(TAG, "gesture detected: $direction (accel=$useAccelerometer)")
+        Log.d(TAG, "gesture detected: $direction")
         onGestureDetected(direction)
     }
 
@@ -192,7 +170,7 @@ class ShakeGestureDetector(
         private const val TAG = "ShakeGestureDetector"
         private const val NORMAL_COOLDOWN_MS = 500L
         private const val REVERSE_IGNORE_MS = 800L
-        /** Scales gyro rad/s thresholds to accelerometer delta m/s². */
+        /** 把界面上的 1～10 档阈值折算成加速度计差分阈值（沿用原陀螺仪阈值的换算系数）。 */
         private const val ACCEL_DELTA_SCALE = 0.35f
 
         /** Reference stores UI slider 1–10 directly as rad/s threshold. */

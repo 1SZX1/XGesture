@@ -15,6 +15,7 @@ import android.os.PowerManager
 import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.SettingsRepository
+import com.slideindex.app.shake.MotionSensorHub
 import com.slideindex.app.shake.ShakeActionPort
 import com.slideindex.app.shake.ShakeRuntimePort
 import com.slideindex.app.shake.ShakeVibrationHelper
@@ -31,7 +32,8 @@ class BackTapGestureHost @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val settingsRepository: SettingsRepository,
     private val actionPort: ShakeActionPort,
-    private val runtimePort: ShakeRuntimePort
+    private val runtimePort: ShakeRuntimePort,
+    private val sensorHub: MotionSensorHub
 ) {
     private var detector: BackTapDetector? = null
     private var settingsJob: Job? = null
@@ -92,7 +94,7 @@ class BackTapGestureHost @Inject constructor(
             return
         }
         detector?.stop()
-        detector = BackTapDetector(appContext) {
+        detector = BackTapDetector(appContext, sensorHub) {
             mainHandler.post {
                 val current = latestSettings ?: return@post
                 triggerAction(current.backTapSettings.action, current)

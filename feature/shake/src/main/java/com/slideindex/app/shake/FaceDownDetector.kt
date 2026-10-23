@@ -1,27 +1,15 @@
 package com.slideindex.app.shake
 
-import android.content.Context
-import android.hardware.Sensor
 import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 
 class FaceDownDetector(
-    context: Context,
+    private val sensorHub: MotionSensorHub,
     private val onTriggered: () -> Unit,
-) : SensorEventListener {
+) {
 
-    private val appContext = context.applicationContext
-    private val sensorManager = appContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private val proximity = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
-    private val gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-    private val sensorHandler = Handler(Looper.getMainLooper())
-
-    val isAvailable: Boolean get() = accelerometer != null
+    val isAvailable: Boolean get() = sensorHub.hasAccelerometer
     val isRunning: Boolean get() = listenerRegistered
 
     private var listenerRegistered = false
@@ -38,48 +26,46 @@ class FaceDownDetector(
     private var gyroStill = true
     private var hasGyroscope = false
 
+    @Synchronized
     fun configure(holdDurationMs: Long, requireProximity: Boolean) {
         this.holdDurationMs = FaceDownGestureSettings.clampHoldDurationMs(holdDurationMs)
         this.requireProximity = requireProximity
     }
 
+    @Synchronized
     fun start() {
-        stop()
-        val sensor = accelerometer
-        if (sensor == null) {
+        if (listenerRegistered) return
+        if (!sensorHub.hasAccelerometer) {
             Log.w(TAG, "start: no accelerometer")
             return
         }
-        hasProximitySensor = proximity != null
-        hasGyroscope = gyroscope != null
-        proximityMaxRange = proximity?.maximumRange ?: 0f
+        hasProximitySensor = sensorHub.hasProximity
+        hasGyroscope = sensorHub.hasGyroscope
+        proximityMaxRange = sensorHub.proximityMaxRange
         proximityNear = !hasProximitySensor
         gyroStill = !hasGyroscope
         accelReady = false
         holdStartMs = 0L
         peakAzSinceCycle = Float.NEGATIVE_INFINITY
 
-        var registered = sensorManager.registerListener(
+        var registered = sensorHub.register(
+            MotionSensorHub.Kind.ACCELEROMETER,
             this,
-            sensor,
             SensorManager.SENSOR_DELAY_NORMAL,
-            sensorHandler,
-        )
-        proximity?.let {
-            registered = sensorManager.registerListener(
+        ) { handleAccelerometer(it) }
+        if (hasProximitySensor) {
+            registered = sensorHub.register(
+                MotionSensorHub.Kind.PROXIMITY,
                 this,
-                it,
                 SensorManager.SENSOR_DELAY_NORMAL,
-                sensorHandler,
-            ) && registered
+            ) { handleProximity(it) } && registered
         }
-        gyroscope?.let {
-            registered = sensorManager.registerListener(
+        if (hasGyroscope) {
+            registered = sensorHub.register(
+                MotionSensorHub.Kind.GYROSCOPE,
                 this,
-                it,
                 SensorManager.SENSOR_DELAY_NORMAL,
-                sensorHandler,
-            ) && registered
+            ) { handleGyroscope(it) } && registered
         }
         listenerRegistered = registered
         Log.d(
@@ -89,27 +75,16 @@ class FaceDownDetector(
         )
     }
 
+    @Synchronized
     fun stop() {
-        if (listenerRegistered) {
-            sensorManager.unregisterListener(this)
-            listenerRegistered = false
-        }
+        sensorHub.unregister(this)
+        listenerRegistered = false
         holdStartMs = 0L
         accelReady = false
         peakAzSinceCycle = Float.NEGATIVE_INFINITY
     }
 
-    override fun onSensorChanged(event: SensorEvent?) {
-        event ?: return
-        when (event.sensor.type) {
-            Sensor.TYPE_ACCELEROMETER -> handleAccelerometer(event)
-            Sensor.TYPE_PROXIMITY -> handleProximity(event)
-            Sensor.TYPE_GYROSCOPE -> handleGyroscope(event)
-        }
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
-
+    @Synchronized
     private fun handleAccelerometer(event: SensorEvent) {
         val ax = event.values[0]
         val ay = event.values[1]
@@ -140,7 +115,7 @@ class FaceDownDetector(
             lastAccel[2] = az
             return
         }
-        if (requireProximity && hasProximitySensor && !proximityNear) {
+        if (hasProximitySensor && requireProximity && !proximityNear) {
             resetHold()
             lastAccel[0] = ax
             lastAccel[1] = ay
@@ -180,10 +155,12 @@ class FaceDownDetector(
         }
     }
 
+    @Synchronized
     private fun handleProximity(event: SensorEvent) {
         proximityNear = FaceDownClassifier.isProximityNear(event.values[0], proximityMaxRange)
     }
 
+    @Synchronized
     private fun handleGyroscope(event: SensorEvent) {
         gyroStill = FaceDownClassifier.isGyroStill(event.values[0], event.values[1], event.values[2])
     }

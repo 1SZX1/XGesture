@@ -1229,6 +1229,7 @@
     <string name="back_tap_mode_always">始终</string>
     <string name="back_tap_mode_screen_on">仅亮屏</string>
     <string name="back_tap_mode_screen_off">仅熄屏</string>
+    <string name="back_tap_mode_battery_hint">熄屏检测需要让 CPU 保持唤醒，会增加待机耗电。</string>
     <string name="back_tap_pause_charging">充电时暂停</string>
     <string name="back_tap_vibration_feedback">触发时震动</string>
     <string name="back_tap_enabled">启用背部双击</string>

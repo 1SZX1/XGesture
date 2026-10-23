@@ -6,13 +6,12 @@ package com.slideindex.app.backtap
  */
 
 import android.content.Context
-import android.hardware.Sensor
 import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import com.slideindex.app.shake.MotionSensorHub
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.sqrt
@@ -34,18 +33,10 @@ import kotlin.math.PI
  */
 class BackTapDetector(
     context: Context,
+    private val sensorHub: MotionSensorHub,
     private val onDoubleTap: () -> Unit
-) : SensorEventListener {
+) {
 
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    // 息屏后需使用唤醒传感器，否则非唤醒传感器可能被系统挂起导致无法感知口袋/遮挡
-    private val proximitySensor: Sensor? =
-        sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY, true)
-            ?: sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
-    private val lightSensor: Sensor? =
-        sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT, true)
-            ?: sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
     private val handler = Handler(Looper.getMainLooper())
     private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private var wakeLock: PowerManager.WakeLock? = null
@@ -71,7 +62,7 @@ class BackTapDetector(
     // 运行状态
     @Volatile private var isListening = false
     @Volatile private var isRegistered = false
-    private var activationMode = BackTapMode.ALWAYS
+    private var activationMode = BackTapMode.SCREEN_ON
     @Volatile private var isScreenOn = false
     @Volatile private var isPaused = false
     private var currentDelayUs = SensorManager.SENSOR_DELAY_FASTEST
@@ -136,7 +127,7 @@ class BackTapDetector(
             applyActivationState()
             // 部分设备息屏后会挂起非唤醒传感器，重新注册以恢复采样
             if (isListening && isRegistered && !isOn && wasOn) {
-                sensorManager.unregisterListener(this)
+                sensorHub.unregister(this)
                 registerSensors()
             }
         }
@@ -148,7 +139,7 @@ class BackTapDetector(
 
     fun start(sensitivity: Int, range: Int) {
         synchronized(this) {
-            if (isListening || accelerometer == null) return
+            if (isListening || !sensorHub.hasAccelerometer) return
             setSensitivity(sensitivity)
             setRange(range)
             reset()
@@ -160,7 +151,7 @@ class BackTapDetector(
     fun stop() {
         synchronized(this) {
             if (!isListening) return
-            if (isRegistered) sensorManager.unregisterListener(this)
+            if (isRegistered) sensorHub.unregister(this)
             releaseWakeLock()
             isListening = false
             isRegistered = false
@@ -187,12 +178,24 @@ class BackTapDetector(
     }
 
     private fun registerSensors() {
-        sensorManager.registerListener(this, accelerometer, currentDelayUs)
-        proximitySensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        sensorHub.register(
+            MotionSensorHub.Kind.ACCELEROMETER,
+            this,
+            currentDelayUs,
+        ) { processAccelerometer(it) }
+        if (sensorHub.hasProximity) {
+            sensorHub.register(
+                MotionSensorHub.Kind.PROXIMITY,
+                this,
+                SensorManager.SENSOR_DELAY_NORMAL,
+            ) { processProximity(it) }
         }
-        lightSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        if (sensorHub.hasLight) {
+            sensorHub.register(
+                MotionSensorHub.Kind.LIGHT,
+                this,
+                SensorManager.SENSOR_DELAY_NORMAL,
+            ) { processLight(it) }
         }
     }
 
@@ -200,7 +203,7 @@ class BackTapDetector(
         if (!isListening) return
         if (isPaused) {
             if (isRegistered) {
-                sensorManager.unregisterListener(this)
+                sensorHub.unregister(this)
                 isRegistered = false
                 releaseWakeLock()
                 reset()
@@ -219,7 +222,7 @@ class BackTapDetector(
                 isRegistered = true
             }
         } else if (isRegistered) {
-            sensorManager.unregisterListener(this)
+            sensorHub.unregister(this)
             isRegistered = false
             releaseWakeLock()
             reset()
@@ -272,15 +275,7 @@ class BackTapDetector(
         }
     }
 
-    override fun onSensorChanged(event: SensorEvent) {
-        if (!isRegistered) return
-        when (event.sensor.type) {
-            Sensor.TYPE_ACCELEROMETER -> processAccelerometer(event)
-            Sensor.TYPE_PROXIMITY -> processProximity(event)
-            Sensor.TYPE_LIGHT -> processLight(event)
-        }
-    }
-
+    @Synchronized
     private fun processAccelerometer(event: SensorEvent) {
         val x = event.values[0]
         val y = event.values[1]
@@ -308,7 +303,7 @@ class BackTapDetector(
         updateSustainedMotion(energy, t)
 
         // 4. 场景感知与动态采样率
-        val isPocket = isProximityNear && (lightSensor == null || lastLightLux < POCKET_LIGHT_LUX_THRESHOLD)
+        val isPocket = isProximityNear && (!sensorHub.hasLight || lastLightLux < POCKET_LIGHT_LUX_THRESHOLD)
         updateScene(energy, t, isPocket)
 
         // 5. 口袋/遮挡状态立即屏蔽敲击，避免误触发
@@ -361,12 +356,14 @@ class BackTapDetector(
         }
     }
 
+    @Synchronized
     private fun processProximity(event: SensorEvent) {
         // 多数设备的距离传感器只报告 0（近）和 maximumRange（远），按半阈值判断即可兼容
         val maxRange = event.sensor.maximumRange
         isProximityNear = event.values[0] < maxRange * 0.75f
     }
 
+    @Synchronized
     private fun processLight(event: SensorEvent) {
         lastLightLux = event.values[0]
     }
@@ -442,7 +439,6 @@ class BackTapDetector(
         synchronized(this) {
             currentDelayUs = target
             if (isRegistered) {
-                sensorManager.unregisterListener(this)
                 registerSensors()
             }
         }
@@ -461,8 +457,6 @@ class BackTapDetector(
             // gap < minGapNs：视为同一次物理敲击的残余，忽略
         }
     }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     private class HighPassFilter(private val cutoffHz: Float) {
         private var lastInput = 0f

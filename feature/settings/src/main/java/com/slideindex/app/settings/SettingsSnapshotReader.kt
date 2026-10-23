@@ -852,7 +852,13 @@ internal object SettingsSnapshotReader {
             enabled = prefs[SettingsPreferenceKeys.BACK_TAP_ENABLED] ?: false,
             sensitivity = intPreference(prefs, SettingsPreferenceKeys.BACK_TAP_SENSITIVITY, 5).coerceIn(1, 10),
             range = intPreference(prefs, SettingsPreferenceKeys.BACK_TAP_RANGE, 5).coerceIn(1, 10),
-            mode = BackTapMode.fromId(intPreference(prefs, SettingsPreferenceKeys.BACK_TAP_MODE, 0)),
+            mode = BackTapMode.fromId(
+                intPreference(
+                    prefs,
+                    SettingsPreferenceKeys.BACK_TAP_MODE,
+                    BackTapMode.SCREEN_ON.storageId,
+                )
+            ),
             pauseWhileCharging = prefs[SettingsPreferenceKeys.BACK_TAP_PAUSE_CHARGING] ?: false,
             vibrationFeedbackEnabled = prefs[SettingsPreferenceKeys.BACK_TAP_VIBRATION_FEEDBACK_ENABLED] ?: true,
             action = GestureAction.from(GestureActionType.fromId(actionType), actionPayload)

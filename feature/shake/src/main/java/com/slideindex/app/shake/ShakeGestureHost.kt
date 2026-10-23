@@ -26,6 +26,7 @@ class ShakeGestureHost @Inject constructor(
     private val runtimePort: ShakeRuntimePort,
     private val actionPort: ShakeActionPort,
     private val feedbackPort: ShakeFeedbackPort,
+    private val sensorHub: MotionSensorHub,
 ) {
     private var detector: ShakeGestureDetector? = null
     private var settingsJob: Job? = null
@@ -120,7 +121,7 @@ class ShakeGestureHost @Inject constructor(
             return
         }
 
-        val activeDetector = detector ?: ShakeGestureDetector(appContext) { type ->
+        val activeDetector = detector ?: ShakeGestureDetector(sensorHub) { type ->
             if (Looper.myLooper() == Looper.getMainLooper()) {
                 handleGestureDetected(type)
             } else {

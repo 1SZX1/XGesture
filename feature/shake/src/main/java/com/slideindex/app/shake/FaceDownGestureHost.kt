@@ -26,6 +26,7 @@ class FaceDownGestureHost @Inject constructor(
     private val runtimePort: ShakeRuntimePort,
     private val actionPort: ShakeActionPort,
     private val feedbackPort: ShakeFeedbackPort,
+    private val sensorHub: MotionSensorHub,
 ) {
     private var detector: FaceDownDetector? = null
     private var settingsJob: Job? = null
@@ -128,7 +129,7 @@ class FaceDownGestureHost @Inject constructor(
             return
         }
 
-        val activeDetector = detector ?: FaceDownDetector(appContext) {
+        val activeDetector = detector ?: FaceDownDetector(sensorHub) {
             if (Looper.myLooper() == Looper.getMainLooper()) {
                 handleFaceDownDetected()
             } else {

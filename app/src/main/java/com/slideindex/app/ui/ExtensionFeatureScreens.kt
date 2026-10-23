@@ -40,6 +40,7 @@ fun BackTapSettingsScreen(
     val backTap = settings.backTapSettings
     val scope = rememberCoroutineScope()
     val modeSectionTitle = stringResource(R.string.back_tap_mode)
+    val modeBatteryHint = stringResource(R.string.back_tap_mode_battery_hint)
     val sensitivityHint = stringResource(R.string.shake_gestures_sensitivity_hint)
 
     SettingsScreenScaffold(
@@ -150,6 +151,10 @@ fun BackTapSettingsScreen(
                     }
                 )
             }
+        )
+        settingsLazyHint(
+            key = "back-tap-mode-battery-hint",
+            text = modeBatteryHint
         )
         groupedCardItems(
             keyPrefix = "back-tap-options",
