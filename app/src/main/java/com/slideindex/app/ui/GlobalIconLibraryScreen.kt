@@ -1,6 +1,5 @@
 package com.slideindex.app.ui
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,14 +17,17 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -33,11 +35,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.slideindex.app.R
 import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.gesture.GestureActionType
 import com.slideindex.app.ui.miuix.MiuixTabRowWithContourInCard
 import com.slideindex.app.ui.settings.components.SettingsScreenScaffold
+import com.slideindex.app.ui.viewmodel.GlobalIconLibraryViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -47,24 +54,33 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 未设置时显示**默认图标**（动作类型图标 / 应用自带图标）。
  */
 @Composable
-fun GlobalIconLibraryScreen(onBack: () -> Unit) {
+fun GlobalIconLibraryScreen(
+    onBack: () -> Unit,
+    viewModel: GlobalIconLibraryViewModel = hiltViewModel(),
+) {
     val context = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
-    val installedApps = remember { loadInstalledAppIcons(context) }
+    val apps by viewModel.apps.collectAsStateWithLifecycle()
+
+    // 只有切到「应用」tab 才去拿应用列表（列表在后台线程取，首帧不再扫全量）。
+    LaunchedEffect(tab) {
+        if (tab == 1) viewModel.ensureAppsLoaded()
+    }
+
     // 用 catalog 的实例（而不是 enum）：这样有中文名和默认图标，同一类型只保留一个代表
-    val actions = remember {
+    val actions = remember(context) {
         val collator = java.text.Collator.getInstance(java.util.Locale.CHINA)
-        com.slideindex.app.ui.picker.GestureActionCatalog.build(
+        val built = com.slideindex.app.ui.picker.GestureActionCatalog.build(
             scope = com.slideindex.app.ui.picker.GestureActionCatalogScope.GesturePicker,
             catalogPolicy = com.slideindex.app.gesture.ActionPickerCatalogPolicy.EdgeGesture,
         )
             .distinctBy { it.type }
-            // 按中文名的拼音排序（而不是英文枚举名）
-            .sortedWith(
-                compareBy(collator) {
-                    com.slideindex.app.ui.gesturepicker.gestureActionLabelText(context, it)
-                },
-            )
+        // 每项只取一次文案：放进 comparator 会按比较次数反复 getString（约 700 次）
+        val labels = built.associateWith {
+            com.slideindex.app.ui.gesturepicker.gestureActionLabelText(context, it)
+        }
+        // 按中文名的拼音排序（而不是英文枚举名）
+        built.sortedWith(compareBy(collator) { labels.getValue(it) })
     }
 
     val actionsTabLabel = stringResource(R.string.global_icon_tab_actions)
@@ -94,18 +110,35 @@ fun GlobalIconLibraryScreen(onBack: () -> Unit) {
                     label = gestureActionLabel(action),
                     currentKey = GlobalIconStore.actionIcon(context, action.type.name),
                     defaultIcon = gestureActionIcon(action, outlined = true),
-                    defaultDrawable = null,
                     onPick = { key -> GlobalIconStore.setActionIcon(context, action.type.name, key) },
                     resetKey = "global:action:${action.type.name}",
                 )
             }
         } else {
-            items(items = installedApps, key = { "app-${it.packageName}" }) { app ->
+            if (apps.isEmpty()) {
+                // 列表在后台取：先占位，不阻塞首帧
+                // （原来是同步扫全量应用 + 逐包解码图标，实测首帧冻结 1.3–1.6 秒）。
+                item(key = "global-icon-apps-loading") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.loading),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                    }
+                }
+            }
+            items(items = apps, key = { "app-${it.packageName}" }) { app ->
                 GlobalIconRow(
                     label = app.label,
                     currentKey = GlobalIconStore.appIcon(context, app.packageName),
-                    defaultIcon = null,
-                    defaultDrawable = app.icon,
+                    iconBitmap = viewModel.icons[app.packageName],
+                    loadIcon = { viewModel.requestIcon(app.packageName) },
                     onPick = { key -> GlobalIconStore.setAppIcon(context, app.packageName, key) },
                     resetKey = "global:app:${app.packageName}",
                 )
@@ -115,23 +148,25 @@ fun GlobalIconLibraryScreen(onBack: () -> Unit) {
 }
 
 /**
- * 一行：图标（可点，弹完整来源菜单）+ 名称 + 「恢复默认」。
- *
- * 用本地 state 保证"选完立刻变"（写 store 不会触发重组）。
- */
-/**
  * 一行：Miuix 下拉行（整行可点）+ 左侧图标 + 「恢复默认」。
  *
+ * 用本地 state 保证"选完立刻变"（写 store 不会触发重组）；
  * 用 `WindowDropdownMenu`：整行点击展开 Miuix 菜单，菜单项就是完整来源列表。
+ *
+ * 图标优先级：字体图标 → 相册/应用落盘的 PNG（后台解码）→ 应用图标（后台缓存）→
+ * 默认矢量图标 → 首字。三种位图都**不在主线程解码**，那是首帧卡顿的来源。
  */
 @Composable
 private fun GlobalIconRow(
     label: String,
     currentKey: String?,
-    defaultIcon: ImageVector?,
-    defaultDrawable: android.graphics.drawable.Drawable?,
     onPick: (String?) -> Unit,
     resetKey: String,
+    defaultIcon: ImageVector? = null,
+    /** 应用图标（[GlobalIconLibraryViewModel] 已按 128px 在后台取好）。 */
+    iconBitmap: ImageBitmap? = null,
+    /** 应用图标未命中缓存时提交一次后台加载。 */
+    loadIcon: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var key by remember(label) { mutableStateOf(currentKey) }
@@ -166,25 +201,21 @@ private fun GlobalIconRow(
     }
 
     val fontIcon = remember(key) { IconFontCatalog.resolve(context, key) }
+    // 相册/应用图标落盘的是 PNG：解码必须离开主线程（原来在组合期直接 decodeFile）
     val keySnapshot = key
-    val bitmap: Bitmap? = remember(keySnapshot, defaultDrawable) {
-        if (keySnapshot != null && ActionIconKeyCodec.isFile(keySnapshot)) {
-            val path = keySnapshot.removePrefix("file:")
-            runCatching { android.graphics.BitmapFactory.decodeFile(path) }.getOrNull()
-        } else {
-            defaultDrawable?.let { drawable ->
-                runCatching {
-                    val w = drawable.intrinsicWidth.takeIf { it > 0 } ?: 96
-                    val h = drawable.intrinsicHeight.takeIf { it > 0 } ?: 96
-                    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                    val canvas = android.graphics.Canvas(bmp)
-                    drawable.setBounds(0, 0, w, h)
-                    drawable.draw(canvas)
-                    bmp
-                }.getOrNull()
+    val fileBitmap by produceState<ImageBitmap?>(initialValue = null, keySnapshot) {
+        value = if (keySnapshot != null && ActionIconKeyCodec.isFile(keySnapshot)) {
+            withContext(Dispatchers.IO) {
+                decodeIconFile(keySnapshot.removePrefix("file:"), GlobalIconLibraryViewModel.ICON_PX)
             }
+        } else {
+            null
         }
     }
+    if (loadIcon != null && iconBitmap == null) {
+        LaunchedEffect(Unit) { loadIcon() }
+    }
+    val shownBitmap = fileBitmap ?: iconBitmap
 
     val menuEntry = top.yukonga.miuix.kmp.basic.DropdownEntry(
         items = buildList {
@@ -266,8 +297,8 @@ private fun GlobalIconRow(
                             fontSize = 27.sp,
                             color = MiuixTheme.colorScheme.onSurface,
                         )
-                        bitmap != null -> Image(
-                            bitmap = bitmap.asImageBitmap(),
+                        shownBitmap != null -> Image(
+                            bitmap = shownBitmap,
                             contentDescription = null,
                             modifier = Modifier
                                 .size(40.dp)
@@ -366,3 +397,23 @@ private fun GlobalIconRow(
         )
     }
 }
+
+/**
+ * 解码「相册 / 应用图标」落盘的 PNG，按 [maxPx] 采样，**只在 IO 线程调用**。
+ *
+ * 这些文件往往是 512px 以上的原图，直接 `decodeFile` 到 40dp 的格子里既慢又占内存。
+ */
+private fun decodeIconFile(path: String, maxPx: Int): ImageBitmap? = runCatching {
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    android.graphics.BitmapFactory.decodeFile(path, bounds)
+    val target = maxPx.coerceAtLeast(1)
+    var sample = 1
+    while (
+        bounds.outWidth / (sample * 2) >= target &&
+        bounds.outHeight / (sample * 2) >= target
+    ) {
+        sample *= 2
+    }
+    val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+    android.graphics.BitmapFactory.decodeFile(path, options)?.asImageBitmap()
+}.getOrNull()
