@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.util.Log
+import android.widget.Toast
+import com.slideindex.app.R
 import com.slideindex.app.notification.NotificationHistoryIntentCapture
 import com.slideindex.app.util.TaskManagerUtil
 
@@ -42,8 +44,12 @@ class LaunchTrampolineActivity : Activity() {
                     }.onFailure { error ->
                         Log.w(TAG, "startActivity from trampoline failed", error)
                     }.isSuccess
-                    if (!started) {
-                        tryShellLaunch(launchIntent)
+                    if (!started && !tryShellLaunch(launchIntent)) {
+                        Toast.makeText(
+                            this,
+                            R.string.float_ball_action_failed,
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     }
                 }
                 !shortcutPackage.isNullOrBlank() && !shortcutId.isNullOrBlank() -> {
@@ -124,22 +130,29 @@ class LaunchTrampolineActivity : Activity() {
         return options.toBundle()
     }
 
-    private fun tryShellLaunch(launchIntent: Intent) {
-        val component = launchIntent.component ?: return
-        if (!TaskManagerUtil.hasPermission()) return
-        val started = TaskManagerUtil.runShellCommand(
-            "am",
-            "start",
-            "-n",
-            "${component.packageName}/${component.className}",
-            "-f",
-            "0x${Integer.toHexString(Intent.FLAG_ACTIVITY_NEW_TASK)}"
-        )
+    private fun tryShellLaunch(launchIntent: Intent): Boolean {
+        val component = launchIntent.component ?: return false
+        if (!TaskManagerUtil.hasPermission()) return false
+        val intentUri = runCatching {
+            launchIntent.toUri(Intent.URI_INTENT_SCHEME)
+        }.getOrNull()
+        val started = if (intentUri != null) {
+            // 用 intent URI 而不是 -n，避免丢掉 extras。
+            TaskManagerUtil.runShellCommand("am", "start", intentUri)
+        } else {
+            TaskManagerUtil.runShellCommand(
+                "am",
+                "start",
+                "-n",
+                "${component.packageName}/${component.className}",
+            )
+        }
         if (started) {
             Log.i(TAG, "launched via shell fallback: ${component.flattenToShortString()}")
         } else {
             Log.w(TAG, "shell fallback failed: ${component.flattenToShortString()}")
         }
+        return started
     }
 
     private fun launchPublishedShortcut(packageName: String, shortcutId: String) {

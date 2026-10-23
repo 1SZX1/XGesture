@@ -135,12 +135,32 @@ internal sealed interface ActivityLaunchStrategy : LaunchStrategy {
         override val label: String = "Root"
 
         override fun makeCommand(args: LaunchArgs): String {
-            val component = args.intent.component
-            if (component != null) {
-                return "am start -n ${component.flattenToShortString()}"
+            val intent = args.intent
+            val component = intent.component
+            val hasExtras = intent.extras?.isEmpty() == false
+            val uri = runCatching {
+                intent.toUri(Intent.URI_INTENT_SCHEME)
+            }.getOrNull()
+            val builder = StringBuilder("am start")
+            intent.action?.takeIf { it.isNotBlank() }?.let {
+                builder.append(" -a ").append(shellQuote(it))
             }
-            val uri = args.intent.toUri(Intent.URI_INTENT_SCHEME)
-            return "am start '$uri'"
+            intent.categories?.forEach { category ->
+                builder.append(" -c ").append(shellQuote(category))
+            }
+            if (intent.flags != 0) {
+                builder.append(" -f ").append(intent.flags)
+            }
+            when {
+                // 带 extras 的显式组件只能走 intent URI；action/categories/flags 已由上面的参数补上
+                uri != null && (component == null || hasExtras) ->
+                    builder.append(' ').append(shellQuote(uri))
+                component != null ->
+                    builder.append(" -n ").append(shellQuote(component.flattenToShortString()))
+                uri != null ->
+                    builder.append(' ').append(shellQuote(uri))
+            }
+            return builder.toString()
         }
     }
 }
@@ -164,3 +184,7 @@ internal fun ActivityLaunchStrategy.allowedForCurrentPrivilegeMode(): Boolean =
         }
         PrivilegeMode.SHIZUKU -> this !is RootLaunchStrategy
     }
+
+/** 单引号包裹；值里的单引号按 POSIX shell 规则转义。 */
+private fun shellQuote(value: String): String =
+    "'" + value.replace("'", "'\\''") + "'"

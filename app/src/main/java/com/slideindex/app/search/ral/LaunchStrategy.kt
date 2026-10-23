@@ -64,13 +64,8 @@ internal interface RootLaunchStrategy : CommandLaunchStrategy {
         PrivilegeGateway.isRootMode() && TaskManagerUtil.peekPrivilegedAccess()
 
     override suspend fun Context.tryLaunch(args: LaunchArgs): List<Throwable> {
-        val command = StringBuilder(makeCommand(args))
-        appendCommandExtras(command, args)
-        if (args.intent.flags != 0) {
-            command.append(" -f ${args.intent.flags}")
-        }
         val result = TaskManagerUtil.runShellCommandLine(
-            command.toString(),
+            makeCommand(args),
             useRoot = true,
             timeoutMs = TaskManagerShellExecutor.SHELL_COMMAND_TIMEOUT_MS,
         )
@@ -116,12 +111,5 @@ internal interface IterativeLaunchStrategy : LaunchStrategy {
             }
         }
         return errors
-    }
-}
-
-private fun appendCommandExtras(command: StringBuilder, args: LaunchArgs) {
-    command.append(" -a ${args.intent.action}")
-    args.intent.categories?.forEach { category ->
-        command.append(" -c \"$category\"")
     }
 }

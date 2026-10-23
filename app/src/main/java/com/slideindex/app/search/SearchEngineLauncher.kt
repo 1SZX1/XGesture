@@ -3,6 +3,7 @@ package com.slideindex.app.search
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.net.toUri
 import android.os.Handler
@@ -118,14 +119,18 @@ object SearchEngineLauncher {
             Toast.makeText(context, R.string.search_engine_query_empty, Toast.LENGTH_SHORT).show()
             return false
         }
-        val intent = buildOpenableUriIntent(normalized) ?: return false
-        return startActivity(
-            context = context,
-            intent = intent,
-            settings = settings,
-            longPressTriggered = longPressTriggered,
-            useTrampoline = PickResultUrl.isIntentUri(normalized)
-        )
+        val intent = buildOpenableUriIntent(normalized) ?: return launchFailed(context)
+        return when (resolveLaunchTarget(context, intent)) {
+            LaunchTarget.UNRESOLVED -> launchFailed(context)
+            LaunchTarget.PRIVILEGED -> launchPrivilegedIntent(context, intent, autoInputQuery = null)
+            LaunchTarget.DIRECT -> startActivity(
+                context = context,
+                intent = intent,
+                settings = settings,
+                longPressTriggered = longPressTriggered,
+                useTrampoline = PickResultUrl.isIntentUri(normalized)
+            )
+        }
     }
 
     private fun buildOpenableUriIntent(uri: String): Intent? {
@@ -160,20 +165,31 @@ object SearchEngineLauncher {
         val url = formatQuery(template, query)
         val targetPkg = engine.targetPackage?.takeIf { it.isNotBlank() }
             ?: engine.externJumpPackage?.takeIf { it.isNotBlank() }
-        val intent = buildViewIntent(url, targetPkg) ?: return false
-        val started = startActivity(
-            context,
-            intent,
-            settings,
-            longPressTriggered,
-            useTrampoline = isIntentUri(url),
-            fullscreenOverride = fullscreenOverride
-        )
+        val intent = buildViewIntent(url, targetPkg) ?: return launchFailed(context)
         val hasPlaceholder = template.contains("%s") || template.contains("%q")
-        if (started && engine.autoInputEnter && !hasPlaceholder) {
-            scheduleAutoInput(query)
+        val autoInput = engine.autoInputEnter && !hasPlaceholder
+        return when (resolveLaunchTarget(context, intent)) {
+            LaunchTarget.UNRESOLVED -> launchFailed(context)
+            LaunchTarget.PRIVILEGED -> launchPrivilegedIntent(
+                context = context,
+                intent = intent,
+                autoInputQuery = query.takeIf { autoInput },
+            )
+            LaunchTarget.DIRECT -> {
+                val started = startActivity(
+                    context,
+                    intent,
+                    settings,
+                    longPressTriggered,
+                    useTrampoline = isIntentUri(url),
+                    fullscreenOverride = fullscreenOverride
+                )
+                if (started && autoInput) {
+                    scheduleAutoInput(query)
+                }
+                started
+            }
         }
-        return started
     }
 
     private fun launchExternJump(
@@ -326,13 +342,66 @@ object SearchEngineLauncher {
     private fun parseIntentUri(uri: String, overridePackage: String? = null): Intent? =
         runCatching {
             Intent.parseUri(uri, Intent.URI_INTENT_SCHEME).apply {
-                addCategory(Intent.CATEGORY_BROWSABLE)
-                component = null
-                selector = null
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                overridePackage?.takeIf { it.isNotBlank() }?.let { setPackage(it) }
+                if (component == null) {
+                    overridePackage?.takeIf { it.isNotBlank() }?.let { setPackage(it) }
+                }
             }
         }.getOrNull()
+
+    private enum class LaunchTarget { DIRECT, PRIVILEGED, UNRESOLVED }
+
+    /**
+     * 显式组件：存在且导出就直接启动；未导出交给特权链路。
+     * 隐式 Intent：先确认有 Activity 能接，避免走到 trampoline 后才静默失败。
+     */
+    private fun resolveLaunchTarget(context: Context, intent: Intent): LaunchTarget {
+        val component = intent.component
+        if (component != null) {
+            val info = runCatching {
+                context.packageManager.getActivityInfo(
+                    component,
+                    PackageManager.MATCH_DISABLED_COMPONENTS,
+                )
+            }.getOrNull() ?: return LaunchTarget.UNRESOLVED
+            return if (info.exported || component.packageName == context.packageName) {
+                LaunchTarget.DIRECT
+            } else {
+                LaunchTarget.PRIVILEGED
+            }
+        }
+        return if (intent.resolveActivity(context.packageManager) != null) {
+            LaunchTarget.DIRECT
+        } else {
+            LaunchTarget.UNRESOLVED
+        }
+    }
+
+    private fun launchFailed(context: Context): Boolean {
+        Toast.makeText(context, R.string.float_ball_action_failed, Toast.LENGTH_SHORT).show()
+        return false
+    }
+
+    private fun launchPrivilegedIntent(
+        context: Context,
+        intent: Intent,
+        autoInputQuery: String?,
+    ): Boolean {
+        if (!TaskManagerUtil.hasPermission()) {
+            Toast.makeText(context, PrivilegeUiStrings.privilegedAccessRequiredRes(), Toast.LENGTH_LONG).show()
+            return false
+        }
+        NonExportedActivityLauncher.launch(context, intent) { success ->
+            if (!success) {
+                Toast.makeText(context, R.string.float_ball_action_failed, Toast.LENGTH_SHORT).show()
+            } else {
+                autoInputQuery?.takeIf { it.isNotBlank() }?.let {
+                    scheduleAutoInput(it, initialDelayMs = 700L, retryDelaysMs = listOf(600L, 900L))
+                }
+            }
+        }
+        return true
+    }
 
     private fun startActivity(
         context: Context,
