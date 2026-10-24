@@ -52,6 +52,7 @@ import com.slideindex.app.widget.WidgetPanelPage
 import com.slideindex.app.ui.miuix.CardSegment
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import com.slideindex.app.ui.miuix.groupedCardItems
+import com.slideindex.app.ui.settings.components.MiuixNavigationRow
 import com.slideindex.app.ui.settings.components.SettingNavigationRow
 import com.slideindex.app.ui.settings.components.SettingsCardSegmentContent
 import com.slideindex.app.ui.settings.components.SettingsCardScope
@@ -168,10 +169,10 @@ fun WidgetPanelSettingsContent(
       keyPrefix = "widget-panel-preview",
       items = listOf(
         settingsCardScopeItem("widget-panel-preview") {
-          SettingNavigationRow(
-            icon = { label -> Icon(HubLeadingIcons.widgetPanel(true), contentDescription = label) },
+          // 无前导图标：这枚图标与上一页入口行是同一个 Widgets 字形，放在页内不再承担区分作用。
+          MiuixNavigationRow(
             title = previewTitle,
-            subtitle = previewDesc,
+            summary = previewDesc,
             onClick = onPreviewWidget,
           )
         },
@@ -184,7 +185,6 @@ fun WidgetPanelSettingsContent(
           SettingExpandableSwitchRow(
             title = blurTitle,
             subtitle = blurDesc,
-            icon = { label -> Icon(HubLeadingIcons.widgetPanel(true), contentDescription = label) },
             checked = uiState.blurEnabled,
             enabled = true,
             onCheckedChange = onBlurEnabledChange,
