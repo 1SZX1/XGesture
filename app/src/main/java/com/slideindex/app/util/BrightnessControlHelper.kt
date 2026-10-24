@@ -75,6 +75,7 @@ object BrightnessControlHelper {
             )
             if (intResult.success) {
                 intResult.output.trim().toIntOrNull()?.let { level ->
+                    rememberObservedLevel(level)
                     return levelToFraction(appContext, level)
                 }
             }
@@ -99,6 +100,7 @@ object BrightnessControlHelper {
             Settings.System.SCREEN_BRIGHTNESS,
             255,
         )
+        rememberObservedLevel(level)
         val intFraction = levelToFraction(appContext, level)
         val floatVal = runCatching {
             Settings.System.getFloat(appContext.contentResolver, "screen_brightness_float")
@@ -119,23 +121,44 @@ object BrightnessControlHelper {
         return ((level - min).toFloat() / (max - min)).coerceIn(0f, 1f)
     }
 
+    /**
+     * 量程上限，按小米适配文档取单一来源，依次降级：
+     *
+     * 1. `PowerManager.BRIGHTNESS_ON`（@hide，反射）——文档口径：各版本、各机型都表示
+     *    `SCREEN_BRIGHTNESS` 最大值，多级调光机型上本身就是 1023/2047/4095/8192；
+     * 2. framework 配置 `config_screenBrightnessSettingMaximum`——只在第 1 条读不到时用；
+     * 3. 运行期观察到的最大读数——两个来源都拿不到时的证据，且不低于标准量程 255。
+     *
+     * 不再按当前亮度倒猜：那段逻辑四档里只有一档碰巧成立，会把量程算错一个数量级。
+     */
     @SuppressLint("DiscouragedApi")
     private fun brightnessMax(context: Context): Int {
+        brightnessOnValue().takeIf { it > 0 }?.let { return it }
+        configuredMax(context).takeIf { it > 0 }?.let { return it }
+        return maxOf(observedMaxLevel, BRIGHTNESS_ON_VALUE)
+    }
+
+    @SuppressLint("DiscouragedApi")
+    private fun configuredMax(context: Context): Int = runCatching {
         val res = context.resources
         val id = res.getIdentifier("config_screenBrightnessSettingMaximum", "integer", "android")
-        val configured = if (id != 0) res.getInteger(id) else 0
-        if (configured > 0) return configured
-        val currentLevel = Settings.System.getInt(
-            context.contentResolver,
-            Settings.System.SCREEN_BRIGHTNESS,
-            255,
-        )
-        return when {
-            currentLevel > 4095 -> 65535
-            currentLevel > 2047 -> 4095
-            currentLevel > 255 -> 2047
-            else -> 255
-        }
+        if (id != 0) res.getInteger(id) else 0
+    }.getOrDefault(0)
+
+    /** `PowerManager.BRIGHTNESS_ON`（@hide）：反射一次并缓存，读不到就返回 0。 */
+    private fun brightnessOnValue(): Int {
+        if (brightnessOnCached >= 0) return brightnessOnCached
+        val value = runCatching {
+            val field = android.os.PowerManager::class.java.getDeclaredField("BRIGHTNESS_ON")
+            field.isAccessible = true
+            field.getInt(null)
+        }.getOrDefault(0)
+        brightnessOnCached = value
+        return value
+    }
+
+    private fun rememberObservedLevel(level: Int) {
+        if (level > observedMaxLevel) observedMaxLevel = level
     }
 
     @SuppressLint("DiscouragedApi")
@@ -474,6 +497,14 @@ object BrightnessControlHelper {
 
     /** `PowerManager.BRIGHTNESS_ON`（隐藏常量，值恒为 255）：int 量程不超过它时属于单级调光。 */
     private const val BRIGHTNESS_ON_VALUE = 255
+
+    /** 反射读到的 `PowerManager.BRIGHTNESS_ON`；-1 表示还没读过。 */
+    @Volatile
+    private var brightnessOnCached = -1
+
+    /** 运行期观察到的最大亮度读数：只用来抬高上限，不压低。 */
+    @Volatile
+    private var observedMaxLevel = 0
 
     private val brightnessAdjExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
 
