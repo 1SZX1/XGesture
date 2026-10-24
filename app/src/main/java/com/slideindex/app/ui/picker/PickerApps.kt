@@ -28,8 +28,9 @@ object PickerApps {
         appRepository: AppRepository,
         freezerTargets: Set<String>,
         force: Boolean = false,
+        includeClones: Boolean = true,
     ): List<AppInfo> = withContext(Dispatchers.IO) {
-        decorate(context, appRepository.loadApps(force = force), freezerTargets)
+        decorate(context, appRepository.loadApps(force = force), freezerTargets, includeClones)
     }
 
     /** 缓存优先；缓存为空（冷启动）时退回一次真实加载。 */
@@ -37,23 +38,34 @@ object PickerApps {
         context: Context,
         appRepository: AppRepository,
         freezerTargets: Set<String>,
+        includeClones: Boolean = true,
     ): List<AppInfo> = withContext(Dispatchers.IO) {
         val cached = appRepository.getCachedApps()
         if (cached.isEmpty()) {
-            decorate(context, appRepository.loadApps(), freezerTargets)
+            decorate(context, appRepository.loadApps(), freezerTargets, includeClones)
         } else {
-            decorate(context, cached, freezerTargets)
+            decorate(context, cached, freezerTargets, includeClones)
         }
     }
 
+    /**
+     * [includeClones] = false 用于「按包名」的配置页（隐藏应用、黑名单、按应用分档、图标覆盖……）：
+     * 那些页面的存储键是包名，列出分身会让人以为能给分身单独设置，实际会作用到主实例；
+     * 但它们仍然需要冻结/暂停角标，所以只补状态、不补分身条目。
+     */
     fun decorate(
         context: Context,
         base: List<AppInfo>,
         freezerTargets: Set<String>,
+        includeClones: Boolean = true,
     ): List<AppInfo> {
         if (base.isEmpty()) return base
-        val enriched = CloneAppsIndex.enrich(base) { label, kind ->
-            context.getString(CloneAppsIndex.labelRes(kind), label)
+        val enriched = if (includeClones) {
+            CloneAppsIndex.enrich(base) { label, kind ->
+                context.getString(CloneAppsIndex.labelRes(kind), label)
+            }
+        } else {
+            base
         }
         return FreezerOperations.applyFreezerStates(context, enriched, freezerTargets)
             .sortedBy { it.pinyinKey }

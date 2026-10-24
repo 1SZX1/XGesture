@@ -12,7 +12,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
+import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,7 +33,7 @@ fun MessageReminderDndAppsScreen(
     onAddPackage: (String) -> Unit,
     onRemovePackage: (String) -> Unit,
 ) {
-    val allApps by collectLaunchableAppsAsState()
+    val allApps by collectPickerAppsAsState(includeClones = false)
     var searchQuery by remember { mutableStateOf("") }
     val isLoading = allApps.isEmpty()
 

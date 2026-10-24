@@ -31,7 +31,7 @@ import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.ExcludedAppScopes
-import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
+import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.picker.ActivityShortcutPickAppScreen
 import com.slideindex.app.ui.miuix.CardItem
@@ -53,7 +53,7 @@ fun ExcludedAppsScreen(
     onExcludedAppScopesChange: (String, ExcludedAppScopes) -> Unit
 ) {
     val appRepository = rememberAppRepository()
-    val allApps by collectLaunchableAppsAsState()
+    val allApps by collectPickerAppsAsState(includeClones = false)
     var editingEntry by remember { mutableStateOf<EditingExcludedApp?>(null) }
     val isLoading = allApps.isEmpty()
 

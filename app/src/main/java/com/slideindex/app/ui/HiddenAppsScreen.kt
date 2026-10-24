@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.settings.components.SettingsCardScope
 import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffoldWithExpandableSearch
@@ -38,14 +39,12 @@ fun HiddenAppsScreen(
     titleRes: Int = R.string.hidden_apps_title,
     descriptionRes: Int = R.string.hidden_apps_desc
 ) {
-    val appRepository = rememberAppRepository()
-    var allApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    val allApps by collectPickerAppsAsState(includeClones = false)
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        allApps = appRepository.loadApps(force = true)
-        isLoading = false
+    LaunchedEffect(allApps) {
+        if (allApps.isNotEmpty()) isLoading = false
     }
 
     val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }

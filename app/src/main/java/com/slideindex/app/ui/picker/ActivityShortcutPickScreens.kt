@@ -44,7 +44,7 @@ import com.slideindex.app.ui.PickerListHorizontalPadding
 import com.slideindex.app.ui.PickerSearchListHeader
 import com.slideindex.app.ui.PickerTrailingMode
 import com.slideindex.app.ui.SearchBar
-import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
+import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.pickerListSegmentedGap
 import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffoldWithExpandableSearch
@@ -71,7 +71,7 @@ fun ActivityShortcutPickAppScreen(
     showSystemAppsOption: Boolean = true,
 ) {
     val appRepository = rememberAppRepository()
-    val apps by collectLaunchableAppsAsState()
+    val apps by collectPickerAppsAsState(includeClones = false)
     val loading = apps.isEmpty()
     var query by remember { mutableStateOf("") }
     // 系统应用默认不显示：打开开关才枚举（仓库内每进程缓存一次），仅会话级，不落设置

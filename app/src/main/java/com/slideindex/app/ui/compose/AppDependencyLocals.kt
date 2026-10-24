@@ -36,15 +36,16 @@ fun collectLaunchableAppsAsState(): State<List<AppInfo>> {
 }
 
 /**
- * 带分身的可启动应用列表（选择器用）。
+ * 挑应用页面统一的数据源（状态版）：可启动列表 + 冻结/暂停状态，按需补分身条目。
  *
- * 分身枚举要走 LauncherApps / 特权 shell，冻结/暂停状态也要按 user 查，所以放到 IO 线程异步补；
- * 首帧先给主列表，避免选择器打开被枚举阻塞。
- *
- * 这里顺手把冰箱成员的实时状态也补上：否则同一个应用在冰箱/索引里有角标，在挑应用的地方没有。
+ * - `includeClones = true`：目标按 `(包名, userId)` 存（动作、快捷启动器、蜂窝、小组件面板、
+ *   展开面板、圆环槽位……），列出分身有意义；
+ * - `includeClones = false`：页面按**包名**存（隐藏应用、黑名单、按应用分档、图标覆盖、
+ *   消息提醒、全息桌面……）。仍然需要冻结/暂停角标，但不能列分身——否则用户会以为
+ *   能给分身单独设置，实际却作用在主实例上。
  */
 @Composable
-fun collectLaunchableAppsWithClonesAsState(): State<List<AppInfo>> {
+fun collectPickerAppsAsState(includeClones: Boolean = true): State<List<AppInfo>> {
     val repository = rememberAppRepository()
     val settingsRepository = rememberSettingsRepository()
     val appContext = LocalContext.current.applicationContext
@@ -53,15 +54,24 @@ fun collectLaunchableAppsWithClonesAsState(): State<List<AppInfo>> {
         initialValue = settingsRepository.readSnapshot(),
     )
     val freezerTargets = settings.freezerAppPackages
-    val state = remember(apps, freezerTargets) { mutableStateOf(apps) }
-    LaunchedEffect(apps, freezerTargets) {
+    val state = remember(apps, freezerTargets, includeClones) { mutableStateOf(apps) }
+    LaunchedEffect(apps, freezerTargets, includeClones) {
         state.value = withContext(Dispatchers.IO) {
-            com.slideindex.app.ui.picker.PickerApps.decorate(appContext, apps, freezerTargets)
+            com.slideindex.app.ui.picker.PickerApps.decorate(
+                appContext,
+                apps,
+                freezerTargets,
+                includeClones,
+            )
         }
     }
     return state
 }
 
+/** 带分身的可启动列表（目标型选择器用），语义等同 [collectPickerAppsAsState]。 */
+@Composable
+fun collectLaunchableAppsWithClonesAsState(): State<List<AppInfo>> =
+    collectPickerAppsAsState(includeClones = true)
 @Composable
 fun rememberSettingsRepository(): SettingsRepository = rememberAppDependencies().settingsRepository
 

@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
 import com.slideindex.app.message.MessageSettings
-import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
+import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import com.slideindex.app.ui.miuix.groupedCardItems
 import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffoldWithExpandableSearch
 import com.slideindex.app.ui.settings.components.SettingsSliderRow
@@ -37,7 +37,7 @@ fun MessageReminderUnlockRulesScreen(
     onUnlockConfirmationAutoDismissSecondsChange: (Int) -> Unit,
     onUnlockOpenDelayMsChange: (Int) -> Unit,
 ) {
-    val allApps by collectLaunchableAppsAsState()
+    val allApps by collectPickerAppsAsState(includeClones = false)
     var searchQuery by remember { mutableStateOf("") }
     val controlsEnabled = settings.enabled && settings.openLastMessageOnUnlock
     val neverDismissLabel = stringResource(R.string.message_reminder_unlock_auto_dismiss_never)

@@ -25,6 +25,7 @@ import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
 import com.slideindex.app.settings.HolographicAppMode
 import com.slideindex.app.settings.HolographicLauncherSettings
+import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.miuix.miuixGroupedCardItem
 import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffoldWithExpandableSearch
@@ -55,14 +56,12 @@ fun HolographicLauncherAppsScreen(
     onRemoveApp: (String) -> Unit,
     onSetSelection: (List<String>) -> Unit,
 ) {
-    val appRepository = rememberAppRepository()
-    var allApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    val allApps by collectPickerAppsAsState(includeClones = false)
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        allApps = appRepository.loadApps(force = false)
-        isLoading = false
+    LaunchedEffect(allApps) {
+        if (allApps.isNotEmpty()) isLoading = false
     }
 
     val selectedSet = remember(selectedPackages) { selectedPackages.toSet() }
