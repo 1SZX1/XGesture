@@ -275,22 +275,6 @@ internal object ThinActionIcons {
         }
     }
 
-    val QuickTools: ImageVector by lazy {
-        createThinIcon("ThinQuickTools") {
-            path(
-                stroke = strokeBrush,
-                strokeLineWidth = STROKE_WIDTH,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round,
-            ) {
-                moveTo(4.5f, 4.5f); lineTo(9.5f, 4.5f); lineTo(9.5f, 9.5f); lineTo(4.5f, 9.5f); close()
-                moveTo(14.5f, 4.5f); lineTo(19.5f, 4.5f); lineTo(19.5f, 9.5f); lineTo(14.5f, 9.5f); close()
-                moveTo(4.5f, 14.5f); lineTo(9.5f, 14.5f); lineTo(9.5f, 19.5f); lineTo(4.5f, 19.5f); close()
-                moveTo(14.5f, 14.5f); lineTo(19.5f, 14.5f); lineTo(19.5f, 19.5f); lineTo(14.5f, 19.5f); close()
-            }
-        }
-    }
-
     val QuickMenu: ImageVector by lazy {
         createThinIcon("ThinQuickMenu") {
             path(

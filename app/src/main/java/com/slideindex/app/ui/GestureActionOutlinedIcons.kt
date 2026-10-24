@@ -1,6 +1,7 @@
 package com.slideindex.app.ui
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SwapVert
@@ -39,7 +40,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.SHELL_COMMAND_PANEL -> ThinActionIcons.Code
     GestureActionType.EXECUTE_SHELL_COMMAND -> ThinActionIcons.PlayCircle
     GestureActionType.RUN_MACRO -> ThinActionIcons.PlayCircle
-    GestureActionType.QUICK_TOOLS_OVERLAY -> ThinActionIcons.QuickTools
+    GestureActionType.QUICK_TOOLS_OVERLAY -> Icons.Outlined.Handyman
     GestureActionType.QUICK_MENU -> ThinActionIcons.QuickMenu
     GestureActionType.WIDGET_POPUP_OVERLAY -> ThinActionIcons.Widgets
     GestureActionType.OPEN_STASH_PANEL -> ThinActionIcons.Inventory
@@ -144,7 +145,7 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.SHELL_COMMAND_PANEL -> ThinActionIcons.Code
     GestureActionType.EXECUTE_SHELL_COMMAND -> ThinActionIcons.Code
     GestureActionType.RUN_MACRO -> ThinActionIcons.PlayCircle
-    GestureActionType.QUICK_TOOLS_OVERLAY -> ThinActionIcons.QuickTools
+    GestureActionType.QUICK_TOOLS_OVERLAY -> Icons.Outlined.Handyman
     GestureActionType.QUICK_MENU -> ThinActionIcons.QuickMenu
     GestureActionType.WIDGET_POPUP_OVERLAY -> ThinActionIcons.Widgets
     GestureActionType.OPEN_STASH_PANEL -> ThinActionIcons.Inventory

@@ -2,6 +2,8 @@ package com.slideindex.app.overlay.quickwheel
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -45,7 +47,7 @@ object QuickWheelIconResolver {
         QuickWheelLibraryIcon("globe", ThinActionIcons.Globe),
         QuickWheelLibraryIcon("widgets", ThinActionIcons.Widgets),
         QuickWheelLibraryIcon("inventory", ThinActionIcons.Inventory),
-        QuickWheelLibraryIcon("quick_tools", ThinActionIcons.QuickTools),
+        QuickWheelLibraryIcon("quick_tools", Icons.Outlined.Handyman),
         QuickWheelLibraryIcon("free_window", ThinActionIcons.FreeWindow),
         QuickWheelLibraryIcon("code", ThinActionIcons.Code),
         QuickWheelLibraryIcon("play_circle", ThinActionIcons.PlayCircle),
