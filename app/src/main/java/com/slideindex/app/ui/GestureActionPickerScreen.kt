@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -28,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
 import com.slideindex.app.gesture.GestureAction
+import com.slideindex.app.freezer.FreezerOperations
 import com.slideindex.app.gesture.ActionPickerCatalogPolicy
 import com.slideindex.app.gesture.GestureTriggerType
 import com.slideindex.app.gesture.LaunchWindowMode
@@ -91,6 +93,7 @@ fun GestureActionPickerScreen(
     val appSettings by extensionViewModel.settings.collectAsStateWithLifecycle()
     val activityShortcuts = appSettings.activityShortcuts
     val appRepository = rememberAppRepository()
+    val context = LocalContext.current
     var allApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
 
     val handleBack: () -> Unit = {
@@ -136,7 +139,8 @@ fun GestureActionPickerScreen(
     LaunchedEffect(Unit) {
         withFrameNanos { }
         allApps = withContext(Dispatchers.IO) {
-            com.slideindex.app.overlay.CloneAppsIndex.enrich(appRepository.loadApps(force = true))
+            val loaded = com.slideindex.app.overlay.CloneAppsIndex.enrich(appRepository.loadApps(force = true))
+            FreezerOperations.applyFreezerStates(context, loaded, appSettings.freezerAppPackages)
         }
     }
 

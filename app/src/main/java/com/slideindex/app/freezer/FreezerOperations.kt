@@ -106,6 +106,28 @@ object FreezerOperations {
     fun isProtectedPackage(context: Context, packageName: String): Boolean =
         FreezerPrivilegedOps.isProtectedPackage(context, packageName)
 
+    /**
+     * 给列表里的冰箱成员补上**实时**的冻结 / 暂停状态（按目标，分身查自己的 user）。
+     *
+     * 选择操作类型、环、快捷启动器这些列表拿到的 `AppInfo` 来自可启动列表，默认不带状态；
+     * 不补的话，同一个应用在冰箱里有角标、在这些列表里没有。
+     */
+    fun applyFreezerStates(
+        context: Context,
+        apps: List<AppInfo>,
+        targets: Set<String>,
+    ): List<AppInfo> {
+        if (targets.isEmpty()) return apps
+        return apps.map { app ->
+            if (keyOf(app) in targets) {
+                val state = stateOf(context, app)
+                app.copy(isFrozen = state.isFrozen, isPaused = state.isPaused)
+            } else {
+                app
+            }
+        }
+    }
+
     suspend fun setFrozen(context: Context, app: AppInfo, frozen: Boolean): Boolean =
         setFrozen(context, targetOf(app), frozen)
 

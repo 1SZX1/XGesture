@@ -5,6 +5,7 @@ package com.slideindex.app.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,10 +15,13 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.automirrored.filled.Shortcut
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -38,12 +42,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -510,42 +517,82 @@ fun Md3PickerPackageLeading(
 @Composable
 fun Md3PickerAppLeading(app: AppInfo) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    // 全局图标覆盖优先（扩展 → 图标库 → 应用图标）
-    val iconOverride = remember(app.packageName) {
-        GlobalIconStore.appIcon(context, app.packageName)
+    val inactive = app.isFrozen || app.isPaused
+    val grayscale = if (inactive) {
+        ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+    } else {
+        null
     }
-    if (iconOverride != null) {
-        ActionIconView(
-            action = com.slideindex.app.gesture.GestureAction.LaunchApp(
-                app.packageName,
-                cloneUserId = app.cloneUserId,
-            ),
-            iconKey = iconOverride,
-            sizeDp = 40,
-            // 与其它真实图标保持一致：不画底色方块。
-            showBackground = false,
-        )
-        return
-    }
-    var bitmap by remember(app.packageName) {
-        mutableStateOf(PickerAppIconBitmap.peek(app.packageName))
-    }
-    var failed by remember(app.packageName) { mutableStateOf(false) }
-    LaunchedEffect(app.packageName) {
-        if (bitmap == null && !failed) {
-            val loaded = PickerAppIconBitmap.load(context, app.packageName)
-            if (loaded == null) {
-                failed = true
-            } else {
-                bitmap = loaded
+    // 选择操作类型 / 环 / 快捷启动器添加页共用这个 leading：冻结、暂停、分身的状态
+    // 必须在这里统一画出来，否则同一个应用在不同列表里的样子会不一致。
+    Box(modifier = Modifier.size(40.dp)) {
+        // 全局图标覆盖优先（扩展 → 图标库 → 应用图标）
+        val iconOverride = remember(app.packageName) {
+            GlobalIconStore.appIcon(context, app.packageName)
+        }
+        if (iconOverride != null) {
+            ActionIconView(
+                action = com.slideindex.app.gesture.GestureAction.LaunchApp(
+                    app.packageName,
+                    cloneUserId = app.cloneUserId,
+                ),
+                iconKey = iconOverride,
+                sizeDp = 40,
+                // 与其它真实图标保持一致：不画底色方块。
+                showBackground = false,
+            )
+        } else {
+            var bitmap by remember(app.packageName) {
+                mutableStateOf(PickerAppIconBitmap.peek(app.packageName))
+            }
+            var failed by remember(app.packageName) { mutableStateOf(false) }
+            LaunchedEffect(app.packageName) {
+                if (bitmap == null && !failed) {
+                    val loaded = PickerAppIconBitmap.load(context, app.packageName)
+                    if (loaded == null) {
+                        failed = true
+                    } else {
+                        bitmap = loaded
+                    }
+                }
+            }
+            Md3PickerBitmapLeading(
+                bitmap = bitmap,
+                failed = failed,
+                contentDescription = app.label,
+                colorFilter = grayscale,
+            )
+        }
+        // 分身标记：右上角黄点，与索引 / 搜索面板同色。
+        if (app.isClone) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(9.dp)
+                    .background(Color(0xFFFFC107), CircleShape)
+                    .border(1.dp, Color(0xB3000000), CircleShape),
+            )
+        }
+        // 冻结 / 暂停：右下角，与冰箱网格、搜索面板一致。
+        if (inactive) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(16.dp)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (app.isPaused) Icons.Default.Pause else Icons.Default.AcUnit,
+                    contentDescription = stringResource(
+                        if (app.isPaused) R.string.freezer_status_paused else R.string.freezer_status_frozen,
+                    ),
+                    modifier = Modifier.size(11.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }
-    Md3PickerBitmapLeading(
-        bitmap = bitmap,
-        failed = failed,
-        contentDescription = app.label,
-    )
 }
 
 @Composable
@@ -583,6 +630,7 @@ private fun Md3PickerBitmapLeading(
     bitmap: ImageBitmap?,
     failed: Boolean,
     contentDescription: String,
+    colorFilter: ColorFilter? = null,
 ) {
     when {
         bitmap != null -> {
@@ -593,6 +641,7 @@ private fun Md3PickerBitmapLeading(
                     .size(40.dp)
                     .clip(RoundedCornerShape(10.dp)),
                 contentScale = ContentScale.Fit,
+                colorFilter = colorFilter,
             )
         }
         failed -> {
