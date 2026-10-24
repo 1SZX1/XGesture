@@ -307,6 +307,7 @@
             android:name=".service.CloneLaunchTrampolineActivity"
             android:excludeFromRecents="true"
             android:exported="false"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/Theme.SlideIndex.Transparent" />
 
