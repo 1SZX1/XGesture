@@ -21,10 +21,16 @@ import android.view.WindowManager
  */
 class CloneLaunchTrampolineActivity : Activity() {
     private var launched = false
+    private var pausedSinceLaunch = false
     private var packageName: String = ""
     private var userId: Int = 0
 
     private val finishRunnable = Runnable { finish() }
+
+    /** 发起后 3s 内没有任何界面盖上来，说明系统根本没弹选择器：直接收掉，别挡屏幕。 */
+    private val noCoverFinishRunnable = Runnable {
+        if (!pausedSinceLaunch) finish()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,7 +48,9 @@ class CloneLaunchTrampolineActivity : Activity() {
         setIntent(intent)
         // 上一次的跳板还没收掉时，新的点击会复用这个实例：必须重新读目标再发一次。
         launched = false
+        pausedSinceLaunch = false
         window.decorView.removeCallbacks(finishRunnable)
+        window.decorView.removeCallbacks(noCoverFinishRunnable)
         readTarget(intent)
         maybeLaunch()
     }
@@ -55,7 +63,22 @@ class CloneLaunchTrampolineActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // 已经发起过启动、又被选择器/确认框盖住后回到自己：说明用户取消了。
+        // 这时必须立刻退出，否则这层透明 Activity 会一直挡着下面的界面。
+        if (launched && pausedSinceLaunch) {
+            finish()
+            return
+        }
         maybeLaunch()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (launched) {
+            pausedSinceLaunch = true
+            // 已经有界面盖上来（选择器/确认框），撤掉“无界面就自尽”的兜底。
+            window.decorView.removeCallbacks(noCoverFinishRunnable)
+        }
     }
 
     private fun maybeLaunch() {
@@ -69,10 +92,12 @@ class CloneLaunchTrampolineActivity : Activity() {
         // 发起者提前销毁会让用户确认之后只拿到 START_CANCELED（Flyme 实测 -93）。
         // 窗口不可触摸，所以即使保活也不会挡住后续操作。
         window.decorView.postDelayed(finishRunnable, FINISH_TIMEOUT_MS)
+        window.decorView.postDelayed(noCoverFinishRunnable, NO_COVER_FINISH_MS)
     }
 
     override fun onDestroy() {
         window.decorView.removeCallbacks(finishRunnable)
+        window.decorView.removeCallbacks(noCoverFinishRunnable)
         super.onDestroy()
     }
 
@@ -93,6 +118,7 @@ class CloneLaunchTrampolineActivity : Activity() {
         private const val TAG = "CloneLaunchTrampoline"
         private const val PER_USER_RANGE = 100_000
         private const val FINISH_TIMEOUT_MS = 60_000L
+        private const val NO_COVER_FINISH_MS = 3_000L
         private const val EXTRA_PACKAGE = "clone_package"
         private const val EXTRA_USER_ID = "clone_user_id"
 
