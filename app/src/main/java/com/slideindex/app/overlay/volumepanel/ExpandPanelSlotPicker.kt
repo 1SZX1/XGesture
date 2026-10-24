@@ -340,7 +340,7 @@ fun ExpandPanelSlotPicker(
                                 )
                             }
                         } else {
-                            items(filteredApps.size, key = { filteredApps[it].packageName }) { index ->
+                            items(filteredApps.size, key = { com.slideindex.app.freezer.FreezerOperations.keyOf(filteredApps[it]) }) { index ->
                                 val app = filteredApps[index]
                                 val currentLaunchApp = currentAction as? GestureAction.LaunchApp
                                 val selected = currentLaunchApp?.packageName == app.packageName &&

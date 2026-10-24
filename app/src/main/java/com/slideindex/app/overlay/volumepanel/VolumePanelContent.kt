@@ -142,7 +142,9 @@ fun VolumePanelContent(
         }
     }
     LaunchedEffect(deps) {
-        allApps = deps?.appRepository?.loadApps().orEmpty()
+        val repository = deps?.appRepository ?: return@LaunchedEffect
+        val targets = deps.settingsRepository.readFreshSnapshot().freezerAppPackages
+        allApps = com.slideindex.app.ui.picker.PickerApps.load(context, repository, targets)
     }
 
     fun runSlotAction(action: GestureAction, longPressArmed: Boolean = false) {

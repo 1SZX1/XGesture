@@ -134,14 +134,9 @@ object RingLauncherOverlayWindow {
         // 圆环槽位的应用列表要和动作选择 / 索引一致：带分身条目、带冻结 / 暂停状态。
         // enrich 会查 LauncherApps / shell，放 IO 线程，算完再回主线程弹窗。
         settingsScope.launch {
-            val enriched = com.slideindex.app.overlay.CloneAppsIndex.enrich(
-                deps.appRepository.getCachedApps(),
-            ) { label, kind ->
-                hostContext.getString(com.slideindex.app.overlay.CloneAppsIndex.labelRes(kind), label)
-            }
-            val apps = com.slideindex.app.freezer.FreezerOperations.applyFreezerStates(
+            val apps = com.slideindex.app.ui.picker.PickerApps.fromCached(
                 hostContext,
-                enriched,
+                deps.appRepository,
                 settings.freezerAppPackages,
             )
             mainHandler.post {

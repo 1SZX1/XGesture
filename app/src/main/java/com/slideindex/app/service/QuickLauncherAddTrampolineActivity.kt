@@ -58,8 +58,13 @@ class QuickLauncherAddTrampolineActivity : ComponentActivity() {
             var appSettings by remember { mutableStateOf(AppSettings()) }
             var dismissRequest by remember { mutableStateOf<(() -> Unit)?>(null) }
             LaunchedEffect(Unit) {
-                val base = if (apps.isEmpty()) deps.appRepository.loadApps() else apps
-                apps = com.slideindex.app.overlay.CloneAppsIndex.enrich(base)
+                val snapshot = deps.settingsRepository.readFreshSnapshot()
+                appSettings = snapshot
+                apps = com.slideindex.app.ui.picker.PickerApps.fromCached(
+                    this@QuickLauncherAddTrampolineActivity,
+                    deps.appRepository,
+                    snapshot.freezerAppPackages,
+                )
                 launch {
                     deps.settingsRepository.settings.collect { settings ->
                         appSettings = settings
