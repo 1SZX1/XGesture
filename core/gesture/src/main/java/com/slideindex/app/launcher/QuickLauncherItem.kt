@@ -22,12 +22,45 @@ enum class QuickLauncherItemType(val id: Int) {
     }
 }
 
+/**
+ * 应用条目 / 启动动作的目标：主实例（user 0）或某个分身空间。
+ *
+ * 编码只用于 payload 字符串：主实例保持裸包名（旧数据完全兼容），
+ * 分身追加 `\u0002<userId>`；包名本身不可能包含控制字符，解析无歧义。
+ */
+data class AppTarget(
+    val packageName: String,
+    val cloneUserId: Int = 0,
+) {
+    val isClone: Boolean get() = cloneUserId > 0
+
+    companion object {
+        private const val CLONE_SEP = "\u0002"
+
+        fun encode(packageName: String, cloneUserId: Int): String =
+            if (cloneUserId > 0) "$packageName$CLONE_SEP$cloneUserId" else packageName
+
+        fun parse(payload: String): AppTarget {
+            if (payload.isEmpty()) return AppTarget(payload)
+            val sep = payload.lastIndexOf(CLONE_SEP)
+            if (sep <= 0 || sep >= payload.lastIndex) return AppTarget(payload)
+            val userId = payload.substring(sep + 1).toIntOrNull()
+            if (userId == null || userId <= 0) return AppTarget(payload)
+            return AppTarget(payload.substring(0, sep), userId)
+        }
+    }
+}
+
 data class QuickLauncherItem(
     val type: QuickLauncherItemType,
     val payload: String,
     val label: String = "",
 ) {
     val isFolder: Boolean get() = type == QuickLauncherItemType.FOLDER
+
+    /** 仅 APP 条目有意义；其他类型返回 null。 */
+    val appTarget: AppTarget?
+        get() = if (type == QuickLauncherItemType.APP) AppTarget.parse(payload) else null
 
     fun folderItems(): List<QuickLauncherItem> =
         if (type == QuickLauncherItemType.FOLDER) QuickLauncherFolderCodec.decodeFolderPayload(payload) else emptyList()
@@ -39,8 +72,12 @@ data class QuickLauncherItem(
         copy(label = newLabel)
 
     companion object {
-        fun app(packageName: String, label: String = "") =
-            QuickLauncherItem(QuickLauncherItemType.APP, packageName, label)
+        fun app(packageName: String, label: String = "", cloneUserId: Int = 0) =
+            QuickLauncherItem(
+                QuickLauncherItemType.APP,
+                AppTarget.encode(packageName, cloneUserId),
+                label,
+            )
 
         fun folder(label: String = "", items: List<QuickLauncherItem> = emptyList()) =
             QuickLauncherItem(
@@ -163,27 +200,37 @@ object QuickLauncherItemCodec {
 
     /**
      * 动作正文编码。除「启动应用」外与 `action.payload` 一致；
-     * 「启动应用」追加启动形态后缀（见 [LAUNCH_WINDOW_MODE_SEP]），旧数据无后缀按跟随全局解析。
+     * 「启动应用」按 `包名[\u0002userId][\u001D启动形态]` 编码：克隆 id 在前、启动形态在后，
+     * 旧数据两种后缀都没有，按「主实例 + 跟随全局」解析。
      *
      * 自带动作类型字段的编码器（如 [com.slideindex.app.gesture.GestureRuleCodec]）应直接复用本函数，
      * 不要另写一份正文编码，否则「启动应用」的启动形态会在该存储路径上静默丢失。
      */
     fun encodeActionBody(action: GestureAction): String {
         if (action !is GestureAction.LaunchApp) return action.payload
+        val body = AppTarget.encode(action.packageName, action.cloneUserId)
         val mode = action.windowMode
-        if (mode == LaunchWindowMode.FOLLOW_GLOBAL) return action.payload
-        return "${action.payload}$LAUNCH_WINDOW_MODE_SEP${mode.id}"
+        if (mode == LaunchWindowMode.FOLLOW_GLOBAL) return body
+        return "$body$LAUNCH_WINDOW_MODE_SEP${mode.id}"
     }
 
-    /** [encodeActionBody] 的逆操作；无后缀或后缀畸形时按 [LaunchWindowMode.FOLLOW_GLOBAL] 解析。 */
+    /** [encodeActionBody] 的逆操作；无后缀或后缀畸形时按主实例 / [LaunchWindowMode.FOLLOW_GLOBAL] 解析。 */
     fun decodeActionBody(type: GestureActionType, body: String): GestureAction? {
         if (type != GestureActionType.LAUNCH_APP) return GestureAction.from(type, body)
-        val modeIndex = body.lastIndexOf(LAUNCH_WINDOW_MODE_SEP)
-        if (modeIndex <= 0) return GestureAction.from(type, body)
-        val modeId = body.substring(modeIndex + 1).toIntOrNull()
-        val mode = modeId?.let(LaunchWindowMode::fromId)
-        if (mode == null || mode.id != modeId) return GestureAction.from(type, body.substring(0, modeIndex))
-        return GestureAction.LaunchApp(body.substring(0, modeIndex), mode)
+        var payload = body
+        var mode = LaunchWindowMode.FOLLOW_GLOBAL
+        val modeIndex = payload.lastIndexOf(LAUNCH_WINDOW_MODE_SEP)
+        if (modeIndex > 0) {
+            val modeId = payload.substring(modeIndex + 1).toIntOrNull()
+            val parsedMode = modeId?.let(LaunchWindowMode::fromId)
+            if (parsedMode != null && parsedMode.id == modeId) {
+                mode = parsedMode
+            }
+            // 与旧版一致：后缀畸形也剥掉，只按剩余正文解析（否则包名里会混进启动形态）。
+            payload = payload.substring(0, modeIndex)
+        }
+        val target = AppTarget.parse(payload)
+        return GestureAction.LaunchApp(target.packageName, mode, target.cloneUserId)
     }
 
     fun sanitizeOverlayTapItem(item: QuickLauncherItem): QuickLauncherItem = when (item.type) {

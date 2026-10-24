@@ -283,10 +283,19 @@ fun LazyListScope.actionPickerAppItems(
     /** 定位到"当前已绑定应用"之后闪一下的强度（0..1），只作用在当前那一行上。 */
     highlightPulse: Float = 0f,
 ) {
-    items(filtered.size, key = { filtered[it].packageName }) { index ->
+    items(
+        filtered.size,
+        key = {
+            com.slideindex.app.launcher.AppTarget.encode(
+                filtered[it].packageName,
+                filtered[it].cloneUserId,
+            )
+        },
+    ) { index ->
         val app = filtered[index]
         val currentApp = current as? GestureAction.LaunchApp
-        val selected = currentApp?.packageName == app.packageName
+        val selected = currentApp?.packageName == app.packageName &&
+            currentApp.cloneUserId == app.cloneUserId
         ActionPickerAppRow(
             app = app,
             segmentIndex = index,

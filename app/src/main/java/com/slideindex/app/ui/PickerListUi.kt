@@ -516,7 +516,10 @@ fun Md3PickerAppLeading(app: AppInfo) {
     }
     if (iconOverride != null) {
         ActionIconView(
-            action = com.slideindex.app.gesture.GestureAction.LaunchApp(app.packageName),
+            action = com.slideindex.app.gesture.GestureAction.LaunchApp(
+                app.packageName,
+                cloneUserId = app.cloneUserId,
+            ),
             iconKey = iconOverride,
             sizeDp = 40,
             // 与其它真实图标保持一致：不画底色方块。

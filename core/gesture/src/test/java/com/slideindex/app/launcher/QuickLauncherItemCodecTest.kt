@@ -76,6 +76,38 @@ class QuickLauncherItemCodecTest {
     }
 
     @Test
+    fun parseActionPayload_roundTrip_preservesCloneUser() {
+        val action = GestureAction.LaunchApp(
+            "com.example.app",
+            LaunchWindowMode.ALWAYS_FULLSCREEN,
+            cloneUserId = 999,
+        )
+
+        val parsed = QuickLauncherItemCodec.parseActionPayload(
+            QuickLauncherItemCodec.encodeActionPayload(action),
+        )
+
+        assertEquals(action, parsed)
+    }
+
+    @Test
+    fun appItem_clone_roundTripsThroughCodec() {
+        val item = QuickLauncherItem.app("com.example.app", "示例", cloneUserId = 999)
+
+        assertEquals(AppTarget("com.example.app", 999), item.appTarget)
+        assertEquals(
+            listOf(item),
+            QuickLauncherItemCodec.decodeAll(QuickLauncherItemCodec.encodeAll(listOf(item))),
+        )
+    }
+
+    @Test
+    fun appTarget_legacyBarePackage_isMainUser() {
+        assertEquals(AppTarget("com.example.app", 0), AppTarget.parse("com.example.app"))
+        assertEquals("com.example.app", QuickLauncherItem.app("com.example.app").payload)
+    }
+
+    @Test
     fun actionKey_distinguishesLaunchWindowModes() {
         val global = QuickLauncherItemCodec.actionKey(GestureAction.LaunchApp("com.example.app"))
         val fullscreen = QuickLauncherItemCodec.actionKey(

@@ -136,7 +136,7 @@ fun GestureActionPickerScreen(
     LaunchedEffect(Unit) {
         withFrameNanos { }
         allApps = withContext(Dispatchers.IO) {
-            appRepository.loadApps(force = true)
+            com.slideindex.app.overlay.CloneAppsIndex.enrich(appRepository.loadApps(force = true))
         }
     }
 
@@ -153,7 +153,12 @@ fun GestureActionPickerScreen(
     val filteredShortcuts = remember(loadedCatalog.catalog, searchQuery) {
         filterShortcutCatalog(loadedCatalog.catalog, searchQuery)
     }
-    val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
+    // 分身与主实例同包名：动作/图标解析按包名查表时保留主实例，避免主应用显示成「· 分身」。
+    val appsByPackage = remember(allApps) {
+        allApps.groupBy { it.packageName }.mapValues { (_, apps) ->
+            apps.firstOrNull { it.cloneUserId == 0 } ?: apps.first()
+        }
+    }
 
     // 「重新点进来选动作」时直接停在已绑定的那一项上，省掉从顶部一路滑。
     //
@@ -421,13 +426,13 @@ fun GestureActionPickerScreen(
             GestureLaunchWindowModeDialog(
                 app = app,
                 initialMode = currentLaunchApp
-                    ?.takeIf { it.packageName == app.packageName }
+                    ?.takeIf { it.packageName == app.packageName && it.cloneUserId == app.cloneUserId }
                     ?.windowMode
                     ?: LaunchWindowMode.FOLLOW_GLOBAL,
                 onDismiss = { pendingLaunchApp = null },
                 onConfirm = { mode ->
                     pendingLaunchApp = null
-                    safeSelect(GestureAction.LaunchApp(app.packageName, mode))
+                    safeSelect(GestureAction.LaunchApp(app.packageName, mode, app.cloneUserId))
                 },
             )
         }

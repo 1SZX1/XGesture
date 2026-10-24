@@ -465,7 +465,7 @@ internal fun QuickLauncherAddOverlaySheetBody(
                         apps = apps,
                         configuredAppPackages = addedAppPackages,
                         onToggle = { app, added ->
-                            onToggle(QuickLauncherItem.app(app.packageName, app.label), added)
+                            onToggle(QuickLauncherItem.app(app.packageName, app.label, app.cloneUserId), added)
                         },
                         singleSelect = singleSelect,
                         modifier = Modifier.fillMaxSize(),
@@ -863,7 +863,7 @@ internal fun QuickLauncherCreateFolderScreen(
                     apps = apps,
                     configuredAppPackages = configuredAppPackages,
                     onToggle = { app, added ->
-                        onToggleFolderItem(QuickLauncherItem.app(app.packageName, app.label), added)
+                        onToggleFolderItem(QuickLauncherItem.app(app.packageName, app.label, app.cloneUserId), added)
                     },
                     singleSelect = false,
                     modifier = Modifier.fillMaxSize(),

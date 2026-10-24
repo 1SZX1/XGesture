@@ -31,22 +31,11 @@ internal object HoneycombTargetResolver {
             ) {
                 return@mapNotNull null
             }
-            val label = when (item.type) {
-                QuickLauncherItemType.ACTION ->
-                    QuickLauncherLabels.resolveLabel(context, item, appsByPackage)
-                else ->
-                    item.label.ifBlank {
-                        when (item.type) {
-                            QuickLauncherItemType.APP ->
-                                appsByPackage[item.payload]?.label ?: item.payload
-                            QuickLauncherItemType.SHORTCUT -> item.payload
-                            else -> item.payload
-                        }
-                    }
-            }
+            val label = QuickLauncherLabels.resolveLabel(context, item, appsByPackage)
+            val target = item.appTarget
             val icon = when {
                 appRepository != null && item.type == QuickLauncherItemType.APP ->
-                    appRepository.peekLaunchIconDrawable(item.payload)
+                    appRepository.peekLaunchIconDrawable(target?.packageName ?: item.payload)
                 appRepository == null || item.type == QuickLauncherItemType.SHORTCUT ||
                     item.type == QuickLauncherItemType.ACTION ->
                     QuickLauncherIconResolver.iconDrawable(

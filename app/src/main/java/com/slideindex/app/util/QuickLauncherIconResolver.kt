@@ -156,8 +156,11 @@ object QuickLauncherIconResolver {
                 )
                 bmp.toDrawable(context?.resources ?: android.content.res.Resources.getSystem())
             }
-            QuickLauncherItemType.APP -> getIconSafe(appsByPackage[item.payload], context)
-                ?: getIconSafe(item.payload, context)
+            QuickLauncherItemType.APP -> {
+                val packageName = item.appTarget?.packageName ?: item.payload
+                getIconSafe(appsByPackage[packageName], context)
+                    ?: getIconSafe(packageName, context)
+            }
             QuickLauncherItemType.SHORTCUT -> {
                 context?.let { ctx ->
                     ManagedShortcutIconResolver.drawableForQuickItem(ctx, item, activityShortcuts)

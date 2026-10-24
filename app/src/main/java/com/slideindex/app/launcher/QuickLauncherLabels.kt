@@ -27,8 +27,20 @@ object QuickLauncherLabels {
     ): String {
         val localized = AppLocaleApplier.wrapOverlayContext(context)
         return when (item.type) {
-            QuickLauncherItemType.APP ->
-                appsByPackage[item.payload]?.label ?: item.label.ifBlank { item.payload }
+            QuickLauncherItemType.APP -> {
+                val target = item.appTarget
+                val base = appsByPackage[target?.packageName ?: item.payload]?.label
+                    ?: item.label.ifBlank { item.payload }
+                if (target?.isClone == true) {
+                    com.slideindex.app.overlay.CloneAppsIndex.labelForUser(
+                        localized,
+                        target.cloneUserId,
+                        base,
+                    )
+                } else {
+                    base
+                }
+            }
             QuickLauncherItemType.SHORTCUT ->
                 item.label.ifBlank { defaultTypeLabel(localized, item.type) }
             QuickLauncherItemType.ACTION -> {

@@ -30,13 +30,19 @@ private fun resolveAppDisplayName(context: Context, packageName: String): String
     }
 }
 
-private fun launchAppActionLabel(context: Context, packageName: String): String =
+private fun launchAppActionLabel(context: Context, packageName: String, cloneUserId: Int): String =
     if (packageName.isBlank()) {
         context.getString(R.string.gesture_action_launch_app)
     } else {
+        val base = resolveAppDisplayName(context, packageName)
+        val labeled = if (cloneUserId > 0) {
+            com.slideindex.app.overlay.CloneAppsIndex.labelForUser(context, cloneUserId, base)
+        } else {
+            base
+        }
         context.getString(
             R.string.gesture_action_launch_app_named,
-            resolveAppDisplayName(context, packageName),
+            labeled,
         )
     }
 
@@ -285,7 +291,7 @@ fun launchShortcutDisplayLabel(action: GestureAction.LaunchShortcut): String =
     }
 
 fun gestureActionLabelText(context: Context, action: GestureAction): String = when (action) {
-    is GestureAction.LaunchApp -> launchAppActionLabel(context, action.packageName)
+    is GestureAction.LaunchApp -> launchAppActionLabel(context, action.packageName, action.cloneUserId)
     is GestureAction.LaunchShortcut -> {
         val shortcutLabel = launchShortcutDisplayLabel(action)
         if (shortcutLabel.isBlank()) {

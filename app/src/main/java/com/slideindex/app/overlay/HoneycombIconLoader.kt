@@ -30,7 +30,7 @@ internal object HoneycombIconLoader {
     ) {
         val packages = items.asSequence()
             .filter { it.type == QuickLauncherItemType.APP }
-            .map { it.payload }
+            .map { it.appTarget?.packageName ?: it.payload }
             .filter { it.isNotBlank() }
             .toSet()
         if (packages.isEmpty()) return
@@ -82,7 +82,7 @@ internal object HoneycombIconLoader {
         val item = target.item
         return when (item.type) {
             QuickLauncherItemType.APP ->
-                appRepository.launchIconDrawable(item.payload)
+                appRepository.launchIconDrawable(item.appTarget?.packageName ?: item.payload)
             QuickLauncherItemType.SHORTCUT, QuickLauncherItemType.ACTION ->
                 QuickLauncherIconResolver.iconDrawable(
                     item,

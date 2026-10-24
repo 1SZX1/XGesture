@@ -193,7 +193,14 @@ fun LazyListScope.quickLauncherAddPickerAppItems(
     singleSelect: Boolean = false,
 ) {
     val rows = filtered.chunked(PICKER_GRID_COLUMNS)
-    items(rows.size, key = { rows[it].first().packageName }) { rowIndex ->
+    items(
+        rows.size,
+        key = { rowIndex ->
+            rows[rowIndex].joinToString("|") {
+                com.slideindex.app.launcher.AppTarget.encode(it.packageName, it.cloneUserId)
+            }
+        },
+    ) { rowIndex ->
         val row = rows[rowIndex]
         Row(
             modifier = Modifier
@@ -202,7 +209,8 @@ fun LazyListScope.quickLauncherAddPickerAppItems(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             row.forEach { app ->
-                val added = app.packageName in configuredAppPackages
+                val appKey = com.slideindex.app.launcher.AppTarget.encode(app.packageName, app.cloneUserId)
+                val added = appKey in configuredAppPackages
                 PickerGridCell(
                     label = app.label,
                     selected = !singleSelect && added,

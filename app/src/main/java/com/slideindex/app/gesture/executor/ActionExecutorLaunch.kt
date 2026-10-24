@@ -47,7 +47,8 @@ internal class ActionExecutorLaunch(
     ): Boolean {
         return when (item.type) {
             QuickLauncherItemType.APP -> {
-                launchApp(item.payload, settings, longPressArmed)
+                val target = item.appTarget ?: com.slideindex.app.launcher.AppTarget(item.payload)
+                launchApp(target.packageName, settings, longPressArmed, cloneUserId = target.cloneUserId)
                 false
             }
             QuickLauncherItemType.SHORTCUT ->
@@ -95,7 +96,13 @@ internal class ActionExecutorLaunch(
         settings: AppSettings,
         longPressArmed: Boolean,
         windowMode: LaunchWindowMode = LaunchWindowMode.FOLLOW_GLOBAL,
+        cloneUserId: Int = 0,
     ): Boolean {
+        // 分身/工作资料：主实例的冻结状态与 launchIntent 都不适用，直接跨 user 启动。
+        if (cloneUserId > 0) {
+            launchAppInUser(packageName, cloneUserId, settings)
+            return true
+        }
         val app = appRepository.getCachedApps().firstOrNull { it.packageName == packageName }
             ?: appRepository.lookupApp(packageName)
             ?: return false

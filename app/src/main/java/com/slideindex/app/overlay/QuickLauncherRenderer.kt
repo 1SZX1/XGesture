@@ -234,7 +234,7 @@ internal class QuickLauncherRenderer(
             ctrl.rebuildQuickLauncherAppsByPackage()
         }
         val label = when (item.type) {
-            QuickLauncherItemType.APP -> ctrl.quickLauncherAppsByPackage[item.payload]?.label ?: item.label
+            QuickLauncherItemType.APP,
             QuickLauncherItemType.SHORTCUT,
             QuickLauncherItemType.ACTION,
             QuickLauncherItemType.WIDGET,

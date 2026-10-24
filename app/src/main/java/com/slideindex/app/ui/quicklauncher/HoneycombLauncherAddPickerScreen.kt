@@ -24,7 +24,7 @@ import com.slideindex.app.launcher.QuickLauncherItemType
 import com.slideindex.app.overlay.honeycombRuntimeItems
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.ui.gesturepicker.MacroPickDialog
-import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
+import com.slideindex.app.ui.compose.collectLaunchableAppsWithClonesAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixScaffoldSearchTabBottomContent
@@ -59,13 +59,17 @@ fun HoneycombLauncherAddPickerScreen(
 ) {
     val context = LocalContext.current
     val appRepository = rememberAppRepository()
-    val allApps by collectLaunchableAppsAsState()
+    val allApps by collectLaunchableAppsWithClonesAsState()
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) }
     var searchExpanded by remember { mutableStateOf(false) }
     val searchFocusRequester = remember { FocusRequester() }
 
-    val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
+    val appsByPackage = remember(allApps) {
+        allApps.groupBy { it.packageName }.mapValues { (_, apps) ->
+            apps.firstOrNull { it.cloneUserId == 0 } ?: apps.first()
+        }
+    }
     val items = remember(settings.honeycombLauncher) {
         settings.honeycombLauncher.honeycombRuntimeItems()
     }
@@ -187,7 +191,7 @@ fun HoneycombLauncherAddPickerScreen(
                     filtered = filteredApps,
                     configuredAppPackages = configuredAppPackages,
                     onToggle = { app, added ->
-                        onToggleItem(QuickLauncherItem.app(app.packageName, app.label), added)
+                        onToggleItem(QuickLauncherItem.app(app.packageName, app.label, app.cloneUserId), added)
                     },
                 )
             }

@@ -71,8 +71,9 @@ internal object RingLauncherSlotIconBitmap {
         }
         resolvedIcon?.let { return drawableToBitmap(it, sizePx) }
         if (item.type == QuickLauncherItemType.APP && item.payload.isNotBlank() && appRepository != null) {
-            appRepository.peekLaunchIconBitmap(item.payload, sizePx)?.let { return it }
-            appRepository.peekLaunchIconDrawable(item.payload)?.let { return drawableToBitmap(it, sizePx) }
+            val packageName = item.appTarget?.packageName ?: item.payload
+            appRepository.peekLaunchIconBitmap(packageName, sizePx)?.let { return it }
+            appRepository.peekLaunchIconDrawable(packageName)?.let { return drawableToBitmap(it, sizePx) }
         }
         return QuickLauncherIconResolver.iconBitmap(
             item = item,

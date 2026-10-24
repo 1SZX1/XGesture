@@ -37,7 +37,7 @@ import com.slideindex.app.launcher.QuickLauncherItemType
 import com.slideindex.app.launcher.QuickLauncherPanelDefaults
 import com.slideindex.app.launcher.resolveFolderItems
 import com.slideindex.app.settings.AppSettings
-import com.slideindex.app.ui.compose.collectLaunchableAppsAsState
+import com.slideindex.app.ui.compose.collectLaunchableAppsWithClonesAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.gesturepicker.MacroPickDialog
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
@@ -71,7 +71,7 @@ fun QuickLauncherAddPickerScreen(
 ) {
     val context = LocalContext.current
     val appRepository = rememberAppRepository()
-    val allApps by collectLaunchableAppsAsState()
+    val allApps by collectLaunchableAppsWithClonesAsState()
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) }
     var searchExpanded by remember { mutableStateOf(false) }
@@ -80,7 +80,11 @@ fun QuickLauncherAddPickerScreen(
     // 「手势宏」要先挑一条宏再落库：这里挂待处理回调，弹选择框。
     var pendingMacroPick by remember { mutableStateOf<((GestureAction) -> Unit)?>(null) }
 
-    val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
+    val appsByPackage = remember(allApps) {
+        allApps.groupBy { it.packageName }.mapValues { (_, apps) ->
+            apps.firstOrNull { it.cloneUserId == 0 } ?: apps.first()
+        }
+    }
 
     val panel = remember(settings.quickLauncherPanels, panelId) {
         QuickLauncherPanelDefaults.effectivePanels(settings.quickLauncherPanels).find { it.id == panelId }
@@ -219,7 +223,7 @@ fun QuickLauncherAddPickerScreen(
                     filtered = filteredApps,
                     configuredAppPackages = configuredAppPackages,
                     onToggle = { app, added ->
-                        onToggleItem(QuickLauncherItem.app(app.packageName, app.label), added)
+                        onToggleItem(QuickLauncherItem.app(app.packageName, app.label, app.cloneUserId), added)
                     },
                 )
             }
@@ -282,7 +286,7 @@ fun QuickLauncherCreateFolderScreen(
     val context = LocalContext.current
     val defaultFolderName = stringResource(R.string.quick_launcher_default_folder_name)
     val appRepository = rememberAppRepository()
-    val allApps by collectLaunchableAppsAsState()
+    val allApps by collectLaunchableAppsWithClonesAsState()
     val folderName = draft?.name.orEmpty()
     val folderItems = draft?.items.orEmpty()
     var searchExpanded by remember { mutableStateOf(false) }
@@ -293,7 +297,11 @@ fun QuickLauncherCreateFolderScreen(
     var pendingMacroPick by remember { mutableStateOf<((GestureAction) -> Unit)?>(null) }
     var folderSelectedTab by remember { mutableIntStateOf(0) }
 
-    val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
+    val appsByPackage = remember(allApps) {
+        allApps.groupBy { it.packageName }.mapValues { (_, apps) ->
+            apps.firstOrNull { it.cloneUserId == 0 } ?: apps.first()
+        }
+    }
 
     var pendingCreateHost by remember { mutableStateOf<AppShortcutLoader.CreateShortcutHost?>(null) }
     val createLauncher = rememberLauncherForActivityResult(
@@ -450,7 +458,7 @@ fun QuickLauncherCreateFolderScreen(
                     filtered = filteredApps,
                     configuredAppPackages = configuredFolderAppPackages,
                     onToggle = { app, added ->
-                        onToggleItem(QuickLauncherItem.app(app.packageName, app.label), added)
+                        onToggleItem(QuickLauncherItem.app(app.packageName, app.label, app.cloneUserId), added)
                     },
                 )
             }

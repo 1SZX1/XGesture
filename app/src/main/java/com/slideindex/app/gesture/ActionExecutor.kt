@@ -359,7 +359,13 @@ class ActionExecutor(
                 true
             }
             is GestureAction.LaunchApp ->
-                launchHelper.launchApp(action.packageName, settings, longPressArmed, action.windowMode)
+                launchHelper.launchApp(
+                    action.packageName,
+                    settings,
+                    longPressArmed,
+                    action.windowMode,
+                    cloneUserId = action.cloneUserId,
+                )
             is GestureAction.LaunchShortcut -> {
                 launchHelper.launchGestureShortcut(action, settings, longPressArmed)
                 true

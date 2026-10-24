@@ -308,6 +308,8 @@ sealed class GestureAction {
         val packageName: String,
         /** 该绑定自己的启动形态；落库编码见 [com.slideindex.app.launcher.QuickLauncherItemCodec]。 */
         val windowMode: LaunchWindowMode = LaunchWindowMode.FOLLOW_GLOBAL,
+        /** 0 = 主实例；>0 = 应用分身/工作资料所在的 user。 */
+        val cloneUserId: Int = 0,
     ) : GestureAction() {
         override val type = GestureActionType.LAUNCH_APP
         override val payload = packageName
@@ -1128,7 +1130,11 @@ sealed class GestureAction {
         fun from(type: GestureActionType, payload: String): GestureAction =
             when (type) {
                 GestureActionType.OPEN_INDEX -> OpenIndex
-                GestureActionType.LAUNCH_APP -> LaunchApp(payload)
+                GestureActionType.LAUNCH_APP -> {
+                    // 兼容带 clone 后缀的正文（部分存储路径只保留 body）；裸包名解析为 user 0。
+                    val target = com.slideindex.app.launcher.AppTarget.parse(payload)
+                    LaunchApp(target.packageName, cloneUserId = target.cloneUserId)
+                }
                 GestureActionType.LAUNCH_SHORTCUT -> LaunchShortcut.fromPayload(payload)
                 GestureActionType.QUICK_LAUNCHER -> QuickLauncher.parse(payload)
                 GestureActionType.TASK_SWITCHER -> TaskSwitcher

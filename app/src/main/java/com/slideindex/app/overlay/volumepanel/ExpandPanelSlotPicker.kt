@@ -343,7 +343,8 @@ fun ExpandPanelSlotPicker(
                             items(filteredApps.size, key = { filteredApps[it].packageName }) { index ->
                                 val app = filteredApps[index]
                                 val currentLaunchApp = currentAction as? GestureAction.LaunchApp
-                                val selected = currentLaunchApp?.packageName == app.packageName
+                                val selected = currentLaunchApp?.packageName == app.packageName &&
+                                    currentLaunchApp.cloneUserId == app.cloneUserId
                                 ActionPickerAppRow(
                                     app = app,
                                     segmentIndex = index,
@@ -351,7 +352,7 @@ fun ExpandPanelSlotPicker(
                                     selected = selected,
                                     windowMode = currentLaunchApp?.takeIf { selected }?.windowMode
                                         ?: LaunchWindowMode.FOLLOW_GLOBAL,
-                                    onSelect = { onSelect(GestureAction.LaunchApp(it.packageName)) },
+                                    onSelect = { onSelect(GestureAction.LaunchApp(it.packageName, cloneUserId = it.cloneUserId)) },
                                 )
                             }
                         }

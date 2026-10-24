@@ -657,7 +657,7 @@ object RingLauncherOverlayWindow {
                 if (target != null) {
                     explicitSlots[i] = target
                     if (item.type == QuickLauncherItemType.APP) {
-                        usedPackages.add(item.payload)
+                        usedPackages.add(item.appTarget?.packageName ?: item.payload)
                     }
                 }
             }
@@ -771,7 +771,9 @@ object RingLauncherOverlayWindow {
             ) {
                 return@forEach
             }
-            target.icon = appRepository.peekLaunchIconDrawable(target.item.payload)
+            target.icon = appRepository.peekLaunchIconDrawable(
+                target.item.appTarget?.packageName ?: target.item.payload
+            )
         }
     }
 }
