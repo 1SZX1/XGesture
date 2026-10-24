@@ -68,6 +68,7 @@ object WidgetPanelMutator {
     packageName: String,
     className: String,
     label: String,
+    cloneUserId: Int = 0,
   ): List<WidgetPanelPage>? {
     val effective = WidgetPanelDefaults.effectivePages(pages)
     val index = pageIndex.coerceIn(0, effective.lastIndex)
@@ -76,7 +77,9 @@ object WidgetPanelMutator {
     val spanY = 1
     val slot = WidgetPanelGridLogic.findFirstFreeSlot(page, spanX, spanY)
       ?: return null
-    val syntheticId = -kotlin.math.abs((System.currentTimeMillis() xor packageName.hashCode().toLong()).toInt())
+    val syntheticId = -kotlin.math.abs(
+      (System.currentTimeMillis() xor packageName.hashCode().toLong() xor cloneUserId.toLong()).toInt(),
+    )
     val item = WidgetPanelItem(
       appWidgetId = syntheticId,
       x = slot.first,
@@ -87,6 +90,7 @@ object WidgetPanelMutator {
       itemType = ITEM_TYPE_APP,
       packageName = packageName,
       className = className,
+      cloneUserId = cloneUserId,
     )
     val updatedPage = WidgetPanelGridLogic.upsertItem(page, item)
     return effective.toMutableList().also { it[index] = updatedPage }
@@ -158,11 +162,14 @@ object WidgetPanelMutator {
     pages: List<WidgetPanelPage>,
     pageIndex: Int,
     packageName: String,
+    cloneUserId: Int = 0,
   ): List<WidgetPanelPage> {
     val effective = WidgetPanelDefaults.effectivePages(pages).toMutableList()
     val index = pageIndex.coerceIn(0, effective.lastIndex)
     val page = effective[index]
-    val updatedItems = page.items.filterNot { it.itemType == ITEM_TYPE_APP && it.packageName == packageName }
+    val updatedItems = page.items.filterNot {
+      it.itemType == ITEM_TYPE_APP && it.packageName == packageName && it.cloneUserId == cloneUserId
+    }
     val updatedPage = page.copy(items = updatedItems)
     effective[index] = updatedPage.copy(rowCount = WidgetPanelGridLogic.computeContentRowCount(updatedPage))
     return effective

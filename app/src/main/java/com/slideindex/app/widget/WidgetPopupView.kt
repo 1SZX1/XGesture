@@ -439,7 +439,7 @@ class WidgetPopupCardLayout(
                     adapter.notifyItemChanged(pageIndex)
                 }
             },
-            onAppAdded = { packageName, className, label ->
+            onAppAdded = { packageName, className, label, cloneUserId ->
                 val updated = WidgetPanelMutator.addAppToPage(
                     hostContext,
                     pages,
@@ -447,6 +447,7 @@ class WidgetPopupCardLayout(
                     packageName,
                     className,
                     label,
+                    cloneUserId,
                 )
                 if (updated != null) {
                     persist(updated)

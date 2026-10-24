@@ -17,6 +17,8 @@ data class WidgetPanelItem(
     val className: String = "",
     val intentUri: String = "",
     val shortcutId: String = "",
+    /** 应用分身所属 user（0 = 主实例）。旧数据没有这个字段，解析出来就是 0。 */
+    val cloneUserId: Int = 0,
 )
 
 data class WidgetPanelPage(
@@ -121,6 +123,7 @@ object WidgetPanelCodec {
             item.className,
             item.intentUri,
             item.shortcutId,
+            item.cloneUserId.toString(),
         ).joinToString(FIELD_SEP)
 
     private fun decodeItem(raw: String): WidgetPanelItem? {
@@ -137,7 +140,10 @@ object WidgetPanelCodec {
         val className = parts.getOrNull(8).orEmpty()
         val intentUri = parts.getOrNull(9).orEmpty()
         val shortcutId = parts.getOrNull(10).orEmpty()
-        return WidgetPanelItem(id, x, y, spanX, spanY, label, itemType, packageName, className, intentUri, shortcutId)
+        val cloneUserId = parts.getOrNull(11)?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        return WidgetPanelItem(
+            id, x, y, spanX, spanY, label, itemType, packageName, className, intentUri, shortcutId, cloneUserId,
+        )
     }
 
     fun encodeAll(pages: List<WidgetPanelPage>): Set<String> =

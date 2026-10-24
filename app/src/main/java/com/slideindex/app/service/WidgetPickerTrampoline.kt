@@ -38,7 +38,7 @@ object WidgetPickerTrampoline {
   private var onResult: ((Int) -> Unit)? = null
 
   @Volatile
-  private var onAppResult: ((String, String, String) -> Unit)? = null
+  private var onAppResult: ((String, String, String, Int) -> Unit)? = null
 
   @Volatile
   private var onShortcutResult: ((packageName: String, shortcutId: String, label: String, intentUri: String) -> Unit)? = null
@@ -57,7 +57,7 @@ object WidgetPickerTrampoline {
     pageIndex: Int,
     pagesProvider: () -> List<WidgetPanelPage>,
     onAdded: (Int) -> Unit,
-    onAppAdded: ((packageName: String, className: String, label: String) -> Unit)? = null,
+    onAppAdded: ((packageName: String, className: String, label: String, cloneUserId: Int) -> Unit)? = null,
     onShortcutAdded: ((packageName: String, shortcutId: String, label: String, intentUri: String) -> Unit)? = null,
     onActionAdded: ((actionPayload: String, label: String) -> Unit)? = null,
     onPagesChanged: ((List<WidgetPanelPage>) -> Unit)? = null,
@@ -116,13 +116,13 @@ object WidgetPickerTrampoline {
     callback?.invoke(appWidgetId)
   }
 
-  fun deliverAppSuccess(packageName: String, className: String, label: String) {
-    Log.d(TAG, "deliverAppSuccess: pkg=$packageName, cls=$className")
-    persistAppAdd(packageName, className, label)
+  fun deliverAppSuccess(packageName: String, className: String, label: String, cloneUserId: Int = 0) {
+    Log.d(TAG, "deliverAppSuccess: pkg=$packageName, cls=$className, uid=$cloneUserId")
+    persistAppAdd(packageName, className, label, cloneUserId)
     WidgetPopupOverlayWindow.setWidgetAddFlowActive(false)
     val callback = onAppResult
     clear()
-    callback?.invoke(packageName, className, label)
+    callback?.invoke(packageName, className, label, cloneUserId)
   }
 
   fun deliverAppsSuccess(apps: List<com.slideindex.app.widget.InstalledAppEntry>) {
@@ -137,7 +137,8 @@ object WidgetPickerTrampoline {
           ctx.pageIndex,
           app.packageName,
           app.className,
-          app.appLabel
+          app.appLabel,
+          app.cloneUserId,
         )
         if (next != null) {
           currentPages = next
@@ -150,7 +151,7 @@ object WidgetPickerTrampoline {
     clear()
     if (apps.isNotEmpty()) {
       val first = apps.first()
-      callback?.invoke(first.packageName, first.className, first.appLabel)
+      callback?.invoke(first.packageName, first.className, first.appLabel, first.cloneUserId)
     }
   }
 
@@ -207,23 +208,31 @@ object WidgetPickerTrampoline {
     val effective = WidgetPanelDefaults.effectivePages(ctx.pagesProvider())
     val index = ctx.pageIndex.coerceIn(0, effective.lastIndex)
     val page = effective[index]
-    val appPkgs = page.items.filter { it.itemType == ITEM_TYPE_APP }.map { it.packageName }.toSet()
+    // 勾选态按目标（包名 + user）走：主实例与分身各自独立，不会再互相顶掉。
+    val appPkgs = page.items
+      .filter { it.itemType == ITEM_TYPE_APP }
+      .map { com.slideindex.app.launcher.AppTarget.encode(it.packageName, it.cloneUserId) }
+      .toSet()
     val shortcutKeys = page.items.filter { it.itemType == ITEM_TYPE_SHORTCUT }.map {
       it.packageName + "/" + (it.shortcutId.ifBlank { it.intentUri })
     }.toSet()
     return appPkgs to shortcutKeys
   }
 
-  fun toggleApp(packageName: String, className: String, label: String): Boolean {
+  fun toggleApp(packageName: String, className: String, label: String, cloneUserId: Int = 0): Boolean {
     val ctx = panelAddContext ?: return false
     val currentPages = ctx.pagesProvider()
     val index = ctx.pageIndex.coerceIn(0, currentPages.lastIndex)
     val page = currentPages[index]
-    val exists = page.items.any { it.itemType == ITEM_TYPE_APP && it.packageName == packageName }
+    val exists = page.items.any {
+      it.itemType == ITEM_TYPE_APP && it.packageName == packageName && it.cloneUserId == cloneUserId
+    }
     val nextPages = if (exists) {
-      WidgetPanelMutator.removeAppFromPage(currentPages, ctx.pageIndex, packageName)
+      WidgetPanelMutator.removeAppFromPage(currentPages, ctx.pageIndex, packageName, cloneUserId)
     } else {
-      WidgetPanelMutator.addAppToPage(ctx.appContext, currentPages, ctx.pageIndex, packageName, className, label)
+      WidgetPanelMutator.addAppToPage(
+        ctx.appContext, currentPages, ctx.pageIndex, packageName, className, label, cloneUserId,
+      )
     }
     if (nextPages != null) {
       schedulePersist(ctx.appContext, nextPages)
@@ -295,7 +304,7 @@ object WidgetPickerTrampoline {
     schedulePersist(ctx.appContext, updated)
   }
 
-  private fun persistAppAdd(packageName: String, className: String, label: String) {
+  private fun persistAppAdd(packageName: String, className: String, label: String, cloneUserId: Int) {
     val ctx = panelAddContext ?: return
     val updated = WidgetPanelMutator.addAppToPage(
       ctx.appContext,
@@ -303,7 +312,8 @@ object WidgetPickerTrampoline {
       ctx.pageIndex,
       packageName,
       className,
-      label
+      label,
+      cloneUserId,
     ) ?: return
     schedulePersist(ctx.appContext, updated)
   }

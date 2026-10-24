@@ -280,7 +280,7 @@ private fun WidgetPanelGridEditor(
           onPagesChange(updated)
         }
       },
-      onAppAdded = { packageName, className, label ->
+      onAppAdded = { packageName, className, label, cloneUserId ->
         val updated = WidgetPanelMutator.addAppToPage(
           context,
           latestPages,
@@ -288,6 +288,7 @@ private fun WidgetPanelGridEditor(
           packageName,
           className,
           label,
+          cloneUserId,
         )
         if (updated != null) {
           onPagesChange(updated)

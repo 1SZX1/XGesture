@@ -171,14 +171,26 @@ class WidgetCardContainer(
             }
           } else if (item.packageName.isNotEmpty()) {
             com.slideindex.app.overlay.WidgetPopupOverlayWindow.dismiss()
-            runCatching {
-              val pm = context.packageManager
-              val launchIntent = pm.getLaunchIntentForPackage(item.packageName)
-                ?: android.content.Intent().apply {
-                  component = android.content.ComponentName(item.packageName, item.className)
-                  addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-              context.startActivity(launchIntent)
+            if (item.cloneUserId > 0) {
+              // 应用分身：那是另一个 user 下的实例，必须跨 user 启动
+              // （有特权走 shell，没有特权走透明跳板），不能按主实例的 launch intent 起。
+              runCatching {
+                com.slideindex.app.util.CloneAppLauncher.launch(
+                  context,
+                  item.packageName,
+                  item.cloneUserId,
+                )
+              }
+            } else {
+              runCatching {
+                val pm = context.packageManager
+                val launchIntent = pm.getLaunchIntentForPackage(item.packageName)
+                  ?: android.content.Intent().apply {
+                    component = android.content.ComponentName(item.packageName, item.className)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                  }
+                context.startActivity(launchIntent)
+              }
             }
           }
         }

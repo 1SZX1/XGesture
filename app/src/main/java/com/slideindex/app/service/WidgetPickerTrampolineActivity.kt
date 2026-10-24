@@ -47,7 +47,7 @@ class WidgetPickerTrampolineActivity : ComponentActivity() {
             },
             onWidgetSelected = { entry -> onWidgetPicked(entry) },
             onAppSelected = { app ->
-              WidgetPickerTrampoline.deliverAppSuccess(app.packageName, app.className, app.appLabel)
+              WidgetPickerTrampoline.deliverAppSuccess(app.packageName, app.className, app.appLabel, app.cloneUserId)
               finish()
             },
             onShortcutSelected = { sc ->

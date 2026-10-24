@@ -40,6 +40,8 @@ data class InstalledAppEntry(
   val sortKey: String,
   val initialKey: String = "",
   val iconBitmap: ImageBitmap?,
+  /** 应用分身所属 user（0 = 主实例）。 */
+  val cloneUserId: Int = 0,
 )
 
 data class ShortcutEntry(
@@ -150,38 +152,37 @@ object WidgetCatalog {
       val launcherApps = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
       val userManager = appContext.getSystemService(Context.USER_SERVICE) as? UserManager
       val profiles = userManager?.userProfiles ?: emptyList()
-      val list = mutableListOf<android.content.pm.LauncherActivityInfo>()
+      val entries = mutableListOf<InstalledAppEntry>()
+      val seen = HashSet<String>()
       if (launcherApps != null && profiles.isNotEmpty()) {
-        // 「应用分身 / 工作资料」下同一包名会出现在多个 profile 里（例如微信分身），
-        // 逐个 profile 枚举会把同一个启动 Activity 收到多份。面板是按包名增删的
-        // （WidgetPickerTrampoline#toggleApp），重复条目不仅会让 LazyColumn 的
-        // 「包名/Activity」key 撞车闪退，还会让同一个应用的开关状态互相打架。
-        // 当前用户排在前面，去重时保留当前用户的实例（面板也只会用当前用户启动）。
+        // 「应用分身 / 工作资料」下同一个包会在多个 user 里各有一个实例。
+        // 每个 user 一条，身份用 (包名, userId) 区分：面板的勾选与增删都按这个身份走，
+        // 同包名的主实例与分身不会再互相覆盖（旧的「按包名去重」正是分身列不出来的原因）。
         val orderedProfiles = profiles.sortedBy { if (it == android.os.Process.myUserHandle()) 0 else 1 }
         for (profile in orderedProfiles) {
-          list.addAll(runCatching { launcherApps.getActivityList(null, profile) }.getOrDefault(emptyList()))
+          val userId = runCatching { profile.hashCode() }.getOrDefault(0)
+          runCatching { launcherApps.getActivityList(null, profile) }.getOrDefault(emptyList()).forEach { info ->
+            val pkg = info.applicationInfo?.packageName ?: return@forEach
+            if (pkg == appContext.packageName) return@forEach
+            val cls = info.name
+            if (!seen.add("$pkg/$cls/$userId")) return@forEach
+            val label = runCatching { info.label.toString() }.getOrNull()?.takeIf { it.isNotBlank() } ?: pkg
+            val iconDrawable = runCatching { info.getBadgedIcon(0) }.getOrNull()
+              ?: runCatching { info.getIcon(0) }.getOrNull()
+            val iconBitmap = iconDrawable?.toSafeImageBitmap(48)
+            entries += InstalledAppEntry(
+              packageName = pkg,
+              className = cls,
+              appLabel = label,
+              sortKey = PinyinHelper.sortKey(label),
+              initialKey = PinyinHelper.initialKey(label),
+              iconBitmap = iconBitmap,
+              cloneUserId = userId,
+            )
+          }
         }
       }
-      list.mapNotNull { info ->
-        val pkg = info.applicationInfo.packageName
-        if (pkg == appContext.packageName) return@mapNotNull null
-        val cls = info.name
-        val label = runCatching { info.label.toString() }.getOrNull()?.takeIf { it.isNotBlank() } ?: pkg
-        val iconDrawable = runCatching { info.getBadgedIcon(0) }.getOrNull() ?: runCatching { info.getIcon(0) }.getOrNull()
-        val iconBitmap = iconDrawable?.toSafeImageBitmap(48)
-        val sortKey = PinyinHelper.sortKey(label)
-        val initialKey = PinyinHelper.initialKey(label)
-        InstalledAppEntry(
-          packageName = pkg,
-          className = cls,
-          appLabel = label,
-          sortKey = sortKey,
-          initialKey = initialKey,
-          iconBitmap = iconBitmap,
-        )
-      }
-        .distinctBy { it.packageName }
-        .sortedBy { it.sortKey }
+      entries.sortedBy { it.sortKey }
     }.getOrDefault(emptyList())
     cachedInstalledApps = result
     result

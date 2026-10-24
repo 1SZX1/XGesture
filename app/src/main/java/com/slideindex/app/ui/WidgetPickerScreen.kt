@@ -65,6 +65,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.freezer.FreezerAppState
+import com.slideindex.app.freezer.FreezerOperations
+import com.slideindex.app.launcher.AppTarget
+import com.slideindex.app.overlay.CloneAppsIndex
 import com.slideindex.app.launcher.QuickLauncherItemCodec
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
@@ -122,6 +126,7 @@ fun WidgetPickerScreen(
 ) {
   val context = LocalContext.current
   var selectedTab by remember { mutableIntStateOf(0) }
+  // 勾选态按目标（包名 + user）记：主实例与分身在面板里是两个条目，互相独立。
   var addedAppPackages by remember(configuredAppPackages) { mutableStateOf(configuredAppPackages) }
   var addedShortcutKeys by remember(configuredShortcutKeys) { mutableStateOf(configuredShortcutKeys) }
   val initialGroups = WidgetCatalog.cachedGroups ?: emptyList()
@@ -129,6 +134,8 @@ fun WidgetPickerScreen(
   var groups by remember { mutableStateOf(initialGroups) }
   var installedApps by remember { mutableStateOf(initialInstalledApps) }
   var allApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+  // 冰箱成员的实时状态（按目标）；挑应用时也要像冰箱 / 索引一样显示冻结 / 暂停角标。
+  var appStates by remember { mutableStateOf<Map<String, FreezerAppState>>(emptyMap()) }
   var loading by remember { mutableStateOf(initialGroups.isEmpty() && initialInstalledApps.isEmpty()) }
   var searchQuery by remember { mutableStateOf("") }
   var searchExpanded by remember { mutableStateOf(false) }
@@ -146,7 +153,8 @@ fun WidgetPickerScreen(
     }
     withContext(Dispatchers.IO) {
       val loadedGroups = WidgetCatalog.loadGroups(context)
-      val loadedApps = WidgetCatalog.loadInstalledApps(context)
+      // force：缓存里可能是上一版「按包名去重」的结果（没有分身），必须重新枚举一次。
+      val loadedApps = WidgetCatalog.loadInstalledApps(context, force = true)
       val loadedAll = appRepository.loadApps(force = false)
       groups = loadedGroups
       installedApps = loadedApps
@@ -156,6 +164,30 @@ fun WidgetPickerScreen(
   }
 
   val activityResultRegistryOwner = LocalActivityResultRegistryOwner.current
+  LaunchedEffect(installedApps, appSettings.freezerAppPackages) {
+    val targets = appSettings.freezerAppPackages
+    appStates = if (targets.isEmpty()) {
+      emptyMap()
+    } else {
+      withContext(Dispatchers.IO) {
+        buildMap {
+          installedApps.forEach { entry ->
+            val key = AppTarget.encode(entry.packageName, entry.cloneUserId)
+            if (key in targets) {
+              put(
+                key,
+                FreezerOperations.stateOf(
+                  context,
+                  AppTarget(entry.packageName, entry.cloneUserId),
+                ),
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+
   var pendingCreateHost by remember { mutableStateOf<AppShortcutLoader.CreateShortcutHost?>(null) }
   val createLauncher = if (activityResultRegistryOwner != null) {
     rememberLauncherForActivityResult(
@@ -457,20 +489,29 @@ fun WidgetPickerScreen(
         val segmentCount = filteredApps.size
         items(
           count = filteredApps.size,
-          key = { filteredApps[it].packageName + "/" + filteredApps[it].className },
+          key = {
+            filteredApps[it].packageName + "/" + filteredApps[it].className +
+              "/" + filteredApps[it].cloneUserId
+          },
         ) { index ->
           val app = filteredApps[index]
-          val isAdded = app.packageName in addedAppPackages
+          val appKey = AppTarget.encode(app.packageName, app.cloneUserId)
+          val isAdded = appKey in addedAppPackages
+          val displayLabel = if (app.cloneUserId > 0) {
+            CloneAppsIndex.labelForUser(context, app.cloneUserId, app.appLabel)
+          } else {
+            app.appLabel
+          }
           Md3PickerListRow(
             segmentIndex = index,
             segmentCount = segmentCount,
-            title = app.appLabel,
+            title = displayLabel,
             subtitle = app.packageName,
             selected = isAdded,
             trailingMode = PickerTrailingMode.Toggle,
             onClick = {
               val nextAdded = !isAdded
-              addedAppPackages = if (nextAdded) addedAppPackages + app.packageName else addedAppPackages - app.packageName
+              addedAppPackages = if (nextAdded) addedAppPackages + appKey else addedAppPackages - appKey
               if (onToggleApp != null) {
                 onToggleApp(app, isAdded)
               } else if (onAppSelected != null) {
@@ -478,25 +519,11 @@ fun WidgetPickerScreen(
               }
             },
             leadingContent = {
-              if (app.iconBitmap != null) {
-                Surface(
-                  modifier = Modifier.size(40.dp),
-                  shape = MaterialTheme.shapes.small,
-                  color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ) {
-                  Image(
-                    bitmap = app.iconBitmap,
-                    contentDescription = app.appLabel,
-                    modifier = Modifier
-                      .fillMaxSize()
-                      .padding(4.dp)
-                      .clip(MaterialTheme.shapes.extraSmall),
-                    contentScale = ContentScale.Crop,
-                  )
-                }
-              } else {
-                Md3PickerPackageLeading(packageName = app.packageName, contentDescription = app.appLabel)
-              }
+              WidgetPickerAppLeading(
+                entry = app,
+                label = displayLabel,
+                state = appStates[appKey],
+              )
             },
           )
         }
@@ -859,4 +886,25 @@ private fun WidgetDetailCard(
       )
     }
   }
+}
+
+/** 小组件面板挑应用时的图标：复用统一 leading，冻结/暂停角标、分身黄点与其它页面一致。 */
+@Composable
+private fun WidgetPickerAppLeading(
+  entry: InstalledAppEntry,
+  label: String,
+  state: FreezerAppState?,
+) {
+  val app = remember(entry.packageName, entry.cloneUserId, label, state) {
+    AppInfo(
+      packageName = entry.packageName,
+      label = label,
+      letter = entry.initialKey.firstOrNull() ?: '#',
+      pinyinKey = entry.sortKey,
+      cloneUserId = entry.cloneUserId,
+      isFrozen = state?.isFrozen ?: false,
+      isPaused = state?.isPaused ?: false,
+    )
+  }
+  Md3PickerAppLeading(app)
 }

@@ -397,13 +397,13 @@ fun WidgetPickerOverlayRoot(
           configuredAppPackages = initialAppPkgs,
           configuredShortcutKeys = initialShortcutKeys,
           onToggleApp = { app, _ ->
-            WidgetPickerTrampoline.toggleApp(app.packageName, app.className, app.appLabel)
+            WidgetPickerTrampoline.toggleApp(app.packageName, app.className, app.appLabel, app.cloneUserId)
           },
           onToggleShortcut = { sc, _ ->
             WidgetPickerTrampoline.toggleShortcut(sc.packageName, sc.shortcutId, sc.label, sc.intentUri)
           },
           onAppSelected = { app ->
-            WidgetPickerTrampoline.toggleApp(app.packageName, app.className, app.appLabel)
+            WidgetPickerTrampoline.toggleApp(app.packageName, app.className, app.appLabel, app.cloneUserId)
           },
           onShortcutSelected = { sc ->
             WidgetPickerTrampoline.toggleShortcut(sc.packageName, sc.shortcutId, sc.label, sc.intentUri)
