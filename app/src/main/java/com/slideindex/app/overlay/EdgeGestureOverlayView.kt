@@ -523,6 +523,7 @@ class EdgeGestureOverlayView(
             val a = old[i]
             val b = new[i]
             a.packageName == b.packageName && a.label == b.label && a.letter == b.letter &&
+                a.cloneUserId == b.cloneUserId &&
                 a.isFrozen == b.isFrozen && a.isPaused == b.isPaused
         }
     }

@@ -12,6 +12,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -31,8 +32,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -91,6 +94,7 @@ import com.slideindex.app.clipboard.ClipboardEntry
 import com.slideindex.app.clipboard.ClipboardHtmlParser
 import com.slideindex.app.clipboard.hasImageContent
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.freezer.FreezerAppState
 import com.slideindex.app.freezer.FreezerOperations
 import com.slideindex.app.overlay.pickresult.PickResultUrl
 import com.slideindex.app.search.contacts.ContactSearchEntry
@@ -405,6 +409,8 @@ private fun SearchPanelAppIconStrip(
                             size = AppIconCandidateSize,
                             corner = AppIconCandidateCorner,
                             dimmed = !appState.isActive,
+                            state = appState,
+                            isClone = app.isClone,
                         )
                         Text(
                             text = app.label,
@@ -479,6 +485,8 @@ private fun SearchPanelAppListCards(
                             size = LeadingSlotSize,
                             corner = RoundedCornerShape(8.dp),
                             dimmed = !appState.isActive,
+                            state = appState,
+                            isClone = app.isClone,
                         )
                     }
                 },
@@ -503,6 +511,8 @@ private fun SearchPanelAppIcon(
     size: Dp,
     corner: RoundedCornerShape,
     dimmed: Boolean = false,
+    state: FreezerAppState = FreezerAppState.ACTIVE,
+    isClone: Boolean = false,
 ) {
     val context = LocalContext.current
     var iconBitmap by remember(packageName) {
@@ -518,30 +528,61 @@ private fun SearchPanelAppIcon(
     } else {
         null
     }
-    if (iconBitmap != null) {
-        Image(
-            bitmap = iconBitmap!!,
-            contentDescription = contentDescription,
-            modifier = Modifier
-                .size(size)
-                .clip(corner),
-            contentScale = ContentScale.Crop,
-            colorFilter = grayscale,
-        )
-    } else {
-        Icon(
-            imageVector = Icons.Default.Star,
-            contentDescription = contentDescription,
-            modifier = Modifier
-                .size(size)
-                .background(
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    corner,
+    Box(modifier = Modifier.size(size)) {
+        if (iconBitmap != null) {
+            Image(
+                bitmap = iconBitmap!!,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(corner),
+                contentScale = ContentScale.Crop,
+                colorFilter = grayscale,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        corner,
+                    )
+                    .padding(8.dp)
+                    .then(if (dimmed) Modifier.alpha(0.38f) else Modifier),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        // 分身标记：右上角黄点，与侧边索引 / 任务切换器同色（0xFFFFC107）。
+        if (isClone) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(10.dp)
+                    .background(Color(0xFFFFC107), CircleShape)
+                    .border(1.dp, Color(0xB3000000), CircleShape),
+            )
+        }
+        // 冻结 / 暂停标记：右下角，与冰箱网格一致（暂停 = 双竖杠，冻结 = 雪花）。
+        if (state.isPaused || state.isFrozen) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(18.dp)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (state.isPaused) Icons.Default.Pause else Icons.Default.AcUnit,
+                    contentDescription = stringResource(
+                        if (state.isPaused) R.string.freezer_status_paused else R.string.freezer_status_frozen,
+                    ),
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.primary,
                 )
-                .padding(8.dp)
-                .then(if (dimmed) Modifier.alpha(0.38f) else Modifier),
-            tint = MaterialTheme.colorScheme.primary,
-        )
+            }
+        }
     }
 }
 

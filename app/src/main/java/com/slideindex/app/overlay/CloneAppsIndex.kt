@@ -127,6 +127,10 @@ internal object CloneAppsIndex {
             packageRefs.forEach { ref ->
                 val label = renderLabel(app.label, ref.kind)
                 val (frozen, paused) = cloneState(ref.packageName, ref.userId)
+                Log.d(
+                    TAG,
+                    "clone state: ${ref.packageName}@${ref.userId} frozen=$frozen paused=$paused",
+                )
                 extras += app.copy(
                     label = label,
                     letter = PinyinHelper.firstLetter(label),

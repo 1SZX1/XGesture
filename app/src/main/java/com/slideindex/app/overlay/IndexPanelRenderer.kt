@@ -304,6 +304,10 @@ internal class IndexPanelRenderer(
                 app.isPaused -> drawPausedBadge(canvas, iconCenterX, iconTop)
             }
             if (app.isClone) {
+                android.util.Log.d(
+                    "IndexPanel",
+                    "clone draw ${app.label} uid=${app.cloneUserId} frozen=${app.isFrozen} paused=${app.isPaused}",
+                )
                 drawCloneDot(canvas, iconCenterX, iconTop)
             }
             canvas.drawText(label, iconCenterX, labelBaseline, appLabelPaint)
