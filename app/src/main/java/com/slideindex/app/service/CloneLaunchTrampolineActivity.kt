@@ -23,6 +23,8 @@ class CloneLaunchTrampolineActivity : Activity() {
     private var packageName: String = ""
     private var userId: Int = 0
 
+    private val finishRunnable = Runnable { finish() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         overridePendingTransition(0, 0)
@@ -39,7 +41,15 @@ class CloneLaunchTrampolineActivity : Activity() {
         // 这样系统判定调用方是前台 Activity，而不是后台浮层。
         val ok = runCatching { launchInUser(packageName, userId) }.getOrDefault(false)
         Log.i(TAG, "trampoline launch $packageName@$userId -> $ok")
-        finish()
+        // 不能立刻 finish：系统的「正在尝试打开」确认框/多开选择器会把结果回给发起 Activity，
+        // 发起者提前销毁会让用户确认之后只拿到 START_CANCELED（Flyme 实测 -93）。
+        // 这里保活到用户完成选择为止（最长 60s），期间窗口透明不可见。
+        window.decorView.postDelayed(finishRunnable, FINISH_TIMEOUT_MS)
+    }
+
+    override fun onDestroy() {
+        window.decorView.removeCallbacks(finishRunnable)
+        super.onDestroy()
     }
 
     private fun launchInUser(packageName: String, userId: Int): Boolean {
@@ -58,6 +68,7 @@ class CloneLaunchTrampolineActivity : Activity() {
     companion object {
         private const val TAG = "CloneLaunchTrampoline"
         private const val PER_USER_RANGE = 100_000
+        private const val FINISH_TIMEOUT_MS = 60_000L
         private const val EXTRA_PACKAGE = "clone_package"
         private const val EXTRA_USER_ID = "clone_user_id"
 
