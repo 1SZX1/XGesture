@@ -4,7 +4,7 @@
 >
 > 仓库：`D:\AndroidDev\Projects\cebian`（Android，Kotlin/Compose）
 > 验证机：魅族 21，Flyme 12.6.0.0A（Android 16），分身 user = **999**（`android.os.usertype.profile.CLONE`），Sui 模块提供 Shizuku。
-> 分支：`main`；代码基线 `27bd9038`（冰箱目标模型）；本文件在 `b2aee5b9` 引入，之后随实现更新。
+> 分支：`main`；代码基线 `e7696df6`；本文件在 `b2aee5b9` 引入，之后随实现更新。
 
 ## 零、总原则：分身没有特例
 
@@ -32,15 +32,21 @@
 - 多选「全选」选中 5 项，批量栏正常；
 - 快捷方式 id 为 `freezer_app_<pkg>_u999`，intent 带 `extra_freezer_launch_user_id=999`；经跳板启动后前台是 `u999 com.ss.android.ugc.aweme`（无 Shizuku 时经过 Flyme 的「选择应用」，属系统行为）。
 
-**平台限制（实测，不是我们的特例）**：`pm suspend --user 999` 被 PMS 拒绝：
+**跨 user 挂起的平台规则（实测）**：`pm suspend --user 999` 在 **Shizuku / shell 下**被 PMS 拒绝：
 
 ```
 SecurityException: Suspending package com.android.shell in user 999 does not belong to calling uid 2000
 ```
 
-即发起方包（`com.android.shell` / 本应用）必须存在于目标 user 且 uid 匹配。Flyme 的 999 里既没有 `com.android.shell` 也没有本应用，所以**无 root 时无法暂停分身**；冻结（`pm disable-user --user N`）不受此限制。代码仍与主实例走同一条路径（没有特例），失败时提示「暂停失败」。要验证分身暂停的成功路径，需要 Shizuku 以 root 运行。
+发起方包必须存在于目标 user 且 uid 匹配。**root 豁免这条检查**——用户已在应用内实测：root 模式点「暂停」分身成功。所以准确的结论是：
 
-仍需在**已授权 Shizuku + root** 的环境手工验证：冻结 / 解冻分身、暂停 / 取消暂停分身、批量冻结 / 暂停、按记录还原、索引角标、悬空目标。
+- **root（含 Shizuku-root）**：分身冻结 / 暂停都可用，代码无需改动（同一条 `setAppSuspended(..., userId)`）；
+- **Shizuku 非 root**：分身能冻结（`pm disable-user --user N`），**暂停会被 PMS 拒绝**；应用里提示「分身暂停需要 Root」，不再糊 `SecurityException` 原文；
+- 主实例的冻结 / 暂停不受影响。
+
+另外修掉一处索引重复：主实例处于暂停时会被可启动列表排除，`loadIndexApps` 曾同时补出「抖音」（主）与「抖音」（分身目标，无后缀），`enrich` 又补一条「抖音 · 分身」，索引里出现 3 个抖音。现在 `loadIndexApps` 只补 user 0 的条目，分身统一交给 `enrich`，并在索引合并处按 `(包名, userId)` 去重。
+
+仍需手工验证：分身取消暂停、暂停后点开是否有系统对话框、批量暂停含分身、按记录还原含分身、索引里冻结分身的角标、悬空目标。
 
 ## 一、已经做完的（不要重做）
 
@@ -132,7 +138,7 @@ ebb99a49 feat(clone): 应用分身可绑手势与快捷启动器
 - 记账：PMS 按 `(包, user, 发起方包名)` 记录挂起；现有代码取消时同时清「本应用」与 `com.android.shell` 两个 key（`:196-204`），这套逻辑对 999 同样适用，但 `waitForSuspended` 必须按 999 回读。
 - 冻结与暂停互斥（「先取消暂停再冻结」「先解冻再暂停」）保留，只是都按目标。
 - 设备待验 4 条：Flyme 是否允许对 999 挂起、分身桌面图标是否灰化、点开是否弹系统「已暂停」对话框、`pm suspend --user 999` 的 shell 兜底是否被接受。
-- 设备实测结论见「实施状态」：无 root 时 `pm suspend --user 999` 会被 PMS 以 `SecurityException` 拒绝（发起方包不在目标 user）。**这是平台限制，不是要恢复「分身不支持暂停」**；代码保持同一条路径，失败如实提示。
+- 设备实测结论见「实施状态」：**Shizuku / shell 非 root** 下 `pm suspend --user 999` 会被 PMS 以 `SecurityException` 拒绝（发起方包不在目标 user）；**root 豁免**，应用内实测暂停分身成功。**这不是要恢复「分身不支持暂停」**；代码保持同一条路径，Shizuku 非 root 时提示「分身暂停需要 Root」。
 
 ### 2.6 网格 / 选择 / 批量
 
@@ -201,7 +207,7 @@ ebb99a49 feat(clone): 应用分身可绑手势与快捷启动器
 1. 旧冰箱成员（裸包名）原样显示，可冻结 / 解冻 / 暂停 / 还原。
 2. 管理页出现「抖音 · 分身」，加入后冰箱两条：主 / 分身。
 3. 只冻结分身：主实例可启动、桌面图标不变；只冻结主实例：分身可启动。
-4. 只暂停分身：主实例正常，分身图标灰化、点开弹系统对话框；只暂停主实例：分身正常。**需要 root**（无 root 时 PMS 拒绝跨 user 挂起，见「实施状态」）。
+4. 只暂停分身：主实例正常，分身图标灰化、点开弹系统对话框；只暂停主实例：分身正常。**需要 root**（Shizuku 非 root 时 PMS 拒绝跨 user 挂起；root 已实测可用）。
 5. 多选「主 + 分身」→ 批量冻结 / 批量解冻 / 批量暂停 / 批量取消暂停，四个动作都独立生效。
 6. 「按记录还原」对主 / 分身各自生效（`freezerAppIntents` key 不互相覆盖）。
 7. 移除分身条目只删分身：已冻结时只 `pm enable --user 999`，主实例仍在列表。
