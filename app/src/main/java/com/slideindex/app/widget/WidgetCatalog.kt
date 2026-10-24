@@ -148,20 +148,35 @@ object WidgetCatalog {
     }
     val result = runCatching {
       val appContext = context.applicationContext
-      val pm = appContext.packageManager
       val launcherApps = appContext.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
       val userManager = appContext.getSystemService(Context.USER_SERVICE) as? UserManager
-      val profiles = userManager?.userProfiles ?: emptyList()
+      // 用户列表：公开 profile + `pm list users` 兜底。
+      // Flyme 的平行空间（user 999）在部分版本不出现在 `getUserProfiles()` 里，
+      // 只信公开 API 的话分身会整条消失（`CloneAppsIndex` 就是因此加了 shell 兜底）。
+      val userIds = LinkedHashSet<Int>()
+      userIds += android.os.Process.myUserHandle().hashCode()
+      userManager?.userProfiles.orEmpty().forEach { profile ->
+        runCatching { profile.hashCode() }.getOrNull()?.let { userIds += it }
+      }
+      runCatching {
+        val shell = com.slideindex.app.util.TaskManagerUtil.runShellCommandOutput("pm", "list", "users")
+        if (shell.exitCode == 0) {
+          Regex("""UserInfo\{(\d+):""").findAll(shell.output).forEach { match ->
+            match.groupValues[1].toIntOrNull()?.let { userIds += it }
+          }
+        }
+      }
       val entries = mutableListOf<InstalledAppEntry>()
       val seen = HashSet<String>()
-      if (launcherApps != null && profiles.isNotEmpty()) {
+      if (launcherApps != null) {
         // 「应用分身 / 工作资料」下同一个包会在多个 user 里各有一个实例。
         // 每个 user 一条，身份用 (包名, userId) 区分：面板的勾选与增删都按这个身份走，
         // 同包名的主实例与分身不会再互相覆盖（旧的「按包名去重」正是分身列不出来的原因）。
-        val orderedProfiles = profiles.sortedBy { if (it == android.os.Process.myUserHandle()) 0 else 1 }
-        for (profile in orderedProfiles) {
-          val userId = runCatching { profile.hashCode() }.getOrDefault(0)
-          runCatching { launcherApps.getActivityList(null, profile) }.getOrDefault(emptyList()).forEach { info ->
+        for (userId in userIds.sortedBy { if (it == android.os.Process.myUserHandle().hashCode()) 0 else 1 }) {
+          val handle = runCatching {
+            android.os.UserHandle.getUserHandleForUid(userId * 100_000)
+          }.getOrNull() ?: continue
+          runCatching { launcherApps.getActivityList(null, handle) }.getOrDefault(emptyList()).forEach { info ->
             val pkg = info.applicationInfo?.packageName ?: return@forEach
             if (pkg == appContext.packageName) return@forEach
             val cls = info.name
@@ -182,6 +197,10 @@ object WidgetCatalog {
           }
         }
       }
+      android.util.Log.i(
+        "WidgetCatalog",
+        "users=${userIds.toList()} entries=${entries.size} clones=${entries.count { it.cloneUserId > 0 }}",
+      )
       entries.sortedBy { it.sortKey }
     }.getOrDefault(emptyList())
     cachedInstalledApps = result

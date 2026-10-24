@@ -156,6 +156,10 @@ fun WidgetPickerScreen(
       // force：缓存里可能是上一版「按包名去重」的结果（没有分身），必须重新枚举一次。
       val loadedApps = WidgetCatalog.loadInstalledApps(context, force = true)
       val loadedAll = appRepository.loadApps(force = false)
+      android.util.Log.i(
+        "WidgetPicker",
+        "installed=${loadedApps.size} clones=${loadedApps.count { it.cloneUserId > 0 }}",
+      )
       groups = loadedGroups
       installedApps = loadedApps
       allApps = loadedAll
