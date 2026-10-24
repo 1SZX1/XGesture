@@ -443,6 +443,8 @@ class ActionExecutor(
                 )
             GestureAction.ScreenDraw ->
                 com.slideindex.app.screendraw.ScreenDrawOverlay.toggle(context)
+            GestureAction.GalleryImageEdit ->
+                com.slideindex.app.service.GalleryImageEditTrampolineActivity.launch(context)
             GestureAction.WechatScan ->
                 com.slideindex.app.payqr.PayQrActionLauncher.open(
                     context,

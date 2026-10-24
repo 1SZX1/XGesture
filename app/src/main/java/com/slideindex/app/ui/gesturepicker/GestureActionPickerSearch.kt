@@ -121,6 +121,16 @@ fun gestureActionSearchAliases(context: Context, action: GestureAction): List<St
         "annotation",
         "doodle",
     )
+    // 两种叫法都吃下（「相册图片编辑」是正式名，老直觉是「图片编辑」/「编辑图片」）。
+    GestureActionType.GALLERY_IMAGE_EDIT -> listOf(
+        context.getString(R.string.gesture_action_gallery_image_edit),
+        "gallery",
+        "photo editor",
+        "image editor",
+        "edit photo",
+        "图片编辑",
+        "编辑图片",
+    )
     GestureActionType.WECHAT_SCAN -> listOf(
         context.getString(R.string.gesture_action_wechat_scan),
         "wechat",
@@ -221,6 +231,7 @@ fun gestureActionDescriptionText(context: Context, action: GestureAction): Strin
         GestureActionType.TOUCH_BLOCK -> context.getString(R.string.gesture_action_touch_block_desc)
         GestureActionType.SCREEN_CONTROL -> context.getString(R.string.gesture_action_screen_control_desc)
         GestureActionType.SCREEN_DRAW -> context.getString(R.string.gesture_action_screen_draw_desc)
+        GestureActionType.GALLERY_IMAGE_EDIT -> context.getString(R.string.gesture_action_gallery_image_edit_desc)
         GestureActionType.WECHAT_SCAN -> context.getString(R.string.gesture_action_wechat_scan_desc)
         GestureActionType.WECHAT_PAY_CODE -> context.getString(R.string.gesture_action_wechat_pay_code_desc)
         GestureActionType.ALIPAY_PAY_CODE -> context.getString(R.string.gesture_action_alipay_pay_code_desc)
@@ -406,6 +417,7 @@ fun gestureActionLabelText(context: Context, action: GestureAction): String = wh
         GestureActionType.TOUCH_BLOCK -> context.getString(R.string.gesture_action_touch_block)
         GestureActionType.SCREEN_CONTROL -> context.getString(R.string.gesture_action_screen_control)
         GestureActionType.SCREEN_DRAW -> context.getString(R.string.gesture_action_screen_draw)
+        GestureActionType.GALLERY_IMAGE_EDIT -> context.getString(R.string.gesture_action_gallery_image_edit)
         GestureActionType.WECHAT_SCAN -> context.getString(R.string.gesture_action_wechat_scan)
         GestureActionType.WECHAT_PAY_CODE -> context.getString(R.string.gesture_action_wechat_pay_code)
         GestureActionType.ALIPAY_PAY_CODE -> context.getString(R.string.gesture_action_alipay_pay_code)
@@ -567,6 +579,7 @@ fun gestureActionLabel(action: GestureAction, settings: AppSettings? = null): St
         GestureActionType.TOUCH_BLOCK -> stringResource(R.string.gesture_action_touch_block)
         GestureActionType.SCREEN_CONTROL -> stringResource(R.string.gesture_action_screen_control)
         GestureActionType.SCREEN_DRAW -> stringResource(R.string.gesture_action_screen_draw)
+        GestureActionType.GALLERY_IMAGE_EDIT -> stringResource(R.string.gesture_action_gallery_image_edit)
         GestureActionType.WECHAT_SCAN -> stringResource(R.string.gesture_action_wechat_scan)
         GestureActionType.WECHAT_PAY_CODE -> stringResource(R.string.gesture_action_wechat_pay_code)
         GestureActionType.ALIPAY_PAY_CODE -> stringResource(R.string.gesture_action_alipay_pay_code)
@@ -651,6 +664,7 @@ fun gestureActionDescription(action: GestureAction): String? = when (action.type
     GestureActionType.TOUCH_BLOCK -> stringResource(R.string.gesture_action_touch_block_desc)
     GestureActionType.SCREEN_CONTROL -> stringResource(R.string.gesture_action_screen_control_desc)
     GestureActionType.SCREEN_DRAW -> stringResource(R.string.gesture_action_screen_draw_desc)
+    GestureActionType.GALLERY_IMAGE_EDIT -> stringResource(R.string.gesture_action_gallery_image_edit_desc)
     GestureActionType.WECHAT_SCAN -> stringResource(R.string.gesture_action_wechat_scan_desc)
     GestureActionType.WECHAT_PAY_CODE -> stringResource(R.string.gesture_action_wechat_pay_code_desc)
     GestureActionType.ALIPAY_PAY_CODE -> stringResource(R.string.gesture_action_alipay_pay_code_desc)

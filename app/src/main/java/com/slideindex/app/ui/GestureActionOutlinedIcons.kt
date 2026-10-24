@@ -2,6 +2,7 @@ package com.slideindex.app.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.slideindex.app.gesture.GestureActionType
@@ -120,6 +121,7 @@ internal fun gestureActionTypeOutlinedIcon(type: GestureActionType): ImageVector
     GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ThinActionIcons.Search
     GestureActionType.SMART_SCREENSHOT -> ThinActionIcons.Screenshot
     GestureActionType.SCREEN_DRAW -> ThinActionIcons.PenTablet
+    GestureActionType.GALLERY_IMAGE_EDIT -> Icons.Outlined.PhotoLibrary
     GestureActionType.SCREEN_CONTROL -> ThinActionIcons.RemoteControl2
     GestureActionType.WECHAT_SCAN -> PayQrActionIcons.WechatScan
     GestureActionType.WECHAT_PAY_CODE -> PayQrActionIcons.WechatPayCode
@@ -224,6 +226,7 @@ internal fun gestureActionTypeThinIcon(type: GestureActionType): ImageVector = w
     GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ThinActionIcons.Search
     GestureActionType.SMART_SCREENSHOT -> ThinActionIcons.Screenshot
     GestureActionType.SCREEN_DRAW -> ThinActionIcons.PenTablet
+    GestureActionType.GALLERY_IMAGE_EDIT -> Icons.Outlined.PhotoLibrary
     GestureActionType.SCREEN_CONTROL -> ThinActionIcons.RemoteControl2
     GestureActionType.WECHAT_SCAN -> PayQrActionIcons.WechatScan
     GestureActionType.WECHAT_PAY_CODE -> PayQrActionIcons.WechatPayCode

@@ -155,6 +155,8 @@ object GestureActionCatalog {
         GestureActionType.VOICE_ASSISTANT,
         GestureActionType.SMART_SCREENSHOT,
         GestureActionType.SCREEN_DRAW,
+        // 「相册图片编辑」编辑的是相册里已有的图，归在「截屏与识别」这一族里（与截图→编辑相邻）。
+        GestureActionType.GALLERY_IMAGE_EDIT,
         -> GestureActionCategory.Intelligence
 
         // 4. 面板与启动 (Panels & Launchers)
@@ -316,6 +318,7 @@ object GestureActionCatalog {
         GestureAction.VoiceAssistant,
         GestureAction.SmartScreenshot,
         GestureAction.ScreenDraw,
+        GestureAction.GalleryImageEdit,
 
         // 4. 面板与启动器 (Panels & Launchers)
         GestureAction.AppCarouselSwitcher,

@@ -1059,6 +1059,9 @@
     <string name="gesture_action_screen_draw">屏幕绘制</string>
     <string name="gesture_action_screen_draw_desc">在屏幕上层直接手绘标注，可撤销/清空并导出为图片</string>
     <string name="gesture_action_screen_draw_permission">需要无障碍服务</string>
+    <string name="gesture_action_gallery_image_edit">相册图片编辑</string>
+    <string name="gesture_action_gallery_image_edit_desc">从相册选一张图片，进入内置图片编辑器</string>
+    <string name="gesture_action_gallery_image_edit_load_failed">无法读取所选图片</string>
     <string name="screen_control_accessibility_required">无障碍服务未连接</string>
     <string name="screen_draw_accessibility_required">无障碍服务未连接</string>
     <string name="screen_draw_empty">画布上还没有内容</string>

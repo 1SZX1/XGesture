@@ -1768,6 +1768,9 @@
     <string name="gesture_action_screen_draw">Screen draw</string>
     <string name="gesture_action_screen_draw_desc">Draw and annotate directly on top of the screen, with undo/clear and export.</string>
     <string name="gesture_action_screen_draw_permission">Requires accessibility service</string>
+    <string name="gesture_action_gallery_image_edit">Gallery image editor</string>
+    <string name="gesture_action_gallery_image_edit_desc">Pick a photo from the gallery and open it in the built-in image editor.</string>
+    <string name="gesture_action_gallery_image_edit_load_failed">Failed to load the selected image</string>
     <string name="screen_control_accessibility_required">Accessibility service is not connected</string>
     <string name="screen_draw_accessibility_required">Accessibility service is not connected</string>
     <string name="screen_draw_empty">Nothing to save yet</string>

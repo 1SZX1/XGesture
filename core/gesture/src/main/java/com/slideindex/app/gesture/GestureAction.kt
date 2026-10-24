@@ -172,6 +172,18 @@ enum class GestureActionType(val id: Int) {
 
     /** 「支付宝扫一扫」：直接唤起支付宝扫码界面（`alipays://…saId=10000007`）。 */
     ALIPAY_SCAN(104),
+
+    /**
+     * 「相册图片编辑」：弹系统图片选择器选一张图，选完直接进内置图片编辑器。
+     *
+     * 与「智能截图」「区域截图&取词」的区别：那两条是**先截屏再编辑**，本动作编辑的是**相册里已有的图**，
+     * 所以动作名带「相册」前缀（编辑器自身的标题仍是「图片编辑」，见 `inspire_image_edit_title`）。
+     * ⚠️ 以后若给本动作加上"剪贴板 / 分享 / 拖入"等相册以外的来源，这个名字就会误导，届时应改名。
+     *
+     * 取图用 `PickVisualMedia`（系统照片选择器），不需要任何读图权限；
+     * 流程见 `com.slideindex.app.service.GalleryImageEditTrampolineActivity`。
+     */
+    GALLERY_IMAGE_EDIT(105),
     ;
 
     companion object {
@@ -1044,6 +1056,12 @@ sealed class GestureAction {
         override val payload = ""
     }
 
+    /** 相册图片编辑：系统选一张图 → 内置图片编辑器。 */
+    data object GalleryImageEdit : GestureAction() {
+        override val type = GestureActionType.GALLERY_IMAGE_EDIT
+        override val payload = ""
+    }
+
     /** 钉到屏幕（轻量弹窗选择文本或图片，生成悬浮便签或图片置顶）。 */
     data object PinToScreen : GestureAction() {
         override val type = GestureActionType.PIN_TO_SCREEN
@@ -1201,6 +1219,7 @@ sealed class GestureAction {
                 GestureActionType.WECHAT_PAY_CODE -> WechatPayCode
                 GestureActionType.ALIPAY_PAY_CODE -> AlipayPayCode
                 GestureActionType.ALIPAY_SCAN -> AlipayScan
+                GestureActionType.GALLERY_IMAGE_EDIT -> GalleryImageEdit
                 GestureActionType.PIN_TO_SCREEN -> PinToScreen
                 GestureActionType.FOREGROUND_ACTIVITY_INSPECTOR -> ForegroundActivityInspector
                 GestureActionType.NONE -> None

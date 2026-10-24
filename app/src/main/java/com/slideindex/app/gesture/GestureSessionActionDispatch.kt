@@ -489,6 +489,7 @@ internal fun GestureSession.handleClassifiedGesture(
         GestureAction.TouchBlock,
         GestureAction.ScreenControl,
         GestureAction.ScreenDraw,
+        GestureAction.GalleryImageEdit,
         GestureAction.WechatScan,
         GestureAction.WechatPayCode,
         GestureAction.AlipayPayCode,
