@@ -942,6 +942,9 @@
     <string name="gesture_action_fullscreen_screenshot_pick">التقاط النص من لقطة شاشة ملء الشاشة</string>
     <string name="gesture_action_fullscreen_screenshot_pick_desc">أخذ لقطة شاشة ملء الشاشة وفتح لوحة التقاط النص</string>
     <string name="gesture_action_fullscreen_screenshot_pick_permission">يتطلب تفعيل خدمة إمكانية الوصول</string>
+    <string name="gesture_action_gallery_image_edit">تحرير صورة من المعرض</string>
+    <string name="gesture_action_gallery_image_edit_desc">اختر صورة من المعرض وافتحها في محرر الصور المدمج</string>
+    <string name="gesture_action_gallery_image_edit_load_failed">تعذّر تحميل الصورة المحددة</string>
     <string name="gesture_action_regional_screenshot_pick">لقطة شاشة لمنطقة والتقاط النص</string>
     <string name="gesture_action_regional_screenshot_pick_desc">التشغيل المستمر: اسحب من الحافة، تتبع الكرة الإصبع، علامة الجمع لالتقاط النص/تحديد المنطقة</string>
     <string name="gesture_action_regional_screenshot_pick_permission">يتطلب تفعيل خدمة إمكانية الوصول</string>

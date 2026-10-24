@@ -964,6 +964,9 @@
     <string name="gesture_action_fullscreen_screenshot_pick">全画面スクリーンショット選択</string>
     <string name="gesture_action_fullscreen_screenshot_pick_desc">全画面をキャプチャし、テキスト選択パネルを開きます</string>
     <string name="gesture_action_fullscreen_screenshot_pick_permission">アクセシビリティサービスが必要です</string>
+    <string name="gesture_action_gallery_image_edit">ギャラリーの画像編集</string>
+    <string name="gesture_action_gallery_image_edit_desc">ギャラリーから画像を選び、内蔵の画像エディターで開きます</string>
+    <string name="gesture_action_gallery_image_edit_load_failed">選択した画像を読み込めません</string>
     <string name="gesture_action_regional_screenshot_pick">部分スクリーンショットと選択</string>
     <string name="gesture_action_regional_screenshot_pick_desc">連続モードのみ：端からドラッグ。ボールが指に追従し、十字でテキスト選択または領域指定</string>
     <string name="gesture_action_regional_screenshot_pick_permission">アクセシビリティサービスが必要です</string>
