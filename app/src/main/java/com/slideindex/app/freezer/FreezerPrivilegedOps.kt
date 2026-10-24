@@ -3,9 +3,10 @@ package com.slideindex.app.freezer
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.os.Process
-import android.os.SystemClock
+import android.os.UserHandle
 import com.slideindex.app.BuildConfig
 import com.slideindex.app.privilege.PrivilegeGateway
 import com.slideindex.app.search.ral.HiddenFrameworkAccess
@@ -21,28 +22,28 @@ internal object FreezerPrivilegedOps {
     private const val APP_INFO_FLAGS =
         PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
 
-    /** `pm list users` 结果的缓存时长：新建分身/工作资料后最多半分钟生效。 */
-    private const val USER_IDS_CACHE_MS = 30_000L
+    /**
+     * `UserHandle.getUserHandleForUid(userId * 100000)`：公开 API 里没有 `UserHandle.of(userId)`，
+     * 但 uid 的 user 段就是 user id。分身 / 工作资料都靠它拿到 [UserHandle]。
+     */
+    private const val PER_USER_RANGE = 100_000
 
-    @Volatile
-    private var cachedUserIds: List<Int>? = null
-
-    @Volatile
-    private var cachedUserIdsAt = 0L
-
-    fun isAppDisabled(context: Context, packageName: String): Boolean =
-        appFlags(context, packageName)?.first?.not() ?: false
+    fun isAppDisabled(context: Context, packageName: String, userId: Int): Boolean =
+        appFlags(context, packageName, userId)?.first?.not() ?: false
 
     /** 是否处于「已暂停」（应用挂起）状态；公开常量 [ApplicationInfo.FLAG_SUSPENDED]。 */
-    fun isAppSuspended(context: Context, packageName: String): Boolean =
-        appFlags(context, packageName)?.second ?: false
+    fun isAppSuspended(context: Context, packageName: String, userId: Int): Boolean =
+        appFlags(context, packageName, userId)?.second ?: false
 
     /**
      * 一次查询同时得到启用状态与挂起标志。
      * Compose 组合期会对每个网格项调用，不能拆成两次 `getApplicationInfo`。
+     *
+     * [userId] 不是当前用户时（分身 / 工作资料），公开 `PackageManager` 查不到别人的状态，
+     * 改走 [LauncherApps.getApplicationInfo]（与 `CloneAppsIndex` 同一条路）。
      */
-    fun appState(context: Context, packageName: String): FreezerAppState {
-        val flags = appFlags(context, packageName) ?: return FreezerAppState.ACTIVE
+    fun appState(context: Context, packageName: String, userId: Int): FreezerAppState {
+        val flags = appFlags(context, packageName, userId) ?: return FreezerAppState.ACTIVE
         return FreezerAppState.of(enabled = flags.first, suspended = flags.second)
     }
 
@@ -66,36 +67,58 @@ internal object FreezerPrivilegedOps {
         return homePackage == packageName
     }
 
-    private fun appFlags(context: Context, packageName: String): Pair<Boolean, Boolean>? = runCatching {
-        val info = context.packageManager.getApplicationInfo(packageName, APP_INFO_FLAGS)
-        info.enabled to ((info.flags and ApplicationInfo.FLAG_SUSPENDED) != 0)
-    }.getOrNull()
+    private fun appFlags(context: Context, packageName: String, userId: Int): Pair<Boolean, Boolean>? =
+        if (userId == currentUserId()) {
+            appFlagsCurrentUser(context, packageName)
+        } else {
+            appFlagsForUser(context, packageName, userId)
+        }
 
-    fun setAppDisabled(context: Context, packageName: String, disabled: Boolean): Pair<Boolean, String> {
+    private fun appFlagsCurrentUser(context: Context, packageName: String): Pair<Boolean, Boolean>? =
+        runCatching {
+            val info = context.packageManager.getApplicationInfo(packageName, APP_INFO_FLAGS)
+            info.enabled to ((info.flags and ApplicationInfo.FLAG_SUSPENDED) != 0)
+        }.getOrNull()
+
+    /**
+     * 其他 user 下的同包状态。查不到（user 被删 / 没有可见性）返回 null，调用方按「正常」处理。
+     *
+     * 必须带 `MATCH_DISABLED_COMPONENTS`：冻结后的条目默认不返回，否则刚冻上的分身会瞬间变回「正常」。
+     */
+    private fun appFlagsForUser(context: Context, packageName: String, userId: Int): Pair<Boolean, Boolean>? =
+        runCatching {
+            val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return null
+            val user = UserHandle.getUserHandleForUid(userId * PER_USER_RANGE)
+            val info = launcherApps.getApplicationInfo(packageName, APP_INFO_FLAGS, user)
+            info.enabled to ((info.flags and ApplicationInfo.FLAG_SUSPENDED) != 0)
+        }.getOrNull()
+
+    /**
+     * 冻结 / 解冻**单个目标**（`(包名, userId)`）。
+     *
+     * 刻意不再遍历所有 user：主实例与分身是两个独立目标，冻一个不该连带另一个
+     * （旧实现"冻一个冻一双"正是这里遍历 `pm list users` 造成的）。
+     */
+    fun setAppDisabled(
+        context: Context,
+        packageName: String,
+        disabled: Boolean,
+        userId: Int,
+    ): Pair<Boolean, String> {
         if (!appExists(context, packageName)) {
             return false to "package not found"
         }
         val shizukuRoot = TaskManagerUtil.probeRootAvailable()
         val useRoot = PrivilegeGateway.isRootMode() ||
             (PrivilegeGateway.isShizukuMode() && shizukuRoot)
-        // 多开/分身（如 MIUI user 999）与主实例是同一个包名、不同的 user：
-        // 只处理当前用户的话，分身永远不会被冻上（"只能冻结最初的那个"）。
-        // 这里对枚举到的每个 user 都执行一次；枚举失败时退回单用户，行为与旧版一致。
-        val users = resolveUserIds(useRoot)
-        var success = false
-        var detail = ""
-        for (userId in users) {
-            val (ok, error) = setAppDisabledForUser(
-                context = context,
-                packageName = packageName,
-                disabled = disabled,
-                useRoot = useRoot,
-                shizukuRoot = shizukuRoot,
-                userId = userId,
-            )
-            if (ok) success = true else detail = error
-        }
-        return success to detail
+        return setAppDisabledForUser(
+            context = context,
+            packageName = packageName,
+            disabled = disabled,
+            useRoot = useRoot,
+            shizukuRoot = shizukuRoot,
+            userId = userId,
+        )
     }
 
     private fun setAppDisabledForUser(
@@ -107,7 +130,9 @@ internal object FreezerPrivilegedOps {
         userId: Int,
     ): Pair<Boolean, String> {
         if (disabled) {
-            TaskManagerUtil.forceStopPackage(packageName)
+            // `forceStopPackage` 只作用在调用方 user 上：冻结分身时它会顺手把主实例的进程也杀一遍，
+            // 所以非当前 user 只走带 `--user` 的 shell，别动主实例。
+            if (userId == currentUserId()) TaskManagerUtil.forceStopPackage(packageName)
             TaskManagerUtil.runShellCommandLine(
                 "am force-stop --user $userId $packageName",
                 useRoot = useRoot
@@ -168,7 +193,8 @@ internal object FreezerPrivilegedOps {
         context: Context,
         packageName: String,
         suspended: Boolean,
-        dialogMessage: String?
+        dialogMessage: String?,
+        userId: Int,
     ): Pair<Boolean, String> {
         if (!appExists(context, packageName)) {
             return false to "package not found"
@@ -176,11 +202,11 @@ internal object FreezerPrivilegedOps {
         val shizukuRoot = TaskManagerUtil.probeRootAvailable()
         val useRoot = PrivilegeGateway.isRootMode() ||
             (PrivilegeGateway.isShizukuMode() && shizukuRoot)
-        val userId = resolveUserId(useRoot)
 
         if (suspended) {
             // 挂起只拦启动、不拦后台（框架不做 force-stop），这里与冻结保持一致先杀进程。
-            TaskManagerUtil.forceStopPackage(packageName)
+            // 同样只杀目标 user：别把主实例连带杀掉。
+            if (userId == currentUserId()) TaskManagerUtil.forceStopPackage(packageName)
             TaskManagerUtil.runShellCommandLine(
                 "am force-stop --user $userId $packageName",
                 useRoot = useRoot
@@ -205,20 +231,20 @@ internal object FreezerPrivilegedOps {
             for (key in keys) {
                 val result = setViaShizukuSuspended(context, packageName, suspended, key, dialogMessage, userId)
                 if (result is AttemptResult.Failure && result.detail.isNotBlank()) errors += result.detail
-                if (waitForSuspended(context, packageName, suspended)) return true to ""
+                if (waitForSuspended(context, packageName, suspended, userId)) return true to ""
             }
         }
 
         if (useRoot) {
             val result = setViaShellSuspended(context, packageName, suspended, userId, useRoot = true, dialogMessage)
             if (result is AttemptResult.Failure && result.detail.isNotBlank()) errors += result.detail
-            if (waitForSuspended(context, packageName, suspended)) return true to ""
+            if (waitForSuspended(context, packageName, suspended, userId)) return true to ""
         }
 
         if (PrivilegeGateway.isShizukuMode() && TaskManagerUtil.hasShizukuPermission() && !useRoot) {
             val result = setViaShellSuspended(context, packageName, suspended, userId, useRoot = false, dialogMessage)
             if (result is AttemptResult.Failure && result.detail.isNotBlank()) errors += result.detail
-            if (waitForSuspended(context, packageName, suspended)) return true to ""
+            if (waitForSuspended(context, packageName, suspended, userId)) return true to ""
         }
 
         return false to errors.lastOrNull().orEmpty()
@@ -287,7 +313,7 @@ internal object FreezerPrivilegedOps {
         for (command in commands) {
             val result = TaskManagerUtil.runShellCommandLine(command, useRoot = useRoot)
             lastOutput = result.output.trim().ifBlank { lastOutput }
-            if (waitForSuspended(context, packageName, suspended)) {
+            if (waitForSuspended(context, packageName, suspended, userId)) {
                 return AttemptResult.Success
             }
         }
@@ -312,48 +338,23 @@ internal object FreezerPrivilegedOps {
 
     private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
-    private fun waitForSuspended(context: Context, packageName: String, suspended: Boolean): Boolean {
+    private fun waitForSuspended(
+        context: Context,
+        packageName: String,
+        suspended: Boolean,
+        userId: Int,
+    ): Boolean {
         repeat(8) {
-            if (isAppSuspended(context, packageName) == suspended) return true
+            if (isAppSuspended(context, packageName, userId) == suspended) return true
             Thread.sleep(60)
         }
-        return isAppSuspended(context, packageName) == suspended
+        return isAppSuspended(context, packageName, userId) == suspended
     }
 
     private fun appExists(context: Context, packageName: String): Boolean = runCatching {
         context.packageManager.getApplicationInfo(packageName, APP_INFO_FLAGS)
         true
     }.getOrDefault(false)
-
-    private fun resolveUserId(useRoot: Boolean): Int {
-        val shellUser = TaskManagerUtil.runShellCommandLine("am get-current-user", useRoot = useRoot)
-            .output
-            .trim()
-            .toIntOrNull()
-        if (shellUser != null) return shellUser
-        return currentUserId()
-    }
-
-    /** 当前设备上的 user id 列表（含工作资料 / 应用分身）；带缓存，失败时退回当前用户。 */
-    private fun resolveUserIds(useRoot: Boolean): List<Int> {
-        val now = SystemClock.elapsedRealtime()
-        val cached = cachedUserIds
-        if (cached != null && now - cachedUserIdsAt < USER_IDS_CACHE_MS) return cached
-        val users = runCatching {
-            TaskManagerUtil.runShellCommandLine("pm list users", useRoot = useRoot).output
-                .let { output ->
-                    Regex("UserInfo\\{(\\d+):")
-                        .findAll(output)
-                        .map { it.groupValues[1].toInt() }
-                        .distinct()
-                        .toList()
-                }
-        }.getOrDefault(emptyList())
-        val resolved = users.ifEmpty { listOf(resolveUserId(useRoot)) }
-        cachedUserIds = resolved
-        cachedUserIdsAt = now
-        return resolved
-    }
 
     private fun currentUserId(): Int {
         return Process.myUserHandle().hashCode()
@@ -408,7 +409,7 @@ internal object FreezerPrivilegedOps {
                 userId,
                 BuildConfig.APPLICATION_ID
             )
-            if (waitForState(context, packageName, disabled)) {
+            if (waitForState(context, packageName, disabled, userId)) {
                 AttemptResult.Success
             } else {
                 AttemptResult.Failure("shizuku pm state mismatch")
@@ -442,19 +443,24 @@ internal object FreezerPrivilegedOps {
         for (command in commands) {
             val result = TaskManagerUtil.runShellCommandLine(command, useRoot = useRoot)
             lastOutput = result.output.trim().ifBlank { lastOutput }
-            if (waitForState(context, packageName, disabled)) {
+            if (waitForState(context, packageName, disabled, userId)) {
                 return AttemptResult.Success
             }
         }
         return AttemptResult.Failure(lastOutput)
     }
 
-    private fun waitForState(context: Context, packageName: String, disabled: Boolean): Boolean {
+    private fun waitForState(
+        context: Context,
+        packageName: String,
+        disabled: Boolean,
+        userId: Int,
+    ): Boolean {
         repeat(8) {
-            if (isAppDisabled(context, packageName) == disabled) return true
+            if (isAppDisabled(context, packageName, userId) == disabled) return true
             Thread.sleep(60)
         }
-        return isAppDisabled(context, packageName) == disabled
+        return isAppDisabled(context, packageName, userId) == disabled
     }
 
     private sealed interface AttemptResult {

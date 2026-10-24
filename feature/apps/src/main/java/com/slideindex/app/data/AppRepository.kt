@@ -3,7 +3,10 @@ package com.slideindex.app.data
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.os.UserHandle
+import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.util.RecentPackageResolver
 import com.slideindex.app.util.PinyinHelper
 import com.slideindex.app.settings.AppSettings
@@ -140,13 +143,19 @@ class AppRepository @Inject constructor(
     ): List<AppInfo> = withContext(Dispatchers.IO) {
         val launchable = loadApps()
         val launchableNames = launchable.mapTo(HashSet()) { it.packageName }
-        val extras = freezerPackages
-            .filter { it !in launchableNames }
-            .mapNotNull { packageName -> resolveAppInfo(packageName) }
+        // 冰箱清单里存的是「目标」：主实例裸包名，分身 `包名\u0002userId`（旧数据裸包名 = user 0）。
+        val targets = freezerPackages.map(AppTarget::parse)
+        val extras = targets
+            .filter { it.packageName !in launchableNames }
+            .mapNotNull { target ->
+                resolveAppInfo(target.packageName)?.let { base ->
+                    if (target.isClone) base.copy(cloneUserId = target.cloneUserId) else base
+                }
+            }
         (launchable + extras)
             .map { app ->
-                if (app.packageName in freezerPackages) {
-                    val (frozen, paused) = queryFreezerState(app.packageName)
+                if (AppTarget.encode(app.packageName, app.cloneUserId) in freezerPackages) {
+                    val (frozen, paused) = queryFreezerState(app.packageName, app.cloneUserId)
                     app.copy(isFrozen = frozen, isPaused = paused)
                 } else {
                     app
@@ -156,21 +165,34 @@ class AppRepository @Inject constructor(
             .sortedBy { it.pinyinKey }
     }
 
-    /** 读包的启用/挂起状态；查不到（已卸载等）按"正常"处理。 */
-    private fun queryFreezerState(packageName: String): Pair<Boolean, Boolean> = try {
-        val pm = context.packageManager
-        val info = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            pm.getApplicationInfo(
-                packageName,
-                PackageManager.ApplicationInfoFlags.of(
-                    PackageManager.MATCH_DISABLED_COMPONENTS.toLong(),
-                ),
-            )
+    /** 读包的启用/挂起状态（按目标 user）；查不到（已卸载 / user 被删）按"正常"处理。 */
+    private fun queryFreezerState(packageName: String, userId: Int): Pair<Boolean, Boolean> = try {
+        if (userId == 0) {
+            val pm = context.packageManager
+            val info = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                pm.getApplicationInfo(
+                    packageName,
+                    PackageManager.ApplicationInfoFlags.of(
+                        PackageManager.MATCH_DISABLED_COMPONENTS.toLong(),
+                    ),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getApplicationInfo(packageName, PackageManager.MATCH_DISABLED_COMPONENTS)
+            }
+            (!info.enabled) to ((info.flags and ApplicationInfo.FLAG_SUSPENDED) != 0)
         } else {
-            @Suppress("DEPRECATION")
-            pm.getApplicationInfo(packageName, PackageManager.MATCH_DISABLED_COMPONENTS)
+            // 其他 user 的状态公开 PackageManager 查不到，走 LauncherApps（与分身枚举同一条路）。
+            val launcherApps = context.getSystemService(LauncherApps::class.java)
+                ?: return false to false
+            val user = UserHandle.getUserHandleForUid(userId * 100_000)
+            val info = launcherApps.getApplicationInfo(
+                packageName,
+                PackageManager.MATCH_DISABLED_COMPONENTS,
+                user,
+            )
+            (!info.enabled) to ((info.flags and ApplicationInfo.FLAG_SUSPENDED) != 0)
         }
-        (!info.enabled) to ((info.flags and ApplicationInfo.FLAG_SUSPENDED) != 0)
     } catch (_: PackageManager.NameNotFoundException) {
         false to false
     }

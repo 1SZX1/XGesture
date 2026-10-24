@@ -385,9 +385,10 @@ private fun SearchPanelAppIconStrip(
         ) {
             apps.forEach { app ->
                 val context = LocalContext.current
-                val appState = FreezerOperations.stateOf(context, app.packageName)
+                val appState = FreezerOperations.stateOf(context, app)
                 SearchPanelAppQuickActionTarget(
                     packageName = app.packageName,
+                    cloneUserId = app.cloneUserId,
                     enabled = true,
                     settings = settings,
                     onAction = { onAppQuickAction(app, it) },
@@ -455,7 +456,7 @@ private fun SearchPanelAppListCards(
     ) {
         displayApps.forEachIndexed { index, app ->
             val context = LocalContext.current
-            val appState = FreezerOperations.stateOf(context, app.packageName)
+            val appState = FreezerOperations.stateOf(context, app)
             SearchPanelResultCard(
                 title = app.label,
                 subtitle = null,
@@ -467,6 +468,7 @@ private fun SearchPanelAppListCards(
                 leading = {
                     SearchPanelAppQuickActionTarget(
                         packageName = app.packageName,
+                        cloneUserId = app.cloneUserId,
                         enabled = true,
                         settings = settings,
                         onAction = { onAppQuickAction(app, it) },

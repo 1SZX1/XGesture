@@ -98,17 +98,26 @@ internal class ActionExecutorLaunch(
         windowMode: LaunchWindowMode = LaunchWindowMode.FOLLOW_GLOBAL,
         cloneUserId: Int = 0,
     ): Boolean {
-        // 分身/工作资料：主实例的冻结状态与 launchIntent 都不适用，直接跨 user 启动。
-        if (cloneUserId > 0) {
-            launchAppInUser(packageName, cloneUserId, settings)
-            return true
-        }
-        val app = appRepository.getCachedApps().firstOrNull { it.packageName == packageName }
+        val targetKey = com.slideindex.app.launcher.AppTarget.encode(packageName, cloneUserId)
+        val baseApp = appRepository.getCachedApps().firstOrNull { it.packageName == packageName }
             ?: appRepository.lookupApp(packageName)
             ?: return false
+        // 分身与主实例同包名：这里带上 cloneUserId 的 AppInfo 才能让冰箱按 `(包名, user)` 判断状态。
+        val app = if (cloneUserId > 0) {
+            baseApp.copy(
+                label = com.slideindex.app.overlay.CloneAppsIndex.labelForUser(
+                    context,
+                    cloneUserId,
+                    baseApp.label,
+                ),
+                cloneUserId = cloneUserId,
+            )
+        } else {
+            baseApp
+        }
         val fullscreen = settings.shouldLaunchFullscreen(windowMode, longPressArmed)
-        if (packageName in settings.freezerAppPackages) {
-            // 冰箱成员：先按记录的档位解冻/恢复，再启动。直接 startActivity 对 disabled 包必失败。
+        if (targetKey in settings.freezerAppPackages) {
+            // 冰箱成员（主实例或分身）：先按记录的档位解冻/恢复，再启动。直接 startActivity 对 disabled 包必失败。
             CoroutineScope(Dispatchers.IO).launch {
                 FreezerOperations.launchAndRestore(
                     context = context,
@@ -118,6 +127,11 @@ internal class ActionExecutorLaunch(
                     fullscreen = fullscreen,
                 )
             }
+            return true
+        }
+        // 分身/工作资料：主实例的冻结状态与 launchIntent 都不适用，直接跨 user 启动。
+        if (cloneUserId > 0) {
+            launchAppInUser(packageName, cloneUserId, settings)
             return true
         }
         return appRepository.launchApp(app, settings, fullscreen)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import com.slideindex.app.R
 import com.slideindex.app.data.AppRepository
+import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,10 +23,10 @@ object FreezerListOperations {
     suspend fun removeFromList(
         context: Context,
         settingsRepository: SettingsRepository,
-        packageName: String,
+        target: AppTarget,
         appRepository: AppRepository? = null
     ): Boolean {
-        when (FreezerOperations.stateOf(context, packageName)) {
+        when (FreezerOperations.stateOf(context, target)) {
             FreezerAppState.FROZEN -> {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, R.string.freezer_remove_while_frozen, Toast.LENGTH_SHORT).show()
@@ -40,7 +41,7 @@ object FreezerListOperations {
             }
             FreezerAppState.ACTIVE -> Unit
         }
-        settingsRepository.removeFreezerApp(packageName)
+        settingsRepository.removeFreezerApp(FreezerOperations.keyOf(target))
         appRepository?.invalidate()
         return true
     }
@@ -49,23 +50,23 @@ object FreezerListOperations {
     suspend fun restoreAndRemoveFromList(
         context: Context,
         settingsRepository: SettingsRepository,
-        packageName: String,
+        target: AppTarget,
         appRepository: AppRepository? = null
     ): Boolean {
-        when (FreezerOperations.stateOf(context, packageName)) {
+        when (FreezerOperations.stateOf(context, target)) {
             FreezerAppState.FROZEN ->
-                if (!FreezerOperations.setFrozen(context, packageName, frozen = false)) return false
+                if (!FreezerOperations.setFrozen(context, target, frozen = false)) return false
             FreezerAppState.PAUSED ->
-                if (!FreezerOperations.setPaused(context, packageName, paused = false)) return false
+                if (!FreezerOperations.setPaused(context, target, paused = false)) return false
             FreezerAppState.ACTIVE -> Unit
         }
-        settingsRepository.removeFreezerApp(packageName)
+        settingsRepository.removeFreezerApp(FreezerOperations.keyOf(target))
         appRepository?.invalidate()
         return true
     }
 
     /**
-     * 批量「移出列表」。冻结 / 暂停中的成员**逐个跳过**，语义与单包 [removeFromList] 一致
+     * 批量「移出列表」。冻结 / 暂停中的成员**逐个跳过**，语义与单目标 [removeFromList] 一致
      * （那种状态要从列表里拿掉得先恢复，见 [restoreAndRemoveFromList]）。
      *
      * 跳过的数量交给调用方提示，别静默吞掉 —— 否则用户点完「批量移出」只会看到列表少了一半，
@@ -74,15 +75,15 @@ object FreezerListOperations {
     suspend fun removeManyFromList(
         context: Context,
         settingsRepository: SettingsRepository,
-        packageNames: Collection<String>,
+        targets: Collection<AppTarget>,
         appRepository: AppRepository? = null
     ): BatchRemovalResult = withContext(Dispatchers.IO) {
         var removed = 0
         var skipped = 0
-        for (packageName in packageNames) {
-            when (FreezerOperations.stateOf(context, packageName)) {
+        for (target in targets) {
+            when (FreezerOperations.stateOf(context, target)) {
                 FreezerAppState.ACTIVE -> {
-                    settingsRepository.removeFreezerApp(packageName)
+                    settingsRepository.removeFreezerApp(FreezerOperations.keyOf(target))
                     removed++
                 }
                 FreezerAppState.FROZEN, FreezerAppState.PAUSED -> skipped++
@@ -104,24 +105,24 @@ object FreezerListOperations {
     suspend fun restoreAndRemoveManyFromList(
         context: Context,
         settingsRepository: SettingsRepository,
-        packageNames: Collection<String>,
+        targets: Collection<AppTarget>,
         appRepository: AppRepository? = null
     ): BatchRemovalResult = withContext(Dispatchers.IO) {
         var removed = 0
         var skipped = 0
-        for (packageName in packageNames) {
-            val restored = when (FreezerOperations.stateOf(context, packageName)) {
+        for (target in targets) {
+            val restored = when (FreezerOperations.stateOf(context, target)) {
                 FreezerAppState.FROZEN ->
-                    FreezerOperations.setFrozen(context, packageName, frozen = false)
+                    FreezerOperations.setFrozen(context, target, frozen = false)
                 FreezerAppState.PAUSED ->
-                    FreezerOperations.setPaused(context, packageName, paused = false)
+                    FreezerOperations.setPaused(context, target, paused = false)
                 FreezerAppState.ACTIVE -> true
             }
             if (!restored) {
                 skipped++
                 continue
             }
-            settingsRepository.removeFreezerApp(packageName)
+            settingsRepository.removeFreezerApp(FreezerOperations.keyOf(target))
             removed++
         }
         if (removed > 0) appRepository?.invalidate()
@@ -139,8 +140,9 @@ object FreezerListOperations {
         toAdd.forEach { packageName ->
             settingsRepository.addFreezerApp(packageName)
             // 导入的包本来就带着冻结 / 暂停状态：补一条意图，否则手势会按全局模式猜一个档位。
-            val intent = FreezerBootstrap.intentForState(FreezerOperations.stateOf(context, packageName))
-                ?: return@forEach
+            val intent = FreezerBootstrap.intentForState(
+                FreezerOperations.stateOf(context, AppTarget(packageName)),
+            ) ?: return@forEach
             settingsRepository.setFreezerAppIntent(packageName, intent)
         }
         return toAdd.size

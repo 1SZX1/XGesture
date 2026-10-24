@@ -21,6 +21,7 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:gesture"))
     implementation(project(":feature:settings"))
     implementation(libs.core.ktx)
     implementation(libs.kotlinx.coroutines.android)

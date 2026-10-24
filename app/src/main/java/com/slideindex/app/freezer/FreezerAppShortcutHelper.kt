@@ -18,9 +18,10 @@ object FreezerAppShortcutHelper {
         val launchIntent = Intent(appContext, FreezerAppLaunchTrampolineActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             putExtra(FreezerAppLaunchTrampolineActivity.EXTRA_PACKAGE, app.packageName)
+            putExtra(FreezerAppLaunchTrampolineActivity.EXTRA_USER_ID, app.cloneUserId)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        val shortcut = ShortcutInfo.Builder(appContext, shortcutId(app.packageName))
+        val shortcut = ShortcutInfo.Builder(appContext, shortcutId(app.packageName, app.cloneUserId))
             .setShortLabel(app.label)
             .setLongLabel(app.label)
             .setIcon(appShortcutIcon(appContext, app.packageName))
@@ -35,7 +36,9 @@ object FreezerAppShortcutHelper {
         Toast.makeText(context, R.string.freezer_pin_shortcut_failed, Toast.LENGTH_SHORT).show()
     }
 
-    private fun shortcutId(packageName: String): String = "freezer_app_$packageName"
+    /** 主实例与分身必须用不同的 id，否则两个快捷方式会互相覆盖。 */
+    private fun shortcutId(packageName: String, cloneUserId: Int): String =
+        if (cloneUserId > 0) "freezer_app_${packageName}_u$cloneUserId" else "freezer_app_$packageName"
 
     private fun appShortcutIcon(context: Context, packageName: String): Icon {
         val drawable = runCatching { context.packageManager.getApplicationIcon(packageName) }.getOrNull()

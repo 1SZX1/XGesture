@@ -90,7 +90,7 @@ fun FreezerGridUi(
      * 那才是进多选的正门）。这样「单独冻结一个应用」仍然是"长按 → 点冻结"两步，没有被多选拖累。
      */
     selectionMode: Boolean = false,
-    selectedPackages: Set<String> = emptySet(),
+    selectedTargets: Set<String> = emptySet(),
     onToggleSelection: (String) -> Unit = {},
     /**
      * 网格自身滚动区底部要额外留出的空间（悬浮按钮压在内容之上时会盖住最后一行）。
@@ -182,17 +182,17 @@ fun FreezerGridUi(
                 ) {
                     items(
                         items = filteredApps,
-                        key = { app -> "${app.packageName}_$freezeStateRevision" },
+                        key = { app -> "${FreezerOperations.keyOf(app)}_$freezeStateRevision" },
                     ) { app ->
-                        val state = FreezerOperations.stateOf(context, app.packageName)
+                        val state = FreezerOperations.stateOf(context, app)
                         FreezerGridItem(
                             app = app,
                             state = state,
                             selectionMode = selectionMode,
-                            selected = app.packageName in selectedPackages,
+                            selected = FreezerOperations.keyOf(app) in selectedTargets,
                             onClick = {
                                 if (selectionMode) {
-                                    onToggleSelection(app.packageName)
+                                    onToggleSelection(FreezerOperations.keyOf(app))
                                 } else {
                                     scope.launch {
                                         if (!FreezerOperations.launchAndRestore(
@@ -216,7 +216,7 @@ fun FreezerGridUi(
                             },
                             onLongClick = {
                                 if (selectionMode) {
-                                    onToggleSelection(app.packageName)
+                                    onToggleSelection(FreezerOperations.keyOf(app))
                                 } else {
                                     actionTarget = app
                                 }
@@ -228,7 +228,7 @@ fun FreezerGridUi(
         }
 
         actionTarget?.let { app ->
-            val state = FreezerOperations.stateOf(context, app.packageName)
+            val state = FreezerOperations.stateOf(context, app)
             val dismissMenu = { actionTarget = null }
             val menuActions = FreezerAppActionCallbacks(
                 onLaunchFreeWindow = {
@@ -255,7 +255,7 @@ fun FreezerGridUi(
                 },
                 onToggleFrozen = {
                     scope.launch {
-                        if (FreezerOperations.setFrozen(context, app.packageName, !state.isFrozen)) {
+                        if (FreezerOperations.setFrozen(context, app, !state.isFrozen)) {
                             onFreezeStateRevisionBump()
                         }
                         dismissMenu()
@@ -263,7 +263,7 @@ fun FreezerGridUi(
                 },
                 onTogglePaused = {
                     scope.launch {
-                        if (FreezerOperations.setPaused(context, app.packageName, !state.isPaused)) {
+                        if (FreezerOperations.setPaused(context, app, !state.isPaused)) {
                             onFreezeStateRevisionBump()
                         }
                         dismissMenu()
@@ -280,7 +280,7 @@ fun FreezerGridUi(
                         if (FreezerListOperations.removeFromList(
                                 context = context,
                                 settingsRepository = settingsRepository,
-                                packageName = app.packageName,
+                                target = FreezerOperations.targetOf(app),
                                 appRepository = appRepository,
                             )
                         ) {
@@ -294,7 +294,7 @@ fun FreezerGridUi(
                         if (FreezerListOperations.restoreAndRemoveFromList(
                                 context = context,
                                 settingsRepository = settingsRepository,
-                                packageName = app.packageName,
+                                target = FreezerOperations.targetOf(app),
                                 appRepository = appRepository,
                             )
                         ) {

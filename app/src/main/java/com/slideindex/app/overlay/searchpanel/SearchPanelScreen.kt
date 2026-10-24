@@ -863,7 +863,7 @@ fun SearchPanelScreen(
         val repository = appRepository ?: return
         val fullscreen = settings.shouldLaunchFullscreen(longPressTriggered)
         coroutineScope.launch {
-            val wasInactive = !FreezerOperations.stateOf(context, app.packageName).isActive
+            val wasInactive = !FreezerOperations.stateOf(context, app).isActive
             if (FreezerOperations.launchAndRestore(context, repository, settings, app, fullscreen)) {
                 if (wasInactive) {
                     repository.loadAppsForSearch(force = true)
@@ -879,7 +879,7 @@ fun SearchPanelScreen(
             SearchPanelAppQuickAction.FREE_WINDOW -> {
                 val repository = appRepository ?: return
                 coroutineScope.launch {
-                    val wasInactive = !FreezerOperations.stateOf(context, app.packageName).isActive
+                    val wasInactive = !FreezerOperations.stateOf(context, app).isActive
                     if (FreezerOperations.launchAndRestore(context, repository, settings, app, fullscreen = false)) {
                         if (wasInactive) {
                             repository.loadAppsForSearch(force = true)
@@ -895,8 +895,8 @@ fun SearchPanelScreen(
             }
             SearchPanelAppQuickAction.FREEZE -> {
                 coroutineScope.launch {
-                    val frozen = FreezerOperations.isFrozen(context, app.packageName)
-                    val ok = FreezerOperations.setFrozen(context, app.packageName, frozen = !frozen)
+                    val frozen = FreezerOperations.isFrozen(context, app)
+                    val ok = FreezerOperations.setFrozen(context, app, frozen = !frozen)
                     if (ok) {
                         appRepository?.loadAppsForSearch(force = true)
                         SearchPanelCandidateCache.clear()
@@ -906,8 +906,8 @@ fun SearchPanelScreen(
             }
             SearchPanelAppQuickAction.PAUSE -> {
                 coroutineScope.launch {
-                    val paused = FreezerOperations.isPaused(context, app.packageName)
-                    val ok = FreezerOperations.setPaused(context, app.packageName, paused = !paused)
+                    val paused = FreezerOperations.isPaused(context, app)
+                    val ok = FreezerOperations.setPaused(context, app, paused = !paused)
                     if (ok) {
                         appRepository?.loadAppsForSearch(force = true)
                         SearchPanelCandidateCache.clear()

@@ -25,6 +25,7 @@ import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
 import com.slideindex.app.freezer.FreezerListOperations
 import com.slideindex.app.freezer.FreezerOperations
+import com.slideindex.app.overlay.CloneAppsIndex
 import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.miuix.MiuixConfirmDialog
@@ -78,11 +79,26 @@ fun FreezerAppsPickerScreen(
     val pausedLabel = stringResource(R.string.freezer_status_paused)
     val activeLabel = stringResource(R.string.freezer_status_active)
 
+    /**
+     * 候选列表 = 启动器应用 + 分身条目。
+     *
+     * 分身与主实例同包名、同图标，只差 cloneUserId 与标签后缀；不把分身列出来，
+     * 就等于「分身永远进不了冰箱」，那是我们要消掉的特例。
+     */
+    suspend fun loadPickerApps(): List<AppInfo> {
+        val base = appRepository.loadFreezerApps(force = true)
+        val clones = CloneAppsIndex.enrich(base) { label, kind ->
+            context.getString(CloneAppsIndex.labelRes(kind), label)
+        }.filter { it.isClone }
+        android.util.Log.i("FreezerPicker", "apps base=${base.size} clones=${clones.size}")
+        return base + clones
+    }
+
     fun reloadApps() {
         scope.launch {
             isLoading = true
             allApps = withContext(Dispatchers.IO) {
-                appRepository.loadFreezerApps(force = true)
+                loadPickerApps()
             }
             isLoading = false
         }
@@ -93,7 +109,7 @@ fun FreezerAppsPickerScreen(
             TaskManagerUtil.hasPrivilegedAccess()
         }
         allApps = withContext(Dispatchers.IO) {
-            appRepository.loadFreezerApps(force = true)
+            loadPickerApps()
         }
         isLoading = false
     }
@@ -106,7 +122,7 @@ fun FreezerAppsPickerScreen(
         val query = searchQuery.trim().lowercase()
         allApps
             .filter {
-                settings.freezerShowSystemApps || !it.isSystem || it.packageName in memberPackages
+                settings.freezerShowSystemApps || !it.isSystem || FreezerOperations.keyOf(it) in memberPackages
             }
             .filter { app ->
                 query.isBlank() ||
@@ -118,15 +134,15 @@ fun FreezerAppsPickerScreen(
 
     // 两个 Tab 的计数都取**搜索过滤之后**的数字：与列表同源，不会出现「Tab 显示 5、列表只有 1 个」的错位。
     val inListCount = remember(searchFilteredApps, memberPackages) {
-        searchFilteredApps.count { it.packageName in memberPackages }
+        searchFilteredApps.count { FreezerOperations.keyOf(it) in memberPackages }
     }
     val allCount = searchFilteredApps.size
 
     val displayedApps = remember(searchFilteredApps, memberPackages, listFilter) {
         searchFilteredApps
-            .filter { app -> listFilter == FreezerPickerFilter.ALL || app.packageName in memberPackages }
+            .filter { app -> listFilter == FreezerPickerFilter.ALL || FreezerOperations.keyOf(app) in memberPackages }
             .sortedWith(
-                compareByDescending<AppInfo> { it.packageName in memberPackages }
+                compareByDescending<AppInfo> { FreezerOperations.keyOf(it) in memberPackages }
                     .thenBy { it.pinyinKey }
             )
     }
@@ -202,10 +218,10 @@ fun FreezerAppsPickerScreen(
                 }
             }
             else -> {
-                items(displayedApps.size, key = { displayedApps[it].packageName }) { index ->
+                items(displayedApps.size, key = { FreezerOperations.keyOf(displayedApps[it]) }) { index ->
                     val app = displayedApps[index]
-                    val inList = app.packageName in memberPackages
-                    val state = FreezerOperations.stateOf(context, app.packageName)
+                    val inList = FreezerOperations.keyOf(app) in memberPackages
+                    val state = FreezerOperations.stateOf(context, app)
                     // 在列表里 → 副标题回答「它现在什么状态」；不在列表里 → 回答「这是哪个包」。
                     val subtitle = when {
                         !inList -> app.packageName
@@ -228,13 +244,13 @@ fun FreezerAppsPickerScreen(
                         subtitle = subtitle,
                         onAction = {
                             if (!inList) {
-                                scope.launch { settingsRepository.addFreezerApp(app.packageName) }
+                                scope.launch { settingsRepository.addFreezerApp(FreezerOperations.keyOf(app)) }
                             } else if (state.isActive) {
                                 scope.launch {
                                     FreezerListOperations.removeFromList(
                                         context = context,
                                         settingsRepository = settingsRepository,
-                                        packageName = app.packageName,
+                                        target = FreezerOperations.targetOf(app),
                                         appRepository = appRepository
                                     )
                                 }
@@ -251,7 +267,7 @@ fun FreezerAppsPickerScreen(
     }
 
     pendingRemove?.let { app ->
-        val state = FreezerOperations.stateOf(context, app.packageName)
+        val state = FreezerOperations.stateOf(context, app)
         val frozen = state.isFrozen
         MiuixConfirmDialog(
             show = true,
@@ -270,7 +286,7 @@ fun FreezerAppsPickerScreen(
                     if (FreezerListOperations.restoreAndRemoveFromList(
                             context = context,
                             settingsRepository = settingsRepository,
-                            packageName = app.packageName,
+                            target = FreezerOperations.targetOf(app),
                             appRepository = appRepository
                         )
                     ) {

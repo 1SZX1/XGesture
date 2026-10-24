@@ -19,6 +19,7 @@ import com.slideindex.app.data.AppRepository
 import com.slideindex.app.gesture.executor.ActionExecutorLaunch
 import com.slideindex.app.gesture.executor.ActionExecutorMediaSystem
 import com.slideindex.app.gesture.executor.ActionExecutorOverlayPanels
+import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.launcher.QuickLauncherItem
 import com.slideindex.app.macro.MacroActionRunner
 import com.slideindex.app.pagescroll.PageScrollActionRunner
@@ -562,7 +563,7 @@ class ActionExecutor(
                     // 按每个成员自己的意图还原（上次暂停的还它暂停），没有意图的按冰箱工作模式兜底。
                     FreezerOperations.restoreIntents(
                         context = context,
-                        packages = settings.freezerAppPackages,
+                        targets = settings.freezerAppPackages.map(AppTarget::parse),
                         fallbackPause = settings.freezerWorkMode.isPause,
                     )
                 }

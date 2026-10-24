@@ -54,6 +54,7 @@ import androidx.compose.ui.window.Popup
 import com.slideindex.app.R
 import com.slideindex.app.freezer.FreezerAppState
 import com.slideindex.app.freezer.FreezerOperations
+import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.util.HapticHelper
 import kotlin.math.roundToInt
@@ -107,6 +108,7 @@ private fun actionForSlot(
 @Composable
 internal fun SearchPanelAppQuickActionTarget(
     packageName: String,
+    cloneUserId: Int = 0,
     enabled: Boolean,
     settings: AppSettings,
     onAction: (SearchPanelAppQuickAction) -> Unit,
@@ -118,7 +120,7 @@ internal fun SearchPanelAppQuickActionTarget(
         return
     }
     val context = LocalContext.current
-    val appState = FreezerOperations.stateOf(context, packageName)
+    val appState = FreezerOperations.stateOf(context, AppTarget(packageName, cloneUserId))
     val view = LocalView.current
     val density = LocalDensity.current
     val yCancelThresholdPx = with(density) { 56.dp.toPx() }

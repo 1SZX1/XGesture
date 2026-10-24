@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.settings.FreezerWorkMode
 import com.slideindex.app.settings.SettingsRepository
 import com.slideindex.app.ui.compose.rememberAppRepository
@@ -120,6 +121,10 @@ fun FreezerPanelContent(
         initialValue = settingsRepository.readSnapshot()
     )
     val appRepository = rememberAppRepository()
+    // 冰箱成员的「目标」清单：批量动作 / 按记录还原都按目标走（主实例与分身各自独立）。
+    val freezerTargets = remember(settings.freezerAppPackages) {
+        settings.freezerAppPackages.map(AppTarget::parse)
+    }
     var memberApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var freezeStateRevision by remember { mutableIntStateOf(0) }
@@ -129,7 +134,7 @@ fun FreezerPanelContent(
     // 多选态刻意不进 rememberSaveable：Set<String> 没有默认 Saver，进程重建会当场崩，
     // 而这个状态丢了也只是退出多选，不值得为它写一个 Saver。
     var selectionMode by remember { mutableStateOf(false) }
-    var selectedPackages by remember { mutableStateOf(emptySet<String>()) }
+    var selectedTargets by remember { mutableStateOf(emptySet<String>()) }
     val searchFocusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val screenTitle = title ?: stringResource(R.string.extension_freezer_title)
@@ -172,7 +177,7 @@ fun FreezerPanelContent(
         if (memberApps.isEmpty()) {
             isLoading = true
         }
-        memberApps = appRepository.resolveFreezerMembers(settings.freezerAppPackages)
+        memberApps = FreezerMembers.resolve(context, appRepository, settings.freezerAppPackages)
         isLoading = false
     }
 
@@ -203,12 +208,13 @@ fun FreezerPanelContent(
         }
     }
 
-    val allPackageNames = memberApps.map { it.packageName }
-    val allSelected = allPackageNames.isNotEmpty() && selectedPackages.containsAll(allPackageNames)
+    // 选中集存的是目标键（`包名` 或 `包名\u0002userId`）：主实例与分身同包名，只存包名会互相覆盖。
+    val allTargets = memberApps.map { FreezerOperations.keyOf(it) }
+    val allSelected = allTargets.isNotEmpty() && selectedTargets.containsAll(allTargets)
 
     fun exitSelection() {
         selectionMode = false
-        selectedPackages = emptySet()
+        selectedTargets = emptySet()
     }
 
     /**
@@ -218,7 +224,7 @@ fun FreezerPanelContent(
      * 用户以为"从列表删掉就完事了"，其实它还冻着。所以两条路都给，文案上说清差别。
      */
     fun runBatchRemoval(restoreFirst: Boolean) {
-        val targets = selectedPackages.toList()
+        val targets = selectedTargets.map(AppTarget::parse)
         if (targets.isEmpty()) return
         scope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -226,14 +232,14 @@ fun FreezerPanelContent(
                     FreezerListOperations.restoreAndRemoveManyFromList(
                         context = context,
                         settingsRepository = settingsRepository,
-                        packageNames = targets,
+                        targets = targets,
                         appRepository = appRepository,
                     )
                 } else {
                     FreezerListOperations.removeManyFromList(
                         context = context,
                         settingsRepository = settingsRepository,
-                        packageNames = targets,
+                        targets = targets,
                         appRepository = appRepository,
                     )
                 }
@@ -257,7 +263,7 @@ fun FreezerPanelContent(
             }
             // 无论成败都清空选中：成功的那部分已经不在列表里了，留着它们会让「全选」
             // 的判定失真（`containsAll` 仍然为真，按钮显示成"取消全选"却什么都取消不掉）。
-            selectedPackages = emptySet()
+            selectedTargets = emptySet()
         }
     }
 
@@ -320,7 +326,7 @@ fun FreezerPanelContent(
         // 能叠在这个全屏浮窗之上，不像系统 Toast 会被面板自己盖住。
         FreezerOperations.restoreIntents(
             context = context,
-            packages = settings.freezerAppPackages,
+            targets = freezerTargets,
             fallbackPause = settings.freezerWorkMode.isPause,
         )
     }
@@ -349,7 +355,7 @@ fun FreezerPanelContent(
                 text = pauseAllLabel,
                 onClick = {
                     scope.launch {
-                        if (FreezerOperations.pauseAll(context, settings.freezerAppPackages) > 0) {
+                        if (FreezerOperations.pauseAll(context, freezerTargets) > 0) {
                             freezeStateRevision++
                         }
                     }
@@ -359,7 +365,7 @@ fun FreezerPanelContent(
                 text = unpauseAllLabel,
                 onClick = {
                     scope.launch {
-                        if (FreezerOperations.unpauseAll(context, settings.freezerAppPackages) > 0) {
+                        if (FreezerOperations.unpauseAll(context, freezerTargets) > 0) {
                             freezeStateRevision++
                         }
                     }
@@ -369,7 +375,7 @@ fun FreezerPanelContent(
                 text = unfreezeAllLabel,
                 onClick = {
                     scope.launch {
-                        if (FreezerOperations.unfreezeAll(context, settings.freezerAppPackages) > 0) {
+                        if (FreezerOperations.unfreezeAll(context, freezerTargets) > 0) {
                             freezeStateRevision++
                         }
                     }
@@ -389,10 +395,10 @@ fun FreezerPanelContent(
                 if (selectionMode) {
                     IconButton(
                         onClick = {
-                            selectedPackages = if (allSelected) {
+                            selectedTargets = if (allSelected) {
                                 emptySet()
                             } else {
-                                allPackageNames.toSet()
+                                allTargets.toSet()
                             }
                         }
                     ) {
@@ -433,7 +439,7 @@ fun FreezerPanelContent(
                         // 这些按钮整个盖掉 —— 那时候多选态是进得去出不来的。
                         // 筛选关键字**保留**（不清空）：用户多半就是想"把筛出来的这批一起移出"。
                         searchExpanded = false
-                        selectedPackages = emptySet()
+                        selectedTargets = emptySet()
                         selectionMode = true
                     }
                 ) {
@@ -486,7 +492,7 @@ fun FreezerPanelContent(
                                 onClick = {
                                     overflowMenuExpanded = false
                                     scope.launch {
-                                        if (FreezerOperations.pauseAll(context, settings.freezerAppPackages) > 0) {
+                                        if (FreezerOperations.pauseAll(context, freezerTargets) > 0) {
                                             freezeStateRevision++
                                         }
                                     }
@@ -497,7 +503,7 @@ fun FreezerPanelContent(
                                 onClick = {
                                     overflowMenuExpanded = false
                                     scope.launch {
-                                        if (FreezerOperations.unpauseAll(context, settings.freezerAppPackages) > 0) {
+                                        if (FreezerOperations.unpauseAll(context, freezerTargets) > 0) {
                                             freezeStateRevision++
                                         }
                                     }
@@ -508,7 +514,7 @@ fun FreezerPanelContent(
                                 onClick = {
                                     overflowMenuExpanded = false
                                     scope.launch {
-                                        if (FreezerOperations.unfreezeAll(context, settings.freezerAppPackages) > 0) {
+                                        if (FreezerOperations.unfreezeAll(context, freezerTargets) > 0) {
                                             freezeStateRevision++
                                         }
                                     }
@@ -583,12 +589,12 @@ fun FreezerPanelContent(
                         onManageApps = onManageApps,
                         overlayMode = overlayMode,
                         selectionMode = selectionMode,
-                        selectedPackages = selectedPackages,
-                        onToggleSelection = { packageName ->
-                            selectedPackages = if (packageName in selectedPackages) {
-                                selectedPackages - packageName
+                        selectedTargets = selectedTargets,
+                        onToggleSelection = { target ->
+                            selectedTargets = if (target in selectedTargets) {
+                                selectedTargets - target
                             } else {
-                                selectedPackages + packageName
+                                selectedTargets + target
                             }
                         },
                         // 多选态给列表尾部留出操作栏的高度，否则最后一行会被压在栏下面点不到。
@@ -604,7 +610,7 @@ fun FreezerPanelContent(
         if (selectionMode) {
             FreezerSelectionBar(
                 modifier = Modifier.align(Alignment.BottomCenter),
-                selectedCount = selectedPackages.size,
+                selectedCount = selectedTargets.size,
                 removeLabel = removeFromListLabel,
                 restoreAndRemoveLabel = restoreAndRemoveLabel,
                 onRemove = { runBatchRemoval(restoreFirst = false) },
