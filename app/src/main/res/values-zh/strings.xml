@@ -1181,6 +1181,8 @@
     <string name="freezer_status_paused">已暂停</string>
     <string name="freezer_pause_failed">暂停失败：%1$s</string>
     <string name="freezer_pause_clone_need_root">分身暂停需要 Root（仅有 Shizuku 时无法挂起其他用户的应用）</string>
+    <string name="freezer_unpause_clone_need_root">该分身由 Root 暂停，取消暂停需要切回 Root 模式</string>
+    <string name="freezer_clone_pause_needs_root_to_resume">已用 Root 暂停：该分身只能在 Root 模式下恢复</string>
     <string name="freezer_unpause_failed">取消暂停失败：%1$s</string>
     <string name="freezer_pause_all">全部暂停</string>
     <string name="freezer_unpause_all">全部取消暂停</string>

@@ -40,13 +40,13 @@ SecurityException: Suspending package com.android.shell in user 999 does not bel
 
 发起方包必须存在于目标 user 且 uid 匹配。**root 豁免这条检查**——用户已在应用内实测：root 模式点「暂停」分身成功。所以准确的结论是：
 
-- **root（含 Shizuku-root）**：分身冻结 / 暂停都可用，代码无需改动（同一条 `setAppSuspended(..., userId)`）；
-- **Shizuku 非 root**：分身能冻结（`pm disable-user --user N`），**暂停会被 PMS 拒绝**；应用里提示「分身暂停需要 Root」，不再糊 `SecurityException` 原文；
+- **root（含 Shizuku-root）**：分身冻结 / 暂停都可用，代码无需改动（同一条 `setAppSuspended(..., userId)`）。但**分身暂停是单向门**：用 Root 暂停后，切到 Shizuku 非 root 既不能暂停也不能取消暂停（`unsuspend` 走同一套校验），必须切回 Root 才能恢复；应用在首次用 Root 暂停分身时会提示这一点；
+- **Shizuku 非 root**：分身能冻结（`pm disable-user --user N`），**暂停 / 取消暂停都会被 PMS 拒绝**；应用分别提示「分身暂停需要 Root」「该分身由 Root 暂停，取消暂停需要切回 Root 模式」；
 - 主实例的冻结 / 暂停不受影响。
 
 另外修掉一处索引重复：主实例处于暂停时会被可启动列表排除，`loadIndexApps` 曾同时补出「抖音」（主）与「抖音」（分身目标，无后缀），`enrich` 又补一条「抖音 · 分身」，索引里出现 3 个抖音。现在 `loadIndexApps` 只补 user 0 的条目，分身统一交给 `enrich`，并在索引合并处按 `(包名, userId)` 去重。
 
-仍需手工验证：分身取消暂停、暂停后点开是否有系统对话框、批量暂停含分身、按记录还原含分身、索引里冻结分身的角标、悬空目标。
+仍需手工验证：分身取消暂停（Root 下往返一次，再切 Shizuku 确认提示）、暂停后点开是否有系统对话框、批量暂停含分身、按记录还原含分身、索引里冻结分身的角标、悬空目标。
 
 ## 一、已经做完的（不要重做）
 

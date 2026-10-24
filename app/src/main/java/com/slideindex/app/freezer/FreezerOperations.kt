@@ -209,13 +209,21 @@ object FreezerOperations {
                 if (paused) setFreezerIntent(context, keyOf(target), FreezerAppIntent.PAUSE)
                 // 暂停态在索引里也有角标，状态变了同样要重算。
                 com.slideindex.app.overlay.OverlayRefreshBus.notifyFreezerChanged()
+                if (paused && target.cloneUserId > 0) warnClonePauseNeedsRootOnce(context, keyOf(target))
                 return@withContext true
             }
             Log.w(TAG, "setPaused(${keyOf(target)}, $paused) -> failed: ${detail.take(160)}")
-            // PMS 的跨 user 挂起要求「发起挂起的包」存在于目标 user（com.android.shell 不在分身 user 里），
-            // 只有 root 豁免这条检查。非 root 时给一句能看懂的话，而不是把 SecurityException 原文糊给用户。
-            if (paused && target.cloneUserId > 0 && detail.contains(CLONE_PAUSE_NEEDS_ROOT_HINT)) {
-                showFreezerMessage(context, R.string.freezer_pause_clone_need_root)
+            // PMS 的跨 user 挂起校验对 suspend / unsuspend 是同一套：发起包必须存在于目标 user，
+            // 只有 root 豁免。所以 Shizuku 非 root 下「暂停」和「取消暂停」都过不去，各给一句人话。
+            if (target.cloneUserId > 0 && detail.contains(CLONE_PAUSE_NEEDS_ROOT_HINT)) {
+                showFreezerMessage(
+                    context,
+                    if (paused) {
+                        R.string.freezer_pause_clone_need_root
+                    } else {
+                        R.string.freezer_unpause_clone_need_root
+                    },
+                )
                 return@withContext false
             }
             val messageRes = if (paused) {
@@ -463,4 +471,18 @@ object FreezerOperations {
 
     /** PMS 拒绝跨 user 挂起时的固定报错片段（见 `enforceCanSetPackagesSuspendedAsUser`）。 */
     private const val CLONE_PAUSE_NEEDS_ROOT_HINT = "does not belong to calling uid"
+
+    /**
+     * 已经提醒过「分身暂停只有 Root 能恢复」的目标。
+     *
+     * 分身一旦用 Root 暂停，Shizuku 非 root 既不能再次暂停也不能取消暂停；切模式之前
+     * 用户必须知道这件事，否则会以为卡死。每个目标只提醒一次，避免每次暂停都弹。
+     */
+    private val clonePauseRootWarned: MutableSet<String> =
+        java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    private suspend fun warnClonePauseNeedsRootOnce(context: Context, key: String) {
+        if (!clonePauseRootWarned.add(key)) return
+        showFreezerMessage(context, R.string.freezer_clone_pause_needs_root_to_resume)
+    }
 }
