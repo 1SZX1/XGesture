@@ -119,7 +119,9 @@ class WidgetCardContainer(
             tag = iconPackage
             WidgetAppIconCache.load(context, iconPackage) { bitmap ->
               if (tag == iconPackage) {
-                setImageDrawable(bitmap.toDrawable(resources))
+                setImageDrawable(
+                  com.slideindex.app.util.CloneBadge.decorate(bitmap, item.cloneUserId > 0)?.toDrawable(resources),
+                )
               }
             }
           }

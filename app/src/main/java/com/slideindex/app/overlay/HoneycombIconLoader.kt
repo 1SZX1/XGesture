@@ -61,7 +61,10 @@ internal object HoneycombIconLoader {
                     shellCommands
                 )
                 if (drawable != null) {
-                    target.icon = drawable
+                    target.icon = com.slideindex.app.util.CloneBadge.wrap(
+                        drawable,
+                        target.item.appTarget?.isClone == true,
+                    ) ?: drawable
                     updated = true
                 }
             }

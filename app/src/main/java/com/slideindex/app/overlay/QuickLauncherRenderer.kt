@@ -274,13 +274,16 @@ internal class QuickLauncherRenderer(
             key = key,
             urgent = urgent,
             load = {
-                resolveQuickLauncherIcon(
+                com.slideindex.app.util.CloneBadge.decorate(
+                    resolveQuickLauncherIcon(
                     item = item,
                     size = size,
                     context = appContext,
                     appsByPackage = appsByPackage,
                     activityShortcuts = activityShortcuts,
                     shellCommands = shellCommands
+                    ),
+                    item.appTarget?.isClone == true,
                 )
             },
             onReady = { ctrl.invalidateQuickLauncherPanel() }

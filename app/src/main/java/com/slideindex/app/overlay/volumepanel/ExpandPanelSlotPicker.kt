@@ -59,6 +59,7 @@ import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredApps
 import com.slideindex.app.ui.miuix.MiuixSearchField
 import com.slideindex.app.ui.miuix.MiuixTabRowContourHost
 import com.slideindex.app.ui.picker.AppPickerTabRow
+import com.slideindex.app.ui.picker.appPickerGridItems
 import com.slideindex.app.ui.picker.filterShortcutCatalog
 import com.slideindex.app.ui.picker.rememberLoadedShortcutCatalog
 import com.slideindex.app.ui.quicklauncher.QuickLauncherEmbedParentConfirm
@@ -340,21 +341,26 @@ fun ExpandPanelSlotPicker(
                                 )
                             }
                         } else {
-                            items(filteredApps.size, key = { com.slideindex.app.freezer.FreezerOperations.keyOf(filteredApps[it]) }) { index ->
-                                val app = filteredApps[index]
-                                val currentLaunchApp = currentAction as? GestureAction.LaunchApp
-                                val selected = currentLaunchApp?.packageName == app.packageName &&
-                                    currentLaunchApp.cloneUserId == app.cloneUserId
-                                ActionPickerAppRow(
-                                    app = app,
-                                    segmentIndex = index,
-                                    segmentCount = filteredApps.size,
-                                    selected = selected,
-                                    windowMode = currentLaunchApp?.takeIf { selected }?.windowMode
-                                        ?: LaunchWindowMode.FOLLOW_GLOBAL,
-                                    onSelect = { onSelect(GestureAction.LaunchApp(it.packageName, cloneUserId = it.cloneUserId)) },
+                            val selectedKeys = (currentAction as? GestureAction.LaunchApp)?.let { action ->
+                                setOf(
+                                    com.slideindex.app.launcher.AppTarget.encode(
+                                        action.packageName,
+                                        action.cloneUserId,
+                                    ),
                                 )
-                            }
+                            } ?: emptySet()
+                            appPickerGridItems(
+                                apps = filteredApps,
+                                selectedKeys = selectedKeys,
+                                onAppClick = { app ->
+                                    onSelect(
+                                        GestureAction.LaunchApp(
+                                            app.packageName,
+                                            cloneUserId = app.cloneUserId,
+                                        ),
+                                    )
+                                },
+                            )
                         }
                     }
                     ExpandPanelPickerTab.SHORTCUTS -> {

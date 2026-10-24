@@ -40,11 +40,12 @@ internal object CornerSlotIconBitmap {
             withPlate = true,
         )?.let { return it }
         if (action is GestureAction.LaunchApp) {
-            val cacheKey = "app:${action.packageName}:$sizePx"
+            val cacheKey = "app:${action.packageName}:${action.cloneUserId}:$sizePx"
             appIconCache.get(cacheKey)?.let { return it }
             resolveAppIconBitmap(action.packageName, sizePx, appRepository, context)?.let { bitmap ->
-                appIconCache.put(cacheKey, bitmap)
-                return bitmap
+                val decorated = com.slideindex.app.util.CloneBadge.decorate(bitmap, action.cloneUserId > 0) ?: bitmap
+                appIconCache.put(cacheKey, decorated)
+                return decorated
             }
         }
         if (action is GestureAction.LaunchShortcut) {

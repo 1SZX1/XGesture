@@ -46,7 +46,9 @@ internal object RingLauncherSlotIconBitmap {
             appRepository = appRepository,
             iconOverride = iconOverride,
         ) ?: createPlaceholderBitmap(sizePx, item.label.ifBlank { item.payload })
-        cache.put(cacheKey, bitmap)
+        // 分身条目在图标右上角补黄点（主实例原样返回）。
+        val decorated = com.slideindex.app.util.CloneBadge.decorate(bitmap, item.appTarget?.isClone == true) ?: bitmap
+        cache.put(cacheKey, decorated)
         return bitmap
     }
 

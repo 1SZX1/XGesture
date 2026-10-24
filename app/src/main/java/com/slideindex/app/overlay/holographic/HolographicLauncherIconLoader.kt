@@ -32,7 +32,7 @@ internal object HolographicLauncherIconLoader {
             var updated = false
             for (app in missing) {
                 val drawable = appRepository.launchIconDrawable(app.packageName) ?: continue
-                app.icon = drawable
+                app.icon = com.slideindex.app.util.CloneBadge.wrap(drawable, app.cloneUserId > 0) ?: drawable
                 updated = true
             }
             if (updated) {
