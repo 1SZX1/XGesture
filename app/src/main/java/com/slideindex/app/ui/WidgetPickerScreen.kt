@@ -155,13 +155,16 @@ fun WidgetPickerScreen(
       val loadedGroups = WidgetCatalog.loadGroups(context)
       // force：缓存里可能是上一版「按包名去重」的结果（没有分身），必须重新枚举一次。
       val loadedApps = WidgetCatalog.loadInstalledApps(context, force = true)
-      val loadedAll = appRepository.loadApps(force = false)
+      // 先落地「小组件 + 应用」两页的数据：后面 `loadApps` 是另一次全量枚举，
+      // 面板被关掉/重建时协程会在那个挂起点被取消——如果赋值放在它后面，
+      // 这一屏就永远停在旧缓存上（旧缓存没有分身）。
+      groups = loadedGroups
+      installedApps = loadedApps
       android.util.Log.i(
         "WidgetPicker",
         "installed=${loadedApps.size} clones=${loadedApps.count { it.cloneUserId > 0 }}",
       )
-      groups = loadedGroups
-      installedApps = loadedApps
+      val loadedAll = appRepository.loadApps(force = false)
       allApps = loadedAll
     }
     loading = false
@@ -363,7 +366,7 @@ fun WidgetPickerScreen(
 
   val filteredApps = remember(installedApps, searchQuery) {
     val query = searchQuery.trim().lowercase()
-    val matched = if (query.isEmpty()) {
+    if (query.isEmpty()) {
       installedApps
     } else {
       installedApps.filter {
@@ -373,9 +376,8 @@ fun WidgetPickerScreen(
           it.packageName.lowercase().contains(query)
       }
     }
-    // 列表用「包名/Activity」做 key，同一包名重复（应用分身 / 工作资料）会直接崩，
-    // 这里按包名兜底去重；面板本身也是按包名增删的，重复条目没有意义。
-    matched.distinctBy { it.packageName }
+    // 不要按包名去重：主实例与分身同包名，去重会把分身整条吞掉
+    // （列表 key 已经带 userId，重复 key 的问题不存在了）。
   }
 
   val loadedCatalog = rememberLoadedShortcutCatalog(allApps)
