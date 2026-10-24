@@ -38,6 +38,7 @@ import com.slideindex.app.gesture.SlotPickerKind
 import com.slideindex.app.ui.picker.FilteredShortcutCatalog
 import com.slideindex.app.ui.picker.GestureActionCatalog
 import com.slideindex.app.ui.picker.GestureActionCatalogScope
+import com.slideindex.app.ui.picker.appPickerGridItems
 import com.slideindex.app.ui.picker.activityShortcutPickerRadioSection
 import com.slideindex.app.ui.picker.shortcutFolderCardsSection
 import com.slideindex.app.ui.picker.systemShortcutCatalogItems
@@ -283,29 +284,21 @@ fun LazyListScope.actionPickerAppItems(
     /** 定位到"当前已绑定应用"之后闪一下的强度（0..1），只作用在当前那一行上。 */
     highlightPulse: Float = 0f,
 ) {
-    items(
-        filtered.size,
-        key = {
-            com.slideindex.app.launcher.AppTarget.encode(
-                filtered[it].packageName,
-                filtered[it].cloneUserId,
+    val currentApp = current as? GestureAction.LaunchApp
+    appPickerGridItems(
+        apps = filtered,
+        selectedKeys = if (currentApp == null) {
+            emptySet()
+        } else {
+            setOf(
+                com.slideindex.app.launcher.AppTarget.encode(
+                    currentApp.packageName,
+                    currentApp.cloneUserId,
+                ),
             )
         },
-    ) { index ->
-        val app = filtered[index]
-        val currentApp = current as? GestureAction.LaunchApp
-        val selected = currentApp?.packageName == app.packageName &&
-            currentApp.cloneUserId == app.cloneUserId
-        ActionPickerAppRow(
-            app = app,
-            segmentIndex = index,
-            segmentCount = filtered.size,
-            selected = selected,
-            windowMode = if (selected) currentApp.windowMode else LaunchWindowMode.FOLLOW_GLOBAL,
-            onSelect = onSelect,
-            highlightPulse = highlightPulse,
-        )
-    }
+        onAppClick = onSelect,
+    )
 }
 
 fun LazyListScope.actionPickerShortcutItems(

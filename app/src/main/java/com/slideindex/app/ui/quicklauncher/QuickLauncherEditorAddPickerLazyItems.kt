@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.slideindex.app.ui.Md3PickerAppEntryLeading
+import com.slideindex.app.ui.picker.appPickerGridItems
 import androidx.compose.material.icons.automirrored.outlined.Shortcut
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
@@ -192,44 +193,16 @@ fun LazyListScope.quickLauncherAddPickerAppItems(
     onToggle: (AppInfo, Boolean) -> Unit,
     singleSelect: Boolean = false,
 ) {
-    val rows = filtered.chunked(PICKER_GRID_COLUMNS)
-    items(
-        rows.size,
-        key = { rowIndex ->
-            rows[rowIndex].joinToString("|") {
-                com.slideindex.app.launcher.AppTarget.encode(it.packageName, it.cloneUserId)
-            }
+    appPickerGridItems(
+        apps = filtered,
+        selectedKeys = if (singleSelect) emptySet() else configuredAppPackages,
+        onAppClick = { app ->
+            val added = com.slideindex.app.launcher.AppTarget.encode(app.packageName, app.cloneUserId) in
+                configuredAppPackages
+            onToggle(app, if (singleSelect) false else added)
         },
-    ) { rowIndex ->
-        val row = rows[rowIndex]
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            row.forEach { app ->
-                val appKey = com.slideindex.app.launcher.AppTarget.encode(app.packageName, app.cloneUserId)
-                val added = appKey in configuredAppPackages
-                PickerGridCell(
-                    label = app.label,
-                    selected = !singleSelect && added,
-                    onClick = { onToggle(app, if (singleSelect) false else added) },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Md3PickerAppEntryLeading(
-                        entry = AppPackageEntry.Installed(app),
-                        missingIcon = androidx.compose.material.icons.Icons.AutoMirrored.Outlined.Shortcut,
-                    )
-                }
-            }
-            repeat(PICKER_GRID_COLUMNS - row.size) {
-                Spacer(modifier = Modifier.weight(1f))
-            }
-        }
-    }
+    )
 }
-
 fun LazyListScope.quickLauncherAddPickerShortcutItems(
     searchQuery: String,
     activityShortcuts: List<ActivityShortcut>,
