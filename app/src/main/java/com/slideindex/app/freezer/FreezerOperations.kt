@@ -17,6 +17,7 @@ import com.slideindex.app.overlay.OverlayToastWindow
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FreezerAppIntent
 import com.slideindex.app.settings.SettingsRepository
+import com.slideindex.app.util.CloneAppLauncher
 import com.slideindex.app.util.TaskManagerUtil
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
@@ -192,6 +193,11 @@ object FreezerOperations {
         app: AppInfo,
         fullscreen: Boolean = true
     ): Boolean = withContext(Dispatchers.IO) {
+        // 分身是另一个 user 下的独立实例：主实例的冻结/挂起状态、`launchApp` 的
+        // `getLaunchIntentForPackage` 都不适用，直接走跨 user 启动。
+        if (app.cloneUserId > 0) {
+            return@withContext CloneAppLauncher.launch(context, app.packageName, app.cloneUserId)
+        }
         when (val state = stateOf(context, app.packageName)) {
             FreezerAppState.FROZEN -> {
                 setFreezerIntent(context, app.packageName, FreezerAppIntent.FROZEN)

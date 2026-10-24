@@ -6,6 +6,7 @@ import android.util.Log
 import com.slideindex.app.R
 import com.slideindex.app.data.AppRepository
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.overlay.CloneAppsIndex
 import com.slideindex.app.util.PinyinHelper
 import com.slideindex.app.util.RecentAppEntry
 import com.slideindex.app.util.RecentPackageResolver
@@ -95,7 +96,7 @@ object TaskSwitcherRepository {
             val isClone = ref.userId >= 0 && ref.userId != myUserId
             val resolvedLabel = resolveLabel(ref, appInfo)
             val label = if (isClone) {
-                context.getString(R.string.task_switcher_clone_label, resolvedLabel)
+                CloneAppsIndex.labelForUser(context, ref.userId, resolvedLabel)
             } else {
                 resolvedLabel
             }

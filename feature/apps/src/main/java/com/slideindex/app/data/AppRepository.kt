@@ -53,6 +53,13 @@ class AppRepository @Inject constructor(
     @Volatile
     private var appsByPackage: Map<String, AppInfo> = emptyMap()
 
+    /**
+     * 分身来源（由 app 模块在启动时注入）。搜索列表会用它在主列表之后补分身条目；
+     * 没注入时搜索里没有分身，与旧版一致。
+     */
+    @Volatile
+    private var cloneAppProvider: CloneAppProvider? = null
+
     private val refreshMutex = Mutex()
     private var debouncedRefreshJob: Job? = null
 
@@ -71,6 +78,12 @@ class AppRepository @Inject constructor(
         val queried = withContext(Dispatchers.IO) { queryLaunchableApps() }
         publishApps(queried)
         queried
+    }
+
+    /** 注入/替换分身来源；注入后立刻重算一次可搜索列表。 */
+    fun installCloneAppProvider(provider: CloneAppProvider) {
+        cloneAppProvider = provider
+        scheduleAppsForSearchUpdate(_apps.value)
     }
 
     fun requestRefresh(reason: String) {
@@ -298,7 +311,14 @@ class AppRepository @Inject constructor(
         queryDisabledAppsNotInLaunchable(launchablePackages).forEach { app ->
             byPackage[app.packageName] = app
         }
-        return byPackage.values.sortedWith(appLetterOrder)
+        val base = byPackage.values.toList()
+        // 分身和主实例同包名，不能进 byPackage；作为额外条目追加，身份由 cloneUserId 区分。
+        val clones = runCatching { cloneAppProvider?.cloneApps(base) }
+            .getOrNull()
+            .orEmpty()
+            .filter { it.cloneUserId > 0 }
+        if (clones.isEmpty()) return base.sortedWith(appLetterOrder)
+        return (base + clones).sortedWith(appLetterOrder)
     }
 
     private fun queryDisabledAppsNotInLaunchable(launchablePackages: Set<String>): List<AppInfo> {

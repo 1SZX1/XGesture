@@ -15,4 +15,15 @@ internal object OverlayRefreshBus {
     fun notifyFreezerChanged() {
         freezerChanged.tryEmit(Unit)
     }
+
+    /**
+     * 分身空间变化（其他 user 下装/卸包、克隆空间增删）。
+     *
+     * 与冻结共用同一条「重算索引」链路：`freezerChanged` 的消费者会
+     * `reloadApps()` + `refreshIndexApps()`，正是分身条目需要的那两步。
+     * 单独开函数只为语义清楚，避免以后有人以为这里只管冰箱。
+     */
+    fun notifyCloneSpaceChanged() {
+        freezerChanged.tryEmit(Unit)
+    }
 }

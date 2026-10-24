@@ -79,6 +79,16 @@ class SideOverlayController(
     @Volatile
     private var indexAppsExtra: List<com.slideindex.app.data.AppInfo> = emptyList()
 
+    /**
+     * 索引里"分身"那一份（`cloneUserId > 0`）。
+     *
+     * 与 [indexAppsExtra] 分开存：分身和主实例**同包名**，按包名去重会把它当重复项丢掉；
+     * `syncApps` 收到的是 `appRepository.apps`（只含主实例），必须把这份并回去，
+     * 否则装/卸任意应用后分身条目会从索引里消失，直到下一次全量重算。
+     */
+    @Volatile
+    private var cloneAppsExtra: List<com.slideindex.app.data.AppInfo> = emptyList()
+
     internal val density get() = context.resources.displayMetrics.density
 
     private fun effectiveSettings(
@@ -603,12 +613,16 @@ class SideOverlayController(
     }
 
     private fun mergeIndexExtras(apps: List<com.slideindex.app.data.AppInfo>): List<com.slideindex.app.data.AppInfo> {
-        if (indexAppsExtra.isEmpty()) return apps
-        val present = apps.mapTo(HashSet()) { it.packageName }
-        val extras = indexAppsExtra.filter { it.packageName !in present }
+        if (indexAppsExtra.isEmpty() && cloneAppsExtra.isEmpty()) return apps
+        val present = apps.mapTo(HashSet()) { it.indexIdentityKey() }
+        val extras = (indexAppsExtra + cloneAppsExtra).filter { it.indexIdentityKey() !in present }
         if (extras.isEmpty()) return apps
         return (apps + extras).sortedBy { it.pinyinKey }
     }
+
+    /** 索引里的唯一身份：分身与主实例同包名，必须带上 userId 才能区分。 */
+    private fun com.slideindex.app.data.AppInfo.indexIdentityKey(): Pair<String, Int> =
+        packageName to cloneUserId
 
     fun refreshTriggerVisualWindows() {
         resyncCaptureInteraction()
@@ -675,14 +689,15 @@ class SideOverlayController(
                 hiddenPackages = settings.hiddenAppPackages,
             )
             // 再补上"分身"条目（其他 user 下安装的同一批包，同图标 + 名字后缀）。
-            // 枚举要走特权 shell（可能阻塞几十毫秒），放到 IO 线程，别卡主线程。
+            // 枚举可能走特权 shell / LauncherApps（可能阻塞几十毫秒），放到 IO 线程，别卡主线程。
             val apps = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                CloneAppsIndex.enrich(base) { label ->
-                    context.getString(com.slideindex.app.R.string.task_switcher_clone_label, label)
+                CloneAppsIndex.enrich(base) { label, kind ->
+                    context.getString(CloneAppsIndex.labelRes(kind), label)
                 }
             }
-            // 记住"冰箱成员"这一份，供 syncApps 合并，避免被可启动列表覆盖。
-            indexAppsExtra = apps.filter { it.packageName in settings.freezerAppPackages }
+            // 记住"冰箱成员"和"分身"各一份，供 syncApps 合并，避免被可启动列表覆盖。
+            indexAppsExtra = apps.filter { !it.isClone && it.packageName in settings.freezerAppPackages }
+            cloneAppsExtra = apps.filter { it.isClone }
             if (windowManager.edgeOverlayDetached || windowManager.overlayLayoutSuspended()) return@launch
             windowManager.presentationView?.setApps(apps)
         }

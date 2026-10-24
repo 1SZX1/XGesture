@@ -4433,6 +4433,7 @@ adb 模式应返回 uid=2000。
     <string name="update_version_latest">最新 %1$s</string>
     <string name="task_switcher_app_info">应用信息</string>
     <string name="task_switcher_clone_label">%1$s · 分身</string>
+    <string name="clone_label_managed_profile">%1$s · 工作资料</string>
     <string name="task_switcher_quick_share">快速分享</string>
     <string name="toggle_gesture_enabled">手势已开启</string>
     <string name="toggle_gesture_disabled">手势已关闭</string>

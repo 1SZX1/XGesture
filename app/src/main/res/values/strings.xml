@@ -4331,6 +4331,7 @@ or revoke permanent Root for Shell in APatch.</string>
     <string name="update_version_latest">Latest %1$s</string>
     <string name="task_switcher_app_info">App info</string>
     <string name="task_switcher_clone_label">%1$s · Clone</string>
+    <string name="clone_label_managed_profile">%1$s · Work profile</string>
     <string name="task_switcher_quick_share">Quick Share</string>
     <string name="toggle_gesture_enabled">Gestures enabled</string>
     <string name="toggle_gesture_disabled">Gestures disabled</string>

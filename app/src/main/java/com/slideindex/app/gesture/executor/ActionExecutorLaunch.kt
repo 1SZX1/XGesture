@@ -23,6 +23,7 @@ import com.slideindex.app.settings.resolvedFreeWindowMode
 import com.slideindex.app.settings.shouldLaunchFullscreen
 import com.slideindex.app.shell.ShellCommand
 import com.slideindex.app.util.AppShortcutLoader
+import com.slideindex.app.util.CloneAppLauncher
 import com.slideindex.app.util.ShellCommandRunner
 import com.slideindex.app.util.ForegroundHostPackageResolver
 import com.slideindex.app.util.FreeWindowLauncher
@@ -118,33 +119,13 @@ internal class ActionExecutorLaunch(
     /**
      * 在指定 user 下启动应用（应用分身 / 工作资料）。
      *
-     * 主进程只能在自己的 user 里 startActivity，跨 user 必须走特权 shell：
-     * 先用 `cmd package resolve-activity --brief --user N` 解析 launcher 组件，再 `am start --user N -n …`。
-     * 解析不到时退回 `monkey`（同样支持 --user）。
+     * 具体走 shell 还是 `LauncherApps` 由 [CloneAppLauncher] 决定：有特权时 shell 更稳
+     * （绕过后台启动限制），没有 Shizuku 时退回公开 API。
      */
     fun launchAppInUser(packageName: String, userId: Int, settings: AppSettings): Boolean {
         if (userId <= 0) return launchApp(packageName, settings, longPressArmed = false)
         Thread {
-            val component = runCatching {
-                TaskManagerUtil.runShellCommandOutput(
-                    "cmd", "package", "resolve-activity", "--brief", "--user", userId.toString(), packageName,
-                ).output.lineSequence()
-                    .map { it.trim() }
-                    .lastOrNull { it.contains('/') && !it.startsWith("priority=") }
-            }.getOrNull()
-            if (component != null) {
-                val result = TaskManagerUtil.runShellCommandOutput(
-                    "am", "start", "--user", userId.toString(), "-n", component,
-                )
-                Log.i(ActionExecutor.TAG, "launchAppInUser($packageName@$userId) -> exit=${result.exitCode}")
-                if (result.exitCode == 0) return@Thread
-            }
-            runCatching {
-                TaskManagerUtil.runShellCommandOutput(
-                    "monkey", "--user", userId.toString(), "-p", packageName,
-                    "-c", "android.intent.category.LAUNCHER", "1",
-                )
-            }
+            CloneAppLauncher.launch(context, packageName, userId)
         }.start()
         return true
     }

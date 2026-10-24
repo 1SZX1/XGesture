@@ -1002,7 +1002,14 @@ internal class QuickLauncherOverlayController(
         "${item.type.id}\u0000${item.payload}"
 
     internal fun rebuildQuickLauncherAppsByPackage(apps: List<AppInfo> = host.apps()) {
-        quickLauncherAppsByPackage = apps.associateBy { it.packageName }
+        // 同一个包可能同时有主实例和分身（cloneUserId > 0），而快速启动器条目的 payload
+        // 只有包名、启动的也是当前用户的主实例：这里必须优先保留主实例，
+        // 否则主实例的图标/名字会被分身的「· 分身」覆盖。
+        quickLauncherAppsByPackage = apps
+            .groupBy { it.packageName }
+            .mapValues { (_, candidates) ->
+                candidates.firstOrNull { it.cloneUserId == 0 } ?: candidates.first()
+            }
     }
 
     internal fun invalidateQuickLauncherDerivedCaches() {

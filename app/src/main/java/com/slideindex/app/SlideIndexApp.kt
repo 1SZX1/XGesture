@@ -118,6 +118,14 @@ class SlideIndexApp : Application(), androidx.work.Configuration.Provider {
         // "TaskManagerUtil.initialize() must be called before use"：任务切换器空、小窗动作失效
         // （真机 01:01 日志）。惰性化只该针对"取 Shizuku binder"，不该连这个纯赋值初始化一起拖。
         com.slideindex.app.util.TaskManagerUtil.initialize(this)
+        // 分身枚举（clone profile / 999）需要 LauncherApps + UserManager：只在这里喂一次 context。
+        // 搜索列表的分身条目由 app 侧注入，feature 模块的 AppRepository 不认识 CloneAppsIndex。
+        com.slideindex.app.overlay.CloneAppsIndex.initialize(this)
+        deps.appRepository.installCloneAppProvider(
+            com.slideindex.app.data.CloneAppProvider { base ->
+                com.slideindex.app.overlay.CloneAppsIndex.searchEntries(base)
+            }
+        )
         // Shizuku 的 binder 只会投递给声明了 ShizukuProvider 的进程（这里是默认进程）。
         // 注意 enableMultiProcessSupport(flag) 的 flag 含义是"**当前进程**是不是 provider 进程"，
         // 传 true 会被 Shizuku 当成 provider 进程，紧接着的 requestBinderForNonProviderProcess 会直接 return。
