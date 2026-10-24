@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.provider.Settings
 import android.util.Log
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 
@@ -79,21 +78,17 @@ object BrightnessControlHelper {
                     return levelToFraction(appContext, level)
                 }
             }
-            val floatResult = TaskManagerUtil.runShellCommandOutput(
-                "settings",
-                "get",
-                "system",
-                "screen_brightness_float",
-            )
-            if (floatResult.success) {
-                floatResult.output.trim().toFloatOrNull()?.let { fraction ->
-                    if (fraction in 0f..1f) return fraction
-                }
-            }
         }
         return readManualBrightnessFraction(appContext)
     }
 
+    /**
+     * 当前亮度比例，只认 `screen_brightness` 这一个 int。
+     *
+     * 不再读 `screen_brightness_float`：我们既然只写 int，读也应当只读 int。
+     * 那条 float 可能是旧版本写的残留值，或系统 synchronizer 写到一半的中间态，
+     * 一旦和 int 不一致，面板会显示成和实际亮度不同的位置。
+     */
     private fun readManualBrightnessFraction(appContext: Context): Float {
         val level = Settings.System.getInt(
             appContext.contentResolver,
@@ -101,17 +96,7 @@ object BrightnessControlHelper {
             255,
         )
         rememberObservedLevel(level)
-        val intFraction = levelToFraction(appContext, level)
-        val floatVal = runCatching {
-            Settings.System.getFloat(appContext.contentResolver, "screen_brightness_float")
-        }.getOrNull()
-        if (floatVal != null && floatVal in 0f..1f) {
-            if (abs(floatVal - intFraction) > FLOAT_INT_MISMATCH_EPSILON) {
-                return intFraction
-            }
-            return floatVal
-        }
-        return intFraction
+        return levelToFraction(appContext, level)
     }
 
     private fun levelToFraction(context: Context, level: Int): Float {
@@ -481,9 +466,6 @@ object BrightnessControlHelper {
 
     /** 与 AOSP BrightnessController 一致，自动亮度下用户偏移量。 */
     private const val SCREEN_AUTO_BRIGHTNESS_ADJ = "screen_auto_brightness_adj"
-
-    /** 系统快捷设置常只改 int，float 可能仍为应用上次写入的值。 */
-    private const val FLOAT_INT_MISMATCH_EPSILON = 0.02f
 
     /**
      * 滑条到底时写到的下限。
