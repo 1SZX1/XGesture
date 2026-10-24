@@ -183,12 +183,23 @@ internal object CloneAppsIndex {
     /** 查询失败时抛异常，让调用方保留上一次的缓存。 */
     private fun queryRefs(): List<CloneAppRef> {
         val spaces = collectSpaces()
-        if (spaces.isEmpty()) return emptyList()
+        if (spaces.isEmpty()) {
+            Log.i(TAG, "no clone spaces (profiles/shell both unavailable)")
+            return emptyList()
+        }
+        Log.i(TAG, "spaces=$spaces")
         val refs = ArrayList<CloneAppRef>()
         spaces.forEach { (userId, kind) ->
-            val packages = LinkedHashSet<String>()
-            packages += packagesViaLauncherApps(userId)
-            packages += packagesViaShell(userId)
+            val launcherPackages = packagesViaLauncherApps(userId)
+            val shellPackages = packagesViaShell(userId)
+            val packages = LinkedHashSet<String>().apply {
+                addAll(launcherPackages)
+                addAll(shellPackages)
+            }
+            Log.i(
+                TAG,
+                "user=$userId kind=$kind launcher=${launcherPackages.size} shell=${shellPackages.size} total=${packages.size}",
+            )
             packages.forEach { packageName ->
                 refs += CloneAppRef(packageName, userId, kind)
             }
@@ -209,6 +220,7 @@ internal object CloneAppsIndex {
 
         runCatching {
             val result = TaskManagerUtil.runShellCommandOutput("pm", "list", "users")
+            Log.i(TAG, "pm list users exit=${result.exitCode}")
             if (result.exitCode == 0) {
                 CloneSpaceParsing.parseUserIds(result.output, currentUserId)
                     .forEach { spaces[it] = CloneSpaceKind.UNKNOWN }
