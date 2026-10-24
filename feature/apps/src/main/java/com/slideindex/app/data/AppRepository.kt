@@ -145,13 +145,13 @@ class AppRepository @Inject constructor(
         val launchableNames = launchable.mapTo(HashSet()) { it.packageName }
         // 冰箱清单里存的是「目标」：主实例裸包名，分身 `包名\u0002userId`（旧数据裸包名 = user 0）。
         val targets = freezerPackages.map(AppTarget::parse)
+        // 只补 user 0 的条目：分身统一交给 `CloneAppsIndex.enrich`——它会补「· 分身」标签、
+        // 也会按 user 查分身自己的状态。在这里按目标补分身会造出第二条无后缀的「抖音」，
+        // 与 enrich 补的那条重复（2026-10-24 实测：索引里出现 3 个抖音）。
         val extras = targets
-            .filter { it.packageName !in launchableNames }
-            .mapNotNull { target ->
-                resolveAppInfo(target.packageName)?.let { base ->
-                    if (target.isClone) base.copy(cloneUserId = target.cloneUserId) else base
-                }
-            }
+            .filter { !it.isClone && it.packageName !in launchableNames }
+            .distinctBy { it.packageName }
+            .mapNotNull { target -> resolveAppInfo(target.packageName) }
         (launchable + extras)
             .map { app ->
                 if (AppTarget.encode(app.packageName, app.cloneUserId) in freezerPackages) {

@@ -212,6 +212,12 @@ object FreezerOperations {
                 return@withContext true
             }
             Log.w(TAG, "setPaused(${keyOf(target)}, $paused) -> failed: ${detail.take(160)}")
+            // PMS 的跨 user 挂起要求「发起挂起的包」存在于目标 user（com.android.shell 不在分身 user 里），
+            // 只有 root 豁免这条检查。非 root 时给一句能看懂的话，而不是把 SecurityException 原文糊给用户。
+            if (paused && target.cloneUserId > 0 && detail.contains(CLONE_PAUSE_NEEDS_ROOT_HINT)) {
+                showFreezerMessage(context, R.string.freezer_pause_clone_need_root)
+                return@withContext false
+            }
             val messageRes = if (paused) {
                 R.string.freezer_pause_failed
             } else {
@@ -454,4 +460,7 @@ object FreezerOperations {
     }
 
     private const val TAG = "FreezerOperations"
+
+    /** PMS 拒绝跨 user 挂起时的固定报错片段（见 `enforceCanSetPackagesSuspendedAsUser`）。 */
+    private const val CLONE_PAUSE_NEEDS_ROOT_HINT = "does not belong to calling uid"
 }

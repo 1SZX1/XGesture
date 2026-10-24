@@ -615,7 +615,10 @@ class SideOverlayController(
     private fun mergeIndexExtras(apps: List<com.slideindex.app.data.AppInfo>): List<com.slideindex.app.data.AppInfo> {
         if (indexAppsExtra.isEmpty() && cloneAppsExtra.isEmpty()) return apps
         val present = apps.mapTo(HashSet()) { it.indexIdentityKey() }
-        val extras = (indexAppsExtra + cloneAppsExtra).filter { it.indexIdentityKey() !in present }
+        // 两个来源可能都含同一个分身（冰箱目标 + `enrich`），先按身份去重再并。
+        val extras = (indexAppsExtra + cloneAppsExtra)
+            .distinctByIdentity()
+            .filter { it.indexIdentityKey() !in present }
         if (extras.isEmpty()) return apps
         return (apps + extras).sortedBy { it.pinyinKey }
     }
@@ -623,6 +626,9 @@ class SideOverlayController(
     /** 索引里的唯一身份：分身与主实例同包名，必须带上 userId 才能区分。 */
     private fun com.slideindex.app.data.AppInfo.indexIdentityKey(): Pair<String, Int> =
         packageName to cloneUserId
+
+    private fun List<com.slideindex.app.data.AppInfo>.distinctByIdentity():
+        List<com.slideindex.app.data.AppInfo> = distinctBy { it.indexIdentityKey() }
 
     fun refreshTriggerVisualWindows() {
         resyncCaptureInteraction()
@@ -694,7 +700,7 @@ class SideOverlayController(
                 CloneAppsIndex.enrich(base) { label, kind ->
                     context.getString(CloneAppsIndex.labelRes(kind), label)
                 }
-            }
+            }.distinctByIdentity()
             // 记住"冰箱成员"和"分身"各一份，供 syncApps 合并，避免被可启动列表覆盖。
             indexAppsExtra = apps.filter { !it.isClone && it.packageName in settings.freezerAppPackages }
             cloneAppsExtra = apps.filter { it.isClone }

@@ -1919,6 +1919,7 @@
     <string name="freezer_action_unpause">Resume</string>
     <string name="freezer_status_paused">Paused</string>
     <string name="freezer_pause_failed">Pause failed: %1$s</string>
+    <string name="freezer_pause_clone_need_root">Pausing a clone needs Root (Shizuku alone can\'t suspend apps in another user)</string>
     <string name="freezer_unpause_failed">Resume failed: %1$s</string>
     <string name="freezer_pause_all">Pause all</string>
     <string name="freezer_unpause_all">Resume all</string>
