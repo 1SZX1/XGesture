@@ -4,7 +4,7 @@
 >
 > 仓库：`D:\AndroidDev\Projects\cebian`（Android，Kotlin/Compose）
 > 验证机：魅族 21，Flyme 12.6.0.0A（Android 16），分身 user = **999**（`android.os.usertype.profile.CLONE`），Sui 模块提供 Shizuku。
-> 分支：`main`，最新提交 `9eee0c62`。
+> 分支：`main`；代码最新提交 `9eee0c62`，本文件由 `b2aee5b9` 引入（其后没有新的代码提交）。
 
 ## 一、已经做完的（不要重做）
 
