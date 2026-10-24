@@ -114,7 +114,7 @@ object BrightnessControlHelper {
 
     private fun levelToFraction(context: Context, level: Int): Float {
         val max = brightnessMax(context).coerceAtLeast(level)
-        val min = brightnessMin(context)
+        val min = writableMin(context, max)
         if (max <= min) return 0f
         return ((level - min).toFloat() / (max - min)).coerceIn(0f, 1f)
     }
@@ -142,7 +142,25 @@ object BrightnessControlHelper {
     private fun brightnessMin(context: Context): Int {
         val res = context.resources
         val id = res.getIdentifier("config_screenBrightnessSettingMinimum", "integer", "android")
-        return if (id != 0) res.getInteger(id) else 0
+        return if (id != 0) res.getInteger(id) else BRIGHTNESS_FLOOR
+    }
+
+    /**
+     * 滑条到底时写到的下限。
+     *
+     * 小米官方适配口径：量程 ≤255 的机型最小值固定为 1；多级调光（>255）的机型才用
+     * `config_screenBrightnessSettingMinimum`（[亮度适配说明](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1633)）。
+     *
+     * 两头都不能省：
+     * - 一律用 config：那是有机型会写成 12 的保守值，滑条到底会比系统条到底亮一截；
+     * - 一律用 1：8191 量程上 1 只是 0.01%，等于把屏幕按黑。
+     *
+     * 也不写 0：AOSP 里 `PowerManager.BRIGHTNESS_OFF = 0`，BrightnessSynchronizer 会把 0
+     * 当成「关屏/无效」而不是「最暗」。
+     */
+    private fun writableMin(context: Context, max: Int): Int {
+        if (max <= BRIGHTNESS_ON_VALUE) return BRIGHTNESS_FLOOR
+        return brightnessMin(context).coerceAtLeast(BRIGHTNESS_FLOOR)
     }
 
     /**
@@ -181,7 +199,7 @@ object BrightnessControlHelper {
     ): Boolean {
         val appContext = context.applicationContext
         val max = brightnessMax(appContext)
-        val min = brightnessMin(appContext)
+        val min = writableMin(appContext, max)
         val targetIntLevel = if (max <= min) {
             min
         } else {
@@ -192,37 +210,28 @@ object BrightnessControlHelper {
         val canWriteSettings = PermissionHelper.canWriteSettings(appContext) ||
             SecureSettingsHelper.hasWriteSecureSettings(appContext)
 
+        // 只写 int 这一个通道。
+        //
+        // 曾经同时写 screen_brightness_float：Android 12+ 的 BrightnessSynchronizer 会把两个
+        // setting 互相换算、互相回写，谁后写谁生效，两个通道的量纲一旦不一致就成了自己覆盖自己。
+        // 业界第三方（如 SideGesture）也只写 int，float 只读不写。
         if (canWriteSettings) {
-            synced = runCatching {
-                Settings.System.putFloat(
-                    appContext.contentResolver,
-                    "screen_brightness_float",
-                    clamped,
-                )
-            }.getOrDefault(false)
             synced = runCatching {
                 Settings.System.putInt(
                     appContext.contentResolver,
                     Settings.System.SCREEN_BRIGHTNESS,
                     targetIntLevel,
                 )
-            }.getOrDefault(false) || synced
+            }.getOrDefault(false)
         }
         if (!synced && allowShell && TaskManagerUtil.hasPermission()) {
             synced = TaskManagerUtil.runShellCommand(
                 "settings",
                 "put",
                 "system",
-                "screen_brightness_float",
-                clamped.toString(),
-            ) || synced
-            synced = TaskManagerUtil.runShellCommand(
-                "settings",
-                "put",
-                "system",
                 "screen_brightness",
                 targetIntLevel.toString(),
-            ) || synced
+            )
         }
         if (synced && logSuccess) {
             Log.d(TAG, "manual brightness set to $targetIntLevel (fraction=$clamped, max=$max)")
@@ -452,6 +461,19 @@ object BrightnessControlHelper {
 
     /** 系统快捷设置常只改 int，float 可能仍为应用上次写入的值。 */
     private const val FLOAT_INT_MISMATCH_EPSILON = 0.02f
+
+    /**
+     * 滑条到底时写到的下限。
+     *
+     * 不用 `config_screenBrightnessSettingMinimum`：那是 ROM 的保守声明（实测见过 12），
+     * 拿它当 0 会让滑条到底比系统条到底亮一截（小米文档：量程 ≤255 的机型最小值是 1）。
+     * 也不用 0：AOSP 里 `PowerManager.BRIGHTNESS_OFF = 0`，BrightnessSynchronizer 会把 0
+     * 当成「关屏/无效」而不是「最暗」，写进去可能完全不生效。
+     */
+    private const val BRIGHTNESS_FLOOR = 1
+
+    /** `PowerManager.BRIGHTNESS_ON`（隐藏常量，值恒为 255）：int 量程不超过它时属于单级调光。 */
+    private const val BRIGHTNESS_ON_VALUE = 255
 
     private val brightnessAdjExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
 
