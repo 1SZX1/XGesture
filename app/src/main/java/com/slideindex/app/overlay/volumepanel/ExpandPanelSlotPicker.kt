@@ -58,7 +58,7 @@ import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredActions
 import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredApps
 import com.slideindex.app.ui.miuix.MiuixSearchField
 import com.slideindex.app.ui.miuix.MiuixTabRowContourHost
-import com.slideindex.app.ui.miuix.MiuixTabRowWithContour
+import com.slideindex.app.ui.picker.AppPickerTabRow
 import com.slideindex.app.ui.picker.filterShortcutCatalog
 import com.slideindex.app.ui.picker.rememberLoadedShortcutCatalog
 import com.slideindex.app.ui.quicklauncher.QuickLauncherEmbedParentConfirm
@@ -284,7 +284,7 @@ fun ExpandPanelSlotPicker(
                 .fillMaxWidth()
                 .padding(top = 8.dp),
         )
-        MiuixTabRowWithContour(
+        AppPickerTabRow(
             tabs = listOf(
                 stringResource(R.string.action_picker_tab_actions),
                 stringResource(R.string.action_picker_tab_apps),

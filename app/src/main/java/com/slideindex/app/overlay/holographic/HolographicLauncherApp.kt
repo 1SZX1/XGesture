@@ -12,4 +12,6 @@ data class HolographicLauncherApp(
     val packageName: String,
     val label: String,
     var icon: Drawable?,
+    /** 应用分身所属 user（0 = 主实例）。 */
+    val cloneUserId: Int = 0,
 )

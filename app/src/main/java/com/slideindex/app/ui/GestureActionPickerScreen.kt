@@ -49,9 +49,9 @@ import com.slideindex.app.ui.gesturepicker.GestureLaunchWindowModeDialog
 import com.slideindex.app.ui.gesturepicker.MacroPickDialog
 import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredActions
 import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredApps
+import com.slideindex.app.ui.picker.AppPickerTabRow
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixScaffoldSearchTabBottomContent
-import com.slideindex.app.ui.miuix.MiuixTabRowWithContour
 import com.slideindex.app.ui.miuix.consumeExpandableSearchBack
 import com.slideindex.app.ui.picker.filterShortcutCatalog
 import com.slideindex.app.ui.picker.rememberLoadedShortcutCatalog
@@ -278,7 +278,7 @@ fun GestureActionPickerScreen(
                     focusRequester = searchFocusRequester,
                     hintResId = searchHintResId,
                     tabContent = {
-                        MiuixTabRowWithContour(
+                        AppPickerTabRow(
                             tabs = listOf(
                                 stringResource(R.string.action_picker_tab_actions),
                                 stringResource(R.string.action_picker_tab_apps),

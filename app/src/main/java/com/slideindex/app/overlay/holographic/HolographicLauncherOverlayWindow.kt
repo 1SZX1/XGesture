@@ -92,7 +92,7 @@ object HolographicLauncherOverlayWindow {
                     overlayController.removeNow()
                     releaseOverlayState()
                     actionExecutor.execute(
-                        GestureAction.LaunchApp(app.packageName),
+                        GestureAction.LaunchApp(app.packageName, cloneUserId = app.cloneUserId),
                         settings,
                     )
                 }
@@ -161,16 +161,37 @@ object HolographicLauncherOverlayWindow {
         // 有些永远找不到。选中列表保持挑选顺序，其余按拼音排。
         val allSorted = appRepository.getCachedApps().sortedBy { it.pinyinKey }
 
+        // 选中列表允许是目标串（包名\u0002userId）：旧数据是裸包名，解析出来就是 user 0。
+        val targets = selectedPackages.map(com.slideindex.app.launcher.AppTarget::parse)
         val apps: Sequence<AppInfo> = when (holographic.appMode) {
             HolographicAppMode.ALL -> allSorted.asSequence()
 
             HolographicAppMode.SELECTED_ONLY ->
-                selectedPackages.asSequence().mapNotNull { packageName ->
-                    cachedByPackage[packageName] ?: appRepository.lookupApp(packageName)
+                targets.asSequence().mapNotNull { target ->
+                    val base = cachedByPackage[target.packageName]
+                        ?: appRepository.lookupApp(target.packageName)
+                        ?: return@mapNotNull null
+                    if (!target.isClone) {
+                        base
+                    } else {
+                        val label = com.slideindex.app.overlay.CloneAppsIndex.labelForUser(
+                            context,
+                            target.cloneUserId,
+                            base.label,
+                        )
+                        base.copy(
+                            label = label,
+                            cloneUserId = target.cloneUserId,
+                            letter = com.slideindex.app.util.PinyinHelper.firstLetter(label),
+                            pinyinKey = com.slideindex.app.util.PinyinHelper.sortKey(label),
+                        )
+                    }
                 }
 
             HolographicAppMode.EXCLUDE_SELECTED -> {
-                val excluded = selectedPackages.toSet()
+                val excluded = targets
+                    .filterNot { it.isClone }
+                    .mapTo(HashSet()) { it.packageName }
                 allSorted.asSequence().filter { it.packageName !in excluded }
             }
         }
@@ -182,6 +203,7 @@ object HolographicLauncherOverlayWindow {
                     packageName = info.packageName,
                     label = info.label,
                     icon = appRepository.peekLaunchIconDrawable(info.packageName),
+                    cloneUserId = info.cloneUserId,
                 )
             }
             .toList()

@@ -26,9 +26,9 @@ import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.ui.gesturepicker.MacroPickDialog
 import com.slideindex.app.ui.compose.collectLaunchableAppsWithClonesAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
+import com.slideindex.app.ui.picker.AppPickerTabRow
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixScaffoldSearchTabBottomContent
-import com.slideindex.app.ui.miuix.MiuixTabRowWithContour
 import com.slideindex.app.ui.miuix.consumeExpandableSearchBack
 import com.slideindex.app.ui.picker.filterShortcutCatalog
 import com.slideindex.app.ui.picker.rememberLoadedShortcutCatalog
@@ -150,7 +150,7 @@ fun HoneycombLauncherAddPickerScreen(
                 onSearchQueryChange = { searchQuery = it },
                 focusRequester = searchFocusRequester,
                 tabContent = {
-                    MiuixTabRowWithContour(
+                    AppPickerTabRow(
                         tabs = HoneycombAddPickerTabs.map { tab ->
                             stringResource(
                                 when (tab) {

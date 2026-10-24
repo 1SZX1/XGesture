@@ -55,7 +55,7 @@ import com.slideindex.app.ui.gesturepicker.MacroPickOverlay
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchFieldStrip
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixTabRowContourHost
-import com.slideindex.app.ui.miuix.MiuixTabRowWithContour
+import com.slideindex.app.ui.picker.AppPickerTabRow
 import com.slideindex.app.ui.miuix.consumeExpandableSearchBack
 import com.slideindex.app.ui.quicklauncher.QuickLauncherEmbedParentConfirm
 import com.slideindex.app.ui.quicklauncher.QUICK_LAUNCHER_SHEET_ENTER_MS
@@ -555,7 +555,7 @@ private fun QuickLauncherAddOverlayHeader(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             )
             if (subScreen is QuickLauncherAddSubScreen.Main || subScreen is QuickLauncherAddSubScreen.CreateFolder) {
-                MiuixTabRowWithContour(
+                AppPickerTabRow(
                     tabs = listOf(
                         stringResource(R.string.action_picker_tab_actions),
                         stringResource(R.string.action_picker_tab_apps),

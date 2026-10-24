@@ -25,6 +25,7 @@ import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
 import com.slideindex.app.settings.HolographicAppMode
 import com.slideindex.app.settings.HolographicLauncherSettings
+import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.miuix.miuixGroupedCardItem
@@ -56,7 +57,9 @@ fun HolographicLauncherAppsScreen(
     onRemoveApp: (String) -> Unit,
     onSetSelection: (List<String>) -> Unit,
 ) {
-    val allApps by collectPickerAppsAsState(includeClones = false)
+    // 全息启动器只是「列出来 → 点开启动」，不依赖前台识别，所以分身有意义：includeClones = true。
+    // 选中列表存的仍是字符串，但允许是 包名\u0002userId 目标串（旧数据裸包名 = user 0）。
+    val allApps by collectPickerAppsAsState(includeClones = true)
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
@@ -94,15 +97,15 @@ fun HolographicLauncherAppsScreen(
         extraActions = {
             // 一个按钮切换：全部选中 → 取消全选，否则 → 全选（作用范围是当前搜索结果）。
             if (mode != HolographicAppMode.ALL && visibleApps.isNotEmpty()) {
-                val allSelected = visibleApps.all { it.packageName in selectedSet }
+                val allSelected = visibleApps.all { holoAppKey(it) in selectedSet }
                 IconButton(
                     onClick = {
                         if (allSelected) {
-                            onSetSelection(selectedPackages.filterNot { pkg ->
-                                visibleApps.any { it.packageName == pkg }
+                            onSetSelection(selectedPackages.filterNot { key ->
+                                visibleApps.any { holoAppKey(it) == key }
                             })
                         } else {
-                            val visible = visibleApps.map { it.packageName }
+                            val visible = visibleApps.map { holoAppKey(it) }
                             onSetSelection((selectedPackages + visible).distinct())
                         }
                     },
@@ -172,11 +175,12 @@ fun HolographicLauncherAppsScreen(
                 }
             }
             else -> {
-                items(visibleApps.size, key = { visibleApps[it].packageName }) { index ->
+                items(visibleApps.size, key = { holoAppKey(visibleApps[it]) }) { index ->
                     val app = visibleApps[index]
-                    val selected = app.packageName in selectedSet
+                    val appKey = holoAppKey(app)
+                    val selected = appKey in selectedSet
                     val toggle = {
-                        if (selected) onRemoveApp(app.packageName) else onAddApp(app.packageName)
+                        if (selected) onRemoveApp(appKey) else onAddApp(appKey)
                     }
                     // 每行**各自一张卡**（segmentIndex=0 / count=1 才会独立成卡）。
                     // 横向边距由 `miuixGroupedCardItem` 自带的 12dp 负责，**不要再叠一层** ——
@@ -221,3 +225,6 @@ internal fun HolographicAppMode.descRes(): Int = when (this) {
 /** 球面布点上限：选中超过它的部分不会显示（与 `Ball3DView.MAX_BALL_APPS` 一致）。 */
 @Suppress("unused")
 internal const val HOLOGRAPHIC_BALLOON_LIMIT = HolographicLauncherSettings.BALLOON_APP_LIMIT
+/** 全息选中列表的键：主实例 = 裸包名，分身 = 包名\u0002userId（与其它目标型入口一致）。 */
+internal fun holoAppKey(app: com.slideindex.app.data.AppInfo): String =
+    AppTarget.encode(app.packageName, app.cloneUserId)

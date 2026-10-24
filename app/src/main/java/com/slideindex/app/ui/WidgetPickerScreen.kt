@@ -71,9 +71,9 @@ import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.overlay.CloneAppsIndex
 import com.slideindex.app.launcher.QuickLauncherItemCodec
 import com.slideindex.app.ui.compose.rememberAppRepository
+import com.slideindex.app.ui.picker.AppPickerTabRow
 import com.slideindex.app.ui.miuix.MiuixExpandableSearchIconAction
 import com.slideindex.app.ui.miuix.MiuixScaffoldSearchTabBottomContent
-import com.slideindex.app.ui.miuix.MiuixTabRowWithContour
 import com.slideindex.app.ui.miuix.consumeExpandableSearchBack
 import com.slideindex.app.ui.picker.ActivityShortcutPickActivityScreen
 import com.slideindex.app.ui.picker.ActivityShortcutPickAppScreen
@@ -423,7 +423,7 @@ fun WidgetPickerScreen(
         focusRequester = searchFocusRequester,
         hintResId = R.string.widget_picker_search_hint,
         tabContent = {
-          MiuixTabRowWithContour(
+          AppPickerTabRow(
             tabs = listOf(
               stringResource(R.string.widget_picker_title),
               stringResource(R.string.widget_tab_apps),
