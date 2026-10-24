@@ -458,11 +458,16 @@ class GestureSession(
                 endSession()
                 app?.let {
                     callbacks.hapticConfirmLaunch()
-                    actionExecutor.execute(
-                        GestureAction.LaunchApp(it.packageName),
-                        sessionSettings,
-                        longPressArmed
-                    )
+                    if (it.isClone) {
+                        // 分身实例：同包名但要在别的 user 下启动。
+                        actionExecutor.launchAppInUser(it.packageName, it.cloneUserId, sessionSettings)
+                    } else {
+                        actionExecutor.execute(
+                            GestureAction.LaunchApp(it.packageName),
+                            sessionSettings,
+                            longPressArmed
+                        )
+                    }
                 }
             }
 

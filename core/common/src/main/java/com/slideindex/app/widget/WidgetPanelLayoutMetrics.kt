@@ -11,11 +11,13 @@ object WidgetPanelLayoutMetrics {
         val viewportHeightPx: Int,
     )
 
-    /** 一个页面在屏幕上占用的整块面板尺寸（含指示器/空态提示与上边距）。 */
+    /** 一个页面在屏幕上占用的整块面板尺寸（含指示器/空态提示与上/左边距）。 */
     data class PanelBox(
         val widthPx: Int,
         val heightPx: Int,
         val topMarginPx: Int,
+        /** 距屏幕左边的边距；0 表示水平居中。 */
+        val leftMarginPx: Int = 0,
     )
 
     fun compute(
@@ -25,14 +27,16 @@ object WidgetPanelLayoutMetrics {
         panelPaddingDp: Float = 12f,
         panelInnerPaddingDp: Float = 4f,
         horizontalInsetDp: Float = 16f,
+        leftInsetDp: Float = 0f,
     ): Result {
         val horizontalInsetPx = (horizontalInsetDp * density).roundToInt()
+        val leftInsetPx = (leftInsetDp * density).roundToInt().coerceAtLeast(0)
         val panelPaddingPx = (panelPaddingDp * density).roundToInt()
         val gridPadPx = (panelInnerPaddingDp * density).roundToInt()
         val columnCount = page.columnCount.coerceAtLeast(1)
         val visibleRows = page.visibleRowCount.coerceAtLeast(1)
 
-        val maxPanelWidthPx = (screenWidthPx - horizontalInsetPx * 2).coerceAtLeast(1)
+        val maxPanelWidthPx = (screenWidthPx - horizontalInsetPx * 2 - leftInsetPx).coerceAtLeast(1)
         val desiredCellWidthPx = if (page.cellWidthDp > 0) (page.cellWidthDp * density).roundToInt() else 0
 
         val (panelWidthPx, gridStepPx) = if (desiredCellWidthPx > 0) {
@@ -71,6 +75,7 @@ object WidgetPanelLayoutMetrics {
         indicatorHeightDp: Float = DEFAULT_INDICATOR_HEIGHT_DP,
         hintHeightDp: Float = DEFAULT_HINT_HEIGHT_DP,
     ): PanelBox {
+        val leftMarginPx = (page.resolvedMarginLeftDp * density).roundToInt().coerceAtLeast(0)
         val metrics = compute(
             screenWidthPx = screenWidthPx,
             page = page,
@@ -78,6 +83,7 @@ object WidgetPanelLayoutMetrics {
             panelPaddingDp = panelPaddingDp,
             panelInnerPaddingDp = panelInnerPaddingDp,
             horizontalInsetDp = horizontalInsetDp,
+            leftInsetDp = page.resolvedMarginLeftDp.toFloat(),
         )
         val panelPaddingPx = (panelPaddingDp * density).roundToInt() * 2
         val indicatorHeightPx = if (pageCount > 1) (indicatorHeightDp * density).roundToInt() else 0
@@ -86,6 +92,7 @@ object WidgetPanelLayoutMetrics {
             widthPx = metrics.panelWidthPx,
             heightPx = panelPaddingPx + metrics.viewportHeightPx + indicatorHeightPx + hintHeightPx,
             topMarginPx = (page.marginTopDp * density).roundToInt(),
+            leftMarginPx = leftMarginPx,
         )
     }
 

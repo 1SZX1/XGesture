@@ -711,6 +711,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setFloatBallOverlayAnchorAtTouchDown(enabled: Boolean) =
         overlay.setFloatBallOverlayAnchorAtTouchDown(enabled)
 
+    suspend fun setFloatBallGestureHapticEnabled(enabled: Boolean) =
+        overlay.setFloatBallGestureHapticEnabled(enabled)
+
+    suspend fun setFloatBallLongPressAutoSelectRingSlot(enabled: Boolean) =
+        overlay.setFloatBallLongPressAutoSelectRingSlot(enabled)
+
     suspend fun setFloatBallInstantTranslate(enabled: Boolean) =
         overlay.setFloatBallInstantTranslate(enabled)
 

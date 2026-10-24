@@ -298,6 +298,7 @@ object GestureActionCatalog {
         GestureAction.VolumeDown,
         GestureAction.OpenVolumePanel,
         GestureAction.ToggleMute,
+        GestureAction.ToggleShakeGesture,
         GestureAction.MediaPlayPause,
         GestureAction.MediaPrevious,
         GestureAction.MediaNext,

@@ -67,6 +67,10 @@ internal class PageScrollControlBar(
     private var directionIcon: ImageView? = null
     private var pauseIcon: ImageView? = null
     private var pauseButton: FrameLayout? = null
+    /** 暂停键的圆底填充（只建一次，刷新时原地改色，保住按下的 ripple）。 */
+    private var pauseFill: GradientDrawable? = null
+    /** 当前已画出来的暂停态，供点击时做"立即切一次"的乐观更新。 */
+    private var visualPaused = false
     private var fasterIcon: ImageView? = null
     private var slowerIcon: ImageView? = null
     private var closeIcon: ImageView? = null
@@ -114,12 +118,16 @@ internal class PageScrollControlBar(
         // 暂停：整个条里唯一的大圆钮（M3 的"主操作"用 active indicator 填充）
         pauseButton = FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(dp(56), dp(56)).apply { topMargin = dp(8) }
+            // 背景只建一次：刷新时原地改填充色，别重建 RippleDrawable —— 重建会把按下的
+            // ripple 立刻抹掉，用户看到的就是"点了没反应、过一会才亮"。
+            val fill = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(activeIndicatorColor())
+            }
+            pauseFill = fill
             background = RippleDrawable(
                 ColorStateList.valueOf(rippleColor()),
-                GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(activeIndicatorColor())
-                },
+                fill,
                 GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) },
             )
             isClickable = true
@@ -127,6 +135,8 @@ internal class PageScrollControlBar(
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             setOnClickListener {
                 pressFeedback(this)
+                // 先本地立刻切选中态，再通知滚动器；refresh 回来时值相同，等于幂等对齐。
+                applyPausedVisual(!visualPaused, settingsProvider())
                 listener.onTogglePause()
             }
         }
@@ -194,6 +204,8 @@ internal class PageScrollControlBar(
         directionIcon = null
         pauseIcon = null
         pauseButton = null
+        pauseFill = null
+        visualPaused = false
         fasterIcon = null
         slowerIcon = null
         closeIcon = null
@@ -212,23 +224,7 @@ internal class PageScrollControlBar(
             rotation = if (directionDown) 0f else 180f
             contentDescription = context.getString(R.string.page_scroll_reverse_direction)
         }
-        pauseIcon?.apply {
-            setImageResource(
-                if (paused) R.drawable.ic_page_scroll_play else R.drawable.ic_page_scroll_pause,
-            )
-            imageTintList = ColorStateList.valueOf(if (paused) accentColor(settings) else iconColor())
-            contentDescription = context.getString(
-                if (paused) R.string.page_scroll_resume else R.string.page_scroll_pause,
-            )
-        }
-        pauseButton?.background = RippleDrawable(
-            ColorStateList.valueOf(rippleColor()),
-            GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(if (paused) (accentColor(settings) and 0x22FFFFFF) else activeIndicatorColor())
-            },
-            GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) },
-        )
+        applyPausedVisual(paused, settings)
         fasterIcon?.apply {
             contentDescription = context.getString(R.string.page_scroll_faster)
             isEnabled = settings.speedLevel < PageScrollSettings.MAX_SPEED_LEVEL
@@ -255,8 +251,40 @@ internal class PageScrollControlBar(
         }
     }
 
-    internal fun moveTo(newY: Int) {
-        val bar = container ?: return
+    /**
+     * 只更新暂停键的视觉（图标、着色、圆底填充），不碰窗口/滚动器。
+     *
+     * 点击时先调它做乐观更新，[refresh] 再调一次做对齐；由于只改已存在 drawable 的颜色、
+     * 不重建 RippleDrawable，按下的 ripple 不会被抹掉，选中态也在同一帧出现。
+     */
+    private fun applyPausedVisual(paused: Boolean, settings: PageScrollSettings) {
+        visualPaused = paused
+        val accent = accentColor(settings)
+        pauseIcon?.apply {
+            setImageResource(
+                if (paused) R.drawable.ic_page_scroll_play else R.drawable.ic_page_scroll_pause,
+            )
+            imageTintList = ColorStateList.valueOf(if (paused) accent else iconColor())
+            contentDescription = context.getString(
+                if (paused) R.string.page_scroll_resume else R.string.page_scroll_pause,
+            )
+        }
+        val fill = pauseFill ?: return
+        if (paused) {
+            fill.setColor(pausedIndicatorColor(settings))
+        } else {
+            fill.setColor(activeIndicatorColor())
+        }
+        pauseButton?.invalidate()
+    }
+
+    /** 暂停态圆底：强调色压到约 25% 不透明度（原实现是 `and 0x22FFFFFF`，实际只剩 13%）。 */
+    private fun pausedIndicatorColor(settings: PageScrollSettings): Int {
+        val accent = accentColor(settings)
+        return (accent and 0x00FFFFFF) or (0x40 shl 24)
+    }
+
+    internal fun moveTo(newY: Int) {        val bar = container ?: return
         val layoutParams = params ?: return
         layoutParams.y = newY
         runCatching { windowManager?.updateViewLayout(bar, layoutParams) }
@@ -328,7 +356,9 @@ internal class PageScrollControlBar(
     private fun wakeUp() {
         dimTask?.let { handler.removeCallbacks(it) }
         dimTask = null
-        container?.animate()?.alpha(1f)?.setDuration(DIM_ANIM_MS)?.start()
+        // 直接恢复满不透明：220ms 的淡入会让刚点亮的高亮"迟到"，看起来像点了没反应。
+        container?.animate()?.cancel()
+        container?.alpha = 1f
     }
 
     // ---- 视图构造 ----

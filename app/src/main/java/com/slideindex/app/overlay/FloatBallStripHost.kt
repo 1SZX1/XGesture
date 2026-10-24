@@ -107,6 +107,12 @@ internal class FloatBallStripHost(
             onLauncherCaptureUp = { x, y -> onLauncherCaptureUp?.invoke(x, y) },
             onCustomGestureResolve = { path, rawX, rawY, touchDownX, touchDownY ->
                 onCustomGestureResolve?.invoke(path, rawX, rawY, touchDownX, touchDownY) ?: false
+            },
+            inwardSignProvider = {
+                // 线条恒在球停靠侧的对侧：球在左 → 线在右 → 朝屏幕内侧是 -x。
+                // 不传这个 provider 时检测器会用默认值 +1（恒按左侧算），右侧线条上的
+                // 混合手势（先上下再向内 / 先向内再上下）就永远判不出来。
+                if (FloatBallLayout.resolvedActiveSide(settingsProvider()) == FloatBallSide.LEFT) -1f else 1f
             }
         )
     }

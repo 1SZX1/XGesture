@@ -47,7 +47,9 @@ internal object SystemRecentsAccess {
         val packageName: String,
         val component: String,
         val title: String?,
-        val windowingMode: Int? = null
+        val windowingMode: Int? = null,
+        /** 任务所属用户；-1 = 平台没暴露。多开/分身（如 user 999）靠它区分。 */
+        val userId: Int = -1
     )
 
     /**
@@ -212,7 +214,8 @@ internal object SystemRecentsAccess {
 
         val componentName = component?.flattenToShortString() ?: packageName
         val title = readTitle(raw)
-        return Task(taskId, packageName, componentName, title, readWindowingMode(raw))
+        val userId = SystemReflect.readInt(raw, "userId", "getUserId") ?: -1
+        return Task(taskId, packageName, componentName, title, readWindowingMode(raw), userId)
     }
 
     private fun readWindowingMode(raw: Any): Int? =

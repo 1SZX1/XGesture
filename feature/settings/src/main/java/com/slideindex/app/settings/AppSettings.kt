@@ -340,6 +340,8 @@ data class AppSettings(
     val floatBallSideSwipeShortPercent get() = floatBall.floatBallSideSwipeShortPercent
     val floatBallUpSwipeShortPercent get() = floatBall.floatBallUpSwipeShortPercent
     val floatBallOverlayAnchorAtTouchDown get() = floatBall.floatBallOverlayAnchorAtTouchDown
+    val floatBallGestureHapticEnabled get() = floatBall.floatBallGestureHapticEnabled
+    val floatBallLongPressAutoSelectRingSlot get() = floatBall.floatBallLongPressAutoSelectRingSlot
     val floatBallInstantTranslate get() = floatBall.floatBallInstantTranslate
     val floatBallTranslateEngine get() = floatBall.floatBallTranslateEngine
     val floatBallTranslateTargetLang get() = floatBall.floatBallTranslateTargetLang

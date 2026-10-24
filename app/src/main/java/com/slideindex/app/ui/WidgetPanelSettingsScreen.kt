@@ -383,6 +383,21 @@ private fun WidgetPanelGridEditor(
         updatePage(latestPages[pageIndex].copy(marginTopDp = margin.toInt()))
       },
     )
+    SettingsSliderRow(
+      title = stringResource(R.string.widget_panel_margin_left_title, page.resolvedMarginLeftDp),
+      value = page.resolvedMarginLeftDp.toFloat(),
+      valueRange = 0f..500f,
+      steps = 99,
+      enabled = true,
+      label = if (page.resolvedMarginLeftDp == 0) {
+        stringResource(R.string.widget_panel_margin_left_centered)
+      } else {
+        "${page.resolvedMarginLeftDp}dp"
+      },
+      onValueChange = { margin ->
+        updatePage(latestPages[pageIndex].copy(marginLeftDp = margin.toInt()))
+      },
+    )
   }
 
   val previewSectionTitle = stringResource(R.string.floating_pointer_preview_section)

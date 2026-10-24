@@ -139,7 +139,12 @@ object WidgetPopupOverlayWindow {
     card.onPageMetricsChanged = { page -> applyCardBoxForPage(page) }
 
     val cardLp = FrameLayout.LayoutParams(initialBox.widthPx, initialBox.heightPx).apply {
-      gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+      gravity = if (initialBox.leftMarginPx > 0) {
+        Gravity.TOP or Gravity.START
+      } else {
+        Gravity.TOP or Gravity.CENTER_HORIZONTAL
+      }
+      marginStart = initialBox.leftMarginPx
       topMargin = initialBox.topMarginPx
     }
     root.addView(card, cardLp)
@@ -432,12 +437,24 @@ object WidgetPopupOverlayWindow {
       pageCount = pageCount,
     )
     val lp = card.layoutParams as? FrameLayout.LayoutParams ?: return
-    if (lp.width == box.widthPx && lp.height == box.heightPx && lp.topMargin == box.topMarginPx) {
+    val targetGravity = if (box.leftMarginPx > 0) {
+      Gravity.TOP or Gravity.START
+    } else {
+      Gravity.TOP or Gravity.CENTER_HORIZONTAL
+    }
+    if (lp.width == box.widthPx &&
+      lp.height == box.heightPx &&
+      lp.topMargin == box.topMarginPx &&
+      lp.marginStart == box.leftMarginPx &&
+      lp.gravity == targetGravity
+    ) {
       return
     }
     lp.width = box.widthPx
     lp.height = box.heightPx
     lp.topMargin = box.topMarginPx
+    lp.marginStart = box.leftMarginPx
+    lp.gravity = targetGravity
     card.layoutParams = lp
   }
 

@@ -31,6 +31,8 @@ object TaskManagerUtil {
     private const val MIN_REMOVE_TASK_API = 1
     private const val MIN_TASK_IDS_API = 3
     private const val MIN_FORCE_STOP_API = 8
+    /** 最近任务行带 userId（第 5 列）的 UserService 构建号；分身识别依赖它。 */
+    private const val MIN_RECENTS_USER_API = 37
     private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
     private const val MIN_SHORTCUTS_API = 9
     const val ROOT_PROBE_BINDER_TIMEOUT_MS = 45_000L
@@ -46,6 +48,8 @@ object TaskManagerUtil {
         val identifier: String,
         val title: String? = null,
         val topComponent: String? = null,
+        /** 任务所属用户；-1 = 未知。多开/分身任务用它区分同包的多个实例。 */
+        val userId: Int = -1,
     )
 
     data class ShellCommandResult(
@@ -412,7 +416,8 @@ object TaskManagerUtil {
                 TaskManagerTaskQueries.parseRecentTaskRows(RootPrivilegedOperations.getRecentTasks())
             } ?: emptyList()
         }
-        val taskService = privilegedTaskService()
+        // 分身识别需要新服务返回第 5 列 userId；服务太旧时退回默认绑定（行为同旧版）。
+        val taskService = privilegedTaskService(MIN_RECENTS_USER_API) ?: privilegedTaskService()
         if (taskService != null) {
             return TaskManagerTaskQueries.fetchRecentTasksFromService(taskService)
         }

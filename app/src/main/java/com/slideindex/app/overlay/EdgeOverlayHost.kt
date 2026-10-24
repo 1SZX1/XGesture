@@ -47,6 +47,8 @@ class EdgeOverlayHost(
     private var dragDropFlowController: DragDropFlowController? = null
     private var settingsJob: Job? = null
     private var appsJob: Job? = null
+    /** 冰箱冻结/解冻后强制重算索引列表的订阅。 */
+    private var freezerRefreshJob: Job? = null
     private var previewActive = false
     private var previewContent: LayoutPreviewContent = LayoutPreviewContent.TRIGGER_ONLY
     private var previewFocus: LayoutPreviewFocus? = null
@@ -132,6 +134,15 @@ class EdgeOverlayHost(
                 }
             }
         }
+        if (freezerRefreshJob == null) {
+            freezerRefreshJob = scope.launch {
+                OverlayRefreshBus.freezerChanged.collectLatest {
+                    // 冻结/解冻不一定会让可启动列表立刻变化：这里强制重算索引里的冻结项。
+                    overlayManager?.reloadApps()
+                    overlayManager?.refreshIndexApps()
+                }
+            }
+        }
         if (settingsJob == null) {
             settingsJob = scope.launch {
                 combine(
@@ -186,6 +197,8 @@ class EdgeOverlayHost(
         settingsJob = null
         appsJob?.cancel()
         appsJob = null
+        freezerRefreshJob?.cancel()
+        freezerRefreshJob = null
         teardownOverlayWindows()
         OverlayCompose.clearWindowContextCache()
         // 放在最后：万一上面的拆卸半途失败，租约超时还能兜底把残留窗口再摘一次。

@@ -468,6 +468,15 @@ internal class FloatBallGestureDetector(
             onGesture?.invoke(FloatBallGestureType.DOUBLE_TAP, upX, upY, touchDownX, touchDownY)
             return
         }
+        // 双击槽位没有配置有效动作时不必再等双击窗口：单击立刻执行。
+        // 否则「单击返回」这类动作永远要白等一个 DOUBLE_TAP_MS（300ms）。
+        val doubleTapAction = configuredActions[FloatBallGestureType.DOUBLE_TAP] ?: GestureAction.None
+        if (!doubleTapAction.isEffective()) {
+            cancelPendingSingleTap()
+            lastTapUpTime = 0L
+            onGesture?.invoke(FloatBallGestureType.SINGLE_TAP, upX, upY, touchDownX, touchDownY)
+            return
+        }
         lastTapUpTime = now
         lastTapUpX = upX
         lastTapUpY = upY

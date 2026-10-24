@@ -159,7 +159,8 @@ internal class TaskManagerTaskOperations(
 
         internal fun formatRecentTaskRow(task: SystemRecentsAccess.Task): String {
             val topComponent = task.component.takeIf { it.contains('/') }.orEmpty()
-            return "${task.taskId}\t${task.component}\t${task.title.orEmpty()}\t$topComponent"
+            // 第 5 列 = userId（多开/分身）；老客户端只读前 4 列，多出来的一列会被忽略。
+            return "${task.taskId}\t${task.component}\t${task.title.orEmpty()}\t$topComponent\t${task.userId}"
         }
     }
 }

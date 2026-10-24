@@ -113,6 +113,55 @@ class AppRepository @Inject constructor(
         }.sortedBy { it.pinyinKey }
     }
 
+    /**
+     * 应用索引的列表：启动器可见应用 + **冰箱成员**（冻结/挂起也列出来，带 [AppInfo.isFrozen] /
+     * [AppInfo.isPaused] 标记）。
+     *
+     * 冻结（`pm disable`）的应用拿不到 launcher intent，`queryLaunchableApps()` 永远查不到它们，
+     * 所以必须按冰箱清单单独补；已冻结的应用点击时由启动链路先解冻再启动
+     * （见 `FreezerOperations.launchAndRestore`）。
+     */
+    suspend fun loadIndexApps(
+        freezerPackages: Set<String>,
+        hiddenPackages: Set<String>,
+    ): List<AppInfo> = withContext(Dispatchers.IO) {
+        val launchable = loadApps()
+        val launchableNames = launchable.mapTo(HashSet()) { it.packageName }
+        val extras = freezerPackages
+            .filter { it !in launchableNames }
+            .mapNotNull { packageName -> resolveAppInfo(packageName) }
+        (launchable + extras)
+            .map { app ->
+                if (app.packageName in freezerPackages) {
+                    val (frozen, paused) = queryFreezerState(app.packageName)
+                    app.copy(isFrozen = frozen, isPaused = paused)
+                } else {
+                    app
+                }
+            }
+            .filter { it.packageName !in hiddenPackages }
+            .sortedBy { it.pinyinKey }
+    }
+
+    /** 读包的启用/挂起状态；查不到（已卸载等）按"正常"处理。 */
+    private fun queryFreezerState(packageName: String): Pair<Boolean, Boolean> = try {
+        val pm = context.packageManager
+        val info = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            pm.getApplicationInfo(
+                packageName,
+                PackageManager.ApplicationInfoFlags.of(
+                    PackageManager.MATCH_DISABLED_COMPONENTS.toLong(),
+                ),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            pm.getApplicationInfo(packageName, PackageManager.MATCH_DISABLED_COMPONENTS)
+        }
+        (!info.enabled) to ((info.flags and ApplicationInfo.FLAG_SUSPENDED) != 0)
+    } catch (_: PackageManager.NameNotFoundException) {
+        false to false
+    }
+
     fun getCachedApps(): List<AppInfo> = _apps.value
 
     fun getCachedAppsForSearch(): List<AppInfo> = _appsForSearch.value
@@ -427,7 +476,19 @@ class AppRepository @Inject constructor(
     private fun queryAppInfo(packageName: String): AppInfo? {
         val pm = context.packageManager
         return try {
-            val appInfo = pm.getApplicationInfo(packageName, 0)
+            // 冻结（pm disable）的包必须带 MATCH_DISABLED_COMPONENTS 才查得到，
+            // 否则应用索引补进来的冻结项会在这里被解析成 null 而静默丢掉。
+            val appInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                pm.getApplicationInfo(
+                    packageName,
+                    PackageManager.ApplicationInfoFlags.of(
+                        PackageManager.MATCH_DISABLED_COMPONENTS.toLong(),
+                    ),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getApplicationInfo(packageName, PackageManager.MATCH_DISABLED_COMPONENTS)
+            }
             val label = pm.getApplicationLabel(appInfo).toString()
             launchIconCache.loadDrawable(appInfo)
             val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0

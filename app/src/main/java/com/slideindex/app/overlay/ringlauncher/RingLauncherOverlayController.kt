@@ -66,6 +66,7 @@ internal class RingLauncherOverlayController(
         layoutDensity: Float,
         screenWidth: Float,
         listener: Listener,
+        initialHighlightSlot: Int = -1,
     ): Boolean {
         removeNow()
         if (windowManager == null) return false
@@ -103,6 +104,7 @@ internal class RingLauncherOverlayController(
             externalTracking = externalTracking,
             layoutDensity = layoutDensity,
             screenWidth = screenWidth,
+            initialHighlightSlot = initialHighlightSlot,
         )
 
         val params = WindowManager.LayoutParams(

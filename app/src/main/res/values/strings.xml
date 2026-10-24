@@ -914,6 +914,11 @@
     <string name="float_ball_gesture_overlay_anchor_section">Launcher position</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down">Align launcher with touch-down point</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down_summary">Quick launcher and ring launcher opened by a float-ball gesture appear where your finger first touched the ball. When off, they appear where the finger was when the gesture fired.</string>
+    <string name="float_ball_gesture_ring_auto_select">Auto-select the first ring slot on long press</string>
+    <string name="float_ball_gesture_ring_auto_select_summary">When the long press opens the ring launcher, the slot right below the ball is selected so releasing launches it directly. When off, releasing without moving cancels.</string>
+    <string name="float_ball_gesture_feedback_section">Gesture feedback</string>
+    <string name="float_ball_gesture_haptic">Float-ball gesture vibration</string>
+    <string name="float_ball_gesture_haptic_summary">Vibrate when a float-ball gesture fires and when its action runs on release. Still governed by the main “Vibration” switch.</string>
     <string name="float_ball_gesture_tuning_section">Gesture parameters</string>
     <string name="float_ball_gesture_tuning_title">Recognition &amp; placement</string>
     <string name="float_ball_gesture_tuning_summary">Swipe distances, long-press duration, and where quick launchers appear — the base parameters for gesture recognition.</string>
@@ -2635,6 +2640,8 @@
     <string name="temp_dnd_notification_stop_action">Turn off now</string>
     <string name="gesture_action_screen_record">Screen record</string>
     <string name="gesture_action_toggle_wifi">Toggle Wi-Fi</string>
+    <string name="gesture_action_toggle_shake">Toggle shake gestures</string>
+    <string name="gesture_action_toggle_shake_desc">Turn the shake-gesture master switch on or off</string>
     <string name="gesture_action_toggle_mobile_data">Toggle mobile data</string>
     <string name="gesture_action_screen_record_permission">Needs “Display over other apps” permission</string>
     <string name="screen_record_channel_name">Screen recording</string>
@@ -3116,6 +3123,8 @@
     <string name="widget_panel_visible_rows_title">Visible rows: %1$d</string>
     <string name="widget_panel_cell_width_title">Grid cell width: %1$d dp</string>
     <string name="widget_panel_margin_top_title">Top margin: %1$d dp</string>
+    <string name="widget_panel_margin_left_title">Container left margin: %1$d dp</string>
+    <string name="widget_panel_margin_left_centered">Centered</string>
     <string name="weekday_short_sunday">Sun</string>
     <string name="weekday_short_monday">Mon</string>
     <string name="weekday_short_tuesday">Tue</string>
@@ -4321,6 +4330,7 @@ or revoke permanent Root for Shell in APatch.</string>
     <string name="update_version_current">Current %1$s</string>
     <string name="update_version_latest">Latest %1$s</string>
     <string name="task_switcher_app_info">App info</string>
+    <string name="task_switcher_clone_label">%1$s · Clone</string>
     <string name="task_switcher_quick_share">Quick Share</string>
     <string name="toggle_gesture_enabled">Gestures enabled</string>
     <string name="toggle_gesture_disabled">Gestures disabled</string>

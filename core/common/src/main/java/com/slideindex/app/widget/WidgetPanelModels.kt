@@ -26,12 +26,27 @@ data class WidgetPanelPage(
     val rowCount: Int = 26,
     val visibleRowCount: Int = 6,
     val cellWidthDp: Int = 62,
-    val marginLeftDp: Int = 18,
+    /**
+     * 距屏幕左边的边距（dp）。[LEGACY_CENTERED_MARGIN_LEFT_DP] 与 0 都表示「居中」。
+     *
+     * 历史原因：这个字段在布局里从未被读取过，老数据的默认值一律是 18；如果直接把 18 当成
+     * 「距左 18dp」，所有存量面板会从居中跳到左边。因此 18 被保留为「未设置 = 居中」的哨兵值。
+     */
+    val marginLeftDp: Int = LEGACY_CENTERED_MARGIN_LEFT_DP,
     val marginTopDp: Int = 100,
     val items: List<WidgetPanelItem> = emptyList(),
     val overlayAlpha: Float = 0.25f,
     val blurEnabled: Boolean = true,
-)
+) {
+    /** 真正生效的左边距：0 = 居中。 */
+    val resolvedMarginLeftDp: Int
+        get() = if (marginLeftDp == LEGACY_CENTERED_MARGIN_LEFT_DP) 0 else marginLeftDp.coerceIn(0, 500)
+
+    companion object {
+        /** 旧数据里 `marginLeftDp` 的隐式默认值，语义等同「居中」。 */
+        const val LEGACY_CENTERED_MARGIN_LEFT_DP = 18
+    }
+}
 
 object WidgetPanelDefaults {
     val defaultPage: WidgetPanelPage = WidgetPanelPage()

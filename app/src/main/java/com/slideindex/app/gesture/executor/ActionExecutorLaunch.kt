@@ -8,6 +8,7 @@ import android.util.Log
 import com.slideindex.app.activity.ActivityShortcutLauncher
 import com.slideindex.app.activity.ActivityShortcutShellSupport
 import com.slideindex.app.data.AppRepository
+import com.slideindex.app.freezer.FreezerOperations
 import com.slideindex.app.gesture.ActionExecutor
 import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.gesture.GestureShortcutPayload
@@ -27,6 +28,9 @@ import com.slideindex.app.util.ForegroundHostPackageResolver
 import com.slideindex.app.util.FreeWindowLauncher
 import com.slideindex.app.util.RecentTasksLoader
 import com.slideindex.app.util.TaskManagerUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 internal class ActionExecutorLaunch(
     private val context: Context,
@@ -95,7 +99,54 @@ internal class ActionExecutorLaunch(
             ?: appRepository.lookupApp(packageName)
             ?: return false
         val fullscreen = settings.shouldLaunchFullscreen(windowMode, longPressArmed)
+        if (packageName in settings.freezerAppPackages) {
+            // 冰箱成员：先按记录的档位解冻/恢复，再启动。直接 startActivity 对 disabled 包必失败。
+            CoroutineScope(Dispatchers.IO).launch {
+                FreezerOperations.launchAndRestore(
+                    context = context,
+                    appRepository = appRepository,
+                    settings = settings,
+                    app = app,
+                    fullscreen = fullscreen,
+                )
+            }
+            return true
+        }
         return appRepository.launchApp(app, settings, fullscreen)
+    }
+
+    /**
+     * 在指定 user 下启动应用（应用分身 / 工作资料）。
+     *
+     * 主进程只能在自己的 user 里 startActivity，跨 user 必须走特权 shell：
+     * 先用 `cmd package resolve-activity --brief --user N` 解析 launcher 组件，再 `am start --user N -n …`。
+     * 解析不到时退回 `monkey`（同样支持 --user）。
+     */
+    fun launchAppInUser(packageName: String, userId: Int, settings: AppSettings): Boolean {
+        if (userId <= 0) return launchApp(packageName, settings, longPressArmed = false)
+        Thread {
+            val component = runCatching {
+                TaskManagerUtil.runShellCommandOutput(
+                    "cmd", "package", "resolve-activity", "--brief", "--user", userId.toString(), packageName,
+                ).output.lineSequence()
+                    .map { it.trim() }
+                    .lastOrNull { it.contains('/') && !it.startsWith("priority=") }
+            }.getOrNull()
+            if (component != null) {
+                val result = TaskManagerUtil.runShellCommandOutput(
+                    "am", "start", "--user", userId.toString(), "-n", component,
+                )
+                Log.i(ActionExecutor.TAG, "launchAppInUser($packageName@$userId) -> exit=${result.exitCode}")
+                if (result.exitCode == 0) return@Thread
+            }
+            runCatching {
+                TaskManagerUtil.runShellCommandOutput(
+                    "monkey", "--user", userId.toString(), "-p", packageName,
+                    "-c", "android.intent.category.LAUNCHER", "1",
+                )
+            }
+        }.start()
+        return true
     }
 
     fun switchToRecentTask(

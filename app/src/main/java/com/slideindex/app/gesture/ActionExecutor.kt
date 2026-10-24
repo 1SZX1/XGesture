@@ -8,6 +8,7 @@ import android.view.KeyEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.slideindex.app.clipboard.ClipboardAccess
@@ -76,6 +77,10 @@ class ActionExecutor(
     private val mediaSystem = ActionExecutorMediaSystem(context, overlayBrightness)
     private val overlayPanels = ActionExecutorOverlayPanels(context, onShellCommandsPersist)
     private val launchHelper = ActionExecutorLaunch(context, appRepository, mainHandler)
+
+    /** 在指定 user 下启动应用（应用索引里的"分身"条目走这条路）。 */
+    fun launchAppInUser(packageName: String, userId: Int, settings: AppSettings): Boolean =
+        launchHelper.launchAppInUser(packageName, userId, settings)
 
     fun beginContinuousAdjust(mode: ContinuousAdjustController.Mode, rawY: Float): Boolean =
         mediaSystem.beginContinuousAdjust(mode, rawY)
@@ -385,6 +390,16 @@ class ActionExecutor(
             }
             GestureAction.ToggleWifi -> QuickToolsHelper.toggleWifi(context) == true
             GestureAction.ToggleMobileData -> QuickToolsHelper.toggleMobileData(context) == true
+            GestureAction.ToggleShakeGesture -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val deps = com.slideindex.app.di.OverlayDependencyAccess.overlayDependencies(context)
+                        ?: return@launch
+                    val repository = deps.settingsRepository
+                    val enabled = repository.settings.first().shakeGestureSettings.enabled
+                    repository.setShakeGesturesEnabled(!enabled)
+                }
+                true
+            }
             GestureAction.ToggleAutoBrightness ->
                 com.slideindex.app.util.BrightnessControlHelper.toggleAutoBrightness(context) != null
             GestureAction.SwitchInputMethod -> InputMethodHelper.switchInputMethod(context)

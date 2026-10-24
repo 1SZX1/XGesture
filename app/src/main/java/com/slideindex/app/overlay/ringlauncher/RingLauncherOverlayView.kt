@@ -123,6 +123,18 @@ internal class RingLauncherOverlayView(
     private var sessionActive = false
     private var externalTracking = false
     private var highlightedSlot = -1
+    /**
+     * 长按呼出时自动选中的槽位（-1 = 不做自动选中）。
+     *
+     * 手指仍在圆环内圈死区时，画面上高亮它、松手也启动它，这样「长按 → 松手」就能直接启动
+     * 悬浮球正下方的第一个槽位；手指一旦移到别的槽位，一切照旧以手指为准。
+     */
+    private var autoSelectedSlot = -1
+    /**
+     * 圆环弹出后手指是否移动过。一旦为 true 就永久作废"自动选中"，
+     * 之后空白/空隙一律不选（松手即取消）。
+     */
+    private var autoSelectMoved = false
     private var highlightedToolbarButton: FvToolbarButton? = null
     private var lastHapticToolbarButton: FvToolbarButton? = null
     private var lastHapticHighlightedSlot = -1
@@ -150,6 +162,8 @@ internal class RingLauncherOverlayView(
     private companion object {
         private const val EDIT_DRAG_LONG_PRESS_MS = 180L
         private const val EDIT_DRAG_SLOP_DP = 10f
+        /** 手指离圆环锚点多远算"动过"（超过即永久取消自动选中）。 */
+        private const val AUTO_SELECT_SLOP_DP = 16f
     }
 
     init {
@@ -172,6 +186,7 @@ internal class RingLauncherOverlayView(
         externalTracking: Boolean,
         layoutDensity: Float,
         screenWidth: Float,
+        initialHighlightSlot: Int = -1,
     ) {
         this.settings = settings
         this.fvSettings = fvSettings
@@ -186,6 +201,8 @@ internal class RingLauncherOverlayView(
         this.externalTracking = externalTracking
         this.density = layoutDensity
         this.layoutScreenWidth = screenWidth
+        this.autoSelectedSlot = initialHighlightSlot
+        this.autoSelectMoved = false
         rebuildLayout()
     }
 
@@ -229,8 +246,13 @@ internal class RingLauncherOverlayView(
         panelPinned = false
         val hasConfiguredSlots = fvSettings.configuredCount() > 0
         sessionMode = if (!hasConfiguredSlots) SessionMode.EDIT else SessionMode.NORMAL
-        highlightedSlot = -1
-        lastHapticHighlightedSlot = -1
+        autoSelectMoved = false
+        highlightedSlot = if (sessionMode == SessionMode.NORMAL && autoSelectedSlot >= 0) {
+            autoSelectedSlot
+        } else {
+            -1
+        }
+        lastHapticHighlightedSlot = highlightedSlot
         highlightedToolbarButton = null
         menuRevealProgress = if (externalTracking) 1f else 0f
         cancelSlotLongPress()
@@ -313,12 +335,32 @@ internal class RingLauncherOverlayView(
         } else if (highlightedToolbarButton == null) {
             lastHapticToolbarButton = null
         }
-        val slot = if (highlightedToolbarButton == null &&
+        val pointerSlot = if (highlightedToolbarButton == null &&
             !FvCircleLayoutEngine.isOutsidePanel(layout, localX, localY, layout.itemSizePx * 0.35f)
         ) {
             FvCircleLayoutEngine.slotIndexAt(layout, localX, localY)
         } else {
             -1
+        }
+        // 自动选中只属于"手指还没动"的那一刻：以圆环锚点为基准，移动超过阈值就永久作废。
+        // 作废后一切以手指指向为准，空白/空隙一律不选（松手即取消）。
+        if (!autoSelectMoved && autoSelectedSlot >= 0) {
+            val slop = AUTO_SELECT_SLOP_DP * density
+            val dx = localX - screenAnchorX
+            val dy = localY - screenAnchorY
+            if (dx * dx + dy * dy > slop * slop) {
+                autoSelectMoved = true
+            }
+        }
+        val slot = if (pointerSlot < 0 &&
+            autoSelectedSlot >= 0 &&
+            !autoSelectMoved &&
+            sessionMode == SessionMode.NORMAL &&
+            highlightedToolbarButton == null
+        ) {
+            autoSelectedSlot
+        } else {
+            pointerSlot
         }
         if (slot != highlightedSlot) {
             highlightedSlot = slot
@@ -375,6 +417,9 @@ internal class RingLauncherOverlayView(
 
     private fun handleRelease(localX: Float, localY: Float, eventTime: Long, fromPinned: Boolean): Boolean {
         val layout = panelLayout ?: return false
+        // 先记住"松手前画面上高亮的槽位"：长按不动时它就是自动选中的那一格。
+        // 松手时再算一次交互可能因为手指最后几像素的抖动把高亮清掉，导致"看着选中了却没启动"。
+        val highlightedBefore = highlightedSlot
         updateInteraction(localX, localY, eventTime)
         val toolbarButton = if (fvSettings.showToolbar) {
             FvCircleLayoutEngine.toolbarButtonAt(layout, localX, localY)
@@ -384,6 +429,19 @@ internal class RingLauncherOverlayView(
         val slot = FvCircleLayoutEngine.slotIndexAt(layout, localX, localY)
         val outside = FvCircleLayoutEngine.isOutsidePanel(layout, localX, localY, layout.itemSizePx * 0.35f) &&
             toolbarButton == null
+        // 只有"从圆环弹出到现在手指一直没动过"才允许松手启动自动选中格。
+        // 动过的判断在 updateInteraction 里已经永久生效（autoSelectMoved），这里再以
+        // "松手前画面上确实高亮着它"（highlightedBefore）确认一次，避免松手那一下的重算干扰。
+        val autoActive = autoSelectedSlot >= 0 &&
+            sessionMode == SessionMode.NORMAL &&
+            !outside &&
+            !autoSelectMoved &&
+            highlightedBefore == autoSelectedSlot
+        val releaseSlot = when {
+            slot >= 0 -> slot
+            autoActive -> autoSelectedSlot
+            else -> -1
+        }
 
         when {
             toolbarButton == FvToolbarButton.PIN -> {
@@ -435,8 +493,8 @@ internal class RingLauncherOverlayView(
                 launchSlot(slot, eventTime)
                 return true
             }
-            !fromPinned && slot >= 0 -> {
-                launchSlot(slot, eventTime)
+            !fromPinned && releaseSlot >= 0 -> {
+                launchSlot(releaseSlot, eventTime)
                 return true
             }
             !fromPinned -> {

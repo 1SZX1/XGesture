@@ -530,6 +530,14 @@ class OverlayManager(
         topController?.syncApps(apps)
     }
 
+    /** 强制重算各侧的索引列表（冰箱冻结/解冻后用，冻结项不靠可启动列表驱动）。 */
+    fun refreshIndexApps() {
+        leftController?.refreshIndexApps()
+        rightController?.refreshIndexApps()
+        bottomController?.refreshIndexApps()
+        topController?.refreshIndexApps()
+    }
+
     fun suspendAllEdgeOverlays() {
         leftController?.suspendEdgeOverlay()
         rightController?.suspendEdgeOverlay()

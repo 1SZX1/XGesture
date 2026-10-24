@@ -33,7 +33,8 @@ internal object TaskManagerTaskQueries {
             if (identifier.isEmpty()) return null
             val title = tabParts.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() }
             val topComponent = tabParts.getOrNull(3)?.trim()?.takeIf { it.contains('/') }
-            return TaskManagerUtil.RecentTaskRef(taskId, identifier, title, topComponent)
+            val userId = tabParts.getOrNull(4)?.trim()?.toIntOrNull() ?: -1
+            return TaskManagerUtil.RecentTaskRef(taskId, identifier, title, topComponent, userId)
         }
         val match = Regex("^(\\d+)\\s+(\\S+)$").find(trimmed) ?: return null
         val taskId = match.groupValues[1].toIntOrNull() ?: return null

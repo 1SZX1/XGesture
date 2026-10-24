@@ -522,7 +522,8 @@ class EdgeGestureOverlayView(
         return old.indices.all { i ->
             val a = old[i]
             val b = new[i]
-            a.packageName == b.packageName && a.label == b.label && a.letter == b.letter
+            a.packageName == b.packageName && a.label == b.label && a.letter == b.letter &&
+                a.isFrozen == b.isFrozen && a.isPaused == b.isPaused
         }
     }
 

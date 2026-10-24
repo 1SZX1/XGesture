@@ -184,6 +184,7 @@ object RingLauncherOverlayWindow {
         externalTracking: Boolean,
         onLaunch: (QuickLauncherItem, Boolean) -> Unit,
         edgePanelSide: PanelSide? = null,
+        initialHighlightSlot: Int = -1,
     ): Boolean {
         lastSettings = settings
         if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -198,6 +199,7 @@ object RingLauncherOverlayWindow {
                     externalTracking,
                     onLaunch,
                     edgePanelSide,
+                    initialHighlightSlot,
                 )
                 latch.countDown()
             }
@@ -250,6 +252,14 @@ object RingLauncherOverlayWindow {
         )
         hydrateTargetIcons(targets, appRepository)
 
+        // 只在该槽位真的有内容时才自动选中，否则松手会"什么都不发生"（看起来像卡住）。
+        val resolvedInitialHighlight =
+            if (initialHighlightSlot >= 0 && targets.getOrNull(initialHighlightSlot) != null) {
+                initialHighlightSlot
+            } else {
+                -1
+            }
+
         val edgeInsetPx = FV_EDGE_INSET_DP * density
         val anchorX = when (side) {
             FvRingLauncherSide.LEFT -> edgeInsetPx
@@ -298,6 +308,7 @@ object RingLauncherOverlayWindow {
             externalTracking = externalTracking,
             layoutDensity = density,
             screenWidth = screenWidth,
+            initialHighlightSlot = resolvedInitialHighlight,
             listener = object : RingLauncherOverlayController.Listener {
                 override fun onLaunch(target: com.slideindex.app.overlay.HoneycombRuntimeTarget, longPressArmed: Boolean) {
                     screenOffDismissReceiver.unregister()

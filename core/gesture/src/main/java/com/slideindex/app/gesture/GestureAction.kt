@@ -184,6 +184,9 @@ enum class GestureActionType(val id: Int) {
      * 流程见 `com.slideindex.app.service.GalleryImageEditTrampolineActivity`。
      */
     GALLERY_IMAGE_EDIT(105),
+
+    /** 「切换晃动手势」：把晃动页的总开关取反，可作为任意手势/槽位的动作。 */
+    TOGGLE_SHAKE_GESTURE(106),
     ;
 
     companion object {
@@ -835,6 +838,12 @@ sealed class GestureAction {
         override val payload = ""
     }
 
+    /** 把「晃动」总开关取反（等价于晃动页顶部那个开关）。 */
+    data object ToggleShakeGesture : GestureAction() {
+        override val type = GestureActionType.TOGGLE_SHAKE_GESTURE
+        override val payload = ""
+    }
+
     data object SwitchInputMethod : GestureAction() {
         override val type = GestureActionType.SWITCH_INPUT_METHOD
         override val payload = ""
@@ -1182,6 +1191,7 @@ sealed class GestureAction {
                 GestureActionType.QUICK_WHEEL -> QuickWheel.parse(payload)
                 GestureActionType.SCREEN_RECORD -> ScreenRecord
                 GestureActionType.TOGGLE_WIFI -> ToggleWifi
+                GestureActionType.TOGGLE_SHAKE_GESTURE -> ToggleShakeGesture
                 GestureActionType.TOGGLE_MOBILE_DATA -> ToggleMobileData
                 GestureActionType.SWITCH_INPUT_METHOD -> SwitchInputMethod
                 GestureActionType.CORNER_INNER_CANCEL -> CornerInnerCancel

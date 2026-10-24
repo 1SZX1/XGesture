@@ -38,6 +38,20 @@ object HapticHelper {
         pulse(view, settings, PulseKind.CONFIRM)
     }
 
+    /** 悬浮球手势判定成立：额外受悬浮球专属开关 [AppSettings.floatBallGestureHapticEnabled] 约束。 */
+    fun floatBallGestureStart(view: View, settings: AppSettings) {
+        if (!settings.floatBallGestureHapticEnabled) return
+        if (!settings.hapticGestureTriggerEnabled) return
+        pulse(view, settings, PulseKind.GESTURE)
+    }
+
+    /** 悬浮球松手执行动作：额外受悬浮球专属开关 [AppSettings.floatBallGestureHapticEnabled] 约束。 */
+    fun floatBallConfirmLaunch(view: View, settings: AppSettings) {
+        if (!settings.floatBallGestureHapticEnabled) return
+        if (!settings.hapticConfirmLaunchEnabled) return
+        pulse(view, settings, PulseKind.CONFIRM)
+    }
+
     /**
      * 通用「确认」反馈（存下 / 复制 / 删除 / 完成 / 星标）：
      * **只受总开关与强度控制** —— 不像 [confirmLaunch] 那样再叠一层"启动确认"开关。

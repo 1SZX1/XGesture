@@ -74,7 +74,9 @@ object TaskSwitcherRepository {
 
     private fun loadEntries(appRepository: AppRepository): List<RecentAppEntry> {
         val refs = TaskManagerUtil.refreshRecentTasks()
-        val locked = TaskSwitcherLockStore.lockedPackages(TaskManagerUtil.applicationContext())
+        val context = TaskManagerUtil.applicationContext()
+        val locked = TaskSwitcherLockStore.lockedPackages(context)
+        val myUserId = runCatching { android.os.Process.myUserHandle().hashCode() }.getOrDefault(0)
         val seenIds = LinkedHashSet<Int>()
         val seenPackages = LinkedHashSet<String>()
         val entries = mutableListOf<RecentAppEntry>()
@@ -88,7 +90,15 @@ object TaskSwitcherRepository {
             }
 
             val appInfo = appRepository.ensureAppInfo(packageName) ?: continue
-            val label = resolveLabel(ref, appInfo)
+            // 多开/分身（例如 MIUI 的 user 999）与主实例共用包名与图标：加后缀把两者区分开，
+            // 否则任务切换器里会出现两个一模一样、分不清的卡片。
+            val isClone = ref.userId >= 0 && ref.userId != myUserId
+            val resolvedLabel = resolveLabel(ref, appInfo)
+            val label = if (isClone) {
+                context.getString(R.string.task_switcher_clone_label, resolvedLabel)
+            } else {
+                resolvedLabel
+            }
             entries += RecentAppEntry(
                 app = appInfo.copy(
                     label = label,
@@ -98,7 +108,8 @@ object TaskSwitcherRepository {
                 isLocked = packageName in locked,
                 taskId = ref.taskId,
                 rawIdentifier = ref.identifier,
-                topComponent = ref.topComponent.orEmpty()
+                topComponent = ref.topComponent.orEmpty(),
+                isClone = isClone,
             )
         }
 

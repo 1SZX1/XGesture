@@ -1094,6 +1094,14 @@ class OverlaySettingsMutator @Inject constructor(
         it[SettingsPreferenceKeys.FLOAT_BALL_OVERLAY_ANCHOR_AT_TOUCH_DOWN] = enabled
     }
 
+    suspend fun setFloatBallGestureHapticEnabled(enabled: Boolean) = editor.edit {
+        it[SettingsPreferenceKeys.FLOAT_BALL_GESTURE_HAPTIC_ENABLED] = enabled
+    }
+
+    suspend fun setFloatBallLongPressAutoSelectRingSlot(enabled: Boolean) = editor.edit {
+        it[SettingsPreferenceKeys.FLOAT_BALL_LONG_PRESS_AUTO_SELECT_RING_SLOT] = enabled
+    }
+
     suspend fun setFloatBallInstantTranslate(enabled: Boolean) = editor.edit {
         it[SettingsPreferenceKeys.FLOAT_BALL_INSTANT_TRANSLATE] = enabled
     }

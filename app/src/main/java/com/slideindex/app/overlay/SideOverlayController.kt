@@ -70,6 +70,15 @@ class SideOverlayController(
 
     private var loadJob: Job? = null
 
+    /**
+     * 索引里"冰箱成员"那一份（含冻结/挂起状态）。
+     *
+     * `appRepository.apps` 只含可启动应用，`syncApps` 用它覆盖列表时会把冻结项冲掉；
+     * 这里留一份用于合并，保证冻结项在索引里稳定存在。
+     */
+    @Volatile
+    private var indexAppsExtra: List<com.slideindex.app.data.AppInfo> = emptyList()
+
     internal val density get() = context.resources.displayMetrics.density
 
     private fun effectiveSettings(
@@ -582,8 +591,23 @@ class SideOverlayController(
 
     fun syncApps(apps: List<com.slideindex.app.data.AppInfo>) {
         if (windowManager.edgeOverlayDetached || windowManager.overlayLayoutSuspended()) return
-        val filtered = apps.filter { it.packageName !in settings.hiddenAppPackages }
+        // 可启动列表不含被冻结的应用；把索引里缓存的那部分并回来，避免冻结项被整份刷掉。
+        val merged = mergeIndexExtras(apps)
+        val filtered = merged.filter { it.packageName !in settings.hiddenAppPackages }
         windowManager.presentationView?.setApps(filtered)
+    }
+
+    /** 冰箱冻结/解冻后强制重算索引（冻结项不由可启动列表驱动）。 */
+    fun refreshIndexApps() {
+        preloadApps(force = true)
+    }
+
+    private fun mergeIndexExtras(apps: List<com.slideindex.app.data.AppInfo>): List<com.slideindex.app.data.AppInfo> {
+        if (indexAppsExtra.isEmpty()) return apps
+        val present = apps.mapTo(HashSet()) { it.packageName }
+        val extras = indexAppsExtra.filter { it.packageName !in present }
+        if (extras.isEmpty()) return apps
+        return (apps + extras).sortedBy { it.pinyinKey }
     }
 
     fun refreshTriggerVisualWindows() {
@@ -637,7 +661,7 @@ class SideOverlayController(
 
     private fun preloadApps(force: Boolean = false) {
         if (!force) {
-            val cached = appRepository.getCachedApps()
+            val cached = mergeIndexExtras(appRepository.getCachedApps())
                 .filter { it.packageName !in settings.hiddenAppPackages }
             if (cached.isNotEmpty()) {
                 windowManager.presentationView?.setApps(cached)
@@ -645,8 +669,20 @@ class SideOverlayController(
         }
         loadJob?.cancel()
         loadJob = scope.launch {
-            val apps = appRepository.loadApps(force = force)
-                .filter { it.packageName !in settings.hiddenAppPackages }
+            // 应用索引要把冰箱里被冻结/挂起的应用也列出来（冻结的查不到 launcher intent）。
+            val base = appRepository.loadIndexApps(
+                freezerPackages = settings.freezerAppPackages,
+                hiddenPackages = settings.hiddenAppPackages,
+            )
+            // 再补上"分身"条目（其他 user 下安装的同一批包，同图标 + 名字后缀）。
+            // 枚举要走特权 shell（可能阻塞几十毫秒），放到 IO 线程，别卡主线程。
+            val apps = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                CloneAppsIndex.enrich(base) { label ->
+                    context.getString(com.slideindex.app.R.string.task_switcher_clone_label, label)
+                }
+            }
+            // 记住"冰箱成员"这一份，供 syncApps 合并，避免被可启动列表覆盖。
+            indexAppsExtra = apps.filter { it.packageName in settings.freezerAppPackages }
             if (windowManager.edgeOverlayDetached || windowManager.overlayLayoutSuspended()) return@launch
             windowManager.presentationView?.setApps(apps)
         }

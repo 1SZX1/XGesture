@@ -29,11 +29,14 @@ fun FloatBallGestureTuningScreen(
     onUpSwipeShortPercentChange: (Float) -> Unit,
     onLongPressMsChange: (Int) -> Unit,
     onOverlayAnchorAtTouchDownChange: (Boolean) -> Unit,
+    onGestureHapticChange: (Boolean) -> Unit,
+    onRingAutoSelectChange: (Boolean) -> Unit,
 ) {
     // 分组小标题必须在 Lazy 作用域外解析（settingsLazySmallTitle 的 title 是普通 String）。
     val distanceSectionTitle = stringResource(R.string.float_ball_gesture_distance_section)
     val longPressSectionTitle = stringResource(R.string.float_ball_gesture_long_press_section)
     val overlayAnchorSectionTitle = stringResource(R.string.float_ball_gesture_overlay_anchor_section)
+    val feedbackSectionTitle = stringResource(R.string.float_ball_gesture_feedback_section)
 
     SettingsScreenScaffold(
         title = stringResource(R.string.float_ball_gesture_tuning_title),
@@ -118,6 +121,15 @@ fun FloatBallGestureTuningScreen(
                         ),
                         onValueChange = { onLongPressMsChange(it.roundToInt()) }
                     )
+                },
+                settingsCardScopeItem("long-press-ring-auto-select") {
+                    SettingSwitchRow(
+                        title = stringResource(R.string.float_ball_gesture_ring_auto_select),
+                        subtitle = stringResource(R.string.float_ball_gesture_ring_auto_select_summary),
+                        checked = settings.floatBallLongPressAutoSelectRingSlot,
+                        enabled = true,
+                        onCheckedChange = onRingAutoSelectChange
+                    )
                 }
             )
         )
@@ -136,6 +148,25 @@ fun FloatBallGestureTuningScreen(
                         checked = settings.floatBallOverlayAnchorAtTouchDown,
                         enabled = true,
                         onCheckedChange = onOverlayAnchorAtTouchDownChange
+                    )
+                }
+            )
+        )
+
+        settingsLazySmallTitle(
+            key = "section-feedback",
+            title = feedbackSectionTitle
+        )
+        groupedCardItems(
+            keyPrefix = "float-ball-gesture-feedback",
+            items = listOf(
+                settingsCardScopeItem("gesture-haptic") {
+                    SettingSwitchRow(
+                        title = stringResource(R.string.float_ball_gesture_haptic),
+                        subtitle = stringResource(R.string.float_ball_gesture_haptic_summary),
+                        checked = settings.floatBallGestureHapticEnabled,
+                        enabled = true,
+                        onCheckedChange = onGestureHapticChange
                     )
                 }
             )

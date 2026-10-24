@@ -603,6 +603,12 @@ internal object SettingsPreferenceKeys {
     /** 悬浮球手势打开的浮层（快速启动器 / 圆环启动器）是否对齐手指按下位置。 */
     val FLOAT_BALL_OVERLAY_ANCHOR_AT_TOUCH_DOWN =
         booleanPreferencesKey("float_ball_overlay_anchor_at_touch_down")
+    /** 悬浮球专属手势振动（判定成立 + 松手执行）。 */
+    val FLOAT_BALL_GESTURE_HAPTIC_ENABLED =
+        booleanPreferencesKey("float_ball_gesture_haptic_enabled")
+    /** 长按悬浮球呼出圆环时自动选中球下方第一个槽位，松手即启动。 */
+    val FLOAT_BALL_LONG_PRESS_AUTO_SELECT_RING_SLOT =
+        booleanPreferencesKey("float_ball_long_press_auto_select_ring_slot")
     val FLOAT_BALL_INSTANT_TRANSLATE = booleanPreferencesKey("float_ball_instant_translate")
     /** [FLOAT_BALL_INSTANT_TRANSLATE] 改为默认开启时的一次性迁移标记。 */
     val FLOAT_BALL_INSTANT_TRANSLATE_DEFAULT_ON_MIGRATED =

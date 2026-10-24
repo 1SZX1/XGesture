@@ -46,6 +46,7 @@ import com.slideindex.app.settings.FloatBallSide
 import com.slideindex.app.overlay.ringlauncher.RingLauncherOverlayWindow
 import com.slideindex.app.ui.miuix.theme.resolveAppAccentArgb
 import com.slideindex.app.util.PermissionHelper
+import com.slideindex.app.util.HapticHelper
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -2145,7 +2146,10 @@ object FloatBallOverlay {
                 anchorRawX = anchorX,
                 anchorRawY = anchorY,
                 externalTracking = externalTracking,
-                onLaunch = onLaunch
+                onLaunch = onLaunch,
+                // 长按呼出（按住跟手）时，可自动选中悬浮球正下方的第一个槽位，松手即启动。
+                // 其它方式打开的圆环由手指/点击决定，不预设高亮。
+                initialHighlightSlot = if (externalTracking && settings.floatBallLongPressAutoSelectRingSlot) 0 else -1,
             )
             GestureAction.HoneycombLauncher -> HoneycombAppPickerOverlayWindow.show(
                 context = hostContext,
@@ -2177,6 +2181,14 @@ object FloatBallOverlay {
     ) {
         val action = settings.floatBallGestureActions[gestureType] ?: GestureAction.None
         if (action is GestureAction.None) return
+        // 返回/桌面/最近任务由系统自己给触摸反馈，我们再振一下就会变成"两下"；
+        // 与触钮同一规则（Back/Home/Recents 不发确认振动）。
+        val systemNavigation = action == GestureAction.Back ||
+            action == GestureAction.Home ||
+            action == GestureAction.Recents
+        if (!systemNavigation) {
+            displayView?.let { HapticHelper.floatBallGestureStart(it, settings) }
+        }
         executeFloatBallAction(
             settings = settings,
             action = action,

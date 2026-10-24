@@ -1455,6 +1455,8 @@
     <string name="temp_dnd_notification_stop_action">إيقاف الآن</string>
     <string name="gesture_action_screen_record">تسجيل الشاشة</string>
     <string name="gesture_action_toggle_wifi">تبديل Wi-Fi</string>
+    <string name="gesture_action_toggle_shake">تبديل إيماءات الاهتزاز</string>
+    <string name="gesture_action_toggle_shake_desc">تشغيل أو إيقاف المفتاح الرئيسي في صفحة الاهتزاز</string>
     <string name="gesture_action_toggle_mobile_data">تبديل بيانات الجوال</string>
     <string name="gesture_action_switch_input_method">تبديل لوحة المفاتيح</string>
     <string name="gesture_action_screen_record_permission">يتطلب إذن «العرض فوق التطبيقات الأخرى»</string>
@@ -2034,6 +2036,11 @@
     <string name="float_ball_gesture_overlay_anchor_section">موضع المشغّل</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down">محاذاة المشغّل مع موضع لمس الإصبع</string>
     <string name="float_ball_gesture_overlay_anchor_touch_down_summary">تظهر لوحة المشغّل السريع أو حلقة التشغيل التي يفتحها إيماء الكرة العائمة في موضع لمس الإصبع للكرة أولاً. عند الإيقاف تظهر في موضع الإصبع لحظة تحقق الإيماءة (السحب: موضع الإفلات).</string>
+    <string name="float_ball_gesture_ring_auto_select">تحديد أول خانة في الحلقة تلقائيًا عند الضغط المطوّل</string>
+    <string name="float_ball_gesture_ring_auto_select_summary">عند فتح حلقة التشغيل بالضغط المطوّل تُحدَّد الخانة الأولى أسفل الكرة تلقائيًا، فيكفي الإفلات لتشغيلها. عند الإيقاف، الإفلات دون تحريك يُلغي.</string>
+    <string name="float_ball_gesture_feedback_section">استجابة الإيماءات</string>
+    <string name="float_ball_gesture_haptic">اهتزاز إيماءات الكرة العائمة</string>
+    <string name="float_ball_gesture_haptic_summary">اهتزاز عند تحقق إيماءة الكرة العائمة وعند تنفيذ الإجراء عند الإفلات. لا يزال خاضعًا لمفتاح «الاهتزاز» الرئيسي.</string>
     <string name="float_ball_gesture_tuning_section">معطيات الإيماءات</string>
     <string name="float_ball_gesture_tuning_title">التعرّف والموضع</string>
     <string name="float_ball_gesture_tuning_summary">مسافات السحب ومدة الضغط المطول وموضع ظهور المشغّل السريع — المعطيات الأساسية للتعرف على الإيماءات.</string>
@@ -2993,6 +3000,8 @@
     <string name="widget_panel_visible_rows_title">عدد الصفوف المعروضة: %1$d</string>
     <string name="widget_panel_cell_width_title">عرض شبكة الخلية: %1$d dp</string>
     <string name="widget_panel_margin_top_title">الهامش العلوي للحاوية: %1$d dp</string>
+    <string name="widget_panel_margin_left_title">الهامش الأيسر للحاوية: %1$d dp</string>
+    <string name="widget_panel_margin_left_centered">في الوسط</string>
     <string name="weekday_short_sunday">ح</string>
     <string name="weekday_short_monday">ا</string>
     <string name="weekday_short_tuesday">ث</string>
@@ -4155,6 +4164,7 @@
     <string name="update_version_current">الحالي %1$s</string>
     <string name="update_version_latest">الأحدث %1$s</string>
     <string name="task_switcher_app_info">معلومات التطبيق</string>
+    <string name="task_switcher_clone_label">%1$s · نسخة</string>
     <string name="task_switcher_quick_share">مشاركة سريعة</string>
     <string name="toggle_gesture_enabled">الإيماءة مفعلة</string>
     <string name="toggle_gesture_disabled">الإيماءة معطلة</string>

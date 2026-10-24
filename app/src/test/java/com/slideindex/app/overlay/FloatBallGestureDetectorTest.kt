@@ -1,6 +1,7 @@
 package com.slideindex.app.overlay
 
 import com.slideindex.app.floatball.FloatBallGestureType
+import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.FloatBallSide
 import com.slideindex.app.settings.FloatBallSettings
@@ -102,9 +103,25 @@ class FloatBallGestureDetectorTest {
     }
 
     @Test
-    fun `single tap fires after double tap detection window`() {
+    fun `single tap fires immediately when double tap has no action`() {
         var fired: FloatBallGestureType? = null
+        // 默认设置里 DOUBLE_TAP = None：不必再等双击窗口，单击当帧就执行。
         val detector = newDetector { type, _, _, _, _ -> fired = type }
+        val down = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 100f, 200f, 0)
+        val up = MotionEvent.obtain(0, 50, MotionEvent.ACTION_UP, 100f, 200f, 0)
+        detector.onTouchEvent(down)
+        detector.onTouchEvent(up)
+        assertEquals(FloatBallGestureType.SINGLE_TAP, fired)
+        down.recycle()
+        up.recycle()
+    }
+
+    @Test
+    fun `single tap waits for double tap window when double tap has an action`() {
+        var fired: FloatBallGestureType? = null
+        val detector = newDetector(
+            settings = compoundSettings(FloatBallGestureType.DOUBLE_TAP to GestureAction.Back),
+        ) { type, _, _, _, _ -> fired = type }
         val down = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 100f, 200f, 0)
         val up = MotionEvent.obtain(0, 50, MotionEvent.ACTION_UP, 100f, 200f, 0)
         detector.onTouchEvent(down)
@@ -139,7 +156,9 @@ class FloatBallGestureDetectorTest {
     @Test
     fun `double tap cancels pending single tap`() {
         var fired: FloatBallGestureType? = null
-        val detector = newDetector { type, _, _, _, _ -> fired = type }
+        val detector = newDetector(
+            settings = compoundSettings(FloatBallGestureType.DOUBLE_TAP to GestureAction.Back),
+        ) { type, _, _, _, _ -> fired = type }
         val firstDown = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 100f, 200f, 0)
         val firstUp = MotionEvent.obtain(0, 50, MotionEvent.ACTION_UP, 100f, 200f, 0)
         val secondDown = MotionEvent.obtain(0, 100, MotionEvent.ACTION_DOWN, 100f, 200f, 0)

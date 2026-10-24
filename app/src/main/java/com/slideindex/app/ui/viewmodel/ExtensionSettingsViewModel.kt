@@ -668,6 +668,14 @@ class ExtensionSettingsViewModel @Inject constructor(
         settingsRepository.setFloatBallOverlayAnchorAtTouchDown(enabled)
     }
 
+    fun setFloatBallGestureHapticEnabled(enabled: Boolean) = launchSettingsWrite {
+        settingsRepository.setFloatBallGestureHapticEnabled(enabled)
+    }
+
+    fun setFloatBallLongPressAutoSelectRingSlot(enabled: Boolean) = launchSettingsWrite {
+        settingsRepository.setFloatBallLongPressAutoSelectRingSlot(enabled)
+    }
+
     fun setFloatBallPickOffsetDp(value: Float) = launchSettingsWrite {
         settingsRepository.setFloatBallPickOffsetDp(value)
     }

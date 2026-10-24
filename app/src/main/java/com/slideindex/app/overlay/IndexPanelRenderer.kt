@@ -58,6 +58,32 @@ internal class IndexPanelRenderer(
     }
     private val cellHighlightPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val cellLongPressHighlightPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    /** 已冻结应用：图标压暗 + 右下角"禁止"角标，和普通可启动应用区分开。 */
+    private val frozenIconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { alpha = 130 }
+    private val frozenBadgeBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(235, 32, 34, 40)
+        style = Paint.Style.FILL
+    }
+    private val frozenBadgeSlashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = host.dp(1.6f)
+        strokeCap = Paint.Cap.ROUND
+    }
+    /** 暂停（挂起）角标的两条竖杠。 */
+    private val pausedBadgeBarPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = host.dp(1.8f)
+        strokeCap = Paint.Cap.ROUND
+    }
+    /** 分身黄点：与系统分身标识同色。 */
+    private val cloneDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFC107.toInt()
+    }
+    private val cloneDotRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(200, 0, 0, 0)
+    }
 
     private val tmpRect = RectF()
 
@@ -267,9 +293,52 @@ internal class IndexPanelRenderer(
             val label = ellipsize(app.label, cellWidth - gridCellInset * 2)
             val labelBaseline = iconTop + gridIconSize + gridIconLabelGap - appLabelPaint.fontMetrics.ascent
             val iconCenterX = cell.centerX()
-            canvas.drawBitmap(icon, iconCenterX - gridIconSize / 2f, iconTop, null)
+            canvas.drawBitmap(
+                icon,
+                iconCenterX - gridIconSize / 2f,
+                iconTop,
+                if (app.isFrozen || app.isPaused) frozenIconPaint else null,
+            )
+            when {
+                app.isFrozen -> drawFrozenBadge(canvas, iconCenterX, iconTop)
+                app.isPaused -> drawPausedBadge(canvas, iconCenterX, iconTop)
+            }
+            if (app.isClone) {
+                drawCloneDot(canvas, iconCenterX, iconTop)
+            }
             canvas.drawText(label, iconCenterX, labelBaseline, appLabelPaint)
         }
+    }
+
+    /** 暂停角标：同位置的小圆 + 两条竖杠（暂停符号），与冻结的斜杠区分。 */
+    private fun drawPausedBadge(canvas: Canvas, iconCenterX: Float, iconTop: Float) {
+        val radius = host.dp(8f)
+        val cx = iconCenterX + gridIconSize * 0.42f
+        val cy = iconTop + gridIconSize * 0.84f
+        canvas.drawCircle(cx, cy, radius, frozenBadgeBgPaint)
+        val barHeight = radius * 0.9f
+        val barOffset = radius * 0.30f
+        canvas.drawLine(cx - barOffset, cy - barHeight / 2f, cx - barOffset, cy + barHeight / 2f, pausedBadgeBarPaint)
+        canvas.drawLine(cx + barOffset, cy - barHeight / 2f, cx + barOffset, cy + barHeight / 2f, pausedBadgeBarPaint)
+    }
+
+    /** 分身角标：图标右上角一个黄点（与任务切换器 / 系统分身标识同色）。 */
+    private fun drawCloneDot(canvas: Canvas, iconCenterX: Float, iconTop: Float) {
+        val radius = host.dp(5.5f)
+        val cx = iconCenterX + gridIconSize * 0.42f
+        val cy = iconTop + gridIconSize * 0.16f
+        canvas.drawCircle(cx, cy, radius, cloneDotRingPaint)
+        canvas.drawCircle(cx, cy, radius - host.dp(1f), cloneDotPaint)
+    }
+
+    /** 冻结角标：图标右下角一个小圆 + 斜杠，语言无关地表示"当前不可直接启动"。 */
+    private fun drawFrozenBadge(canvas: Canvas, iconCenterX: Float, iconTop: Float) {
+        val radius = host.dp(8f)
+        val cx = iconCenterX + gridIconSize * 0.42f
+        val cy = iconTop + gridIconSize * 0.84f
+        canvas.drawCircle(cx, cy, radius, frozenBadgeBgPaint)
+        val offset = radius * 0.52f
+        canvas.drawLine(cx - offset, cy + offset, cx + offset, cy - offset, frozenBadgeSlashPaint)
     }
 
     fun syncGridCellBounds() {

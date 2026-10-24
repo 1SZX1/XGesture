@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Process
+import android.os.SystemClock
 import com.slideindex.app.BuildConfig
 import com.slideindex.app.privilege.PrivilegeGateway
 import com.slideindex.app.search.ral.HiddenFrameworkAccess
@@ -19,6 +20,15 @@ import rikka.shizuku.SystemServiceHelper
 internal object FreezerPrivilegedOps {
     private const val APP_INFO_FLAGS =
         PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
+
+    /** `pm list users` 结果的缓存时长：新建分身/工作资料后最多半分钟生效。 */
+    private const val USER_IDS_CACHE_MS = 30_000L
+
+    @Volatile
+    private var cachedUserIds: List<Int>? = null
+
+    @Volatile
+    private var cachedUserIdsAt = 0L
 
     fun isAppDisabled(context: Context, packageName: String): Boolean =
         appFlags(context, packageName)?.first?.not() ?: false
@@ -68,8 +78,34 @@ internal object FreezerPrivilegedOps {
         val shizukuRoot = TaskManagerUtil.probeRootAvailable()
         val useRoot = PrivilegeGateway.isRootMode() ||
             (PrivilegeGateway.isShizukuMode() && shizukuRoot)
-        val userId = resolveUserId(useRoot)
+        // 多开/分身（如 MIUI user 999）与主实例是同一个包名、不同的 user：
+        // 只处理当前用户的话，分身永远不会被冻上（"只能冻结最初的那个"）。
+        // 这里对枚举到的每个 user 都执行一次；枚举失败时退回单用户，行为与旧版一致。
+        val users = resolveUserIds(useRoot)
+        var success = false
+        var detail = ""
+        for (userId in users) {
+            val (ok, error) = setAppDisabledForUser(
+                context = context,
+                packageName = packageName,
+                disabled = disabled,
+                useRoot = useRoot,
+                shizukuRoot = shizukuRoot,
+                userId = userId,
+            )
+            if (ok) success = true else detail = error
+        }
+        return success to detail
+    }
 
+    private fun setAppDisabledForUser(
+        context: Context,
+        packageName: String,
+        disabled: Boolean,
+        useRoot: Boolean,
+        shizukuRoot: Boolean,
+        userId: Int,
+    ): Pair<Boolean, String> {
         if (disabled) {
             TaskManagerUtil.forceStopPackage(packageName)
             TaskManagerUtil.runShellCommandLine(
@@ -296,6 +332,27 @@ internal object FreezerPrivilegedOps {
             .toIntOrNull()
         if (shellUser != null) return shellUser
         return currentUserId()
+    }
+
+    /** 当前设备上的 user id 列表（含工作资料 / 应用分身）；带缓存，失败时退回当前用户。 */
+    private fun resolveUserIds(useRoot: Boolean): List<Int> {
+        val now = SystemClock.elapsedRealtime()
+        val cached = cachedUserIds
+        if (cached != null && now - cachedUserIdsAt < USER_IDS_CACHE_MS) return cached
+        val users = runCatching {
+            TaskManagerUtil.runShellCommandLine("pm list users", useRoot = useRoot).output
+                .let { output ->
+                    Regex("UserInfo\\{(\\d+):")
+                        .findAll(output)
+                        .map { it.groupValues[1].toInt() }
+                        .distinct()
+                        .toList()
+                }
+        }.getOrDefault(emptyList())
+        val resolved = users.ifEmpty { listOf(resolveUserId(useRoot)) }
+        cachedUserIds = resolved
+        cachedUserIdsAt = now
+        return resolved
     }
 
     private fun currentUserId(): Int {

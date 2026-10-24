@@ -540,6 +540,10 @@ internal object SettingsSnapshotReader {
                 prefs[SettingsPreferenceKeys.FLOAT_BALL_UP_SWIPE_SHORT_PERCENT] ?: 256f,
             floatBallOverlayAnchorAtTouchDown =
                 prefs[SettingsPreferenceKeys.FLOAT_BALL_OVERLAY_ANCHOR_AT_TOUCH_DOWN] ?: false,
+            floatBallGestureHapticEnabled =
+                prefs[SettingsPreferenceKeys.FLOAT_BALL_GESTURE_HAPTIC_ENABLED] ?: true,
+            floatBallLongPressAutoSelectRingSlot =
+                prefs[SettingsPreferenceKeys.FLOAT_BALL_LONG_PRESS_AUTO_SELECT_RING_SLOT] ?: false,
             floatBallInstantTranslate = prefs[SettingsPreferenceKeys.FLOAT_BALL_INSTANT_TRANSLATE] ?: true,
             floatBallTranslateEngine = FloatBallTranslateEngine.fromStorageKey(
                 prefs[SettingsPreferenceKeys.FLOAT_BALL_TRANSLATE_ENGINE],

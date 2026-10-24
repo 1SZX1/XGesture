@@ -339,6 +339,13 @@ data class FloatBallSettings(
      * 只影响悬浮球触发的这两个浮层，边滑手势与其它浮层不受影响。
      */
     val floatBallOverlayAnchorAtTouchDown: Boolean = false,
+    /** 悬浮球专属手势振动：判定成立与松手执行时振动（仍受首页「震动」总开关约束）。 */
+    val floatBallGestureHapticEnabled: Boolean = true,
+    /**
+     * 长按悬浮球呼出圆环启动器时，自动选中球正下方的第一个槽位；
+     * 松手即启动该槽位，不必先滑过去（默认关，保持「不动松手 = 取消」的旧行为）。
+     */
+    val floatBallLongPressAutoSelectRingSlot: Boolean = false,
     /** When false, translate opens Google Translate in browser; when true, shows in-app overlay. */
     val floatBallInstantTranslate: Boolean = true,
     val floatBallTranslateEngine: FloatBallTranslateEngine = FloatBallTranslateEngine.GOOGLE,

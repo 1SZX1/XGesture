@@ -105,6 +105,8 @@ object FreezerOperations {
             if (success) {
                 Log.i(TAG, "setFrozen($packageName, $frozen) -> ok")
                 if (frozen) setFreezerIntent(context, packageName, FreezerAppIntent.FROZEN)
+                // 索引里的冻结项靠冰箱清单拼出来，冻结状态变了要主动让它重算。
+                com.slideindex.app.overlay.OverlayRefreshBus.notifyFreezerChanged()
                 return@withContext true
             }
             Log.w(TAG, "setFrozen($packageName, $frozen) -> failed: ${detail.take(160)}")
@@ -160,6 +162,8 @@ object FreezerOperations {
                 Log.i(TAG, "setPaused($packageName, $paused) -> ok")
                 // 取消暂停不改意图：用户要的还是「暂停」，只是这次为了使用而临时放出来。
                 if (paused) setFreezerIntent(context, packageName, FreezerAppIntent.PAUSE)
+                // 暂停态在索引里也有角标，状态变了同样要重算。
+                com.slideindex.app.overlay.OverlayRefreshBus.notifyFreezerChanged()
                 return@withContext true
             }
             Log.w(TAG, "setPaused($packageName, $paused) -> failed: ${detail.take(160)}")
