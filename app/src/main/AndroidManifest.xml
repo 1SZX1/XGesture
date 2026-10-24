@@ -304,6 +304,13 @@
             android:theme="@style/Theme.SlideIndex.Transparent" />
 
         <activity
+            android:name=".service.CloneLaunchTrampolineActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Theme.SlideIndex.Transparent" />
+
+        <activity
             android:name=".service.ShellCommandPanelTrampolineActivity"
             android:excludeFromRecents="true"
             android:exported="false"
