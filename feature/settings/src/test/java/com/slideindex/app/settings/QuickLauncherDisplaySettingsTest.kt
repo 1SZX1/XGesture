@@ -1,5 +1,6 @@
 package com.slideindex.app.settings
 
+import androidx.datastore.preferences.core.preferencesOf
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -45,6 +46,8 @@ class QuickLauncherDisplaySettingsTest {
         assertEquals(16, defaults.blurRadiusDp)
         // 操作栏默认显示：关掉它是显式选择，不能让老用户升级后工具栏凭空消失。
         assertEquals(true, defaults.showToolbar)
+        // 图标名称默认显示：保持升级前观感，隐藏名称是显式选择。
+        assertEquals(true, defaults.showLabels)
         // 右侧镜像默认开启：维持历史设计，老用户升级后右侧面板不会突然反排。
         assertEquals(true, defaults.mirrorOnRightSide)
     }
@@ -56,6 +59,17 @@ class QuickLauncherDisplaySettingsTest {
         assertEquals(
             QuickLauncherDisplaySettings.DEFAULT_BLUR_RADIUS_DP,
             QuickLauncherDisplaySettings().blurRadiusDp,
+        )
+    }
+
+    @Test
+    fun fromPreferences_showLabelsDefaultsTrueAndReadsStoredValue() {
+        assertEquals(true, QuickLauncherDisplaySettings.fromPreferences(preferencesOf()).showLabels)
+        assertEquals(
+            false,
+            QuickLauncherDisplaySettings.fromPreferences(
+                preferencesOf(SettingsPreferenceKeys.QUICK_LAUNCHER_SHOW_LABELS to false),
+            ).showLabels,
         )
     }
 }

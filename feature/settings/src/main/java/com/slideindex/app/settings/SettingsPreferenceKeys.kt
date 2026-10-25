@@ -124,6 +124,8 @@ internal object SettingsPreferenceKeys {
     val QUICK_LAUNCHER_ICON_SIZE_DP = intPreferencesKey("quick_launcher_icon_size_dp")
     val QUICK_LAUNCHER_ICON_SHAPE = intPreferencesKey("quick_launcher_icon_shape")
     val QUICK_LAUNCHER_BLUR_RADIUS_DP = intPreferencesKey("quick_launcher_blur_radius_dp")
+    /** 快速启动器面板是否在图标下方显示名称（见 [QuickLauncherDisplaySettings.showLabels]）。 */
+    val QUICK_LAUNCHER_SHOW_LABELS = booleanPreferencesKey("quick_launcher_show_labels")
     /** 快速启动器面板底部操作栏显隐（编辑态强制显示，见 [QuickLauncherDisplaySettings.showToolbar]）。 */
     val QUICK_LAUNCHER_SHOW_TOOLBAR = booleanPreferencesKey("quick_launcher_show_toolbar")
 

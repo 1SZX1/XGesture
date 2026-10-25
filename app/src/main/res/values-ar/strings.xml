@@ -1670,6 +1670,8 @@
     <string name="quick_launcher_background_opacity_value">%1$d%%</string>
     <string name="quick_launcher_blur_strength">شدة الضبابية</string>
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
+    <string name="quick_launcher_show_labels">إظهار أسماء الأيقونات</string>
+    <string name="quick_launcher_show_labels_desc">عند الإيقاف تُعرض الأيقونات فقط، وتظل الأسماء مستخدمة في قارئ الشاشة.</string>
     <string name="quick_launcher_show_toolbar">إظهار شريط الأدوات السفلي</string>
     <string name="quick_launcher_show_toolbar_desc">عند الإيقاف لن تظهر أزرار + و − وتبديل اللوحة أثناء الاستخدام العادي. اضغط مطولًا على منطقة فارغة في اللوحة للدخول إلى وضع التعديل.</string>
     <string name="quick_launcher_mirror_on_right_side">عكس ترتيب اللوحة اليمنى</string>

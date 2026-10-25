@@ -130,6 +130,7 @@ fun QuickLauncherGridEditor(
     )
     val iconSizeDp = settings.quickLauncherDisplay.iconSizeDp
     val iconShape = settings.quickLauncherDisplay.iconShape
+    val showLabels = settings.quickLauncherDisplay.showLabels
     val pageSize = QuickLauncherGridLogic.pageSize(columns, rows)
     val pageCount = QuickLauncherGridLogic.pageCount(levelItems.size, pageSize)
     val density = LocalDensity.current
@@ -413,6 +414,7 @@ fun QuickLauncherGridEditor(
                                     mergeTargetGlobal = mergeTargetGlobal,
                                     iconSizeDp = iconSizeDp,
                                     iconShape = iconShape,
+                                    showLabels = showLabels,
                                     cellHeightDp = cellHeightDp,
                                     shellCommands = settings.shellCommands,
                                     onEnterFolder = if (!editMode && activeFolderIndex < 0) {
@@ -446,6 +448,7 @@ fun QuickLauncherGridEditor(
                                         mergeTargetGlobal = -1,
                                         iconSizeDp = iconSizeDp,
                                         iconShape = iconShape,
+                                        showLabels = showLabels,
                                         cellHeightDp = cellHeightDp,
                                         shellCommands = settings.shellCommands,
                                     )
@@ -475,6 +478,7 @@ fun QuickLauncherGridEditor(
                                         mergeTargetGlobal = -1,
                                         iconSizeDp = iconSizeDp,
                                         iconShape = iconShape,
+                                        showLabels = showLabels,
                                         cellHeightDp = cellHeightDp,
                                         shellCommands = settings.shellCommands,
                                     )
@@ -684,6 +688,7 @@ fun QuickLauncherGridEditor(
                                         showEditBadge = false,
                                         iconSizeDp = iconSizeDp,
                                         iconShape = iconShape,
+                                        showLabels = showLabels,
                                         shellCommands = settings.shellCommands,
                                     )
                                 }

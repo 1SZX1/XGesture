@@ -602,7 +602,13 @@ internal class QuickLauncherRenderer(
             canvas.drawRoundRect(tmpRect, host.dp(10f), host.dp(10f), paint)
         }
         val icon = iconProvider()
-        val iconTop = cell.top + iconTopInset
+        val showLabels = quickLauncherDisplay.showLabels
+        // 不显示名称时把图标在格子里垂直居中，避免每格底部空出一条。
+        val iconTop = if (showLabels) {
+            cell.top + iconTopInset
+        } else {
+            cell.top + (cell.height() - iconSize) / 2f
+        }
         val displayLabel = ellipsize(label, labelMaxWidth)
         val labelBaseline = iconTop + iconSize + iconLabelGap - appLabelPaint.fontMetrics.ascent
         val iconCenterX = cell.centerX()
@@ -665,7 +671,9 @@ internal class QuickLauncherRenderer(
                 host.dp(1f)
             )
         }
-        canvas.drawText(displayLabel, iconCenterX, labelBaseline, appLabelPaint)
+        if (showLabels) {
+            canvas.drawText(displayLabel, iconCenterX, labelBaseline, appLabelPaint)
+        }
     }
 
     private fun drawQuickLauncherFolderOverlay(canvas: Canvas, panelRect: RectF) {

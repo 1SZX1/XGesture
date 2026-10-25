@@ -92,6 +92,19 @@ fun quickLauncherAppearanceCardItems(
             },
         )
         add(
+            settingsCardScopeItem("show-icon-labels") {
+                MiuixSwitchRow(
+                    title = stringResource(R.string.quick_launcher_show_labels),
+                    summary = stringResource(R.string.quick_launcher_show_labels_desc),
+                    checked = display.showLabels,
+                    enabled = enabled,
+                    onCheckedChange = { checked ->
+                        onDisplayChange(display.copy(showLabels = checked))
+                    },
+                )
+            },
+        )
+        add(
             settingsCardScopeItem("background-opacity") {
                 SettingsSliderRow(
                     title = stringResource(R.string.quick_launcher_background_opacity),

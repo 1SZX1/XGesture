@@ -7,6 +7,13 @@ data class QuickLauncherDisplaySettings(
     val backgroundOpacityPercent: Int = DEFAULT_BACKGROUND_OPACITY_PERCENT,
     val iconSizeDp: Int = DEFAULT_ICON_SIZE_DP,
     val iconShape: Int = ICON_SHAPE_DEFAULT,
+    /**
+     * 是否在面板图标下方显示名称。
+     *
+     * 关掉后只显示图标，格子里的图标改为垂直居中，面板与文件夹都生效；
+     * 名称仍用于无障碍朗读与搜索，不影响点击命中区域。
+     */
+    val showLabels: Boolean = true,
     val blurRadiusDp: Int = DEFAULT_BLUR_RADIUS_DP,
     /**
      * 是否显示面板底部那条操作栏（+ 添加 / − 编辑 / ⇄ 切面板）。
@@ -80,6 +87,7 @@ data class QuickLauncherDisplaySettings(
                 iconShape = coerceIconShape(
                     prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_ICON_SHAPE] ?: ICON_SHAPE_DEFAULT,
                 ),
+                showLabels = prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_SHOW_LABELS] ?: true,
                 blurRadiusDp = (prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_BLUR_RADIUS_DP]
                     ?: DEFAULT_BLUR_RADIUS_DP)
                     .coerceIn(MIN_BLUR_RADIUS_DP, MAX_BLUR_RADIUS_DP),

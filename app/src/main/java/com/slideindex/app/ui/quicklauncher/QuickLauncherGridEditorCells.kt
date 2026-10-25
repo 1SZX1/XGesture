@@ -71,6 +71,7 @@ internal fun QuickLauncherPageGrid(
     mergeTargetGlobal: Int = -1,
     iconSizeDp: Int = QuickLauncherDisplaySettings.DEFAULT_ICON_SIZE_DP,
     iconShape: Int = QuickLauncherDisplaySettings.ICON_SHAPE_DEFAULT,
+    showLabels: Boolean = true,
     cellHeightDp: Dp = 80.dp,
     shellCommands: List<ShellCommand> = emptyList(),
     onEnterFolder: ((Int) -> Unit)? = null,
@@ -114,6 +115,7 @@ internal fun QuickLauncherPageGrid(
                                 isMergeTarget = isMergeTarget,
                                 iconSizeDp = iconSizeDp,
                                 iconShape = iconShape,
+                                showLabels = showLabels,
                                 shellCommands = shellCommands,
                                 onClick = if (enterable) {
                                     { onEnterFolder(originalIndex) }
@@ -151,6 +153,7 @@ internal fun QuickLauncherGridCell(
     isMergeTarget: Boolean = false,
     iconSizeDp: Int = QuickLauncherDisplaySettings.DEFAULT_ICON_SIZE_DP,
     iconShape: Int = QuickLauncherDisplaySettings.ICON_SHAPE_DEFAULT,
+    showLabels: Boolean = true,
     activityShortcuts: List<com.slideindex.app.activity.ActivityShortcut> = emptyList(),
     shellCommands: List<ShellCommand> = emptyList(),
     onClick: (() -> Unit)? = null,
@@ -244,16 +247,18 @@ internal fun QuickLauncherGridCell(
                     ShellCommandBadgeOverlay(iconSize = iconSize)
                 }
             }
-            Spacer(modifier = Modifier.size(4.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (showLabels) {
+                Spacer(modifier = Modifier.size(4.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         if (showEditBadge) {
             Box(

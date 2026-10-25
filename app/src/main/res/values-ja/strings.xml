@@ -1683,6 +1683,8 @@
     <string name="quick_launcher_background_opacity_value">%1$d%%</string>
     <string name="quick_launcher_blur_strength">ぼかしの強さ</string>
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
+    <string name="quick_launcher_show_labels">アイコン名を表示</string>
+    <string name="quick_launcher_show_labels_desc">オフにするとアイコンのみを表示します。名前はアクセシビリティの読み上げには引き続き使われます。</string>
     <string name="quick_launcher_show_toolbar">下部ツールバーを表示</string>
     <string name="quick_launcher_show_toolbar_desc">オフにすると通常使用時に +、−、パネル切り替えを表示しません。パネルの空白を長押しすると編集モードに入れます。</string>
     <string name="quick_launcher_mirror_on_right_side">右側パネルをミラー表示</string>

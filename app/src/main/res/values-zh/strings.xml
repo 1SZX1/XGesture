@@ -1761,6 +1761,8 @@
     <string name="quick_launcher_background_opacity_value">%1$d%%</string>
     <string name="quick_launcher_blur_strength">模糊强度</string>
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
+    <string name="quick_launcher_show_labels">显示图标名称</string>
+    <string name="quick_launcher_show_labels_desc">关闭后面板上只显示图标；应用名称仍用于无障碍朗读</string>
     <string name="quick_launcher_show_toolbar">显示底部操作栏</string>
     <string name="quick_launcher_show_toolbar_desc">关闭后普通使用态不再显示下方的 +、− 与面板切换；在面板空白处按住即可进入编辑模式</string>
     <string name="quick_launcher_mirror_on_right_side">镜像右侧面板</string>
