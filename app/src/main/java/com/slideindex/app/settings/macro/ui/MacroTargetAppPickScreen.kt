@@ -1,92 +1,107 @@
 package com.slideindex.app.settings.macro.ui
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.slideindex.app.R
-import com.slideindex.app.settings.macro.MacroTargetApp
-import com.slideindex.app.settings.macro.MacroTargetApps
-import com.slideindex.app.ui.miuix.groupedCardItems
-import com.slideindex.app.ui.settings.components.SettingLinkRow
-import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffold
-import com.slideindex.app.ui.settings.components.settingsCardScopeItem
+import com.slideindex.app.data.AppInfo
+import com.slideindex.app.launcher.AppTarget
+import com.slideindex.app.ui.Md3PickerAppLeading
+import com.slideindex.app.ui.Md3PickerListRow
+import com.slideindex.app.ui.PickerTrailingMode
+import com.slideindex.app.ui.compose.collectPickerAppsAsState
+import com.slideindex.app.ui.settings.components.SettingsLazyScreenScaffoldWithExpandableSearch
 import com.slideindex.app.ui.settings.components.settingsLazyTipCard
-import com.slideindex.app.util.queryIntentActivitiesCompat
 
 /**
- * 目标 App 选择页：列出**可启动**的应用（应用名 + 包名），选一个作为宏的目标。
+ * 目标 App 选择页：列出可启动的应用（图标 + 名称 + 包名），选一个作为宏的目标。
  *
- * 枚举走 `queryIntentActivities`（MAIN + LAUNCHER），去重与排序交给
- * [MacroTargetApps] 这个纯函数，方便单测。
+ * 数据与其它挑应用页面同源（`PickerApps`）：分身也会列出来，选中后存 `(包名, userId)`，
+ * 录制/执行时由 `MacroEngine` 负责跨 user 启动。旧数据是裸包名，等价于 user 0。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MacroTargetAppPickScreen(
-    context: Context,
-    selectedPackage: String,
+    selectedTarget: String,
     onBack: () -> Unit,
-    onSelect: (MacroTargetApp) -> Unit,
+    onSelect: (AppInfo) -> Unit,
 ) {
-    val apps = remember(context) { queryLaunchableApps(context) }
-    // 注意：scaffold 的内容是 LazyListScope（不是 @Composable），文案必须在这里先取好。
+    val apps by collectPickerAppsAsState(includeClones = true)
+    var query by remember { mutableStateOf("") }
     val emptyText = stringResource(R.string.macro_target_empty)
 
-    SettingsLazyScreenScaffold(
+    val filtered = remember(apps, query) {
+        val q = query.trim().lowercase()
+        val matched = if (q.isEmpty()) {
+            apps
+        } else {
+            apps.filter {
+                it.label.lowercase().contains(q) ||
+                    it.packageName.lowercase().contains(q) ||
+                    it.pinyinKey.contains(q)
+            }
+        }
+        matched.sortedBy { it.pinyinKey }
+    }
+
+    SettingsLazyScreenScaffoldWithExpandableSearch(
         title = stringResource(R.string.macro_target_pick_title),
-        subtitle = stringResource(R.string.macro_target_pick_subtitle),
+        pageHint = stringResource(R.string.macro_target_pick_subtitle),
+        searchQuery = query,
+        onSearchQueryChange = { query = it },
         onBack = onBack,
     ) {
-        if (apps.isEmpty()) {
+        if (filtered.isEmpty()) {
             settingsLazyTipCard(
                 key = "macro-target-empty",
                 text = emptyText,
             )
-            return@SettingsLazyScreenScaffold
+            return@SettingsLazyScreenScaffoldWithExpandableSearch
         }
-        groupedCardItems(
-            keyPrefix = "macro-target-apps",
-            items = apps.map { app ->
-                settingsCardScopeItem("macro-target-${app.packageName}") {
-                    SettingLinkRow(
-                        title = app.label,
-                        subtitle = if (app.packageName == selectedPackage) {
-                            stringResource(R.string.macro_target_selected, app.packageName)
-                        } else {
-                            app.packageName
-                        },
-                        onClick = { onSelect(app) },
-                    )
-                }
+        val segmentCount = filtered.size
+        items(
+            count = segmentCount,
+            key = { index ->
+                AppTarget.encode(filtered[index].packageName, filtered[index].cloneUserId)
             },
-        )
+        ) { index ->
+            val app = filtered[index]
+            val target = AppTarget.encode(app.packageName, app.cloneUserId)
+            val selected = target == selectedTarget
+            Md3PickerListRow(
+                segmentIndex = index,
+                segmentCount = segmentCount,
+                title = app.label,
+                subtitle = if (selected) {
+                    stringResource(R.string.macro_target_selected, app.packageName)
+                } else {
+                    app.packageName
+                },
+                selected = selected,
+                onClick = { onSelect(app) },
+                leadingContent = { Md3PickerAppLeading(app) },
+                trailingMode = PickerTrailingMode.Radio,
+            )
+        }
     }
 }
 
-/** MAIN + LAUNCHER 枚举 → [MacroTargetApp] 列表（包名去重、按应用名排序）。 */
-internal fun queryLaunchableApps(context: Context): List<MacroTargetApp> {
-    val pm = context.packageManager
-    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-    val resolved = runCatching {
-        pm.queryIntentActivitiesCompat(intent, PackageManager.MATCH_DISABLED_COMPONENTS)
-    }.getOrDefault(emptyList())
-
-    val entries = resolved.map { info ->
-        val packageName = info.activityInfo?.packageName.orEmpty()
-        val label = runCatching { info.loadLabel(pm).toString() }.getOrDefault("")
-        packageName to label
-    }
-    return MacroTargetApps.fromEntries(entries)
-}
-
-/** 编辑页显示"已选目标 App"：优先应用名，取不到时退回包名。 */
-internal fun resolveAppLabel(context: Context, packageName: String): String {
-    if (packageName.isBlank()) return ""
-    return runCatching {
+/** 编辑页显示"已选目标 App"：优先应用名，取不到时退回包名；分身带「· 分身」后缀。 */
+internal fun resolveAppLabel(context: Context, target: String): String {
+    if (target.isBlank()) return ""
+    val parsed = AppTarget.parse(target)
+    val label = runCatching {
         val pm = context.packageManager
-        pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
-    }.getOrDefault(packageName)
+        pm.getApplicationLabel(pm.getApplicationInfo(parsed.packageName, 0)).toString()
+    }.getOrDefault(parsed.packageName)
+    return if (parsed.isClone) {
+        com.slideindex.app.overlay.CloneAppsIndex.labelForUser(context, parsed.cloneUserId, label)
+    } else {
+        label
+    }
 }

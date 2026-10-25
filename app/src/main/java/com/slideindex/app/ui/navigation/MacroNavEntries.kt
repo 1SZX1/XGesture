@@ -183,8 +183,7 @@ fun NavEntryBuilder.macroNavEntries(ctx: MainNavContext) {
         val context = LocalContext.current
         val draft = macroDraft?.takeIf { it.id == key.macroId }
         MacroTargetAppPickScreen(
-            context = context,
-            selectedPackage = draft?.targetPackage
+            selectedTarget = draft?.targetPackage
                 ?: MacroStore.byId(context, key.macroId)?.targetPackage.orEmpty(),
             onBack = { ctx.navigateBackTo(AppNavKey.MacroEdit(key.macroId)) },
             onSelect = { app -> applyMacroTargetApp(ctx, context, key.macroId, app) },
@@ -211,17 +210,20 @@ private fun applyMacroTargetApp(
     ctx: MainNavContext,
     context: Context,
     macroId: String,
-    app: MacroTargetApp,
+    app: com.slideindex.app.data.AppInfo,
 ) {
     val draft = macroDraft?.takeIf { it.id == macroId }
     if (draft != null) {
-        draft.targetPackage = app.packageName
+        draft.targetPackage = com.slideindex.app.launcher.AppTarget.encode(app.packageName, app.cloneUserId)
     } else {
         // 兜底（没有草稿时，例如异常路径）：直接按旧行为写盘，别让选择丢掉。
         val current = MacroStore.byId(context, macroId) ?: return
         MacroStore.upsert(
             context,
-            current.copy(targetPackage = app.packageName, updatedAtMs = System.currentTimeMillis()),
+            current.copy(
+                targetPackage = com.slideindex.app.launcher.AppTarget.encode(app.packageName, app.cloneUserId),
+                updatedAtMs = System.currentTimeMillis(),
+            ),
         )
         macroListRevision++
     }

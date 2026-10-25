@@ -26,6 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -51,7 +54,9 @@ import com.slideindex.app.util.PickerAppIconBitmap
  * 「目标应用」这一行的图标：选好之后直接显示那个 App 自己的图标；没选（或图标读不出来）时用通用图标。
  */
 @Composable
-private fun MacroTargetAppIcon(packageName: String, contentDescription: String) {
+private fun MacroTargetAppIcon(target: String, contentDescription: String) {
+    val parsed = com.slideindex.app.launcher.AppTarget.parse(target)
+    val packageName = parsed.packageName
     if (packageName.isBlank()) {
         Icon(
             imageVector = Icons.Outlined.Apps,
@@ -61,9 +66,9 @@ private fun MacroTargetAppIcon(packageName: String, contentDescription: String) 
         return
     }
     val context = LocalContext.current
-    var bitmap by remember(packageName) { mutableStateOf(PickerAppIconBitmap.peek(packageName)) }
+    var bitmap by remember(target) { mutableStateOf(PickerAppIconBitmap.peek(packageName)) }
     var failed by remember(packageName) { mutableStateOf(false) }
-    LaunchedEffect(packageName) {
+    LaunchedEffect(target) {
         if (bitmap == null && !failed) {
             val loaded = PickerAppIconBitmap.load(context, packageName)
             if (loaded == null) failed = true else bitmap = loaded
@@ -72,7 +77,14 @@ private fun MacroTargetAppIcon(packageName: String, contentDescription: String) 
     val current = bitmap
     if (current != null) {
         Image(
-            bitmap = current,
+            // 分身目标在图标右上角补黄点（主实例原样）。
+            bitmap = if (parsed.isClone) {
+                com.slideindex.app.util.CloneBadge
+                    .decorate(current.asAndroidBitmap(), true)
+                    ?.asImageBitmap() ?: current
+            } else {
+                current
+            },
             contentDescription = contentDescription,
             modifier = Modifier.size(24.dp),
             contentScale = ContentScale.Fit,

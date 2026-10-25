@@ -59,13 +59,25 @@ object MacroRecordingInstaller {
                     return false
                 }
                 val host = OverlayDependencyAccess.overlayHostContext() ?: return false
-                val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPackage)
-                    ?: return false
-
+                // 目标可能是分身：`包名\u0002userId`，录制同样要跨 user 启动。
+                val target = com.slideindex.app.launcher.AppTarget.parse(targetPackage)
                 mainHandler.post {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    runCatching { context.startActivity(launchIntent) }
-                        .onFailure { Log.w(TAG, "无法启动目标应用 $targetPackage", it) }
+                    if (target.isClone) {
+                        runCatching {
+                            com.slideindex.app.util.CloneAppLauncher.launch(
+                                context,
+                                target.packageName,
+                                target.cloneUserId,
+                            )
+                        }.onFailure { Log.w(TAG, "无法启动目标应用 $targetPackage", it) }
+                    } else {
+                        val launchIntent = context.packageManager.getLaunchIntentForPackage(target.packageName)
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            runCatching { context.startActivity(launchIntent) }
+                                .onFailure { Log.w(TAG, "无法启动目标应用 $targetPackage", it) }
+                        }
+                    }
 
                     stopInternal()
                     // 录制期间挂起自家的边缘浮层/触钮：否则屏幕边缘的触摸会被我们自己的边缘窗吃掉，

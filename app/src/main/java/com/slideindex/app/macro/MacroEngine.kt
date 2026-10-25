@@ -78,15 +78,24 @@ class MacroEngine(private val context: Context) {
             return
         }
 
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(macro.targetPackage)
-        if (launchIntent == null) {
-            toast(R.string.macro_run_target_not_found)
-            return
+        // 目标可能是分身：`包名\u0002userId`，需要跨 user 启动；旧数据裸包名 = user 0。
+        val target = com.slideindex.app.launcher.AppTarget.parse(macro.targetPackage)
+        val targetPackage = target.packageName
+        if (target.isClone) {
+            if (!com.slideindex.app.util.CloneAppLauncher.launch(context, targetPackage, target.cloneUserId)) {
+                toast(R.string.macro_run_target_not_found)
+                return
+            }
+        } else {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPackage)
+            if (launchIntent == null) {
+                toast(R.string.macro_run_target_not_found)
+                return
+            }
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(launchIntent) }
+                .onFailure { Log.w(TAG, "无法启动 $targetPackage", it) }
         }
-
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        runCatching { context.startActivity(launchIntent) }
-            .onFailure { Log.w(TAG, "无法启动 ${macro.targetPackage}", it) }
 
         val startedAt = SystemClock.uptimeMillis()
         var waitedMs = 0L
@@ -94,7 +103,7 @@ class MacroEngine(private val context: Context) {
         while (true) {
             waitedMs = SystemClock.uptimeMillis() - startedAt
             if (waitedMs >= FOREGROUND_WAIT_TIMEOUT_MS) break
-            if (currentForegroundPackage() == macro.targetPackage) {
+            if (currentForegroundPackage() == targetPackage) {
                 reachedForeground = true
                 break
             }
@@ -118,9 +127,9 @@ class MacroEngine(private val context: Context) {
             val foreground = currentForegroundPackage()
             Log.i(
                 TAG,
-                "step[$index/${macro.steps.size}] ${step.javaClass.simpleName} 开始 foreground=$foreground target=${macro.targetPackage}",
+                "step[$index/${macro.steps.size}] ${step.javaClass.simpleName} 开始 foreground=$foreground target=$targetPackage",
             )
-            if (foreground != null && foreground != macro.targetPackage) {
+            if (foreground != null && foreground != targetPackage) {
                 toast(R.string.macro_run_foreground_changed)
                 return
             }
