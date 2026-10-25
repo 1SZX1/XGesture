@@ -158,7 +158,7 @@ internal class TaskSwitcherRenderer(
                 if (entry.isClone) {
                     val badgeRadius = host.dp(5.5f)
                     val badgeCx = iconLeft + iconSize - badgeRadius * 0.15f
-                    val badgeCy = iconTop + iconSize - badgeRadius * 0.15f
+                    val badgeCy = iconTop + badgeRadius * 0.15f
                     drawCircle(badgeCx, badgeCy, badgeRadius, cloneBadgeBgPaint)
                     drawCircle(badgeCx, badgeCy, badgeRadius, cloneBadgeRingPaint)
                 }

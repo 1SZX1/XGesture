@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.slideindex.app.activity.ActivityShortcut
@@ -139,7 +140,16 @@ object QuickWheelIconResolver {
      */
     fun actionBitmapFor(context: Context, action: GestureAction, targetSizePx: Int): ImageBitmap? =
         when (action) {
-            is GestureAction.LaunchApp -> appIcon(context, action.packageName, targetSizePx)
+            is GestureAction.LaunchApp -> {
+                val bitmap = appIcon(context, action.packageName, targetSizePx)
+                if (action.cloneUserId > 0 && bitmap != null) {
+                    com.slideindex.app.util.CloneBadge
+                        .decorate(bitmap.asAndroidBitmap(), true)
+                        ?.asImageBitmap()
+                } else {
+                    bitmap
+                }
+            }
 
             is GestureAction.LaunchShortcut ->
                 shortcutIcon(context, action, targetSizePx)

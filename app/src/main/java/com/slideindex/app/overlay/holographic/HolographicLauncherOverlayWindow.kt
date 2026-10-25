@@ -202,7 +202,10 @@ object HolographicLauncherOverlayWindow {
                 HolographicLauncherApp(
                     packageName = info.packageName,
                     label = info.label,
-                    icon = appRepository.peekLaunchIconDrawable(info.packageName),
+                    icon = com.slideindex.app.util.CloneBadge.wrap(
+                        appRepository.peekLaunchIconDrawable(info.packageName),
+                        info.cloneUserId > 0,
+                    ),
                     cloneUserId = info.cloneUserId,
                 )
             }

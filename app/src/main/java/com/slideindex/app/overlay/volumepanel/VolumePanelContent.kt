@@ -84,6 +84,7 @@ import com.slideindex.app.gesture.GestureAction
 import com.slideindex.app.overlay.LocalFrostedGlassBackdrop
 import com.slideindex.app.settings.AppSettings
 import com.slideindex.app.settings.shouldLaunchFullscreen
+import com.slideindex.app.ui.Md3PickerAppLeading
 import com.slideindex.app.ui.Md3PickerIconLeading
 import com.slideindex.app.ui.Md3PickerLaunchShortcutLeading
 import com.slideindex.app.ui.Md3PickerPackageLeading
@@ -740,10 +741,15 @@ private fun ExpandPanelSlotIcon(
     val context = LocalContext.current
     when (action) {
         is GestureAction.LaunchApp -> {
-            Md3PickerPackageLeading(
-                packageName = action.packageName,
-                contentDescription = action.packageName,
-                selected = false,
+            // 走统一的 leading：分身条目右上角黄点（主实例原样）。
+            Md3PickerAppLeading(
+                com.slideindex.app.data.AppInfo(
+                    packageName = action.packageName,
+                    label = action.packageName,
+                    letter = '#',
+                    pinyinKey = action.packageName,
+                    cloneUserId = action.cloneUserId,
+                ),
             )
         }
         is GestureAction.LaunchShortcut -> {
