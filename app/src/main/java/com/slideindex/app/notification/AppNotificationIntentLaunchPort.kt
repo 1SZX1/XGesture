@@ -36,7 +36,6 @@ class AppNotificationIntentLaunchPort @Inject constructor(
     override fun openInSmallWindow(context: Context, data: NotificationData, settings: AppSettings): Boolean {
         val appContext = context.applicationContext
         if (!settings.freeWindowEnabled) {
-            Log.i(TAG, "small window disabled, open fullscreen pkg=${data.packageName}")
             EdgeDiag.log("小窗阅读", "小窗总开关关闭，按全屏打开 pkg=${data.packageName}")
             return open(context, data)
         }
@@ -46,7 +45,6 @@ class AppNotificationIntentLaunchPort @Inject constructor(
             if (openInSmallWindowByLauncherThenNavigate(appContext, data, settings, mode)) {
                 return true
             }
-            Log.i(TAG, "launcher-first failed, fallback to pending-intent mode=$mode pkg=${data.packageName}")
             EdgeDiag.log("小窗阅读", "先 launch 失败，回退旧链路 mode=$mode pkg=${data.packageName}")
         }
         return openInSmallWindowByPendingIntent(appContext, data, settings, mode)
@@ -70,20 +68,16 @@ class AppNotificationIntentLaunchPort @Inject constructor(
         val contentIntent = findSbn(data)?.notification?.contentIntent ?: data.contentIntent
         val launched = FreeWindowLauncher.launchPackageInFreeWindow(context, data.packageName, settings)
         if (!launched) {
-            Log.i(TAG, "launcher-first: launchPackageInFreeWindow=false mode=$mode pkg=${data.packageName}")
             return false
         }
         if (contentIntent == null) {
-            Log.i(TAG, "launcher-first: no contentIntent, stay on app page mode=$mode pkg=${data.packageName}")
             EdgeDiag.log("小窗阅读", "小窗已开但无 contentIntent，停在应用页 mode=$mode pkg=${data.packageName}")
             return true
         }
 
-        Log.i(TAG, "launcher-first: launch attempted, navigate in ${NAVIGATE_DELAY_MS}ms mode=$mode pkg=${data.packageName}")
         EdgeDiag.log("小窗阅读", "先开小窗（厂商分支可能回落），${NAVIGATE_DELAY_MS}ms 后补发通知点击 mode=$mode pkg=${data.packageName}")
         mainHandler.postDelayed({
             val sent = sendPendingIntent(context, contentIntent)
-            Log.i(TAG, "launcher-first: navigate send=$sent pkg=${data.packageName}")
             EdgeDiag.log("小窗阅读", "补发通知点击 sent=$sent pkg=${data.packageName}")
         }, NAVIGATE_DELAY_MS)
         return true
@@ -95,7 +89,6 @@ class AppNotificationIntentLaunchPort @Inject constructor(
         settings: AppSettings,
         mode: FreeWindowMode,
     ): Boolean {
-        Log.i(TAG, "pending-intent small window mode=$mode pkg=${data.packageName}")
         EdgeDiag.log("小窗阅读", "旧链路：通知点击 + 窗口参数 mode=$mode pkg=${data.packageName}")
         val launchOptions = FreeWindowLauncher.launchOptionsBundle(context, settings)
         findSbn(data)?.let { sbn ->
