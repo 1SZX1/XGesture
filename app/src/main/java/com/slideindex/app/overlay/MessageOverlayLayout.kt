@@ -12,6 +12,14 @@ import kotlin.math.roundToInt
 internal object MessageOverlayLayout {
     const val FLOAT_ICON_EDGE_MARGIN_DP = FloatIconOverlayWindow.EDGE_MARGIN_DP
     const val SIDE_BUBBLE_EDGE_MARGIN_DP = SideBubbleOverlayWindow.EDGE_MARGIN_DP.toFloat()
+
+    /**
+     * 悬浮球为投影预留的四周空间（dp）。
+     *
+     * 投影是自绘在球节点外的（见 [MessageBallShadow]），悬浮窗按内容 WRAP_CONTENT，
+     * 没有这段 padding 时窗口矩形会把投影裁成直边。
+     */
+    const val FLOAT_ICON_SHADOW_PAD_DP = 8f
     fun cNoticeEdgeMarginDp(settings: MessageSettings): Float =
         settings.cNoticeEdgeMarginDp.coerceIn(0f, 32f)
 
@@ -44,6 +52,9 @@ internal object MessageOverlayLayout {
             screenHeightPx = metrics.heightPixels,
             density = metrics.density
         )
+        // 窗口内容 = 球 + 四周投影 padding，窗口左上角要往回退 pad，
+        // 球在屏幕上的位置才和改投影前一致（[floatIconTopLeft] 仍表示球的左上角）。
+        val shadowPadPx = (FLOAT_ICON_SHADOW_PAD_DP * metrics.density).roundToInt()
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -55,8 +66,8 @@ internal object MessageOverlayLayout {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = left
-            y = top
+            x = left - shadowPadPx
+            y = top - shadowPadPx
             layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }

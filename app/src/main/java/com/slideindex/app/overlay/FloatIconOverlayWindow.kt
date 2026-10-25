@@ -2,6 +2,7 @@ package com.slideindex.app.overlay
 
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -25,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalView
@@ -37,7 +37,9 @@ import com.slideindex.app.message.MessageReminderPreviewController
 import com.slideindex.app.message.MessageSettings
 import com.slideindex.app.message.NotificationData
 import com.slideindex.app.message.messageGestureActions
+import com.slideindex.app.overlay.MessageBallShadow.ballShadow
 import com.slideindex.app.ui.theme.OverlayAwareModuleTheme
+import kotlin.math.roundToInt
 
 private data class FloatIconEntry(
     val id: Long,
@@ -287,6 +289,7 @@ object FloatIconOverlayWindow {
         }
 
         placementSettings = settings
+        view.post { installTouchableRegion(view, hostContext) }
         val params = MessageOverlayLayout.buildFloatIconLayoutParams(hostContext, settings)
         val added = runCatching { wm.addView(view, params) }
             .onFailure { Log.e(TAG, "addView failed", it) }
@@ -303,6 +306,20 @@ object FloatIconOverlayWindow {
         owner = dialogOwner
         appContext = hostContext
         screenOffDismissReceiver.register(hostContext)
+    }
+
+    /**
+     * 窗口为了容纳投影比球大一圈，这里只把球所在矩形声明为可触摸区域：
+     * 四周透明部分由系统穿透给下层 app，避免球外多出一圈点不动的死区。
+     */
+    private fun installTouchableRegion(view: View, hostContext: Context) {
+        val density = hostContext.resources.displayMetrics.density
+        val padPx = (MessageOverlayLayout.FLOAT_ICON_SHADOW_PAD_DP * density).roundToInt()
+        OverlayTouchableRegion.install(view) {
+            val current = placementSettings ?: return@install null
+            val ballPx = (current.floatIconSizeDp.coerceIn(32f, 64f) * density).roundToInt()
+            Rect(padPx, padPx, padPx + ballPx, padPx + ballPx)
+        }
     }
 
     private fun scheduleAutoDismiss(entry: FloatIconEntry) {
@@ -449,15 +466,17 @@ private fun FloatIconItem(
 
     if (presence <= 0.001f && !visible) return
 
-    val sizeDp = settings.floatIconSizeDp.coerceIn(32f, 64f).dp
+    val sizeDp = settings.floatIconSizeDp.coerceIn(32f, 64f)
+    val iconSize = sizeDp.dp
+    val shadowPad = MessageOverlayLayout.FLOAT_ICON_SHADOW_PAD_DP.dp
     val slideOffset = if (visible) 0f else 24f
     val view = LocalView.current
+    val contentAlpha = presence * settings.floatIconOpacity.coerceIn(0f, 1f)
 
     var iconModifier = Modifier
         .padding(end = (slideOffset * (1f - presence)).dp)
-        .alpha(presence * settings.floatIconOpacity.coerceIn(0f, 1f))
+        .alpha(contentAlpha)
         .scale(scalePulse)
-        .shadow(6.dp, CircleShape)
         .clip(CircleShape)
         .background(Color.White.copy(alpha = 0.95f))
     if (!isPreview) {
@@ -469,15 +488,24 @@ private fun FloatIconItem(
             onLongPressHaptic = { MessageGestureHaptics.longPress(view) }
         )
     }
+    // 投影自绘在球节点外（见 MessageBallShadow），外层必须留出 shadowPad 的窗口空间，
+    // 否则悬浮窗的矩形边界会把阴影裁成直边。
     Box(
-        modifier = iconModifier
-            .padding(2.dp),
-        contentAlignment = Alignment.Center
+        modifier = Modifier
+            .ballShadow(ballSize = iconSize * scalePulse, alpha = contentAlpha)
+            .padding(shadowPad),
+        contentAlignment = Alignment.TopStart,
     ) {
-        MessageNotificationIcon(
-            iconBitmap = data.largeIcon,
-            appIconBitmap = data.appIcon,
-            sizeDp = sizeDp - 4.dp
-        )
+        Box(
+            modifier = iconModifier
+                .padding(2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            MessageNotificationIcon(
+                iconBitmap = data.largeIcon,
+                appIconBitmap = data.appIcon,
+                sizeDp = iconSize - 4.dp
+            )
+        }
     }
 }

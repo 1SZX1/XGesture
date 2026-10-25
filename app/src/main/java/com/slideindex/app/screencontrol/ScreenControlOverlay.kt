@@ -8,12 +8,14 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.ui.platform.ComposeView
 import com.slideindex.app.R
@@ -23,6 +25,7 @@ import com.slideindex.app.overlay.OverlayCompose
 import com.slideindex.app.overlay.OverlayComposeOwner
 import com.slideindex.app.overlay.OverlayDisplayRotationMonitor
 import com.slideindex.app.overlay.OverlayScreenMetrics
+import com.slideindex.app.overlay.OverlayTouchableRegion
 import com.slideindex.app.overlay.OverlayWindowTypes
 import com.slideindex.app.overlay.ScreenOffDismissReceiver
 import com.slideindex.app.service.SlideIndexAccessibilityGestureInjector
@@ -46,11 +49,20 @@ object ScreenControlOverlay {
     private const val EDGE_MARGIN_DP = 12f
     private const val POINTER_EDGE_PX = 4f
 
+    /**
+     * 窗口在面板四周为投影预留的空间（dp）。
+     *
+     * 面板的投影由 [ScreenControlShadowHost] 自绘（不用 elevation：悬浮窗根视图的
+     * elevation 会被部分 ROM 当成整窗高度，套一层巨大的系统阴影）。
+     */
+    private const val SHADOW_PAD_DP = 8f
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var windowManager: WindowManager? = null
     private var hostContext: Context? = null
     private var panelView: ScreenControlPanelView? = null
+    private var shadowHost: ScreenControlShadowHost? = null
     private var panelParams: WindowManager.LayoutParams? = null
     private var pointerView: ComposeView? = null
     private var pointerOwner: OverlayComposeOwner? = null
@@ -141,9 +153,19 @@ object ScreenControlOverlay {
         }.coerceIn(0, (screenHeight - panelHeightPx).coerceAtLeast(0))
 
         val panel = ScreenControlPanelView(host, panelListener, blurEnabled)
+        val shadowPad = dp(SHADOW_PAD_DP)
+        val shadowHost = ScreenControlShadowHost(host, shadowPad).apply {
+            addView(
+                panel,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
         val params = WindowManager.LayoutParams(
-            panelWidthPx,
-            panelHeightPx,
+            panelWidthPx + shadowPad * 2,
+            panelHeightPx + shadowPad * 2,
             OverlayWindowTypes.contentPanelWindowType(host),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -152,8 +174,8 @@ object ScreenControlOverlay {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = panelX
-            y = panelY
+            x = panelX - shadowPad
+            y = panelY - shadowPad
             alpha = 1f
             layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -161,13 +183,15 @@ object ScreenControlOverlay {
         }
 
         try {
-            wm.addView(panel, params)
+            wm.addView(shadowHost, params)
         } catch (error: Exception) {
             Log.e(TAG, "add panel failed", error)
             return false
         }
         panelView = panel
+        this.shadowHost = shadowHost
         panelParams = params
+        shadowHost.post { installTouchableRegion(shadowHost) }
 
         val pointerState = ScreenControlPointerState()
         pointerX = screenWidth / 2f
@@ -198,8 +222,9 @@ object ScreenControlOverlay {
             wm.addView(pointer, pointerLayout)
         } catch (error: Exception) {
             Log.e(TAG, "add pointer failed", error)
-            wm.removeView(panel)
+            wm.removeView(shadowHost)
             panelView = null
+            this.shadowHost = null
             panelParams = null
             return false
         }
@@ -239,10 +264,11 @@ object ScreenControlOverlay {
                 screenWidth - ballSize - margin
             }.coerceIn(0, (screenWidth - ballSize).coerceAtLeast(0))
             panelY = panelY.coerceIn(0, (screenHeight - ballSize).coerceAtLeast(0))
-            panelParams?.x = panelX
-            panelParams?.y = panelY
+            val shadowPad = dp(SHADOW_PAD_DP)
+            panelParams?.x = panelX - shadowPad
+            panelParams?.y = panelY - shadowPad
             windowManager?.let { wm ->
-                panelView?.let { view -> runCatching { wm.updateViewLayout(view, panelParams) } }
+                shadowHost?.let { view -> runCatching { wm.updateViewLayout(view, panelParams) } }
             }
         } else {
             panelX = panelX.coerceIn(0, (screenWidth - panelW).coerceAtLeast(0))
@@ -324,8 +350,8 @@ object ScreenControlOverlay {
 
         override fun onMovePanel(dx: Float, dy: Float) {
             if (minimized) return
-            val width = panelParams?.width ?: return
-            val height = panelParams?.height ?: return
+            val width = dp(panelWidthDp)
+            val height = dp(panelHeightDp)
             panelX = (panelX + dx.roundToInt()).coerceIn(0, (screenWidth - width).coerceAtLeast(0))
             panelY = (panelY + dy.roundToInt()).coerceIn(0, (screenHeight - height).coerceAtLeast(0))
             updatePanelLayout()
@@ -350,8 +376,9 @@ object ScreenControlOverlay {
             if (newWidth == panelWidthDp && newHeight == panelHeightDp) return
             panelWidthDp = newWidth
             panelHeightDp = newHeight
-            panelParams?.width = dp(newWidth)
-            panelParams?.height = dp(newHeight)
+            val shadowPad = dp(SHADOW_PAD_DP)
+            panelParams?.width = dp(newWidth) + shadowPad * 2
+            panelParams?.height = dp(newHeight) + shadowPad * 2
             panelX = panelX.coerceIn(0, (screenWidth - dp(newWidth)).coerceAtLeast(0))
             panelY = panelY.coerceIn(0, (screenHeight - dp(newHeight)).coerceAtLeast(0))
             updatePanelLayout()
@@ -386,7 +413,7 @@ object ScreenControlOverlay {
     }
 
     private fun dragDismiss(dy: Float) {
-        val view = panelView ?: return
+        val view = shadowHost ?: return
         val params = panelParams ?: return
         val wm = windowManager ?: return
         if (!dismissDragActive) {
@@ -395,13 +422,13 @@ object ScreenControlOverlay {
         }
         val safeDy = dy.coerceAtLeast(0f)
         params.y = dismissDragBaseY - safeDy.roundToInt()
-        params.alpha = (1f - safeDy / (params.height.coerceAtLeast(1) * 1.15f))
+        params.alpha = (1f - safeDy / (dp(panelHeightDp).coerceAtLeast(1) * 1.15f))
             .coerceIn(0f, 1f)
         runCatching { wm.updateViewLayout(view, params) }
     }
 
     private fun settleDismiss(dismiss: Boolean) {
-        val view = panelView ?: return
+        val view = shadowHost ?: return
         val params = panelParams ?: return
         val wm = windowManager ?: return
         val startY = params.y
@@ -532,11 +559,13 @@ object ScreenControlOverlay {
         savedPanelY = panelY
         minimized = true
         panelView?.setMinimized(true)
+        shadowHost?.minimized = true
         pointerView?.visibility = View.GONE
         val ballSize = dp(BALL_SIZE_DP)
+        val shadowPad = dp(SHADOW_PAD_DP)
         val margin = dp(10f)
         val nearTop = panelY < screenHeight / 3
-        val left = if (panelX + params.width / 2 < screenWidth / 2) {
+        val left = if (panelX + dp(panelWidthDp) / 2 < screenWidth / 2) {
             margin
         } else {
             screenWidth - ballSize - margin
@@ -546,15 +575,15 @@ object ScreenControlOverlay {
         } else {
             screenHeight - ballSize - margin
         }
-        params.width = ballSize
-        params.height = ballSize
-        params.x = left
-        params.y = top
+        params.width = ballSize + shadowPad * 2
+        params.height = ballSize + shadowPad * 2
+        params.x = left - shadowPad
+        params.y = top - shadowPad
         panelX = left
         panelY = top
         // 这里不能走 updatePanelLayout()，它会把 x/y 重置回面板位置。
         windowManager?.let { wm ->
-            panelView?.let { view -> runCatching { wm.updateViewLayout(view, params) } }
+            shadowHost?.let { view -> runCatching { wm.updateViewLayout(view, params) } }
         }
     }
 
@@ -562,36 +591,57 @@ object ScreenControlOverlay {
         if (!minimized) return
         minimized = false
         panelView?.setMinimized(false)
-        val width = dp(panelWidthDp)
-        val height = dp(panelHeightDp)
-        panelParams?.width = width
-        panelParams?.height = height
-        panelX = savedPanelX.coerceIn(0, (screenWidth - width).coerceAtLeast(0))
-        panelY = savedPanelY.coerceIn(0, (screenHeight - height).coerceAtLeast(0))
+        shadowHost?.minimized = false
+        val shadowPad = dp(SHADOW_PAD_DP)
+        panelParams?.width = dp(panelWidthDp) + shadowPad * 2
+        panelParams?.height = dp(panelHeightDp) + shadowPad * 2
+        panelX = savedPanelX.coerceIn(0, (screenWidth - dp(panelWidthDp)).coerceAtLeast(0))
+        panelY = savedPanelY.coerceIn(0, (screenHeight - dp(panelHeightDp)).coerceAtLeast(0))
         updatePanelLayout()
         pointerView?.visibility = View.VISIBLE
         ensurePointerOutsidePanel()
     }
 
     private fun updatePanelLayout() {
-        val view = panelView ?: return
+        val view = shadowHost ?: return
         val params = panelParams ?: return
         val wm = windowManager ?: return
-        params.x = panelX
-        params.y = panelY
+        val shadowPad = dp(SHADOW_PAD_DP)
+        params.x = panelX - shadowPad
+        params.y = panelY - shadowPad
         runCatching { wm.updateViewLayout(view, params) }
+    }
+
+    /**
+     * 窗口比面板大一圈（容纳投影），只把面板rect声明为可触摸区域：
+     * 四周透明部分穿透给下层 app，避免面板外多出一圈死区。
+     */
+    private fun installTouchableRegion(host: ScreenControlShadowHost) {
+        OverlayTouchableRegion.install(host) {
+            val shadowPad = dp(SHADOW_PAD_DP)
+            if (minimized) {
+                val ballSize = dp(BALL_SIZE_DP)
+                Rect(shadowPad, shadowPad, shadowPad + ballSize, shadowPad + ballSize)
+            } else {
+                Rect(
+                    shadowPad,
+                    shadowPad,
+                    shadowPad + dp(panelWidthDp),
+                    shadowPad + dp(panelHeightDp),
+                )
+            }
+        }
     }
 
     private fun ensurePointerOutsidePanel() {
         if (minimized) return
-        val params = panelParams ?: return
         val left = panelX.toFloat()
         val top = panelY.toFloat()
-        val right = (panelX + params.width).toFloat()
-        val bottom = (panelY + params.height).toFloat()
+        val right = (panelX + dp(panelWidthDp)).toFloat()
+        val bottom = (panelY + dp(panelHeightDp)).toFloat()
         val inside = pointerX in left..right && pointerY in top..bottom
         if (!inside) return
-        pointerX = if (panelX + params.width / 2 < screenWidth / 2) {
+        pointerX = if (panelX + dp(panelWidthDp) / 2 < screenWidth / 2) {
             (right + dp(20f)).coerceAtMost(screenWidth - POINTER_EDGE_PX)
         } else {
             (left - dp(20f)).coerceAtLeast(POINTER_EDGE_PX)
@@ -603,8 +653,8 @@ object ScreenControlOverlay {
     private fun saveGeometry() {
         val host = hostContext ?: return
         if (minimized) return
-        val width = panelParams?.width ?: return
-        val height = panelParams?.height ?: return
+        val width = dp(panelWidthDp)
+        val height = dp(panelHeightDp)
         val maxX = (screenWidth - width).coerceAtLeast(1)
         val maxY = (screenHeight - height).coerceAtLeast(1)
         ScreenControlPrefs.saveGeometry(
@@ -636,8 +686,9 @@ object ScreenControlOverlay {
         pointerOwner = null
         pointerState?.clearTrail()
         pointerState = null
-        panelView?.let { view -> runCatching { wm?.removeView(view) } }
+        shadowHost?.let { view -> runCatching { wm?.removeView(view) } }
         panelView = null
+        shadowHost = null
         panelParams = null
 
         screenOffReceiver?.unregister()

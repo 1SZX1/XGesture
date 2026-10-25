@@ -104,7 +104,7 @@ internal class ScreenControlPanelView(
         }
         // 不用 elevation 阴影：这是悬浮窗根视图，AOSP 上本来就画不出窗口阴影；
         // 但部分 ROM 会把它当窗口高度，给整个悬浮窗套一层很大的系统阴影（用户反馈“面板下方阴影很大”）。
-        // 面板靠描边 + 磨砂底表达层次，这里显式保持零海拔。
+        // 投影改由外层 [ScreenControlShadowHost] 用画布自绘，这里显式保持零海拔。
         elevation = 0f
 
         content = LinearLayout(context).apply {
@@ -992,6 +992,7 @@ internal class ScreenControlPanelView(
             }
             // 缩小球同样不要 elevation：球体背景是半透明的，阴影会透进球体内部；
             // 个别 ROM/GPU 的阴影内边界还会按粗多边形绘制，球心会出现白色八边形色块。
+            // 球的投影由外层 [ScreenControlShadowHost] 的椭圆自绘负责。
             elevation = 0f
         }
 
