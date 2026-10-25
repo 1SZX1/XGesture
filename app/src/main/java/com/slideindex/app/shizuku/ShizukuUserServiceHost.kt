@@ -26,12 +26,14 @@ object ShizukuUserServiceHost {
     private const val RESTART_DELAY_MS = 300L
 
     /**
-     * Bump when the remote service ABI changes; drives processNameSuffix.
+     * Bump when the remote service code/ABI changes; drives processNameSuffix.
      *
+     * 38：最近任务不再过滤本应用包名（任务切换器需要显示自己）。这是运行在用户服务进程里的
+     *     `TaskExclusions` / reader 逻辑，必须换进程名才能让已安装的新包生效。
      * 37：`getRecentTasks()` 行格式增加第 5 列 userId（分身识别）。
-     * 升号后进程名变成 `task_manager_v37`，安装新包后不必重启手机/Shizuku 也能拿到新代码。
+     * 升号后进程名变成 `task_manager_v38`，安装新包后不必重启手机/Shizuku 也能拿到新代码。
      */
-    const val SERVICE_BUILD = 37
+    const val SERVICE_BUILD = 38
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val bindLock = Any()

@@ -674,7 +674,10 @@ object RingLauncherOverlayWindow {
 
         val autoFillQueue = ArrayDeque<AppInfo>()
         if (appRepository != null) {
-            val cachedRecents = com.slideindex.app.tasks.TaskSwitcherRepository.getCachedEntries().map { it.app }
+            val cachedRecents = com.slideindex.app.tasks.TaskSwitcherRepository.getCachedEntries()
+                .map { it.app }
+                // 任务切换器现在会显示本应用；圆环的「最近应用」自动填充仍然不要把自己塞进去。
+                .filter { it.packageName != context.packageName }
             for (app in cachedRecents) {
                 val pkg = app.packageName
                 if (pkg.isNotBlank() &&

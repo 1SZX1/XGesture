@@ -74,6 +74,8 @@ object TaskSwitcherRepository {
     }
 
     private fun loadEntries(appRepository: AppRepository): List<RecentAppEntry> {
+        // 数据源不再过滤自身包名：任务切换器需要显示 XGesture 自己；
+        // 不需要自身卡片的消费方（如圆环启动器的最近应用）在各自那一层过滤。
         val refs = TaskManagerUtil.refreshRecentTasks()
         val context = TaskManagerUtil.applicationContext()
         val locked = TaskSwitcherLockStore.lockedPackages(context)
