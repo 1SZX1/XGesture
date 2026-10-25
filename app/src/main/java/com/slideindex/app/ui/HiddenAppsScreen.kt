@@ -141,7 +141,7 @@ fun HiddenAppsScreen(
             else -> {
                 items(
                     addableApps.size,
-                    key = { addableApps[it].packageName }
+                    key = { AppTarget.encode(addableApps[it].packageName, addableApps[it].cloneUserId) }
                 ) { index ->
                     val app = addableApps[index]
                     AppPackageListRow(
@@ -151,7 +151,7 @@ fun HiddenAppsScreen(
                         actionIcon = Icons.Default.Add,
                         actionDescription = stringResource(R.string.hidden_apps_hide),
                         missingIcon = Icons.Default.VisibilityOff,
-                        onAction = { onHideApp(app.packageName) }
+                        onAction = { onHideApp(AppTarget.encode(app.packageName, app.cloneUserId)) }
                     )
                 }
             }
