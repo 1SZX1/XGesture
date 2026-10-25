@@ -121,7 +121,7 @@ internal class QuickLauncherRenderer(
                     currentPageIndex = ctrl.quickLauncherPageIndex,
                     pageCount = ctrl.quickLauncherPageCount,
                     pageWidth = panelWidth,
-                    side = host.side()
+                    side = ctrl.quickLauncherLayoutSide()
                 ).forEach { layer ->
                     drawQuickLauncherPageCells(
                         canvas = this,
@@ -369,6 +369,8 @@ internal class QuickLauncherRenderer(
             canvas.translate(translateX, 0f)
         }
         val m = ctrl.quickLauncherColumnsPerPage()
+        // 排版侧（受「右侧面板镜像」开关影响），与面板物理侧分开：只影响格子铺法与翻页方向。
+        val layoutSide = ctrl.quickLauncherLayoutSide()
         val pageSize = ctrl.quickLauncherPageSize().coerceAtLeast(1)
         val pageStart = pageIndex * pageSize
         val fromGlobal = if (recordCells) ctrl.quickLauncherPanelController.dragSourceGlobal() else -1
@@ -419,7 +421,7 @@ internal class QuickLauncherRenderer(
             }
             val col = index % m
             val row = index / m
-            val visualCol = visualColumn(col, m, m, host.side())
+            val visualCol = visualColumn(col, m, m, layoutSide)
             val left = panelRect.left + ctrl.quickLauncherGridPadding + visualCol * ctrl.quickLauncherCellWidth
             val top = panelRect.top + ctrl.quickLauncherHeaderHeight + ctrl.quickLauncherGridPadding +
                 row * ctrl.quickLauncherCellHeight
@@ -553,11 +555,13 @@ internal class QuickLauncherRenderer(
         val dotGap = host.dp(6f)
         val totalWidth = pageCount * dotRadius * 2f + (pageCount - 1) * dotGap
         val cy = rect.bottom - bottomInset
-        var cx = when (host.side()) {
+        // 页码圆点也按排版侧排：镜像时从右往左，不镜像时一律从左往右。
+        val layoutSide = ctrl.quickLauncherLayoutSide()
+        var cx = when (layoutSide) {
             PanelSide.RIGHT -> rect.centerX() + totalWidth / 2f - dotRadius
             else -> rect.centerX() - totalWidth / 2f + dotRadius
         }
-        val step = if (host.side() == PanelSide.RIGHT) {
+        val step = if (layoutSide == PanelSide.RIGHT) {
             -(dotRadius * 2f + dotGap)
         } else {
             dotRadius * 2f + dotGap
@@ -784,7 +788,7 @@ internal class QuickLauncherRenderer(
                     currentPageIndex = folderHandler.pageIndex,
                     pageCount = folderHandler.pageCount,
                     pageWidth = folderWidth,
-                    side = host.side()
+                    side = ctrl.quickLauncherLayoutSide()
                 ).forEach { layer ->
                     drawFolderPageCells(
                         canvas = this,
@@ -830,6 +834,8 @@ internal class QuickLauncherRenderer(
         val pageSize = folderLayout.pageSize.coerceAtLeast(1)
         val pageStart = pageIndex.coerceIn(0, ctrl.folderHandler.pageCount - 1) * pageSize
         val columns = folderLayout.columns
+        // 文件夹内的排版侧与主面板保持一致，否则开关一翻，文件夹里的点选也会跟着错位。
+        val layoutSide = ctrl.quickLauncherLayoutSide()
         val fromGlobal = if (recordCells) ctrl.folderHandler.dragSourceGlobal() else -1
         val toGlobal = if (recordCells) ctrl.folderHandler.dragDestinationGlobal() else -1
         val editDragActive = recordCells &&
@@ -873,7 +879,7 @@ internal class QuickLauncherRenderer(
             }
             val col = localIndex % columns
             val row = localIndex / columns
-            val visualCol = visualColumn(col, columns, columns, host.side())
+            val visualCol = visualColumn(col, columns, columns, layoutSide)
             val cLeft = folderLayout.rect.left + folderLayout.padding + visualCol * folderLayout.cellW
             val cTop = folderLayout.contentStartY + row * folderLayout.cellH
             val cRect = RectF(cLeft, cTop, cLeft + folderLayout.cellW, cTop + folderLayout.cellH)

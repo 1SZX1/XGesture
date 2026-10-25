@@ -1680,6 +1680,8 @@
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
     <string name="quick_launcher_show_toolbar">下部ツールバーを表示</string>
     <string name="quick_launcher_show_toolbar_desc">オフにすると通常使用時に +、−、パネル切り替えを表示しません。パネルの空白を長押しすると編集モードに入れます。</string>
+    <string name="quick_launcher_mirror_on_right_side">右側パネルをミラー表示</string>
+    <string name="quick_launcher_mirror_on_right_side_desc">オンにすると右端から呼び出したパネルは右から左へ並び、左側パネルの鏡像になります。オフにするとどちら側から呼び出しても左から右へ並び、ページ送りも同じ向きになります。</string>
     <string name="quick_launcher_items_section">ショートカット</string>
     <string name="quick_launcher_page_indicator">%1$d / %2$d ページ</string>
     <string name="quick_launcher_page_previous">前のページ</string>

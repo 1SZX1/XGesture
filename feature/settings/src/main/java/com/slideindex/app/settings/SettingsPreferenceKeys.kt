@@ -126,6 +126,12 @@ internal object SettingsPreferenceKeys {
     val QUICK_LAUNCHER_BLUR_RADIUS_DP = intPreferencesKey("quick_launcher_blur_radius_dp")
     /** 快速启动器面板底部操作栏显隐（编辑态强制显示，见 [QuickLauncherDisplaySettings.showToolbar]）。 */
     val QUICK_LAUNCHER_SHOW_TOOLBAR = booleanPreferencesKey("quick_launcher_show_toolbar")
+
+    /**
+     * 右侧面板是否左右镜像（见 [QuickLauncherDisplaySettings.mirrorOnRightSide]）。
+     * 缺省 true：老用户升级后右侧面板维持原来的镜像排版。
+     */
+    val QUICK_LAUNCHER_MIRROR_ON_RIGHT_SIDE = booleanPreferencesKey("quick_launcher_mirror_on_right_side")
     val QUICK_LAUNCHER_LEFT = stringSetPreferencesKey("quick_launcher_left")
     val QUICK_LAUNCHER_RIGHT = stringSetPreferencesKey("quick_launcher_right")
     val HONEYCOMB_LAUNCHER = stringSetPreferencesKey("honeycomb_launcher")

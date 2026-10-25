@@ -2902,6 +2902,8 @@
     <string name="quick_launcher_blur_strength_value">%1$d dp</string>
     <string name="quick_launcher_show_toolbar">Show bottom toolbar</string>
     <string name="quick_launcher_show_toolbar_desc">When off, the +, − and panel-switch buttons stay hidden during normal use. Press and hold a blank spot on the panel to enter edit mode.</string>
+    <string name="quick_launcher_mirror_on_right_side">Mirror layout on right side</string>
+    <string name="quick_launcher_mirror_on_right_side_desc">On: a panel opened from the right edge lays items out from right to left, mirroring the left panel. Off: every panel lays items out from left to right, and page turning follows the same direction.</string>
     <string name="quick_launcher_add">Add shortcut</string>
     <string name="quick_launcher_shell_shortcuts_section">Shell panel shortcuts</string>
     <string name="quick_launcher_shell_shortcuts_empty">Add shortcuts in Extension → Shell command panel first</string>

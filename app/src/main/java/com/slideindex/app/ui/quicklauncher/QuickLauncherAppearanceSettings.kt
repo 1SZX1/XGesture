@@ -33,6 +33,19 @@ fun quickLauncherAppearanceCardItems(
                 )
             },
         )
+        add(
+            settingsCardScopeItem("mirror-right-side") {
+                MiuixSwitchRow(
+                    title = stringResource(R.string.quick_launcher_mirror_on_right_side),
+                    summary = stringResource(R.string.quick_launcher_mirror_on_right_side_desc),
+                    checked = display.mirrorOnRightSide,
+                    enabled = enabled,
+                    onCheckedChange = { checked ->
+                        onDisplayChange(display.copy(mirrorOnRightSide = checked))
+                    },
+                )
+            },
+        )
         val shapes = listOf(
             QuickLauncherDisplaySettings.ICON_SHAPE_DEFAULT,
             QuickLauncherDisplaySettings.ICON_SHAPE_CIRCLE,

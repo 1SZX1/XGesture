@@ -17,6 +17,7 @@ import com.slideindex.app.gesture.SwipePathRecognizer
 import com.slideindex.app.overlay.layout.GridLayoutInfo
 import com.slideindex.app.overlay.layout.OverlayPanelLayoutHost
 import com.slideindex.app.overlay.layout.QuickLauncherPanelLayoutEngine
+import com.slideindex.app.overlay.layout.resolveLayoutSide
 import com.slideindex.app.overlay.layout.visualColumn
 import com.slideindex.app.launcher.QuickLauncherGridLogic
 import com.slideindex.app.launcher.QuickLauncherItem
@@ -1137,12 +1138,24 @@ internal class QuickLauncherOverlayController(
             quickLauncherCellHeight)
             .toInt()
             .coerceIn(0, rows - 1)
-        val colInRow = when (host.side()) {
+        val colInRow = when (quickLauncherLayoutSide()) {
             com.slideindex.app.overlay.PanelSide.RIGHT -> columns - 1 - visualCol
             else -> visualCol
         }
         return (row * columns + colInRow).coerceIn(0, maxSlotIndex)
     }
+
+    /**
+     * 快速启动器内容的「排版侧」。
+     *
+     * 受设置项 `QuickLauncherDisplaySettings.mirrorOnRightSide` 控制：关掉镜像后，右侧面板
+     * 也按 LEFT 的 LTR 语义排版（格子从左往右、翻页往左 == 下一页）。
+     *
+     * ⚠️ 渲染与命中必须**都**走这里。只改其中一边会让「看到的位置」和「点到的格子」错位。
+     * 物理侧（面板落位、进入动画、触钮与面板之间的接近区）**不要**走这里，那些始终看 [Host.side]。
+     */
+    internal fun quickLauncherLayoutSide(): PanelSide =
+        resolveLayoutSide(host.side(), host.settings().quickLauncherDisplay.mirrorOnRightSide)
 
     internal fun quickLauncherPanelRect(): RectF {
         // 钉住空闲：整块矩形已冻结（见 pinnedIdlePanelRect），不再让落位算法重算。

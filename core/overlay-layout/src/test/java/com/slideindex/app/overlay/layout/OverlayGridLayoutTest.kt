@@ -70,4 +70,34 @@ class OverlayGridLayoutTest {
         assertEquals(1, visualColumn(index = 1, m = 3, appCount = 3, side = PanelSide.RIGHT))
         assertEquals(0, visualColumn(index = 2, m = 3, appCount = 3, side = PanelSide.RIGHT))
     }
+
+    @Test
+    fun resolveLayoutSide_mirroringKeepsPhysicalSide() {
+        assertEquals(PanelSide.RIGHT, resolveLayoutSide(PanelSide.RIGHT, mirrorRightSide = true))
+        assertEquals(PanelSide.LEFT, resolveLayoutSide(PanelSide.LEFT, mirrorRightSide = true))
+        assertEquals(PanelSide.TOP, resolveLayoutSide(PanelSide.TOP, mirrorRightSide = true))
+        assertEquals(PanelSide.BOTTOM, resolveLayoutSide(PanelSide.BOTTOM, mirrorRightSide = true))
+    }
+
+    @Test
+    fun resolveLayoutSide_disabledMirrorAlwaysLaysOutLeftToRight() {
+        // 关掉镜像后右侧面板也要按 LTR 排版；渲染与命中都读这个结果，翻页方向自然跟着翻。
+        assertEquals(PanelSide.LEFT, resolveLayoutSide(PanelSide.RIGHT, mirrorRightSide = false))
+        assertEquals(PanelSide.LEFT, resolveLayoutSide(PanelSide.LEFT, mirrorRightSide = false))
+    }
+
+    @Test
+    fun visualColumn_rightPanel_mirrorDisabledMatchesLeftSide() {
+        for (index in 0 until 3) {
+            assertEquals(
+                visualColumn(index = index, m = 3, appCount = 3, side = PanelSide.LEFT),
+                visualColumn(
+                    index = index,
+                    m = 3,
+                    appCount = 3,
+                    side = resolveLayoutSide(PanelSide.RIGHT, mirrorRightSide = false),
+                ),
+            )
+        }
+    }
 }

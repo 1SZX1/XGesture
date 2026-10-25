@@ -15,6 +15,16 @@ data class QuickLauncherDisplaySettings(
      * 但**编辑态本身仍然强制显示**——否则用户在面板内进了编辑态就再也没有「✓」可以退出来。
      */
     val showToolbar: Boolean = true,
+    /**
+     * 右侧面板是否左右**镜像**（默认开，维持历史设计）。
+     *
+     * 开着：右侧呼出时格子从右往左铺、翻页手势也跟着镜像，看起来就是左侧面板的镜像。
+     * 关掉：不管从哪一侧呼出，格子一律从左往右铺，翻页也按从左往右的语义
+     *（往左拖 → 下一页），和设置页预览、以及多数启动器的习惯一致。
+     *
+     * 注意：这里只影响「内容排版」；面板落在屏幕哪一边、从哪边滑出来仍由触发侧决定。
+     */
+    val mirrorOnRightSide: Boolean = true,
 ) {
     companion object {
         const val MIN_BACKGROUND_OPACITY_PERCENT = 0
@@ -74,6 +84,7 @@ data class QuickLauncherDisplaySettings(
                     ?: DEFAULT_BLUR_RADIUS_DP)
                     .coerceIn(MIN_BLUR_RADIUS_DP, MAX_BLUR_RADIUS_DP),
                 showToolbar = prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_SHOW_TOOLBAR] ?: true,
+                mirrorOnRightSide = prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_MIRROR_ON_RIGHT_SIDE] ?: true,
             )
         }
     }

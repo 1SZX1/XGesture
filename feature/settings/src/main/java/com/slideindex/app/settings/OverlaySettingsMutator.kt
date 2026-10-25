@@ -780,6 +780,7 @@ class OverlaySettingsMutator @Inject constructor(
                 QuickLauncherDisplaySettings.MAX_BLUR_RADIUS_DP,
             )
         prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_SHOW_TOOLBAR] = settings.showToolbar
+        prefs[SettingsPreferenceKeys.QUICK_LAUNCHER_MIRROR_ON_RIGHT_SIDE] = settings.mirrorOnRightSide
     }
 
     suspend fun setAppCarouselSwitcherSettings(settings: AppCarouselSwitcherSettings) = editor.edit { prefs ->

@@ -82,7 +82,7 @@ internal class QuickLauncherScrollHandler(
             panelWidth = panelWidth,
             pageIndex = ctrl.quickLauncherPageIndex,
             pageCount = ctrl.quickLauncherPageCount,
-            side = host.side()
+            side = ctrl.quickLauncherLayoutSide()
         )
         if (delta != 0) {
             ctrl.quickLauncherPageIndex += delta
@@ -90,7 +90,7 @@ internal class QuickLauncherScrollHandler(
             ctrl.quickLauncherPageDragOffset += pageCommitOffsetCompensation(
                 delta = delta,
                 pageWidth = panelWidth,
-                side = host.side()
+                side = ctrl.quickLauncherLayoutSide()
             )
             syncPageOffsetForDrag()
         }
@@ -108,7 +108,7 @@ internal class QuickLauncherScrollHandler(
             offset = deltaX,
             pageIndex = ctrl.quickLauncherPageIndex,
             pageCount = ctrl.quickLauncherPageCount,
-            side = host.side(),
+            side = ctrl.quickLauncherLayoutSide(),
             resistance = PAGE_EDGE_RESISTANCE
         )
         ctrl.quickLauncherPageDragOffset = offset.coerceIn(-panelWidth, panelWidth)
@@ -167,7 +167,7 @@ internal class QuickLauncherScrollHandler(
         ctrl.quickLauncherPageDragOffset += pageCommitOffsetCompensation(
             delta = delta,
             pageWidth = panelWidth,
-            side = host.side()
+            side = ctrl.quickLauncherLayoutSide()
         )
         pickResolver.clearHighlight()
         host.hapticTick()
@@ -186,7 +186,7 @@ internal class QuickLauncherScrollHandler(
         computeEdgePageZone(
             touchX = touchX,
             panelRect = panelRect,
-            side = host.side(),
+            side = ctrl.quickLauncherLayoutSide(),
             edgePx = host.dp(EDGE_AUTO_PAGE_THRESHOLD_DP)
         )
 

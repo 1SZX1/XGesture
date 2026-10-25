@@ -45,6 +45,8 @@ class QuickLauncherDisplaySettingsTest {
         assertEquals(16, defaults.blurRadiusDp)
         // 操作栏默认显示：关掉它是显式选择，不能让老用户升级后工具栏凭空消失。
         assertEquals(true, defaults.showToolbar)
+        // 右侧镜像默认开启：维持历史设计，老用户升级后右侧面板不会突然反排。
+        assertEquals(true, defaults.mirrorOnRightSide)
     }
 
     @Test
