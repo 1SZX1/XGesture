@@ -161,7 +161,7 @@ class AppRepository @Inject constructor(
                     app
                 }
             }
-            .filter { it.packageName !in hiddenPackages }
+            .filter { AppTarget.encode(it.packageName, it.cloneUserId) !in hiddenPackages }
             .sortedBy { it.pinyinKey }
     }
 

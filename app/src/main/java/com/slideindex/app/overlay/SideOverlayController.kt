@@ -290,7 +290,7 @@ class SideOverlayController(
         if (view != null) {
             if (enabled && content == LayoutPreviewContent.INDEX_ONLY) {
                 val cached = appRepository.getCachedApps()
-                    .filter { it.packageName !in settings.hiddenAppPackages }
+                    .filter { com.slideindex.app.launcher.AppTarget.encode(it.packageName, it.cloneUserId) !in settings.hiddenAppPackages }
                 if (cached.isNotEmpty()) {
                     view.setApps(cached)
                 }
@@ -307,7 +307,7 @@ class SideOverlayController(
             windowManager.presentationView?.let { presentation ->
                 if (content == LayoutPreviewContent.INDEX_ONLY) {
                     val cached = appRepository.getCachedApps()
-                        .filter { it.packageName !in settings.hiddenAppPackages }
+                        .filter { com.slideindex.app.launcher.AppTarget.encode(it.packageName, it.cloneUserId) !in settings.hiddenAppPackages }
                     if (cached.isNotEmpty()) {
                         presentation.setApps(cached)
                     }
@@ -603,7 +603,7 @@ class SideOverlayController(
         if (windowManager.edgeOverlayDetached || windowManager.overlayLayoutSuspended()) return
         // 可启动列表不含被冻结的应用；把索引里缓存的那部分并回来，避免冻结项被整份刷掉。
         val merged = mergeIndexExtras(apps)
-        val filtered = merged.filter { it.packageName !in settings.hiddenAppPackages }
+        val filtered = merged.filter { com.slideindex.app.launcher.AppTarget.encode(it.packageName, it.cloneUserId) !in settings.hiddenAppPackages }
         windowManager.presentationView?.setApps(filtered)
     }
 
@@ -682,7 +682,7 @@ class SideOverlayController(
     private fun preloadApps(force: Boolean = false) {
         if (!force) {
             val cached = mergeIndexExtras(appRepository.getCachedApps())
-                .filter { it.packageName !in settings.hiddenAppPackages }
+                .filter { com.slideindex.app.launcher.AppTarget.encode(it.packageName, it.cloneUserId) !in settings.hiddenAppPackages }
             if (cached.isNotEmpty()) {
                 windowManager.presentationView?.setApps(cached)
             }

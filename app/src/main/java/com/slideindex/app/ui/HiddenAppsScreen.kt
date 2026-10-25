@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.slideindex.app.R
 import com.slideindex.app.data.AppInfo
+import com.slideindex.app.launcher.AppTarget
 import com.slideindex.app.ui.compose.collectPickerAppsAsState
 import com.slideindex.app.ui.compose.rememberAppRepository
 import com.slideindex.app.ui.settings.components.SettingsCardScope
@@ -39,7 +40,8 @@ fun HiddenAppsScreen(
     titleRes: Int = R.string.hidden_apps_title,
     descriptionRes: Int = R.string.hidden_apps_desc
 ) {
-    val allApps by collectPickerAppsAsState(includeClones = false)
+    // 隐藏列表按目标存（包名\u0002userId），所以这里要能列出分身。
+    val allApps by collectPickerAppsAsState(includeClones = true)
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
@@ -47,17 +49,23 @@ fun HiddenAppsScreen(
         if (allApps.isNotEmpty()) isLoading = false
     }
 
-    val appsByPackage = remember(allApps) { allApps.associateBy { it.packageName } }
+    val appsByTarget = remember(allApps) {
+        allApps.associateBy { AppTarget.encode(it.packageName, it.cloneUserId) }
+    }
+    // 每个隐藏项带自己的目标键：列表里显示干净包名，删除时用键（主实例 = 裸包名，分身带 userId）。
     val hiddenEntries = remember(hiddenPackages, allApps) {
-        hiddenPackages.sorted().map { packageName ->
-            appsByPackage[packageName]?.let { AppPackageEntry.Installed(it) }
-                ?: AppPackageEntry.Missing(packageName)
+        hiddenPackages.sorted().map { key ->
+            val target = AppTarget.parse(key)
+            key to (
+                appsByTarget[key]?.let { AppPackageEntry.Installed(it) }
+                    ?: AppPackageEntry.Missing(target.packageName)
+                )
         }
     }
     val addableApps = remember(allApps, hiddenPackages, searchQuery) {
         val query = searchQuery.trim().lowercase()
         allApps
-            .filter { it.packageName !in hiddenPackages }
+            .filter { AppTarget.encode(it.packageName, it.cloneUserId) !in hiddenPackages }
             .filter { app ->
                 if (query.isEmpty()) return@filter true
                 app.label.lowercase().contains(query) ||
@@ -92,16 +100,17 @@ fun HiddenAppsScreen(
         } else {
             items(
                 hiddenEntries.size,
-                key = { hiddenEntries[it].packageName }
+                key = { hiddenEntries[it].first }
             ) { index ->
+                val (targetKey, entry) = hiddenEntries[index]
                 AppPackageListRow(
-                    entry = hiddenEntries[index],
+                    entry = entry,
                     segmentIndex = index,
                     segmentCount = hiddenEntries.size,
                     actionIcon = Icons.Default.Close,
                     actionDescription = stringResource(R.string.hidden_apps_unhide),
                     missingIcon = Icons.Default.VisibilityOff,
-                    onAction = { onUnhideApp(hiddenEntries[index].packageName) }
+                    onAction = { onUnhideApp(targetKey) }
                 )
             }
         }
