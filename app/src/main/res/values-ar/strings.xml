@@ -1140,7 +1140,12 @@
     <string name="freezer_action_pause">إيقاف مؤقت</string>
     <string name="freezer_action_unpause">إلغاء الإيقاف المؤقت</string>
     <string name="freezer_status_paused">موقوف مؤقتاً</string>
+    <string name="app_clone_package_only">هذا الإعداد خاص بالحزمة: يشترك فيه التطبيق الرئيسي ونسخته</string>
+    <string name="app_clone_package_only_short">حسب الحزمة</string>
     <string name="freezer_pause_failed">فشل الإيقاف المؤقت: %1$s</string>
+    <string name="freezer_pause_clone_need_root">يتطلب إيقاف النسخة مؤقتاً صلاحيات Root (لا يمكن لـ Shizuku وحده تعليق تطبيقات مستخدم آخر)</string>
+    <string name="freezer_unpause_clone_need_root">يتطلب إلغاء الإيقاف المؤقت لهذه النسخة صلاحيات Root (أُوقفت مؤقتاً باستخدام Root؛ بدّل إلى وضع Root)</string>
+    <string name="freezer_clone_pause_needs_root_to_resume">أُوقفت مؤقتاً باستخدام Root: وضع Root فقط يمكنه إلغاء الإيقاف المؤقت لهذه النسخة</string>
     <string name="freezer_unpause_failed">فشل إلغاء الإيقاف المؤقت: %1$s</string>
     <string name="freezer_pause_all">إيقاف الكل مؤقتاً</string>
     <string name="freezer_unpause_all">إلغاء الإيقاف المؤقت للكل</string>
@@ -4167,6 +4172,7 @@
     <string name="update_version_latest">الأحدث %1$s</string>
     <string name="task_switcher_app_info">معلومات التطبيق</string>
     <string name="task_switcher_clone_label">%1$s · نسخة</string>
+    <string name="clone_label_managed_profile">%1$s · ملف تعريف العمل</string>
     <string name="task_switcher_quick_share">مشاركة سريعة</string>
     <string name="toggle_gesture_enabled">الإيماءة مفعلة</string>
     <string name="toggle_gesture_disabled">الإيماءة معطلة</string>

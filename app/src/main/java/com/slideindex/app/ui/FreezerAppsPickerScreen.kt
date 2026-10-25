@@ -18,6 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +63,12 @@ fun FreezerAppsPickerScreen(
     onOpenSettings: () -> Unit
 ) {
     val context = LocalContext.current
+    /**
+     * 资源必须走 LocalResources：`LocalContext.current.getString()` 不会随 Configuration
+     * （语言 / 深色 / 字体缩放）失效，Compose lint 会直接判 ERROR（LocalContextGetResourceValueCall）。
+     * context 仍然保留给状态查询与对话框使用。
+     */
+    val resources = LocalResources.current
     val settings by settingsRepository.settings.collectAsStateWithLifecycle(
         initialValue = settingsRepository.readSnapshot()
     )
@@ -88,7 +95,7 @@ fun FreezerAppsPickerScreen(
     suspend fun loadPickerApps(): List<AppInfo> {
         val base = appRepository.loadFreezerApps(force = true)
         val clones = CloneAppsIndex.enrich(base) { label, kind ->
-            context.getString(CloneAppsIndex.labelRes(kind), label)
+            resources.getString(CloneAppsIndex.labelRes(kind), label)
         }.filter { it.isClone }
         android.util.Log.i("FreezerPicker", "apps base=${base.size} clones=${clones.size}")
         return base + clones

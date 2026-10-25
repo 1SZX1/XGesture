@@ -1157,7 +1157,12 @@
     <string name="freezer_action_pause">一時停止</string>
     <string name="freezer_action_unpause">一時停止を解除</string>
     <string name="freezer_status_paused">一時停止中</string>
+    <string name="app_clone_package_only">この設定はパッケージ単位です。本体アプリとクローンで共有されます</string>
+    <string name="app_clone_package_only_short">パッケージ単位</string>
     <string name="freezer_pause_failed">一時停止に失敗: %1$s</string>
+    <string name="freezer_pause_clone_need_root">クローンの一時停止には Root が必要です（Shizuku だけでは別ユーザーのアプリを停止できません）</string>
+    <string name="freezer_unpause_clone_need_root">このクローンの一時停止解除には Root が必要です（Root で一時停止したため、Root モードに切り替えてください）</string>
+    <string name="freezer_clone_pause_needs_root_to_resume">Root で一時停止中: このクローンの一時停止を解除できるのは Root モードのみです</string>
     <string name="freezer_unpause_failed">一時停止の解除に失敗: %1$s</string>
     <string name="freezer_pause_all">すべて一時停止</string>
     <string name="freezer_unpause_all">すべて一時停止を解除</string>
@@ -4191,6 +4196,7 @@
     <string name="update_version_latest">最新 %1$s</string>
     <string name="task_switcher_app_info">アプリ情報</string>
     <string name="task_switcher_clone_label">%1$s · クローン</string>
+    <string name="clone_label_managed_profile">%1$s · 仕事用プロファイル</string>
     <string name="task_switcher_quick_share">クイック共有</string>
     <string name="toggle_gesture_enabled">ジェスチャーを有効にしました</string>
     <string name="toggle_gesture_disabled">ジェスチャーを無効にしました</string>
