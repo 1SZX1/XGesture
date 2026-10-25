@@ -300,6 +300,7 @@ fun NavEntryBuilder.shakeNavEntries(ctx: MainNavContext) {
         ActivityShortcutPickAppScreen(
             titleResId = R.string.shake_gestures_blacklist_section_add,
             excludePackageNames = shakeSettings.shakeGestureSettings.blacklistedPackages,
+            cloneMode = com.slideindex.app.ui.picker.AppClonePickMode.DISABLED,
             onBack = { ctx.navigateBackTo(AppNavKey.ShakeGestureBlacklist) },
             onSelectApp = { app ->
                 viewModel.addShakeBlacklistedApp(app.packageName)
@@ -383,6 +384,7 @@ fun NavEntryBuilder.shakeNavEntries(ctx: MainNavContext) {
         ActivityShortcutPickAppScreen(
             titleResId = R.string.shake_gestures_per_app_add,
             excludePackageNames = shakeSettings.shakeGestureSettings.perAppActions.keys,
+            cloneMode = com.slideindex.app.ui.picker.AppClonePickMode.DISABLED,
             onBack = { ctx.navigateBackTo(AppNavKey.ShakeIndependentAppSettings) },
             onSelectApp = { app ->
                 viewModel.addPerAppShakeConfig(app.packageName)

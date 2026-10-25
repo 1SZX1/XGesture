@@ -1719,6 +1719,8 @@ fun NavEntryBuilder.homeNavEntries(ctx: MainNavContext) {
         ActivityShortcutPickAppScreen(
             titleResId = R.string.previous_app_blacklist_section_add,
             excludePackageNames = settings.previousAppExcludedPackages,
+            // 上一应用黑名单按包名匹配前台，无法区分分身：显示但不可选。
+            cloneMode = com.slideindex.app.ui.picker.AppClonePickMode.DISABLED,
             onBack = { ctx.navigateBackTo(AppNavKey.HomePreviousAppBlacklist) },
             onSelectApp = { app ->
                 viewModel.addPreviousAppExcludedApp(app.packageName)

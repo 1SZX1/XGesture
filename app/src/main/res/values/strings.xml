@@ -1918,6 +1918,8 @@
     <string name="freezer_action_pause">Pause</string>
     <string name="freezer_action_unpause">Resume</string>
     <string name="freezer_status_paused">Paused</string>
+    <string name="app_clone_package_only">This setting is package-based: the main app and its clone share it</string>
+    <string name="app_clone_package_only_short">package-based</string>
     <string name="freezer_pause_failed">Pause failed: %1$s</string>
     <string name="freezer_pause_clone_need_root">Pausing a clone needs Root (Shizuku alone can\'t suspend apps in another user)</string>
     <string name="freezer_unpause_clone_need_root">Resuming this clone needs Root (it was paused with Root; switch back to Root mode)</string>

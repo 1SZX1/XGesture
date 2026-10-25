@@ -1179,6 +1179,8 @@
     <string name="freezer_action_pause">暂停</string>
     <string name="freezer_action_unpause">取消暂停</string>
     <string name="freezer_status_paused">已暂停</string>
+    <string name="app_clone_package_only">此设置按包名生效：主实例与分身共用</string>
+    <string name="app_clone_package_only_short">按包名生效</string>
     <string name="freezer_pause_failed">暂停失败：%1$s</string>
     <string name="freezer_pause_clone_need_root">分身暂停需要 Root（仅有 Shizuku 时无法挂起其他用户的应用）</string>
     <string name="freezer_unpause_clone_need_root">该分身由 Root 暂停，取消暂停需要切回 Root 模式</string>

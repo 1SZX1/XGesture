@@ -88,6 +88,8 @@ fun NavEntryBuilder.gestureAppProfileNavEntries(ctx: MainNavContext) {
         ActivityShortcutPickAppScreen(
             titleResId = R.string.gesture_app_profiles_add,
             excludePackageNames = profile?.packageNames.orEmpty(),
+            // 按应用分档按包名匹配前台，无法区分分身：显示但不可选。
+            cloneMode = com.slideindex.app.ui.picker.AppClonePickMode.DISABLED,
             onBack = { ctx.navigateBackTo(detailKey) },
             onSelectApp = { app ->
                 val current = globalSettings.gestureProfileById(key.profileId)

@@ -171,6 +171,8 @@ fun ExcludedAppPickScreen(
     ActivityShortcutPickAppScreen(
         titleResId = R.string.excluded_apps_section_add,
         excludePackageNames = excludedPackages,
+        // 按应用禁用按包名匹配前台，无法区分分身：显示但不可选。
+        cloneMode = com.slideindex.app.ui.picker.AppClonePickMode.DISABLED,
         onBack = onBack,
         onSelectApp = { app ->
             pending = PendingExcludeApp(

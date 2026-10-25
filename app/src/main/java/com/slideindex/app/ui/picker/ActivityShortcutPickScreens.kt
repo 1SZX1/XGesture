@@ -58,6 +58,18 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/** 挑应用列表里如何处理应用分身条目。 */
+enum class AppClonePickMode {
+    /** 不显示分身（默认，保持旧行为）。 */
+    HIDDEN,
+
+    /** 显示分身但不可选，并说明「按包名生效」——用于按包名存储的设置页。 */
+    DISABLED,
+
+    /** 显示且可选：调用方能处理 cloneUserId（绑定动作/启动目标）。 */
+    SELECTABLE,
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ActivityShortcutPickAppScreen(
@@ -69,9 +81,10 @@ fun ActivityShortcutPickAppScreen(
     embedInParentChrome: Boolean = false,
     enableBackHandler: Boolean = true,
     showSystemAppsOption: Boolean = true,
+    cloneMode: AppClonePickMode = AppClonePickMode.HIDDEN,
 ) {
     val appRepository = rememberAppRepository()
-    val apps by collectPickerAppsAsState(includeClones = false)
+    val apps by collectPickerAppsAsState(includeClones = cloneMode != AppClonePickMode.HIDDEN)
     val loading = apps.isEmpty()
     var query by remember { mutableStateOf("") }
     // 系统应用默认不显示：打开开关才枚举（仓库内每进程缓存一次），仅会话级，不落设置
@@ -155,6 +168,7 @@ fun ActivityShortcutPickAppScreen(
             onSelectApp = onSelectApp,
             emptyText = emptyAppsText,
             systemAppsLoading = systemAppsLoading,
+            cloneMode = cloneMode,
         )
     }
 }
@@ -237,25 +251,45 @@ private fun LazyListScope.activityPickerAppListBody(
     onSelectApp: (AppInfo) -> Unit,
     emptyText: String,
     systemAppsLoading: Boolean = false,
+    cloneMode: AppClonePickMode = AppClonePickMode.HIDDEN,
 ) {
     when {
         loading -> activityPickerLoadingItem()
         filtered.isEmpty() -> activityPickerEmptyItem(emptyText)
         else -> {
+            if (cloneMode == AppClonePickMode.DISABLED && filtered.any { it.isClone }) {
+                item(key = "clone-package-only-hint") {
+                    Text(
+                        text = stringResource(R.string.app_clone_package_only),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    )
+                }
+            }
             val segmentCount = filtered.size
             itemsIndexed(
                 items = filtered,
-                key = { _, app -> app.packageName },
+                // 主实例与分身同包名：key 必须带 userId，否则 LazyColumn 直接崩。
+                key = { _, app ->
+                    com.slideindex.app.launcher.AppTarget.encode(app.packageName, app.cloneUserId)
+                },
             ) { index, app ->
+                val disabledClone = cloneMode == AppClonePickMode.DISABLED && app.isClone
                 val selected = selectedPackageName != null && app.packageName == selectedPackageName
                 Md3PickerListRow(
                     segmentIndex = index,
                     segmentCount = segmentCount,
                     title = app.label,
-                    subtitle = app.packageName,
+                    subtitle = if (disabledClone) {
+                        app.packageName + " · " + stringResource(R.string.app_clone_package_only_short)
+                    } else {
+                        app.packageName
+                    },
                     selected = selected,
-                    onClick = { onSelectApp(app) },
+                    onClick = if (disabledClone) null else ({ onSelectApp(app) }),
                     leadingContent = { Md3PickerAppLeading(app) },
+                    enabled = !disabledClone,
                     trailingMode = if (selectedPackageName != null) {
                         PickerTrailingMode.Radio
                     } else {
