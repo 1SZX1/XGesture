@@ -41,7 +41,7 @@ object ScreenControlOverlay {
     private const val TAG = "ScreenControl"
     private const val POINTER_SIZE_PX = 120f
     private const val POINTER_HALF_PX = POINTER_SIZE_PX / 2f
-    private const val BALL_SIZE_DP = 48f
+    private const val BALL_SIZE_DP = ScreenControlPanelView.BALL_SIZE_DP
     private const val POINTER_FACTOR = 2.15f
     private const val EDGE_MARGIN_DP = 12f
     private const val POINTER_EDGE_PX = 4f

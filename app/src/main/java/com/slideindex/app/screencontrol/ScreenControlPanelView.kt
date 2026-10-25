@@ -75,6 +75,11 @@ internal class ScreenControlPanelView(
         fun onDismissRelease(dismiss: Boolean)
     }
 
+    companion object {
+        /** 挂起后缩成的圆球直径（dp）：窗口尺寸与球底模糊圆角都从这里取。 */
+        const val BALL_SIZE_DP = 48f
+    }
+
     private val density = resources.displayMetrics.density
     private val themeColors = OverlayPanelTheme.colors(context)
 
@@ -97,7 +102,10 @@ internal class ScreenControlPanelView(
                 }
             }
         }
-        elevation = 16f * density
+        // 不用 elevation 阴影：这是悬浮窗根视图，AOSP 上本来就画不出窗口阴影；
+        // 但部分 ROM 会把它当窗口高度，给整个悬浮窗套一层很大的系统阴影（用户反馈“面板下方阴影很大”）。
+        // 面板靠描边 + 磨砂底表达层次，这里显式保持零海拔。
+        elevation = 0f
 
         content = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -206,10 +214,13 @@ internal class ScreenControlPanelView(
                 return
             }
             background = null
-            val rad = width.coerceAtLeast(1) / 2f
+            // 球直径固定 [BALL_SIZE_DP]，圆角取其一半。这里不能用 width / 2：
+            // setMinimized() 调用本方法时窗口还没缩，width 仍是挂起前的面板宽度，
+            // 交给 BackgroundBlurDrawable 的圆角会远大于球径，部分 ROM 会把模糊区域画歪。
+            val rad = BALL_SIZE_DP / 2f * density
             setupBackgroundBlur(
                 view = this,
-                cornerRadiusPx = if (rad > 0f) rad else 28f * density,
+                cornerRadiusPx = rad,
                 blurRadiusPx = (28f * density).roundToInt(),
                 tintColor = Color.argb(120, 235, 244, 255),
             )
@@ -979,7 +990,9 @@ internal class ScreenControlPanelView(
                     outline.setOval(0, 0, view.width, view.height)
                 }
             }
-            elevation = 8f * density
+            // 缩小球同样不要 elevation：球体背景是半透明的，阴影会透进球体内部；
+            // 个别 ROM/GPU 的阴影内边界还会按粗多边形绘制，球心会出现白色八边形色块。
+            elevation = 0f
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
