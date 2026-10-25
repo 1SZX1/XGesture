@@ -60,7 +60,8 @@ fun GlobalIconLibraryScreen(
 ) {
     val context = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
-    val apps by viewModel.apps.collectAsStateWithLifecycle()
+    // 与其它挑应用页面同源：这里要能列出分身（但图标覆盖按包名存，分身行只展示不可选）。
+    val apps by com.slideindex.app.ui.compose.collectPickerAppsAsState(includeClones = true)
 
     // 只有切到「应用」tab 才去拿应用列表（列表在后台线程取，首帧不再扫全量）。
     LaunchedEffect(tab) {
@@ -133,15 +134,47 @@ fun GlobalIconLibraryScreen(
                     }
                 }
             }
-            items(items = apps, key = { "app-${it.packageName}" }) { app ->
-                GlobalIconRow(
-                    label = app.label,
-                    currentKey = GlobalIconStore.appIcon(context, app.packageName),
-                    iconBitmap = viewModel.icons[app.packageName],
-                    loadIcon = { viewModel.requestIcon(app.packageName) },
-                    onPick = { key -> GlobalIconStore.setAppIcon(context, app.packageName, key) },
-                    resetKey = "global:app:${app.packageName}",
-                )
+            if (apps.any { it.isClone }) {
+                item(key = "global-icon-clone-hint") {
+                    Text(
+                        text = stringResource(R.string.app_clone_package_only),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    )
+                }
+            }
+            items(
+                count = apps.size,
+                key = { index ->
+                    val app = apps[index]
+                    "app-" + com.slideindex.app.launcher.AppTarget.encode(app.packageName, app.cloneUserId)
+                },
+            ) { index ->
+                val app = apps[index]
+                if (app.isClone) {
+                    // 分身：只展示，不给设图标（GlobalIconStore 的键是包名，设了会连主实例一起换）。
+                    Md3PickerListRow(
+                        segmentIndex = index,
+                        segmentCount = apps.size,
+                        title = app.label,
+                        subtitle = app.packageName + " · " + stringResource(R.string.app_clone_package_only_short),
+                        selected = false,
+                        enabled = false,
+                        onClick = null,
+                        leadingContent = { Md3PickerAppLeading(app) },
+                        trailingMode = PickerTrailingMode.None,
+                    )
+                } else {
+                    GlobalIconRow(
+                        label = app.label,
+                        currentKey = GlobalIconStore.appIcon(context, app.packageName),
+                        iconBitmap = viewModel.icons[app.packageName],
+                        loadIcon = { viewModel.requestIcon(app.packageName) },
+                        onPick = { key -> GlobalIconStore.setAppIcon(context, app.packageName, key) },
+                        resetKey = "global:app:${app.packageName}",
+                    )
+                }
             }
         }
     }

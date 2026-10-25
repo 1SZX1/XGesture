@@ -176,33 +176,6 @@ internal fun ActionPickerActionRow(
     )
 }
 
-@Composable
-internal fun ActionPickerAppRow(
-    app: AppInfo,
-    segmentIndex: Int,
-    segmentCount: Int,
-    selected: Boolean,
-    windowMode: LaunchWindowMode,
-    onSelect: (AppInfo) -> Unit,
-    highlightPulse: Float = 0f,
-) {
-    val modeLabel = if (selected && !windowMode.followsGlobalPolicy) {
-        stringResource(launchWindowModeTitleRes(windowMode))
-    } else {
-        null
-    }
-    Md3PickerListRow(
-        segmentIndex = segmentIndex,
-        segmentCount = segmentCount,
-        title = app.label,
-        subtitle = modeLabel ?: app.packageName,
-        selected = selected,
-        highlightPulse = if (selected) highlightPulse else 0f,
-        onClick = { onSelect(app) },
-        leadingContent = { Md3PickerAppLeading(app) },
-        trailingMode = PickerTrailingMode.Radio,
-    )
-}
 
 internal fun launchWindowModeTitleRes(mode: LaunchWindowMode): Int = when (mode) {
     LaunchWindowMode.FOLLOW_GLOBAL -> R.string.launch_window_mode_follow_global

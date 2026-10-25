@@ -51,7 +51,6 @@ import com.slideindex.app.ui.Md3PickerListRow
 import com.slideindex.app.ui.Md3PickerManagedShortcutLeading
 import com.slideindex.app.ui.Md3PickerSectionHeader
 import com.slideindex.app.ui.PickerTrailingMode
-import com.slideindex.app.ui.gesturepicker.ActionPickerAppRow
 import com.slideindex.app.ui.gesturepicker.MacroPickOverlay
 import com.slideindex.app.ui.gesturepicker.actionPickerActionItems
 import com.slideindex.app.ui.gesturepicker.rememberActionPickerFilteredActions
