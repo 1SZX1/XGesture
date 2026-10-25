@@ -27,6 +27,21 @@ object QuickLauncherPanelLayoutEngine {
         headerHeight: Float,
     ): Float = rows * cellHeight + gridPadding * 2 + headerHeight
 
+    /**
+     * 单格行高。
+     *
+     * 显示名称时用 [labeledCellHeight]（格子底部要给标签留位置）；关掉名称后行高收到与
+     * [cellWidth] 一致，让图标的纵向间隙等于横向间隙。
+     *
+     * 不这样做的话：列宽 56dp、行高 64dp、图标 38dp，则左右各空 9dp 而上下各空 13dp，
+     * 关掉名称后整块面板看起来行距明显偏大、还白白多占一截高度。
+     */
+    fun cellHeight(
+        showLabels: Boolean,
+        cellWidth: Float,
+        labeledCellHeight: Float,
+    ): Float = if (showLabels) labeledCellHeight else cellWidth
+
     fun anchoredPanelRect(
         host: OverlayPanelLayoutHost,
         panelWidth: Float,

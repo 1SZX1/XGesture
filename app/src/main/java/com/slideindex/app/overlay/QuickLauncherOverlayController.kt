@@ -397,7 +397,15 @@ internal class QuickLauncherOverlayController(
         host.invalidate()
     }
 
-    internal val quickLauncherCellHeight get() = host.dp(64f)
+    /**
+     * 行高：显示名称时保留 64dp 的标签空间；关掉名称后收到与列宽一致，
+     * 让图标的纵向间隙等于横向间隙（见 [QuickLauncherPanelLayoutEngine.cellHeight]）。
+     */
+    internal val quickLauncherCellHeight get() = QuickLauncherPanelLayoutEngine.cellHeight(
+        showLabels = host.settings().quickLauncherDisplay.showLabels,
+        cellWidth = quickLauncherCellWidth,
+        labeledCellHeight = host.dp(64f),
+    )
     internal val quickLauncherCellWidth get() = host.dp(56f)
     internal val quickLauncherGridPadding get() = host.dp(8f)
     internal val quickLauncherHeaderHeight get() = 0f

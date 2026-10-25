@@ -39,6 +39,33 @@ class QuickLauncherPanelLayoutEngineTest {
     }
 
     @Test
+    fun cellHeight_keepsLabeledHeightWhileLabelsVisible() {
+        assertEquals(
+            64f,
+            QuickLauncherPanelLayoutEngine.cellHeight(
+                showLabels = true,
+                cellWidth = 56f,
+                labeledCellHeight = 64f,
+            ),
+            0.001f,
+        )
+    }
+
+    /** 关掉名称后行高 = 列宽，纵向图标间隙因此与横向相同。 */
+    @Test
+    fun cellHeight_withoutLabels_matchesCellWidth() {
+        assertEquals(
+            56f,
+            QuickLauncherPanelLayoutEngine.cellHeight(
+                showLabels = false,
+                cellWidth = 56f,
+                labeledCellHeight = 64f,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
     fun anchoredPanelRect_placesPanelToRightOfLeftTrigger() {
         val host = fakeHost(
             side = LEFT,
