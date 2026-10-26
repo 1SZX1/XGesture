@@ -241,7 +241,7 @@
     <string name="message_overlay_menu_clear_all">清屏</string>
     <string name="message_style_float_icon">悬浮球</string>
     <string name="message_style_side_bubble">侧边气泡</string>
-    <string name="message_style_danmaku">弹幕消息</string>
+    <string name="message_style_danmaku">弹幕提醒</string>
     <string name="message_style_float_icon_size">大小</string>
     <string name="message_style_float_icon_opacity">悬浮球不透明度</string>
     <string name="message_style_section_float_settings">悬浮球设置</string>
