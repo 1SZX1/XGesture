@@ -17,6 +17,9 @@ import com.slideindex.app.ui.messagestyle.cNoticeSettingsCardItems
 import com.slideindex.app.ui.messagestyle.cNoticeSettingsSection
 import com.slideindex.app.ui.messagestyle.danmakuSettingsCardItems
 import com.slideindex.app.ui.messagestyle.danmakuSettingsSection
+import com.slideindex.app.ui.messagestyle.edgeCardPlacementSection
+import com.slideindex.app.ui.messagestyle.edgeCardSettingsCardItems
+import com.slideindex.app.ui.messagestyle.edgeCardSettingsSection
 import com.slideindex.app.ui.messagestyle.floatIconPlacementSection
 import com.slideindex.app.ui.messagestyle.floatIconSettingsCardItems
 import com.slideindex.app.ui.messagestyle.floatIconSettingsSection
@@ -70,6 +73,13 @@ fun MessageStyleDetailSettingsScreen(
     onCNoticeEdgeMarginPreviewChange: (Float) -> Unit = {},
     onCNoticeEdgeMarginPreviewCommit: () -> Unit = {},
     onCNoticeEdgeMarginChange: (Float) -> Unit = {},
+    onEdgeCardOpacityChange: (Float) -> Unit = {},
+    onEdgeCardAutoCollapseMsChange: (Int) -> Unit = {},
+    onEdgeCardMaxCountChange: (Int) -> Unit = {},
+    onEdgeCardHorizontalEdgeChange: (SideBubbleHorizontalEdge) -> Unit = {},
+    onEdgeCardYFractionPreviewChange: (Float) -> Unit = {},
+    onEdgeCardYFractionPreviewCommit: () -> Unit = {},
+    onEdgeCardYFractionChange: (Float) -> Unit = {},
     onMessagePreviewChange: (MessageSettings) -> Unit = {},
     onMessagePreviewCommit: () -> Unit = {},
 ) {
@@ -79,10 +89,14 @@ fun MessageStyleDetailSettingsScreen(
         MessageStyle.SideBubble -> stringResource(R.string.message_style_side_bubble_desc)
         MessageStyle.Danmaku -> stringResource(R.string.message_style_danmaku_desc)
         MessageStyle.CNotice -> stringResource(R.string.message_style_c_notice_desc)
+        MessageStyle.EdgeCard -> stringResource(R.string.message_style_edge_card_desc)
     }
     val cNoticeSectionTitle = stringResource(R.string.message_style_section_c_notice_settings)
     val cNoticePlacementTitle = stringResource(R.string.message_style_c_notice_position)
     val cNoticePlacementHint = stringResource(R.string.message_style_c_notice_position_hint)
+    val edgeCardSectionTitle = stringResource(R.string.message_style_section_edge_card_settings)
+    val edgeCardPlacementTitle = stringResource(R.string.message_style_edge_card_position)
+    val edgeCardPlacementHint = stringResource(R.string.message_style_edge_card_position_hint)
     val floatIconSectionTitle = stringResource(R.string.message_style_section_float_settings)
     val floatIconPlacementTitle = stringResource(R.string.message_style_float_position)
     val sideThemeSectionTitle = stringResource(R.string.message_style_section_side_theme)
@@ -141,6 +155,15 @@ fun MessageStyleDetailSettingsScreen(
         onDanmakuOpacityChange = onDanmakuOpacityChange,
         onDanmakuMaxLinesChange = onDanmakuMaxLinesChange,
         onDanmakuSpeedLevelChange = onDanmakuSpeedLevelChange,
+    )
+    val edgeCardItems = edgeCardSettingsCardItems(
+        settings = settings,
+        enabled = controlsEnabled,
+        onOpacityChange = onEdgeCardOpacityChange,
+        onAutoCollapseSecondsChange = onEdgeCardAutoCollapseMsChange,
+        onMaxCountChange = onEdgeCardMaxCountChange,
+        onPreviewChange = onMessagePreviewChange,
+        onPreviewCommit = onMessagePreviewCommit,
     )
 
     SettingsScreenScaffold(
@@ -215,6 +238,22 @@ fun MessageStyleDetailSettingsScreen(
                     onEdgeMarginPreviewChange = onCNoticeEdgeMarginPreviewChange,
                     onEdgeMarginPreviewCommit = onCNoticeEdgeMarginPreviewCommit,
                     onEdgeMarginChange = onCNoticeEdgeMarginChange,
+                )
+            }
+            MessageStyle.EdgeCard -> {
+                edgeCardSettingsSection(
+                    items = edgeCardItems,
+                    sectionTitle = edgeCardSectionTitle,
+                )
+                edgeCardPlacementSection(
+                    settings = settings,
+                    enabled = controlsEnabled,
+                    sectionTitle = edgeCardPlacementTitle,
+                    positionHint = edgeCardPlacementHint,
+                    onHorizontalEdgeChange = onEdgeCardHorizontalEdgeChange,
+                    onYFractionPreviewChange = onEdgeCardYFractionPreviewChange,
+                    onYFractionPreviewCommit = onEdgeCardYFractionPreviewCommit,
+                    onYFractionChange = onEdgeCardYFractionChange,
                 )
             }
         }

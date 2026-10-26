@@ -115,9 +115,11 @@ class MessageReminderOrchestrator @Inject constructor(
                 val conversationKey = NotificationData.conversationIdentityKey(data)
                 val allowCNoticeUpdate = plan.showCNotice &&
                     overlayPort.containsCNoticeConversation(conversationKey)
-                if (!allowCNoticeUpdate) return@post
+                val allowEdgeCardUpdate = plan.showEdgeCard &&
+                    overlayPort.containsNotification(MessageStyle.EdgeCard, data)
+                if (!allowCNoticeUpdate && !allowEdgeCardUpdate) return@post
             }
-            if (isAlreadyDisplayed(plan) && !plan.showCNotice) return@post
+            if (isAlreadyDisplayed(plan) && !plan.showCNotice && !plan.showEdgeCard) return@post
             val showDanmaku = acceptedByDedup &&
                 (!plan.showDanmaku || MessageNotificationFilter.acceptDanmaku(data))
             showPlan(context, plan, showDanmaku = showDanmaku)
@@ -279,7 +281,8 @@ class MessageReminderOrchestrator @Inject constructor(
         val overlayStyles = plan.enabledStyles().filter {
             it == MessageStyle.FloatIcon ||
                 it == MessageStyle.SideBubble ||
-                it == MessageStyle.CNotice
+                it == MessageStyle.CNotice ||
+                it == MessageStyle.EdgeCard
         }
         if (overlayStyles.isEmpty()) return false
         return overlayStyles.all { overlayPort.containsNotification(it, plan.data) }

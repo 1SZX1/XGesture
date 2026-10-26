@@ -143,6 +143,31 @@ class MessageSettingsMutator @Inject constructor(
     suspend fun setMessageCNoticeLandscapeEnabled(enabled: Boolean) =
         editor.edit { it[SettingsPreferenceKeys.MESSAGE_C_NOTICE_LANDSCAPE_ENABLED] = enabled }
 
+    suspend fun setMessageEdgeCardEnabled(enabled: Boolean) =
+        editor.edit { it[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_ENABLED] = enabled }
+
+    suspend fun setMessageEdgeCardOpacity(opacity: Float) =
+        editor.edit { it[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_OPACITY] = opacity.coerceIn(0f, 1f) }
+
+    suspend fun setMessageEdgeCardAutoCollapseMs(collapseMs: Int) =
+        editor.edit {
+            it[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_AUTO_COLLAPSE_MS] = collapseMs.coerceIn(0, 30_000)
+        }
+
+    suspend fun setMessageEdgeCardHorizontalEdge(edge: String) =
+        editor.edit { it[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_HORIZONTAL_EDGE] = edge }
+
+    suspend fun setMessageEdgeCardYFraction(fraction: Float) =
+        editor.edit {
+            it[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_Y_FRACTION] =
+                MessagePlacementFractions.coerceY(fraction)
+        }
+
+    suspend fun setMessageEdgeCardMaxCount(count: Int) =
+        editor.edit {
+            it[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_MAX_COUNT] = count.coerceIn(1, 5)
+        }
+
     suspend fun setMessageThemeId(themeId: String) =
         editor.edit { it[SettingsPreferenceKeys.MESSAGE_THEME_ID] = themeId }
 

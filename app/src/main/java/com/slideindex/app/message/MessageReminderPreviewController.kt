@@ -9,6 +9,7 @@ import androidx.core.graphics.createBitmap
 import com.slideindex.app.R
 import com.slideindex.app.message.MessageThemeCatalog
 import com.slideindex.app.overlay.CNoticeOverlayWindow
+import com.slideindex.app.overlay.EdgeCardOverlayWindow
 import com.slideindex.app.overlay.FloatIconOverlayWindow
 import com.slideindex.app.overlay.MessageOverlayHost
 import com.slideindex.app.overlay.SideBubbleOverlayWindow
@@ -42,6 +43,10 @@ object MessageReminderPreviewController {
                 CNoticeOverlayWindow.dismissPreview()
                 CNoticeOverlayWindow.installPreview(context, previewSettings)
             }
+            MessageStyle.EdgeCard -> {
+                EdgeCardOverlayWindow.dismissPreview()
+                EdgeCardOverlayWindow.installPreview(context, previewSettings)
+            }
             else -> Unit
         }
     }
@@ -56,6 +61,8 @@ object MessageReminderPreviewController {
                 SideBubbleOverlayWindow.updateWindowPlacement(context, previewSettings)
             MessageStyle.CNotice ->
                 CNoticeOverlayWindow.updateWindowPlacement(context, previewSettings)
+            MessageStyle.EdgeCard ->
+                EdgeCardOverlayWindow.updateWindowPlacement(context, previewSettings)
             else -> Unit
         }
     }
@@ -76,6 +83,10 @@ object MessageReminderPreviewController {
             MessageStyle.CNotice -> {
                 CNoticeOverlayWindow.updateWindowPlacement(context, previewSettings)
             }
+            MessageStyle.EdgeCard -> {
+                EdgeCardOverlayWindow.updateWindowPlacement(context, previewSettings)
+                EdgeCardOverlayWindow.updatePreviewPlan(plan)
+            }
             else -> Unit
         }
     }
@@ -94,6 +105,7 @@ object MessageReminderPreviewController {
             MessageStyle.FloatIcon -> FloatIconOverlayWindow.dismissPreview()
             MessageStyle.SideBubble -> SideBubbleOverlayWindow.dismissPreview()
             MessageStyle.CNotice -> CNoticeOverlayWindow.dismissPreview()
+            MessageStyle.EdgeCard -> EdgeCardOverlayWindow.dismissPreview()
             else -> Unit
         }
         if (restorePlacement && style != null && baseline != null) {
@@ -113,6 +125,8 @@ object MessageReminderPreviewController {
             floatIconEnabled = style == MessageStyle.FloatIcon,
             sideBubbleEnabled = style == MessageStyle.SideBubble,
             cNoticeEnabled = style == MessageStyle.CNotice,
+            edgeCardEnabled = style == MessageStyle.EdgeCard,
+            edgeCardAutoCollapseMs = 0,
             floatIconAutoDismissSeconds = 0,
             sideBubbleAutoDismissSeconds = 0,
             cNoticeAutoDismissSeconds = 0,
@@ -152,7 +166,8 @@ object MessageReminderPreviewController {
                 null
             },
             danmakuTheme = null,
-            settings = settings
+            settings = settings,
+            showEdgeCard = style == MessageStyle.EdgeCard
         )
     }
 

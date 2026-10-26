@@ -108,10 +108,12 @@ internal object MessagePlanBuilder {
         val showSideBubble = settings.sideBubbleEnabled && !blockStackedStyles
         val showCNotice = settings.cNoticeEnabled &&
             (!isLandscape || settings.cNoticeLandscapeEnabled)
+        val showEdgeCard = settings.edgeCardEnabled &&
+            (!isLandscape || settings.cNoticeLandscapeEnabled)
         val showDanmaku = settings.danmakuEnabled &&
             if (isLandscape) settings.landscapeDanmaku else settings.portraitDanmaku
 
-        if (!showFloatIcon && !showSideBubble && !showDanmaku && !showCNotice) return null
+        if (!showFloatIcon && !showSideBubble && !showDanmaku && !showCNotice && !showEdgeCard) return null
 
         return MessageDisplayPlan(
             data = data,
@@ -130,6 +132,7 @@ internal object MessagePlanBuilder {
                 null
             },
             settings = settings,
+            showEdgeCard = showEdgeCard,
         )
     }
 }

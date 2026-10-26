@@ -28,6 +28,8 @@ fun messageStyleLabel(style: MessageStyle): String = when (style) {
 
     MessageStyle.CNotice -> stringResource(R.string.message_style_c_notice)
 
+    MessageStyle.EdgeCard -> stringResource(R.string.message_style_edge_card)
+
 }
 
 
@@ -65,6 +67,8 @@ fun messageStyleSummary(settings: MessageSettings): String {
         if (settings.danmakuEnabled) add(messageStyleLabel(MessageStyle.Danmaku))
 
         if (settings.cNoticeEnabled) add(messageStyleLabel(MessageStyle.CNotice))
+
+        if (settings.edgeCardEnabled) add(messageStyleLabel(MessageStyle.EdgeCard))
 
     }
 

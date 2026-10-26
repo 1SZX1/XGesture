@@ -9,11 +9,13 @@ data class MessageDisplayPlan(
     val sideTheme: MessageThemeSpec?,
     val danmakuTheme: MessageThemeSpec?,
     val settings: MessageSettings,
+    val showEdgeCard: Boolean = false,
 ) {
     fun enabledStyles(): List<MessageStyle> = buildList {
         if (showFloatIcon) add(MessageStyle.FloatIcon)
         if (showSideBubble) add(MessageStyle.SideBubble)
         if (showDanmaku) add(MessageStyle.Danmaku)
         if (showCNotice) add(MessageStyle.CNotice)
+        if (showEdgeCard) add(MessageStyle.EdgeCard)
     }
 }

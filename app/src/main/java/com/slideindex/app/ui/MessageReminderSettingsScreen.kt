@@ -68,10 +68,12 @@ fun MessageReminderSettingsScreen(
     onSideBubbleEnabledChange: (Boolean) -> Unit,
     onDanmakuEnabledChange: (Boolean) -> Unit,
     onCNoticeEnabledChange: (Boolean) -> Unit,
+    onEdgeCardEnabledChange: (Boolean) -> Unit = {},
     onOpenFloatIconSettings: () -> Unit,
     onOpenSideBubbleSettings: () -> Unit,
     onOpenDanmakuSettings: () -> Unit,
     onOpenCNoticeSettings: () -> Unit,
+    onOpenEdgeCardSettings: () -> Unit = {},
     onHideInLandscapeChange: (Boolean) -> Unit,
     onPortraitDanmakuChange: (Boolean) -> Unit,
     onLandscapeDanmakuChange: (Boolean) -> Unit,
@@ -283,6 +285,25 @@ fun MessageReminderSettingsScreen(
                             enabled = controlsEnabled,
                             onCheckedChange = onCNoticeEnabledChange,
                             onNavigate = onOpenCNoticeSettings,
+                        )
+                    },
+                )
+                add(
+                    settingsCardScopeItem("edge-card") {
+                        SettingSwitchNavigationRow(
+                            title = messageStyleLabel(MessageStyle.EdgeCard),
+                            subtitle = stringResource(R.string.message_style_edge_card_desc),
+                            icon = { label ->
+                                MessageReminderColoredIcon(
+                                    icon = Icons.Outlined.SwipeRight,
+                                    background = Color(0xFF7E57C2),
+                                    contentDescription = label,
+                                )
+                            },
+                            checked = settings.edgeCardEnabled,
+                            enabled = controlsEnabled,
+                            onCheckedChange = onEdgeCardEnabledChange,
+                            onNavigate = onOpenEdgeCardSettings,
                         )
                     },
                 )

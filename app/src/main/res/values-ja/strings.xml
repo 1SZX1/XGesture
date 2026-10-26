@@ -231,7 +231,8 @@
     <string name="message_overlay_menu_close">閉じる</string>
     <string name="message_overlay_menu_clear_all">すべてクリア</string>
     <string name="message_style_float_icon">フロートアイコン</string>
-    <string name="message_style_side_bubble">サイドスタイル</string>
+    <string name="message_style_side_bubble">サイドバブル</string>
+    <string name="message_style_edge_card">エッジカード</string>
     <string name="message_style_danmaku">弾幕</string>
     <string name="message_style_float_icon_size">サイズ</string>
     <string name="message_style_float_icon_opacity">フロートアイコンの不透明度</string>

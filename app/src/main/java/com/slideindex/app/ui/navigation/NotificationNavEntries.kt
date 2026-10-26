@@ -154,6 +154,7 @@ fun NavEntryBuilder.notificationNavEntries(ctx: MainNavContext) {
             onSideBubbleEnabledChange = viewModel::setMessageSideBubbleEnabled,
             onDanmakuEnabledChange = viewModel::setMessageDanmakuEnabled,
             onCNoticeEnabledChange = viewModel::setMessageCNoticeEnabled,
+            onEdgeCardEnabledChange = viewModel::setMessageEdgeCardEnabled,
             onOpenFloatIconSettings = {
                 ctx.navigate(AppNavKey.MessageStyleDetail(MessageStyle.FloatIcon.id))
             },
@@ -165,6 +166,9 @@ fun NavEntryBuilder.notificationNavEntries(ctx: MainNavContext) {
             },
             onOpenCNoticeSettings = {
                 ctx.navigate(AppNavKey.MessageStyleDetail(MessageStyle.CNotice.id))
+            },
+            onOpenEdgeCardSettings = {
+                ctx.navigate(AppNavKey.MessageStyleDetail(MessageStyle.EdgeCard.id))
             },
             onHideInLandscapeChange = viewModel::setMessageHideInLandscape,
             onPortraitDanmakuChange = viewModel::setMessagePortraitDanmaku,
@@ -194,7 +198,8 @@ fun NavEntryBuilder.notificationNavEntries(ctx: MainNavContext) {
                 if (
                     style == MessageStyle.FloatIcon ||
                     style == MessageStyle.SideBubble ||
-                    style == MessageStyle.CNotice
+                    style == MessageStyle.CNotice ||
+                    style == MessageStyle.EdgeCard
                 ) {
                     MessageReminderPreviewController.start(latestContext, style, latestSettings)
                 }
@@ -233,6 +238,9 @@ fun NavEntryBuilder.notificationNavEntries(ctx: MainNavContext) {
             messageSettings.cNoticeDimmedOpacity,
             messageSettings.cNoticeGhostOpacity,
             messageSettings.cNoticeEdgeMarginDp,
+            messageSettings.edgeCardHorizontalEdge,
+            messageSettings.edgeCardYFraction,
+            messageSettings.edgeCardOpacity,
         ) {
             if (!MessageReminderPreviewController.isPreviewActive(style)) return@LaunchedEffect
             MessageReminderPreviewController.updatePreview(context, messageSettings)
@@ -315,6 +323,22 @@ fun NavEntryBuilder.notificationNavEntries(ctx: MainNavContext) {
                 MessageReminderPreviewController.clearPlacementBaseline()
             },
             onCNoticeEdgeMarginChange = viewModel::setMessageCNoticeEdgeMarginDp,
+            onEdgeCardOpacityChange = viewModel::setMessageEdgeCardOpacity,
+            onEdgeCardAutoCollapseMsChange = viewModel::setMessageEdgeCardAutoCollapseMs,
+            onEdgeCardMaxCountChange = viewModel::setMessageEdgeCardMaxCount,
+            onEdgeCardHorizontalEdgeChange = { edge ->
+                viewModel.setMessageEdgeCardHorizontalEdge(edge.id)
+            },
+            onEdgeCardYFractionPreviewChange = { fraction ->
+                MessageReminderPreviewController.previewSettings(
+                    context,
+                    messageSettings.copy(edgeCardYFraction = fraction),
+                )
+            },
+            onEdgeCardYFractionPreviewCommit = {
+                MessageReminderPreviewController.clearPlacementBaseline()
+            },
+            onEdgeCardYFractionChange = viewModel::setMessageEdgeCardYFraction,
             onMessagePreviewChange = { previewSettings ->
                 MessageReminderPreviewController.previewSettings(context, previewSettings)
             },

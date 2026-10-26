@@ -231,7 +231,8 @@
     <string name="message_overlay_menu_close">إغلاق</string>
     <string name="message_overlay_menu_clear_all">مسح الشاشة</string>
     <string name="message_style_float_icon">الكرة العائمة</string>
-    <string name="message_style_side_bubble">نمط الحافة</string>
+    <string name="message_style_side_bubble">فقاعة جانبية</string>
+    <string name="message_style_edge_card">بطاقة الحافة</string>
     <string name="message_style_danmaku">رسائل التعليقات المتحركة</string>
     <string name="message_style_float_icon_size">الحجم</string>
     <string name="message_style_float_icon_opacity">شفافية الكرة العائمة</string>

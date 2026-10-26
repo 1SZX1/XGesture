@@ -1137,6 +1137,15 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setMessageCNoticeLandscapeEnabled(enabled: Boolean) =
         message.setMessageCNoticeLandscapeEnabled(enabled)
+    suspend fun setMessageEdgeCardEnabled(enabled: Boolean) = message.setMessageEdgeCardEnabled(enabled)
+    suspend fun setMessageEdgeCardOpacity(opacity: Float) = message.setMessageEdgeCardOpacity(opacity)
+    suspend fun setMessageEdgeCardAutoCollapseMs(collapseMs: Int) =
+        message.setMessageEdgeCardAutoCollapseMs(collapseMs)
+    suspend fun setMessageEdgeCardHorizontalEdge(edge: String) =
+        message.setMessageEdgeCardHorizontalEdge(edge)
+    suspend fun setMessageEdgeCardYFraction(fraction: Float) =
+        message.setMessageEdgeCardYFraction(fraction)
+    suspend fun setMessageEdgeCardMaxCount(count: Int) = message.setMessageEdgeCardMaxCount(count)
     suspend fun setMessageThemeId(themeId: String) = message.setMessageThemeId(themeId)
     suspend fun setMessageSideThemeId(themeId: String) = message.setMessageSideThemeId(themeId)
     suspend fun setMessageDanmakuThemeId(themeId: String) = message.setMessageDanmakuThemeId(themeId)

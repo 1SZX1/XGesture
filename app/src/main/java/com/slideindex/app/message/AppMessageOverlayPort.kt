@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.slideindex.app.R
 import com.slideindex.app.overlay.CNoticeOverlayWindow
 import com.slideindex.app.overlay.DanmakuOverlayWindow
+import com.slideindex.app.overlay.EdgeCardOverlayWindow
 import com.slideindex.app.overlay.FloatIconOverlayWindow
 import com.slideindex.app.overlay.MessageOverlayHost
 import com.slideindex.app.overlay.OverlayComposeDialogHost
@@ -83,6 +84,7 @@ class AppMessageOverlayPort @Inject constructor(
             MessageStyle.SideBubble -> SideBubbleOverlayWindow.containsNotification(data)
             MessageStyle.FloatIcon -> FloatIconOverlayWindow.containsNotification(data)
             MessageStyle.CNotice -> CNoticeOverlayWindow.containsNotification(data)
+            MessageStyle.EdgeCard -> EdgeCardOverlayWindow.containsNotification(data)
             else -> false
         }
 
@@ -98,6 +100,7 @@ class AppMessageOverlayPort @Inject constructor(
             MessageStyle.SideBubble -> SideBubbleOverlayWindow.dismissEntry(key, postTime)
             MessageStyle.FloatIcon -> FloatIconOverlayWindow.dismissEntry(key, postTime)
             MessageStyle.CNotice -> CNoticeOverlayWindow.dismissEntry(key, postTime)
+            MessageStyle.EdgeCard -> EdgeCardOverlayWindow.dismissEntry(key, postTime)
             else -> Unit
         }
     }
@@ -107,6 +110,7 @@ class AppMessageOverlayPort @Inject constructor(
             MessageStyle.SideBubble -> SideBubbleOverlayWindow.dismissEntriesForKey(key)
             MessageStyle.FloatIcon -> FloatIconOverlayWindow.dismissEntriesForKey(key)
             MessageStyle.CNotice -> CNoticeOverlayWindow.dismissEntriesForKey(key)
+            MessageStyle.EdgeCard -> EdgeCardOverlayWindow.dismissEntriesForKey(key)
             else -> Unit
         }
     }
@@ -128,6 +132,7 @@ class AppMessageOverlayPort @Inject constructor(
             MessageStyle.SideBubble -> SideBubbleOverlayWindow.resumeAutoDismiss(key, postTime)
             MessageStyle.FloatIcon -> FloatIconOverlayWindow.resumeAutoDismiss(key, postTime)
             MessageStyle.CNotice -> CNoticeOverlayWindow.resumeAutoDismiss(key, postTime)
+            MessageStyle.EdgeCard -> EdgeCardOverlayWindow.resumeAutoDismiss(key, postTime)
             else -> Unit
         }
     }
@@ -137,6 +142,7 @@ class AppMessageOverlayPort @Inject constructor(
             MessageStyle.SideBubble -> SideBubbleOverlayWindow.pauseAutoDismiss(key, postTime)
             MessageStyle.FloatIcon -> FloatIconOverlayWindow.pauseAutoDismiss(key, postTime)
             MessageStyle.CNotice -> CNoticeOverlayWindow.pauseAutoDismiss(key, postTime)
+            MessageStyle.EdgeCard -> EdgeCardOverlayWindow.pauseAutoDismiss(key, postTime)
             else -> Unit
         }
     }
@@ -146,10 +152,12 @@ class AppMessageOverlayPort @Inject constructor(
             MessageStyle.SideBubble -> SideBubbleOverlayWindow.dismissImmediate()
             MessageStyle.FloatIcon -> FloatIconOverlayWindow.dismissImmediate()
             MessageStyle.CNotice -> CNoticeOverlayWindow.dismissImmediate()
+            MessageStyle.EdgeCard -> EdgeCardOverlayWindow.dismissImmediate()
             null -> {
                 SideBubbleOverlayWindow.dismissImmediate()
                 FloatIconOverlayWindow.dismissImmediate()
                 CNoticeOverlayWindow.dismissImmediate()
+                EdgeCardOverlayWindow.dismissImmediate()
             }
             else -> Unit
         }
@@ -160,12 +168,14 @@ class AppMessageOverlayPort @Inject constructor(
             addAll(SideBubbleOverlayWindow.snapshotDisplayedKeys())
             addAll(FloatIconOverlayWindow.snapshotDisplayedKeys())
             addAll(CNoticeOverlayWindow.snapshotDisplayedKeys())
+            addAll(EdgeCardOverlayWindow.snapshotDisplayedKeys())
         }
 
     override fun dismissAllReminders() {
         SideBubbleOverlayWindow.dismiss()
         FloatIconOverlayWindow.dismiss()
         CNoticeOverlayWindow.dismiss()
+        EdgeCardOverlayWindow.dismiss()
         DanmakuOverlayWindow.detach()
     }
 
@@ -177,6 +187,7 @@ class AppMessageOverlayPort @Inject constructor(
         SideBubbleOverlayWindow.dismissSameSource(sourceKey)
         FloatIconOverlayWindow.dismissSameSource(sourceKey)
         CNoticeOverlayWindow.dismissSameSource(sourceKey)
+        EdgeCardOverlayWindow.dismissSameSource(sourceKey)
     }
 
     override fun snapshotDisplayedKeysForSource(sourceKey: String): Set<String> =
@@ -184,6 +195,7 @@ class AppMessageOverlayPort @Inject constructor(
             addAll(SideBubbleOverlayWindow.snapshotDisplayedKeysForSource(sourceKey))
             addAll(FloatIconOverlayWindow.snapshotDisplayedKeysForSource(sourceKey))
             addAll(CNoticeOverlayWindow.snapshotDisplayedKeysForSource(sourceKey))
+            addAll(EdgeCardOverlayWindow.snapshotDisplayedKeysForSource(sourceKey))
         }
 
     override fun showPlan(
@@ -227,6 +239,14 @@ class AppMessageOverlayPort @Inject constructor(
                 plan = plan,
                 onAction = onAction,
                 onDismiss = onDismiss
+            )
+        }
+        if (plan.showEdgeCard) {
+            EdgeCardOverlayWindow.show(
+                context = context,
+                plan = plan,
+                onAction = onAction,
+                onDismiss = onDismiss,
             )
         }
         if (plan.showDanmaku) {

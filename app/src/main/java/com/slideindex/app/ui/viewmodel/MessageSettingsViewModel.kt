@@ -171,6 +171,34 @@ class MessageSettingsViewModel @Inject constructor(
         settingsRepository.setMessageCNoticeEdgeMarginDp(marginDp)
     }
 
+    fun setMessageEdgeCardEnabled(enabled: Boolean) = launchSettingsWrite {
+        val result = settingsRepository.setMessageEdgeCardEnabled(enabled)
+        if (result.isSuccess && !enabled) {
+            overlayPort.dismissImmediate(MessageStyle.EdgeCard)
+        }
+        result
+    }
+
+    fun setMessageEdgeCardOpacity(opacity: Float) = launchSettingsWrite {
+        settingsRepository.setMessageEdgeCardOpacity(opacity)
+    }
+
+    fun setMessageEdgeCardAutoCollapseMs(collapseMs: Int) = launchSettingsWrite {
+        settingsRepository.setMessageEdgeCardAutoCollapseMs(collapseMs)
+    }
+
+    fun setMessageEdgeCardHorizontalEdge(edge: String) = launchSettingsWrite {
+        settingsRepository.setMessageEdgeCardHorizontalEdge(edge)
+    }
+
+    fun setMessageEdgeCardYFraction(fraction: Float) = launchSettingsWrite {
+        settingsRepository.setMessageEdgeCardYFraction(fraction)
+    }
+
+    fun setMessageEdgeCardMaxCount(count: Int) = launchSettingsWrite {
+        settingsRepository.setMessageEdgeCardMaxCount(count)
+    }
+
     fun setMessageDanmakuThemeId(themeId: String) = launchSettingsWrite {
         settingsRepository.setMessageDanmakuThemeId(themeId)
     }

@@ -1157,6 +1157,18 @@ internal object SettingsSnapshotReader {
                 ?: base.cNoticePeekBannerEnabled,
             cNoticeLandscapeEnabled = prefs[SettingsPreferenceKeys.MESSAGE_C_NOTICE_LANDSCAPE_ENABLED]
                 ?: base.cNoticeLandscapeEnabled,
+            edgeCardEnabled = prefs[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_ENABLED] ?: false,
+            edgeCardOpacity = prefs[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_OPACITY]
+                ?: base.edgeCardOpacity,
+            edgeCardAutoCollapseMs = prefs[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_AUTO_COLLAPSE_MS]
+                ?: base.edgeCardAutoCollapseMs,
+            edgeCardHorizontalEdge = SideBubbleHorizontalEdge.fromId(
+                prefs[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_HORIZONTAL_EDGE],
+            ),
+            edgeCardYFraction = prefs[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_Y_FRACTION]
+                ?: base.edgeCardYFraction,
+            edgeCardMaxCount = prefs[SettingsPreferenceKeys.MESSAGE_EDGE_CARD_MAX_COUNT]
+                ?: base.edgeCardMaxCount,
             floatIconCorner = MessageOverlayCorner.fromId(
                 prefs[SettingsPreferenceKeys.MESSAGE_FLOAT_ICON_CORNER],
             ),

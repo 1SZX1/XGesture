@@ -236,6 +236,15 @@
     <string name="message_style_c_notice_position_hint">Choose left or right edge and adjust vertical position and margin</string>
     <string name="message_style_c_notice_edge_margin">Edge margin</string>
     <string name="message_style_section_c_notice_settings">Edge notification list settings</string>
+    <string name="message_style_edge_card">Edge card</string>
+    <string name="message_style_edge_card_desc">A single card pinned to the screen edge: translucent with just the avatar, expands for new messages, swipe right to collapse, left to expand, up/down to dismiss</string>
+    <string name="message_style_edge_card_opacity">Collapsed opacity</string>
+    <string name="message_style_edge_card_auto_collapse">Auto-collapse</string>
+    <string name="message_style_edge_card_max_count">Cards shown at once</string>
+    <string name="message_style_edge_card_auto_collapse_off">Never</string>
+    <string name="message_style_edge_card_position">Card position</string>
+    <string name="message_style_edge_card_position_hint">Choose left or right edge, then adjust vertical position</string>
+    <string name="message_style_section_edge_card_settings">Edge card settings</string>
     <string name="message_c_notice_mark_read">Mark as read</string>
     <string name="message_c_notice_open_app">Open app</string>
     <string name="message_c_notice_preview_title">Preview chat %1$d</string>
@@ -265,7 +274,7 @@
     <string name="message_style_side_font_size_normal">Normal</string>
     <string name="message_style_side_font_size_large">Large</string>
     <string name="message_style_float_icon">Float icon</string>
-    <string name="message_style_side_bubble">Side style</string>
+    <string name="message_style_side_bubble">Side bubble</string>
     <string name="message_style_danmaku">Danmaku</string>
     <string name="message_style_float_icon_size">Size</string>
     <string name="message_style_float_icon_opacity">Float icon opacity</string>

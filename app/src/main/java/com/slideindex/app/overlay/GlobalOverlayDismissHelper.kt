@@ -62,6 +62,7 @@ object GlobalOverlayDismissHelper {
             }
         }
         runCatching { CNoticeOverlayWindow.closePanel() }
+        runCatching { EdgeCardOverlayWindow.dismiss() }
         runCatching { MessageReplyOverlayWindow.dismiss() }
         runCatching { ForegroundActivityInspectorOverlayWindow.dismiss() }
         runCatching { VolumePanelOverlayWindow.dismiss() }

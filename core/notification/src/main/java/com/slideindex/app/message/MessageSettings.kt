@@ -86,6 +86,16 @@ data class MessageSettings(
      * 解锁后重新显示并按 [floatIconAutoDismissSeconds] 重新计时。
      */
     val keepFloatIconAfterUnlock: Boolean = false,
+    /** 贴边通知卡：贴在屏幕侧缘的单条卡片，可展开/收起/上下滑消失。 */
+    val edgeCardEnabled: Boolean = false,
+    /** 收起态底板不透明度；文字与角标不跟随降透明。 */
+    val edgeCardOpacity: Float = 0.55f,
+    /** 展开后自动收起的等待时间（毫秒），0 表示不自动收起。 */
+    val edgeCardAutoCollapseMs: Int = 3000,
+    val edgeCardHorizontalEdge: SideBubbleHorizontalEdge = SideBubbleHorizontalEdge.Right,
+    val edgeCardYFraction: Float = 0.5f,
+    /** 同时显示的最大会话卡数量（1..5），超出时移除最久的一张。 */
+    val edgeCardMaxCount: Int = 3,
 ) {
     @Suppress("DEPRECATION")
     val style: MessageStyle get() = MessageStyle.fromId(styleId)
@@ -103,7 +113,7 @@ data class MessageSettings(
         MessageAppFilterMatcher.passes(filterRuleFor(packageName), title, content)
 
     fun hasAnyStyleEnabled(): Boolean =
-        floatIconEnabled || sideBubbleEnabled || danmakuEnabled || cNoticeEnabled
+        floatIconEnabled || sideBubbleEnabled || danmakuEnabled || cNoticeEnabled || edgeCardEnabled
 
     companion object {
         const val C_NOTICE_MAX_RETAINED_CONVERSATIONS = 20

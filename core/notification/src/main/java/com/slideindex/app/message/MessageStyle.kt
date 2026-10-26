@@ -5,6 +5,7 @@ enum class MessageStyle(val id: String) {
     SideBubble("side_bubble"),
     Danmaku("danmaku"),
     CNotice("c_notice"),
+    EdgeCard("edge_card"),
     ;
 
     companion object {
