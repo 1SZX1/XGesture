@@ -308,7 +308,7 @@ object EdgeCardOverlayWindow {
      * 这样左右贴边的位置计算只需一套绝对坐标，避免 END gravity 下 x 含义反转。
      */
     private fun expandedX(entry: EdgeCardEntry): Int {
-        val width = entry.windowWidthPx
+        val width = entry.view?.width?.takeIf { it > 0 } ?: entry.windowWidthPx
         return when (entry.plan.settings.edgeCardHorizontalEdge) {
             SideBubbleHorizontalEdge.Right -> screenWidth() - width
             SideBubbleHorizontalEdge.Left -> 0
@@ -317,7 +317,7 @@ object EdgeCardOverlayWindow {
 
     /** 收起位置：窗口大部分移出屏幕，只露头像那一截。 */
     private fun collapsedX(entry: EdgeCardEntry): Int {
-        val width = entry.windowWidthPx
+        val width = entry.view?.width?.takeIf { it > 0 } ?: entry.windowWidthPx
         return when (entry.plan.settings.edgeCardHorizontalEdge) {
             SideBubbleHorizontalEdge.Right -> screenWidth() - dp(VISIBLE_COLLAPSED_DP)
             SideBubbleHorizontalEdge.Left -> dp(VISIBLE_COLLAPSED_DP) - width
@@ -328,18 +328,8 @@ object EdgeCardOverlayWindow {
         val view = entry.view ?: return
         val params = entry.params ?: return
         bindView(entry)
-        // 未读数跨过 1 时展开宽度要跟着换档（126 ↔ 184dp）；低频事件，触发一次 resize 可以接受。
-        val targetWidth = dp(expandedWidthDp(entry.state))
-        if (targetWidth != entry.windowWidthPx) {
-            entry.windowWidthPx = targetWidth
-            params.width = targetWidth
-            val height = dp(CARD_HEIGHT_DP)
-            view.measure(
-                View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
-            )
-            view.layout(0, 0, targetWidth, height)
-        }
+        // 窗口宽度交给 WRAP_CONTENT + View 的内容测量，这里不再改成固定档位，
+        // 否则会把窗口锁在旧宽度上，卡片右侧露出一条空隙。
         val expanded = entry.state.isExpanded
         val targetX = if (expanded) expandedX(entry) else collapsedX(entry)
         val targetAlpha = if (expanded) 1f else entry.plan.settings.edgeCardOpacity.coerceIn(0f, 1f)
@@ -413,27 +403,48 @@ object EdgeCardOverlayWindow {
 
     private fun ensureWindow(entry: EdgeCardEntry, hostContext: Context) {
         val settings = entry.plan.settings
-        val widthPx = dp(expandedWidthDp(entry.state))
         val heightPx = dp(CARD_HEIGHT_DP)
         val view = EdgeCardView(hostContext).apply {
             exclusionEdge = settings.edgeCardHorizontalEdge
             setOnTouchListener(EdgeCardTouchListener(entry))
         }
-        val measureW = View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY)
-        val measureH = View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY)
-        view.measure(measureW, measureH)
+        // 先绑内容再测量：宽度由文字长度决定（和悬浮菜单一样是内容自适应）。
+        view.bind(entry.plan, entry.state)
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(
+                dp(120f) + dp(52f),
+                View.MeasureSpec.AT_MOST,
+            ),
+            View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
+        )
+        val widthPx = view.measuredWidth.coerceAtLeast(dp(1f))
         view.layout(0, 0, widthPx, heightPx)
 
         entry.view = view
         entry.windowWidthPx = widthPx
+        entry.onWidthChanged = { newWidth ->
+            entry.windowWidthPx = newWidth
+            val params = entry.params
+            if (params != null) {
+                val target = if (entry.state.isExpanded) expandedX(entry) else collapsedX(entry)
+                val running = entry.spring
+                if (running != null) {
+                    running.animateToFinalPosition(target.toFloat())
+                } else {
+                    params.x = target
+                    if (view.isAttachedToWindow) {
+                        runCatching { windowManager?.updateViewLayout(view, params) }
+                    }
+                }
+            }
+        }
         entry.y = computeTops(settings, entries.size)
             .getOrElse(entries.indexOf(entry).coerceAtLeast(0)) { 0 }
 
         val params = WindowManager.LayoutParams(
-            widthPx,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             heightPx,
-            OverlayWindowTypes.overlayWindowType(hostContext),
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            OverlayWindowTypes.overlayWindowType(hostContext),WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -741,6 +752,7 @@ private class EdgeCardEntry(
     var interacting: Boolean = false
     var y: Int = 0
     var windowWidthPx: Int = 0
+    var onWidthChanged: ((Int) -> Unit)? = null
     val createdAt: Long = android.os.SystemClock.uptimeMillis()
 
     fun matches(data: NotificationData): Boolean {
@@ -964,13 +976,35 @@ private class EdgeCardView(context: Context) : ViewGroup(context) {
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val w = MeasureSpec.getSize(widthMeasureSpec)
-        val h = MeasureSpec.getSize(heightMeasureSpec)
-        setMeasuredDimension(w, h)
+        val heightPx = MeasureSpec.getSize(heightMeasureSpec).coerceAtLeast(dp(42))
+        // 宽度按内容算：图标区固定，文字区取标题/正文里较宽的那个，限制在 40..120dp。
+        val maxText = dp(120)
+        val minText = dp(40)
+        val textW = maxOf(
+            measureTextWidth(titleView, maxText),
+            measureTextWidth(contentView, maxText),
+        ).coerceIn(minText, maxText)
+        val totalW = dp(2) + dp(38) + dp(4) + textW + dp(8)
+        // 始终用内容算出的宽度：窗口传 EXACTLY（上一帧宽度）时也不能锁死，
+        // 否则文字变短后卡片缩不回去，右侧会留一片空白。
+        val w = if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.AT_MOST) {
+            minOf(totalW, MeasureSpec.getSize(widthMeasureSpec))
+        } else {
+            totalW
+        }
+        setMeasuredDimension(w, heightPx)
         cardLayer.measure(
             MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(heightPx, MeasureSpec.EXACTLY),
         )
+    }
+
+    private fun measureTextWidth(view: TextView, maxWidth: Int): Int {
+        view.measure(
+            MeasureSpec.makeMeasureSpec(maxWidth, MeasureSpec.AT_MOST),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+        )
+        return view.measuredWidth
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -980,7 +1014,11 @@ private class EdgeCardView(context: Context) : ViewGroup(context) {
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         updateGestureExclusion()
+        if (w != oldw) onWidthChanged?.invoke(w)
     }
+
+    /** 卡片内容宽度变化（文字长短变了）时通知外层重算贴边位置。 */
+    var onWidthChanged: ((Int) -> Unit)? = null
 
     private fun updateGestureExclusion() {
         if (width <= 0 || height <= 0) return
